@@ -17,7 +17,7 @@ BRANCH="${GITHUB_BRANCH:-main}"
 python3 - "$VERSION" "$GITHUB_REPO" "$BRANCH" <<'PY'
 import json, sys
 version, repo, branch = sys.argv[1:4]
-p = "erweiterung/manifest.json"
+p = "extension/manifest.json"
 m = json.load(open(p))
 m["version"] = version
 m["browser_specific_settings"]["gecko"]["update_url"] = f"https://raw.githubusercontent.com/{repo}/{branch}/updates.json"
@@ -27,8 +27,8 @@ PY
 
 XPI=$(./build.sh)
 HASH=$(shasum -a 256 "$XPI" | cut -d' ' -f1)
-ID=$(python3 -c "import json; print(json.load(open('erweiterung/manifest.json'))['browser_specific_settings']['gecko']['id'])")
-MIN=$(python3 -c "import json; print(json.load(open('erweiterung/manifest.json'))['browser_specific_settings']['gecko'].get('strict_min_version','128.0'))")
+ID=$(python3 -c "import json; print(json.load(open('extension/manifest.json'))['browser_specific_settings']['gecko']['id'])")
+MIN=$(python3 -c "import json; print(json.load(open('extension/manifest.json'))['browser_specific_settings']['gecko'].get('strict_min_version','128.0'))")
 
 # updates.json: Thunderbird fragt diese Datei regelmäßig ab (Standard: alle 24 h)
 python3 - "$ID" "$VERSION" "$GITHUB_REPO" "$XPI" "$HASH" "$MIN" <<'PY'

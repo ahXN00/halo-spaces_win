@@ -3305,7 +3305,12 @@ class CardEnhancer {
         // die Kopfzeile über der Liste endet dann vor dem ersten Knopf
         const firstSpacer = content.querySelector(':scope > li[item-id="spacer"]');
         const buttonsStart = firstSpacer ? firstSpacer.getBoundingClientRect().right : paneRight;
-        const listRight = Math.min(paneRight, buttonsStart - 6) - row.getBoundingClientRect().left;
+        const rowLeft = row.getBoundingClientRect().left;
+        // Trennlinie an der echten Kante der Mailliste; reicht der Platz nicht
+        // und die Knöpfe beginnen schon links davon, entfällt sie in der
+        // Toolbar-Zeile (statt versetzt quer durch die Knöpfe zu laufen)
+        const listRight = buttonsStart >= paneRight - 2 ? paneRight - rowLeft : -10;
+        setBarVar(top.document, "--mc-lh-right", `${Math.round(Math.min(paneRight, buttonsStart - 6) - rowLeft)}px`);
         setBarVar(top.document, "--mc-list-right", `${Math.round(listRight)}px`
         );
         // Die Tab-Leiste kann weiter rechts beginnen (z. B. neben der
@@ -3349,6 +3354,7 @@ class CardEnhancer {
       barTarget(top.document).style.removeProperty("--mc-toolbar-offset");
       barTarget(top.document).style.removeProperty("--mc-sidebar-right");
       barTarget(top.document).style.removeProperty("--mc-list-right");
+      barTarget(top.document).style.removeProperty("--mc-lh-right");
     });
   }
 
@@ -3830,12 +3836,39 @@ class CardEnhancer {
   // Ordnerliste wie Apple Mail: oben „Favourites“ mit All Inboxes und All
   // Sent, darunter „On My Mac“ und je Konto alle Ordner – mit einheitlichen
   // Namen, Apple-Reihenfolge und ohne Gmails Zwischenebene „[Gmail]“.
+  // Einmalig wie Apple Mail: „Sammelordner“ (Alle Eingänge, Alle
+  // gesendeten …) oben in der Ordnerliste einschalten. Wer sie danach wieder
+  // abschaltet, behält das so.
+  enableUnifiedOnce(win, tries = 0) {
+    const PREF = "extensions.mailcards.unifiedApplied";
+    if (Services.prefs.getBoolPref(PREF, false)) {
+      return;
+    }
+    const pane = win.folderPane;
+    if (!pane?.isInitialized) {
+      if (tries < 40 && !win.closed) {
+        win.setTimeout(() => this.enableUnifiedOnce(win, tries + 1), 500);
+      }
+      return;
+    }
+    try {
+      const modes = pane.activeModes;
+      if (!modes.includes("smart")) {
+        pane.activeModes = ["smart", ...modes];
+      }
+      Services.prefs.setBoolPref(PREF, true);
+    } catch (e) {
+      log("unified folders error", e);
+    }
+  }
+
   decorateFolders(win) {
     const doc = win.document;
     const tree = doc.getElementById("folderTree");
     if (!tree) {
       return;
     }
+    this.enableUnifiedOnce(win);
     const L = appleLabels();
     const ORDER = FOLDER_ORDER;
     const roleOf = folderRole;

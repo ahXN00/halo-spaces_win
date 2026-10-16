@@ -1,7 +1,7 @@
 .DS_Store
 dist/
 *.xpi
-erweiterung/theme.css
+extension/theme.css
 icons/svg/
 repo.conf
 # Vorschaubilder erst nach Prüfung auf persönliche Daten aufnehmen

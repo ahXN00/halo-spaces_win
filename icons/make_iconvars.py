@@ -8,7 +8,7 @@ Das funktioniert nur für chrome://- und resource://-Adressen, deshalb liegen
 die Dateien in der Erweiterung; sie meldet resource://mailcards/ an und lädt
 icon-vars.css als Benutzer-Stylesheet in alle Fenster.
 
-Aufruf: python3 make_iconvars.py   → schreibt ../erweiterung/icons/*.svg und ../erweiterung/icon-vars.css
+Aufruf: python3 make_iconvars.py   → schreibt ../extension/icons/*.svg und ../extension/icon-vars.css
 """
 
 import math
@@ -18,7 +18,7 @@ import re
 from make_icons import ICONS, STROKE
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-OUT = os.path.join(HERE, "..", "erweiterung")
+OUT = os.path.join(HERE, "..", "extension")
 TB_ICONS_CSS = os.environ.get("TB_ICONS_CSS")  # optional: icons.css aus den Thunderbird-Quellen
 
 F = ' fill="context-fill"'                     # Fläche wie bei Thunderbird (Deckkraft vom Element)

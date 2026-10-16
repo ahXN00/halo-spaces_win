@@ -890,7 +890,9 @@ hr[is="pane-splitter"],
 #unifiedToolbarContent > li[item-id="search-bar"] {
   /* Apple Mail: 333 × 38 px – in jedem Bereich gleich breit; nur wenn das
      Fenster selbst zu schmal ist, wird es kleiner */
-  flex: 0 1 333px !important;
+  /* wird bei Platzmangel zuerst schmaler (bis 160 px) – erst danach rücken
+     die Knöpfe von der Kante der Mailliste ab */
+  flex: 0 50 333px !important;
   max-width: 333px !important;
   min-width: 160px !important;
 }
@@ -1574,7 +1576,7 @@ unified-toolbar {
   top: 0 !important;
   bottom: 1px !important;
   inset-inline-start: var(--mc-lh-start) !important;
-  width: calc(var(--mc-list-right, 0px) - var(--mc-lh-start) - 8px) !important;
+  width: calc(var(--mc-lh-right, var(--mc-list-right, 0px)) - var(--mc-lh-start) - 8px) !important;
   min-width: 0 !important;
   display: flex !important;
   align-items: center !important;

@@ -50,10 +50,10 @@ an halo.cat@icloud.com. Dort gibt es auch „Danke sagen ☕“. Fehler und Wün
 | Ordner/Datei | Inhalt |
 |---|---|
 | `chrome/userChrome.css` | Design (Mail, Menüs, Dialoge) |
-| `chrome/bereiche.css` | Kalender, Aufgaben, Adressbuch, Chat, Einstellungen – wird mit `chrome/merge_bereiche.py` eingefügt |
+| `chrome/spaces.css` | Kalender, Aufgaben, Adressbuch, Chat, Einstellungen – wird mit `chrome/merge_spaces.py` eingefügt |
 | `icons/make_icons.py` | Toolbar- und Ordnersymbole (`--inject` schreibt in userChrome.css) |
 | `icons/make_iconvars.py` | Ersatz für Thunderbirds `--icon-*`-Symbole |
-| `erweiterung/` | die Erweiterung (Manifest, `api/implementation.js`) |
+| `extension/` | die Erweiterung (Manifest, `api/implementation.js`) |
 
 ```bash
 ./build.sh            # → dist/halo-spaces-<version>.xpi (inkl. theme.css)
