@@ -1,0 +1,55 @@
+#!/bin/zsh
+# Bereitet eine neue Version für GitHub vor – veröffentlicht selbst nichts.
+#   ./release.sh 2.11.0
+# Braucht repo.conf mit:  GITHUB_REPO="besitzer/repo"
+# Danach die ausgegebenen Befehle (git push, gh release create) ausführen.
+set -e
+ROOT="${0:A:h}"
+cd "$ROOT"
+VERSION="$1"
+[[ -z "$VERSION" ]] && { echo "Aufruf: ./release.sh <version>  (z. B. 2.11.0)"; exit 1; }
+[[ -f repo.conf ]] || { echo "repo.conf fehlt (GITHUB_REPO=\"besitzer/repo\")"; exit 1; }
+source ./repo.conf
+[[ -z "$GITHUB_REPO" ]] && { echo "GITHUB_REPO in repo.conf fehlt"; exit 1; }
+BRANCH="${GITHUB_BRANCH:-main}"
+
+# Version und Update-Adresse ins Manifest
+python3 - "$VERSION" "$GITHUB_REPO" "$BRANCH" <<'PY'
+import json, sys
+version, repo, branch = sys.argv[1:4]
+p = "erweiterung/manifest.json"
+m = json.load(open(p))
+m["version"] = version
+m["browser_specific_settings"]["gecko"]["update_url"] = f"https://raw.githubusercontent.com/{repo}/{branch}/updates.json"
+json.dump(m, open(p, "w"), indent=2, ensure_ascii=False)
+open(p, "a").write("\n")
+PY
+
+XPI=$(./build.sh)
+HASH=$(shasum -a 256 "$XPI" | cut -d' ' -f1)
+ID=$(python3 -c "import json; print(json.load(open('erweiterung/manifest.json'))['browser_specific_settings']['gecko']['id'])")
+MIN=$(python3 -c "import json; print(json.load(open('erweiterung/manifest.json'))['browser_specific_settings']['gecko'].get('strict_min_version','128.0'))")
+
+# updates.json: Thunderbird fragt diese Datei regelmäßig ab (Standard: alle 24 h)
+python3 - "$ID" "$VERSION" "$GITHUB_REPO" "$XPI" "$HASH" "$MIN" <<'PY'
+import json, sys, os
+aid, version, repo, xpi, sha, minv = sys.argv[1:7]
+path = "updates.json"
+data = json.load(open(path)) if os.path.exists(path) else {"addons": {}}
+updates = data.setdefault("addons", {}).setdefault(aid, {}).setdefault("updates", [])
+updates[:] = [u for u in updates if u.get("version") != version]
+updates.append({
+    "version": version,
+    "update_link": f"https://github.com/{repo}/releases/download/v{version}/{os.path.basename(xpi)}",
+    "update_hash": f"sha256:{sha}",
+    "applications": {"gecko": {"strict_min_version": minv}},
+})
+json.dump(data, open(path, "w"), indent=2)
+open(path, "a").write("\n")
+PY
+
+echo "Fertig: $XPI"
+echo
+echo "Zum Veröffentlichen:"
+echo "  git add -A && git commit -m \"Version $VERSION\" && git push"
+echo "  gh release create v$VERSION \"$XPI\" --repo $GITHUB_REPO --title \"$VERSION\" --notes \"…\""

@@ -1,0 +1,28 @@
+[
+  {
+    "namespace": "mailCards",
+    "functions": [
+      {
+        "name": "start",
+        "type": "function",
+        "async": true,
+        "parameters": [
+          {
+            "name": "options",
+            "type": "object",
+            "properties": {
+              "previewLines": {
+                "type": "integer",
+                "optional": true
+              },
+              "version": {
+                "type": "string",
+                "optional": true
+              }
+            }
+          }
+        ]
+      }
+    ]
+  }
+]

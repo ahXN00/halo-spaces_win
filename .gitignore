@@ -1,0 +1,12 @@
+.DS_Store
+dist/
+*.xpi
+erweiterung/theme.css
+icons/svg/
+repo.conf
+# Vorschaubilder erst nach Prüfung auf persönliche Daten aufnehmen
+vorschau-*.png
+# lokale Arbeitsordner mit echten Screenshots – nicht veröffentlichen
+reddit/
+vorher-nachher/
+vorschau-bereiche-farben.png

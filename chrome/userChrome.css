@@ -1,0 +1,4669 @@
+/*
+ * Halo Spaces – Thunderbird im Stil von Apple Mail (macOS 27)
+ * Für Thunderbird 128 und neuer. Folgt automatisch Hell/Dunkel des Systems
+ * und der Akzentfarbe aus Systemeinstellungen → Erscheinungsbild.
+ *
+ * Voraussetzung: In Thunderbird als Theme „System – automatisch“ wählen.
+ */
+
+/* ---------- Farben & Maße ---------- */
+
+:root {
+  --mt-accent: AccentColor;
+  --mt-accent-text: AccentColorText;
+  --mt-window: #FFFFFF;
+  --mt-sidebar: #F2F2F4;
+  --mt-sidebar-border: rgba(0, 0, 0, 0.06);
+  --mt-text: #1D1D1F;
+  --mt-text-secondary: #6E6E73;
+  --mt-text-tertiary: #8E8E93;
+  --mt-separator: rgba(0, 0, 0, 0.08);
+  --mt-hover: rgba(0, 0, 0, 0.05);
+  --mt-selected-unfocused: rgba(0, 0, 0, 0.08);
+  --mt-control: rgba(0, 0, 0, 0.05);
+  --mt-control-hover: rgba(0, 0, 0, 0.09);
+  --mt-shadow: 0 0 0 0.5px rgba(0, 0, 0, 0.08), 0 2px 10px rgba(0, 0, 0, 0.06);
+  --mt-radius-panel: 18px;
+  --mt-radius-row: 10px;
+  --mt-menu-bg: rgba(246, 246, 248, 0.80);
+  --mt-pane-line: rgba(0, 0, 0, 0.11);
+  --mt-tabbar: #E9E9EB;
+  --mt-tab-selected: #F9F9FA;
+  --mt-font: -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --mt-window: #1E1E1E;
+    --mt-sidebar: #2A2A2C;
+    --mt-sidebar-border: rgba(255, 255, 255, 0.07);
+    --mt-text: #F5F5F7;
+    --mt-text-secondary: #A1A1A6;
+    --mt-text-tertiary: #7C7C80;
+    --mt-separator: rgba(255, 255, 255, 0.08);
+    --mt-hover: rgba(255, 255, 255, 0.06);
+    --mt-selected-unfocused: rgba(255, 255, 255, 0.10);
+    --mt-control: rgba(255, 255, 255, 0.07);
+    --mt-control-hover: rgba(255, 255, 255, 0.12);
+    --mt-shadow: 0 0 0 0.5px rgba(255, 255, 255, 0.08), 0 2px 12px rgba(0, 0, 0, 0.35);
+    --mt-menu-bg: rgba(40, 40, 42, 0.80);
+    --mt-pane-line: rgba(255, 255, 255, 0.10);
+    --mt-tabbar: #262628;
+    --mt-tab-selected: #3A3A3C;
+  }
+}
+
+/* ---------- Fenster, Toolbar, Tabs ---------- */
+
+#messengerWindow,
+#messengerWindow > body,
+#tabpanelcontainer,
+#messengerWindow #navigation-toolbox,
+#unifiedToolbarContainer,
+unified-toolbar,
+#tabs-toolbar,
+#status-bar {
+  background: var(--mt-window) !important;
+  color: var(--mt-text) !important;
+  border-color: transparent !important;
+  font-family: var(--mt-font) !important;
+}
+
+#navigation-toolbox,
+#unifiedToolbarContainer,
+#tabs-toolbar {
+  border-bottom: none !important;
+  box-shadow: none !important;
+}
+
+/* Toolbar-Knöpfe als Kapseln */
+unified-toolbar button,
+.unified-toolbar-button,
+#unifiedToolbarContent button {
+  border: none !important;
+  border-radius: 999px !important;
+  background-color: transparent !important;
+  color: var(--mt-text-secondary) !important;
+  min-height: 28px !important;
+  padding-inline: 10px !important;
+}
+
+unified-toolbar button:hover,
+.unified-toolbar-button:hover,
+#unifiedToolbarContent button:hover {
+  background-color: var(--mt-control-hover) !important;
+  color: var(--mt-text) !important;
+}
+
+/* Suchfeld als Kapsel (Variablen wirken bis ins Shadow-DOM) */
+global-search-bar {
+  --button-border-radius: 999px !important;
+  --search-bar-border-color: transparent !important;
+  --search-bar-background: var(--mt-control) !important;
+  --search-bar-focus-background: var(--mt-window) !important;
+  /* Höhe 38 px wie Apple Mail: 13 px Schrift × 1,2 + 2 × 11 px */
+  --search-padding: 11px !important;
+  font-size: 13px !important;
+}
+
+/* Tab-Leiste komplett ausgeblendet (wie gewünscht). Zurück zur Mail:
+   ⌘W schließt den aktuellen Tab, das Bereiche-Menü oben in der Seitenleiste
+   wechselt zu Mail/Kalender/Einstellungen, Ctrl+Tab blättert durch die Tabs.
+   Zum Wiedereinblenden diese Regel löschen. */
+#tabs-toolbar {
+  display: none !important;
+}
+
+/* Tab-Leiste: eigene, schmale Leiste (30 px) über die volle Breite;
+   kompakte Tabs à 180 px, aktiver Tab hell */
+#tabs-toolbar {
+  background: var(--mt-tabbar) !important;
+  border-top: 1px solid var(--mt-pane-line) !important;
+  border-bottom: 1px solid var(--mt-pane-line) !important;
+  padding: 0 6px !important;
+  height: 30px !important;
+  min-height: 30px !important;
+  max-height: 30px !important;
+  align-items: center !important;
+}
+
+#tabmail-tabs,
+#tabmail-arrowscrollbox {
+  min-height: 0 !important;
+  height: 24px !important;
+  align-items: center !important;
+}
+
+#tabmail-tabs .tabmail-tab {
+  flex: 0 1 180px !important;
+  width: 180px !important;
+  max-width: 180px !important;
+  min-width: 100px !important;
+  height: 22px !important;
+  min-height: 22px !important;
+  margin: 0 2px !important;
+  padding: 0 !important;
+  border: none !important;
+  border-radius: 6px !important;
+  background: transparent !important;
+  color: var(--mt-text-secondary) !important;
+  box-shadow: none !important;
+  font-size: 11px !important;
+}
+
+#tabmail-tabs .tabmail-tab:hover:not([selected]) {
+  background: var(--mt-hover) !important;
+}
+
+#tabmail-tabs .tabmail-tab[selected] {
+  background: var(--mt-tab-selected) !important;
+  color: var(--mt-text) !important;
+  box-shadow: 0 0 0 0.5px var(--mt-pane-line), 0 1px 2px rgba(0, 0, 0, 0.10) !important;
+}
+
+/* feine Trennlinie zwischen zwei nicht aktiven Tabs */
+#tabmail-tabs .tabmail-tab:not([selected]) + .tabmail-tab:not([selected]) .tab-stack {
+  border-inline-start: 1px solid var(--mt-pane-line) !important;
+}
+
+#tabmail-tabs .tab-line,
+#tabmail-tabs .tab-background {
+  display: none !important;
+}
+
+#tabmail-tabs .tab-content {
+  position: relative !important;
+  justify-content: center !important;
+  padding: 0 20px !important;
+}
+
+#tabmail-tabs .tab-icon-image {
+  display: none !important;
+}
+
+#tabmail-tabs .tab-label-container {
+  flex: 0 1 auto !important;
+  justify-content: center !important;
+}
+
+#tabmail-tabs .tab-label {
+  text-align: center !important;
+  margin: 0 !important;
+}
+
+/* Schließen-Kreuz links, nur beim Darüberfahren – wie bei Apple */
+#tabmail-tabs .tab-close-button {
+  position: absolute !important;
+  inset-inline-start: 5px !important;
+  top: 50% !important;
+  transform: translateY(-50%) !important;
+  width: 14px !important;
+  height: 14px !important;
+  padding: 1px !important;
+  border-radius: 3px !important;
+  opacity: 0 !important;
+}
+
+#tabmail-tabs .tabmail-tab:hover .tab-close-button {
+  opacity: 1 !important;
+}
+
+#tabmail-tabs .tab-close-button:hover {
+  background: var(--mt-control-hover) !important;
+}
+
+/* Spaces-Leiste links unauffällig */
+#spacesToolbar {
+  background: var(--mt-sidebar) !important;
+  border-inline-end: none !important;
+}
+
+/* nur in der Mailansicht (Attribut mc-mail setzt die Erweiterung) –
+   in Einstellungen, Kalender usw. bleibt die Zeile neutral */
+:root[mc-mail] #unifiedToolbarContainer {
+  /* Seitenleisten-Grau bis zur Ordnerliste, dann je eine feine Linie an der
+     rechten Kante von Ordnerliste und Mailliste – wie in Apple Mail */
+  background:
+    linear-gradient(
+      to right,
+      transparent 0 var(--mc-list-right, -10px),
+      var(--mt-pane-line) var(--mc-list-right, -10px) calc(var(--mc-list-right, -10px) + 1px),
+      transparent calc(var(--mc-list-right, -10px) + 1px)
+    ),
+    linear-gradient(
+      to right,
+      var(--mt-sidebar) 0 var(--mc-sidebar-right, 0px),
+      var(--mt-sidebar-border) var(--mc-sidebar-right, 0px) calc(var(--mc-sidebar-right, 0px) + 1px),
+      var(--mt-window) calc(var(--mc-sidebar-right, 0px) + 1px)
+    ) !important;
+}
+
+#spacesToolbar .spaces-toolbar-button {
+  border-radius: 10px !important;
+}
+
+#status-bar {
+  border-top: 1px solid var(--mt-separator) !important;
+  color: var(--mt-text-tertiary) !important;
+}
+
+/* ---------- 3-Fenster-Ansicht (about:3pane) ---------- */
+
+#paneLayout,
+body.layout-classic,
+body.layout-vertical,
+body.layout-wide {
+  background: var(--mt-window) !important;
+  font-family: var(--mt-font) !important;
+}
+
+/* Seitenleiste wie Apple Mail: durchgehend grau, bündig am Fensterrand,
+   reicht über die Toolbar-Zeile bis ganz nach oben */
+#folderPane {
+  background: var(--mt-sidebar) !important;
+  margin: 0 !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  border: none !important;
+  border-inline-end: 1px solid var(--mt-sidebar-border) !important;
+  overflow: hidden !important;
+}
+
+#folderPaneHeaderBar,
+#folderTree,
+#folderPane .folder-pane-mode-header,
+#folderTree li > .container {
+  background: transparent !important;
+  border: none !important;
+}
+
+#folderPaneHeaderBar {
+  padding: 8px 10px 4px !important;
+}
+
+/* Ordnerkategorien („Postfächer“, Kontoname) wie die Abschnittstitel in Apple Mail */
+#folderTree > li > .container .name,
+#folderPane .mode-name {
+  font-weight: 600 !important;
+}
+
+#folderPane .mode-name {
+  font-size: 11px !important;
+  color: var(--mt-text-tertiary) !important;
+  text-transform: none !important;
+  letter-spacing: 0 !important;
+}
+
+/* Ordnerzeilen */
+#folderTree li > .container {
+  min-height: 32px !important; /* Apple Mail: 32 px pro Zeile */
+  margin: 0 8px !important;
+  padding-inline-end: 8px !important;
+  border-radius: 6px !important;
+  color: var(--mt-text) !important;
+  font-size: 13px !important;
+}
+
+#folderTree li > .container:hover {
+  background: var(--mt-hover) !important;
+}
+
+#folderTree li.selected > .container {
+  background: var(--mt-selected-unfocused) !important;
+  color: var(--mt-text) !important;
+}
+
+#folderTree:focus-within li.selected > .container {
+  background: color-mix(in srgb, var(--mt-accent) 22%, transparent) !important;
+  color: var(--mt-text) !important;
+}
+
+/* Ordnersymbole einfarbig in der Akzentfarbe, wie in Apple Mail */
+:root {
+  --folder-color-inbox: var(--mt-accent) !important;
+  --folder-color-draft: var(--mt-accent) !important;
+  --folder-color-sent: var(--mt-accent) !important;
+  --folder-color-archive: var(--mt-accent) !important;
+  --folder-color-spam: var(--mt-accent) !important;
+  --folder-color-trash: var(--mt-accent) !important;
+  --folder-color-template: var(--mt-accent) !important;
+  --folder-color-newsletter: var(--mt-accent) !important;
+  --folder-color-rss: var(--mt-accent) !important;
+  --folder-color-outbox: var(--mt-accent) !important;
+  --folder-color-folder: var(--mt-accent) !important;
+  --folder-color-folder-filter: var(--mt-accent) !important;
+  --folder-color-folder-rss: var(--mt-accent) !important;
+}
+
+#folderTree li.unread > .container .name {
+  font-weight: 400 !important;
+}
+
+/* Ausgewählter Ordner: Symbol bleibt grau wie in Apple Mail */
+
+#folderTree .account-indicator {
+  display: none !important;
+}
+
+/* Abschnittstitel wie in Apple Mail („Favoriten“, „Google“, „iCloud“):
+   Ansichtsnamen und Kontozeilen klein, grau, ohne Symbol */
+#folderTree .mode-container {
+  min-height: 22px !important;
+  margin: 10px 8px 2px 18px !important;
+  padding: 0 !important;
+}
+
+#folderTree .mode-name {
+  font-size: 11px !important;
+  font-weight: 600 !important;
+  color: var(--mt-text-tertiary) !important;
+}
+
+#folderTree li[data-server-type] > .container {
+  min-height: 22px !important;
+  margin-top: 10px !important;
+  background: transparent !important;
+}
+
+#folderTree li[data-server-type] > .container .icon {
+  display: none !important;
+}
+
+#folderTree li[data-server-type] > .container .name {
+  font-size: 11px !important;
+  font-weight: 600 !important;
+  color: var(--mt-text-tertiary) !important;
+}
+
+/* ⋯-Knopf neben den Abschnittstiteln („Favourites“) ganz ausgeblendet */
+#folderTree .mode-button {
+  display: none !important;
+}
+
+/* Pfeile nur beim Überfahren der Seitenleiste */
+#folderTree .twisty {
+  opacity: 0 !important;
+  transition: opacity 0.15s !important;
+}
+
+#folderPane:hover #folderTree .twisty {
+  opacity: 1 !important;
+}
+
+/* Ungelesen-Zähler: grau und ohne Hintergrund, wie in Apple Mail */
+#folderTree .unread-count,
+#folderTree .total-count {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  color: var(--mt-text-secondary) !important;
+  font-weight: 400 !important;
+  font-variant-numeric: tabular-nums !important;
+  padding: 0 !important;
+}
+
+/* Senkrechte Linie zwischen Mailliste und geöffneter Mail wie in Apple Mail
+   (nur bei Ansicht „Vertikal“, wo die Mail rechts neben der Liste steht) */
+body.layout-vertical #threadPane {
+  border-inline-end: 1px solid var(--mt-pane-line) !important;
+}
+
+/* Thunderbirds eigene Trennbalken unsichtbar (die Linie oben ersetzt sie) */
+hr[is="pane-splitter"],
+#folderPaneSplitter,
+#messagePaneSplitter {
+  background: transparent !important;
+  border: none !important;
+  --splitter-color: transparent !important;
+}
+
+/* ---------- Mailliste ---------- */
+
+#threadPane,
+#threadTree,
+#threadTree table,
+#threadTree tbody {
+  background: var(--mt-window) !important;
+  border: none !important;
+}
+
+#threadPaneHeaderBar,
+#quickFilterBar {
+  background: var(--mt-window) !important;
+  border: none !important;
+  padding-inline: 12px !important;
+}
+
+#threadPaneFolderName {
+  font-size: 15px !important;
+  font-weight: 700 !important;
+  color: var(--mt-text) !important;
+}
+
+#threadPaneFolderCount {
+  color: var(--mt-text-tertiary) !important;
+}
+
+/* Kein blauer Fokusrahmen um die ganze Liste */
+#threadTree:focus,
+#threadTree:focus-visible,
+#threadTree:focus-within {
+  outline: none !important;
+}
+
+/* Kartenansicht: abgerundete Zeilen mit feiner Trennlinie.
+   Keine Innenabstände ändern – Thunderbird berechnet die Zeilenhöhe selbst. */
+#threadTree tr[is="thread-card"] {
+  background: transparent !important;
+  border: none !important;
+}
+
+#threadTree tr[is="thread-card"] .card-container {
+  background: transparent !important;
+  border: none !important;
+  border-radius: var(--mt-radius-row) !important;
+  margin-inline: 8px !important;
+  box-shadow: inset 0 -0.5px 0 var(--mt-separator) !important;
+}
+
+#threadTree tr[is="thread-card"]:hover .card-container {
+  background: var(--mt-hover) !important;
+}
+
+#threadTree tr[is="thread-card"].selected .card-container,
+#threadTree tr[is="thread-card"][aria-selected="true"] .card-container {
+  background: var(--mt-selected-unfocused) !important;
+  box-shadow: none !important;
+}
+
+/* Fokus in der Liste: Auswahl in Akzentfarbe mit heller Schrift */
+#threadTree:focus-within tr[is="thread-card"].selected .card-container,
+#threadTree:focus-within tr[is="thread-card"][aria-selected="true"] .card-container {
+  background: var(--mt-accent) !important;
+}
+
+#threadTree:focus-within tr[is="thread-card"].selected .card-container *,
+#threadTree:focus-within tr[is="thread-card"][aria-selected="true"] .card-container * {
+  color: var(--mt-accent-text) !important;
+  fill: var(--mt-accent-text) !important;
+}
+
+/* Tabellenansicht: dieselbe Schriftgröße wie in der Kartenansicht
+   (sonst erbt sie Thunderbirds kleinere Grundschrift) */
+#threadTree tr[is="thread-row"],
+#threadTree tr[is="thread-row"] td {
+  font-size: 14px !important;
+}
+
+#threadTree thead th,
+#threadTree thead th button {
+  font-size: 13px !important;
+}
+
+#threadTree thead th {
+  height: 30px !important;
+}
+
+/* Spaltensymbole (Stern, Anhang, Spam, Spaltenauswahl) so groß wie die
+   Symbole in den Zeilen darunter */
+#threadTree thead th img {
+  width: 16px !important;
+  height: 16px !important;
+}
+
+/* Schnellfilter: keine Ein/Aus-Pille vor jedem Knopf – eingeschaltet zeigt
+   wie bei macOS die getönte Fläche in Akzentfarbe */
+#quick-filter-bar .check-button::before {
+  display: none !important;
+}
+
+/* ohne Pille: links und rechts gleich viel Platz um das Symbol */
+#quick-filter-bar .check-button {
+  padding-inline: 8px !important;
+  gap: 0 !important;
+  min-width: 34px !important;
+  flex-shrink: 0 !important;
+  justify-content: center !important;
+  /* Thunderbird setzt das Symbol (Hintergrundbild) fest 12 px vom linken
+     Rand – Platz für die entfernte Pille; jetzt genau mittig */
+  background-position: center !important;
+}
+
+#quick-filter-bar .quickFilterButtons {
+  padding-inline: 4px !important;
+}
+
+#quick-filter-bar #qfb-sticky {
+  border-radius: 999px !important;
+}
+
+#quick-filter-bar .check-button[aria-pressed="true"] {
+  background-color: color-mix(in srgb, var(--mt-accent) 18%, transparent) !important;
+  color: var(--mt-accent) !important;
+}
+
+/* abwechselnde Zeilenfarben und feine Trennlinien, damit sich die Mails
+   leichter unterscheiden lassen (data-mc-odd setzt die Erweiterung) */
+#threadTree tr[is="thread-row"] {
+  box-shadow: inset 0 -1px 0 var(--mt-separator) !important;
+}
+
+#threadTree tr[is="thread-row"][data-mc-odd]:not(.selected, [aria-selected="true"]) {
+  background-color: light-dark(rgba(0, 0, 0, 0.035), rgba(255, 255, 255, 0.045)) !important;
+}
+
+#threadTree tr[is="thread-row"]:not(.selected, [aria-selected="true"]):hover {
+  background-color: var(--mt-control) !important;
+}
+
+/* Typografie in der Karte: Absender fett, Betreff normal, Rest grau */
+#threadTree tr[is="thread-card"] .sender {
+  font-size: 13px !important;
+  font-weight: 600 !important;
+  color: var(--mt-text) !important;
+}
+
+#threadTree tr[is="thread-card"] .subject {
+  font-size: 13px !important;
+  font-weight: 400 !important;
+  color: var(--mt-text) !important;
+}
+
+#threadTree tr[is="thread-card"] .date {
+  font-size: 12px !important;
+  color: var(--mt-text-tertiary) !important;
+}
+
+/* Ungelesen und neu: derselbe blaue Punkt wie in Apple Mail
+   (Thunderbird zeigt bei neuen Mails sonst einen Stern) */
+#threadTree tr:is([data-properties~="unread"], [data-properties~="new"]) .read-status {
+  /* leeres Bild statt Stern/Punkt-Symbol, der Punkt ist die Fläche selbst */
+  content: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10'/%3E") !important;
+  background-color: var(--mt-accent) !important;
+  border-radius: 50% !important;
+  width: 10px !important;
+  height: 10px !important;
+  opacity: 1 !important;
+}
+
+/* Ausgewählte Mail mit Fokus: weißer Punkt auf Blau */
+#threadTree:focus-within tr:is([data-properties~="unread"], [data-properties~="new"]):is(.selected, [aria-selected="true"]) .read-status {
+  background-color: var(--mt-accent-text) !important;
+}
+
+#threadTree tr[is="thread-card"][data-properties~="unread"] .subject {
+  font-weight: 400 !important;
+}
+
+/* Wie Apple Mail: keine farbigen Konto-Balken vor dem Absender */
+#threadTree tr[is="thread-card"] .account-indicator {
+  display: none !important;
+}
+
+/* Stern nur bei markierten Mails, sonst ausgeblendet */
+#threadTree tr[is="thread-card"]:not([data-properties~="flagged"]) .tree-button-flag {
+  visibility: hidden !important;
+}
+
+/* ⋮-Menü nur beim Überfahren mit der Maus */
+#threadTree tr[is="thread-card"] .tree-button-more {
+  opacity: 0 !important;
+}
+
+#threadTree tr[is="thread-card"]:hover .tree-button-more {
+  opacity: 1 !important;
+}
+
+/* Klassische Tabellenansicht (falls verwendet) */
+#threadTree tr:not([is="thread-card"]).selected,
+#threadTree tr:not([is="thread-card"])[aria-selected="true"] {
+  background: var(--mt-selected-unfocused) !important;
+}
+
+#threadTree:focus-within tr:not([is="thread-card"]).selected,
+#threadTree:focus-within tr:not([is="thread-card"])[aria-selected="true"] {
+  background: var(--mt-accent) !important;
+  color: var(--mt-accent-text) !important;
+}
+
+#threadTree thead th,
+#threadTree .tree-table-header {
+  background: var(--mt-window) !important;
+  border: none !important;
+  color: var(--mt-text-tertiary) !important;
+}
+
+/* ---------- Nachrichtenansicht (about:message) ---------- */
+
+#messagePane,
+#messageBrowser,
+#multiMessageBrowser {
+  background: var(--mt-window) !important;
+  border: none !important;
+}
+
+#messageHeader {
+  background: var(--mt-window) !important;
+  border: none !important;
+  border-bottom: 1px solid var(--mt-separator) !important;
+  padding: 14px 20px 12px !important;
+  font-family: var(--mt-font) !important;
+}
+
+#messageHeader .message-header-recipient,
+#messageHeader .header-recipient {
+  border-radius: 999px !important;
+}
+
+#expandedsubjectBox,
+#expandedsubjectBox .header-value {
+  font-size: 13px !important;
+  font-weight: 400 !important;
+  color: var(--mt-text) !important;
+}
+
+/* Rundes Absenderbild, z. B. von „Auto Profile Picture“ */
+#messageHeader .recipient-avatar,
+#messageHeader img.avatar {
+  border-radius: 50% !important;
+}
+
+/* ---------- Toolbars & Symbole wie Apple Mail ---------- */
+
+/* Alle Symbolknöpfe: grau, rund, ohne Beschriftung */
+#folderPaneHeaderBar button,
+#threadPaneHeaderBar button,
+#header-view-toolbar toolbarbutton,
+#header-view-toolbar toolbaritem toolbarbutton,
+#button-appmenu {
+  color: var(--mt-text-secondary) !important;
+}
+
+/* Linke Spalte oben: „Neue Nachricht“ als schlichtes Verfassen-Symbol */
+#folderPaneHeaderBar {
+  justify-content: flex-end !important;
+  gap: 2px !important;
+  padding: 8px 10px 0 !important;
+}
+
+#folderPaneHeaderBar button {
+  min-width: 30px !important;
+  min-height: 30px !important;
+  border-radius: 999px !important;
+  border: none !important;
+  background-color: transparent !important;
+  box-shadow: none !important;
+}
+
+#folderPaneHeaderBar button:hover {
+  background-color: var(--mt-control-hover) !important;
+}
+
+#folderPaneWriteMessage {
+  font-size: 0 !important;
+  padding-inline: 7px !important;
+  order: 2 !important;
+}
+
+#folderPaneGetMessages { order: 1 !important; }
+#folderPaneMoreButton { order: 3 !important; }
+
+/* Kopf der Mailliste: Ordnername klein und fett, Anzahl grau darunter */
+#threadPaneHeaderBar {
+  min-height: 52px !important;
+}
+
+#threadPaneHeaderBar .list-header-bar-container-start {
+  flex-direction: column !important;
+  align-items: flex-start !important;
+  gap: 0 !important;
+}
+
+#threadPaneFolderName {
+  font-size: 13px !important;
+  font-weight: 700 !important;
+  margin: 0 !important;
+}
+
+#threadPaneFolderCountContainer,
+#threadPaneFolderCount {
+  font-size: 11px !important;
+  margin: 0 !important;
+  color: var(--mt-text-tertiary) !important;
+}
+
+/* Schnellfilter und Ansicht als runde Symbolknöpfe */
+#threadPaneQuickFilterButton > span,
+#threadPaneQuickFilterButton::before {
+  display: none !important;
+}
+
+#threadPaneHeaderBar button {
+  min-width: 30px !important;
+  min-height: 30px !important;
+  padding: 0 7px !important;
+  border-radius: 999px !important;
+  border: none !important;
+  background-color: var(--mt-control) !important;
+  box-shadow: none !important;
+}
+
+#threadPaneHeaderBar button:hover,
+#threadPaneQuickFilterButton[aria-pressed="true"] {
+  background-color: var(--mt-control-hover) !important;
+}
+
+/* Mailkopf-Knöpfe: nur Symbole, in einer Glas-Kapsel wie in der Apple-Mail-Toolbar */
+#header-view-toolbar {
+  background: var(--mt-control) !important;
+  border-radius: 999px !important;
+  padding: 2px 4px !important;
+  gap: 0 !important;
+}
+
+#header-view-toolbar .toolbarbutton-text,
+#header-view-toolbar toolbaritem .toolbarbutton-text {
+  display: none !important;
+}
+
+#header-view-toolbar toolbarbutton,
+#header-view-toolbar toolbaritem toolbarbutton {
+  background-color: transparent !important;
+  border: none !important;
+  border-radius: 999px !important;
+  min-width: 32px !important;
+  min-height: 28px !important;
+  padding: 4px 7px !important;
+  margin: 0 !important;
+  box-shadow: none !important;
+}
+
+#header-view-toolbar toolbarbutton:hover {
+  background-color: var(--mt-control-hover) !important;
+  color: var(--mt-text) !important;
+}
+
+#header-view-toolbar *,
+#header-view-toolbar *::before,
+#header-view-toolbar *::after {
+  border-color: transparent !important;
+}
+
+/* kleine Lücken zwischen den Gruppen: Antworten | Archiv/Spam/Löschen | Mehr */
+#hdrForwardButton { margin-inline-end: 10px !important; }
+#hdrTrashButton { margin-inline-end: 10px !important; }
+
+/* Mailkopf kompakter wie in Apple Mail */
+#messageHeader {
+  padding: 12px 20px 10px !important;
+}
+
+#expandedfromBox .recipients-list,
+#expandedfromBox {
+  font-size: 13px !important;
+}
+
+#expandedtoBox,
+#dateLabel {
+  font-size: 12px !important;
+  color: var(--mt-text-secondary) !important;
+}
+
+#expandedtoBox .row-heading,
+#expandedfromBox .row-heading {
+  color: var(--mt-text-tertiary) !important;
+}
+
+/* „Mehr“-Knopf und Stern dezent */
+#starMessageButton {
+  color: var(--mt-text-tertiary) !important;
+}
+
+#button-appmenu {
+  border-radius: 999px !important;
+}
+
+/* App-Menü (≡) wie bei Apple nicht in der Toolbar – alles darin gibt es in
+   der Menüleiste, der Toolbar und den Einstellungen. Nur wenn Thunderbird
+   etwas meldet (Neustart für Update, Add-on-Hinweis), erscheint er wieder.
+   Zurückholen: diese Regel löschen. */
+#button-appmenu:not([badge-status]) {
+  display: none !important;
+}
+
+/* ---------- Apple-Mail-Toolbar (Belegung setzt die Erweiterung) ---------- */
+
+#unifiedToolbarContent {
+  gap: 0 !important;
+  align-items: center !important;
+}
+
+/* Erster Abstand = Breite von Ordnerliste + Mailliste → Knöpfe beginnen
+   genau über der geöffneten Mail */
+/* erster sichtbarer Abstandhalter – davor können ausgeblendete Knöpfe
+   anderer Bereiche liegen, daher nicht :first-child */
+#unifiedToolbarContent > li[item-id="spacer"]:not(li[item-id="spacer"] ~ li) {
+  flex: 0 0 var(--mc-toolbar-offset, 0px) !important;
+  min-width: 0 !important;
+  max-width: none !important;
+}
+
+#unifiedToolbarContent > li[item-id="spacer"] ~ li[item-id="spacer"] {
+  flex: 1 1 auto !important;
+  min-width: 0 !important;
+}
+
+#unifiedToolbarContent > li[item-id="search-bar"] {
+  /* Apple Mail: 333 × 38 px */
+  flex: 0 1 333px !important;
+  max-width: 333px !important;
+  min-width: 160px !important;
+}
+
+/* rechts so viel Luft wie links neben dem Seitenleisten-Knopf (das ≡-Menü
+   ist ausgeblendet, das Suchfeld bildet den Abschluss) */
+#unifiedToolbarContent {
+  padding-inline-end: 12px !important;
+}
+
+/* Knopfgruppen als Kapseln wie in macOS 27 – Maße aus Apple Mail gemessen:
+   Kapselhöhe 38 px, Symbolknöpfe ca. 39 px breit, 6 px zwischen den Gruppen,
+   69 px nach „Abrufen + Verfassen“ */
+#unifiedToolbarContent > li:is(
+  [item-id="get-messages"], [item-id="write-message"],
+  [item-id="reply"], [item-id="reply-all"], [item-id="forward-inline"],
+  [item-id="archive"], [item-id="delete"], [item-id="junk"],
+  [item-id="move-to"], [item-id="mark-as"]
+) {
+  background-color: var(--mt-control) !important;
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
+#unifiedToolbarContent > li:is([item-id="get-messages"], [item-id="reply"], [item-id="archive"], [item-id="move-to"], [item-id="mark-as"]) {
+  border-start-start-radius: 999px !important;
+  border-end-start-radius: 999px !important;
+}
+
+#unifiedToolbarContent > li:is([item-id="write-message"], [item-id="forward-inline"], [item-id="junk"], [item-id="move-to"], [item-id="mark-as"]) {
+  border-start-end-radius: 999px !important;
+  border-end-end-radius: 999px !important;
+  margin-inline-end: 6px !important;
+}
+
+/* 69 px wie Apple Mail; in schmalen Fenstern schrumpft der Abstand,
+   damit das Suchfeld Platz behält */
+#unifiedToolbarContent > li[item-id="write-message"] {
+  margin-inline-end: clamp(12px, calc(100vw - 1300px), 69px) !important;
+}
+
+#unifiedToolbarContent > li:not([item-id="search-bar"]) button {
+  min-width: 39px !important;
+  min-height: 38px !important;
+  height: 38px !important;
+  padding: 0 11px !important;
+  margin: 0 !important;
+  border: none !important;
+  border-radius: 999px !important;
+  background-color: transparent !important;
+  box-shadow: none !important;
+  color: var(--mt-text-secondary) !important;
+  justify-content: center !important;
+}
+
+#unifiedToolbarContent > li:is([item-id="get-messages"], [item-id="write-message"]) button {
+  min-width: 40px !important;
+}
+
+
+/* Symbole so groß wie in Apple Mail (im Vergleichsbild gemessen: rund 20 % größer als vorher) */
+#unifiedToolbarContent > li:not([item-id="search-bar"]) button img,
+#unifiedToolbarContent > li:not([item-id="search-bar"]) button .button-icon {
+  width: 22px !important;
+  height: 22px !important;
+}
+
+#unifiedToolbarContent > li:not([item-id="search-bar"]) button:hover:not([disabled]) {
+  background-color: var(--mt-control-hover) !important;
+  color: var(--mt-text) !important;
+}
+
+#unifiedToolbarContent > li button[disabled] {
+  opacity: 0.4 !important;
+}
+
+/* Knöpfe im Mailkopf entfallen – sie sitzen jetzt oben in der Toolbar.
+   Ausnahme: Nachricht im eigenen Fenster (dort gibt es keine Mail-Toolbar,
+   die Erweiterung setzt mc-standalone) */
+:root:not([mc-standalone]) #header-view-toolbox {
+  display: none !important;
+}
+
+/* Eigenes Nachrichtenfenster wie in Apple Mail: keine alte Symbolleiste
+   (Abrufen/Verfassen/Schlagwort) und keine Statuszeile */
+:root[windowtype="mail:messageWindow"] :is(#mail-bar3, #status-bar) {
+  display: none !important;
+}
+
+/* Mailkopf wie Apple Mail: Absender, Betreff, Empfänger; Datum oben rechts */
+#messageHeader {
+  position: relative !important;
+}
+
+#headerSenderToolbarContainer { order: -3 !important; }
+#headerSubjectSecurityContainer { order: -2 !important; }
+#expandedtoRow { order: -1 !important; }
+
+#dateLabel {
+  position: absolute !important;
+  top: 14px !important;
+  inset-inline-end: 20px !important;
+  font-size: 11px !important;
+  color: var(--mt-text-tertiary) !important;
+}
+
+/* im eigenen Fenster: Kapselknöpfe in Toolbar-Größe (40 × 38, Symbole 22 px) */
+:root[mc-standalone] #header-view-toolbar {
+  padding: 0 !important;
+}
+
+:root[mc-standalone] #header-view-toolbar toolbarbutton {
+  min-width: 40px !important;
+  min-height: 38px !important;
+  padding: 8px 9px !important;
+  color: var(--mt-text-secondary) !important;
+}
+
+:root[mc-standalone] #header-view-toolbar toolbarbutton .toolbarbutton-icon {
+  width: 22px !important;
+  height: 22px !important;
+}
+
+/* im eigenen Fenster sitzen oben rechts die Knöpfe – Datum darunter */
+:root[mc-standalone] #dateLabel {
+  top: 58px !important;
+}
+
+/* Absender: nur der Name, fett – Adresse und Adressbuch-Knopf wie bei Apple ausgeblendet */
+#expandedfromBox .recipient-multi-line-name,
+#expandedfromBox .recipient-single-line {
+  font-weight: 700 !important;
+  font-size: 13px !important;
+}
+
+#expandedfromBox .recipient-multi-line-address,
+#messageHeader .recipient-address-book-button {
+  display: none !important;
+}
+
+#expandedtoBox {
+  font-size: 11px !important;
+  color: var(--mt-text-tertiary) !important;
+}
+
+/* ==== Icons im Apple-Mail-Stil (generiert von icons/make_icons.py) ==== */
+:root {
+  --mi-envelope: url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22%23000%22 stroke-width=%221.7%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22%3E%3Crect x=%223%22 y=%225.5%22 width=%2218%22 height=%2213%22 rx=%222.6%22/%3E%3Cpath d=%22M3.9 7.4 12 13.2l8.1-5.8%22/%3E%3C/svg%3E");
+  --mi-compose: url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22%23000%22 stroke-width=%221.7%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22%3E%3Cpath d=%22M11.2 4.5H6.6A2.6 2.6 0 0 0 4 7.1v10.3A2.6 2.6 0 0 0 6.6 20h10.3a2.6 2.6 0 0 0 2.6-2.6v-4.6%22/%3E%3Cpath d=%22M17.7 3.7a1.9 1.9 0 0 1 2.7 2.7l-8.1 8.1-3.4.8.8-3.4z%22/%3E%3C/svg%3E");
+  --mi-reply: url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22%23000%22 stroke-width=%221.7%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22%3E%3Cpath d=%22M9.5 6 4.5 11l5 5%22/%3E%3Cpath d=%22M4.8 11h8.7a6.5 6.5 0 0 1 6.5 6.5V19%22/%3E%3C/svg%3E");
+  --mi-reply-all: url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22%23000%22 stroke-width=%221.7%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22%3E%3Cpath d=%22M11 6 6 11l5 5%22/%3E%3Cpath d=%22M6.8 6 1.8 11l5 5%22/%3E%3Cpath d=%22M6.3 11h8.2a6.5 6.5 0 0 1 6.5 6.5V19%22/%3E%3C/svg%3E");
+  --mi-forward: url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22%23000%22 stroke-width=%221.7%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22%3E%3Cpath d=%22m14.5 6 5 5-5 5%22/%3E%3Cpath d=%22M19.2 11h-8.7A6.5 6.5 0 0 0 4 17.5V19%22/%3E%3C/svg%3E");
+  --mi-archive: url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22%23000%22 stroke-width=%221.7%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22%3E%3Crect x=%223%22 y=%224%22 width=%2218%22 height=%224.8%22 rx=%221.4%22/%3E%3Cpath d=%22M4.8 8.8v9.6A1.6 1.6 0 0 0 6.4 20h11.2a1.6 1.6 0 0 0 1.6-1.6V8.8%22/%3E%3Cpath d=%22M9.8 12.6h4.4%22/%3E%3C/svg%3E");
+  --mi-trash: url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22%23000%22 stroke-width=%221.7%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22%3E%3Cpath d=%22M3.8 6.6h16.4%22/%3E%3Cpath d=%22M9 6.6V5.1A1.6 1.6 0 0 1 10.6 3.5h2.8A1.6 1.6 0 0 1 15 5.1v1.5%22/%3E%3Cpath d=%22m5.9 6.6 1 12a1.6 1.6 0 0 0 1.6 1.4h7a1.6 1.6 0 0 0 1.6-1.4l1-12%22/%3E%3Cpath d=%22M10 10.4v6.2M14 10.4v6.2%22/%3E%3C/svg%3E");
+  --mi-junk: url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22%23000%22 stroke-width=%221.7%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22%3E%3Crect x=%223%22 y=%224%22 width=%2218%22 height=%224.8%22 rx=%221.4%22/%3E%3Cpath d=%22M4.8 8.8v9.6A1.6 1.6 0 0 0 6.4 20h11.2a1.6 1.6 0 0 0 1.6-1.6V8.8%22/%3E%3Cpath d=%22m9.6 11.4 4.8 5.2M14.4 11.4l-4.8 5.2%22/%3E%3C/svg%3E");
+  --mi-folder-menu: url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 34 24%22 fill=%22none%22 stroke=%22%23000%22 stroke-width=%221.7%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22%3E%3Cpath d=%22M3 7.8A2.3 2.3 0 0 1 5.3 5.5h3.9l2.1 2.1h7.4A2.3 2.3 0 0 1 21 9.9v7.8a2.3 2.3 0 0 1-2.3 2.3H5.3A2.3 2.3 0 0 1 3 17.7z%22/%3E%3Cpath d=%22M3 10.3h18%22/%3E%3Cpath d=%22m26 11 3 3 3-3%22/%3E%3C/svg%3E");
+  --mi-flag: url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22%23000%22 stroke-width=%221.7%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22%3E%3Cpath d=%22M5.5 20.5V4.2%22/%3E%3Cpath d=%22M5.5 4.7c2.6-1.3 4.6-.9 6.7 0s4.2 1.3 7.3 0v9c-3.1 1.3-5.2.9-7.3 0s-4.1-1.3-6.7 0%22/%3E%3C/svg%3E");
+  --mi-flag-menu: url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 34 24%22 fill=%22none%22 stroke=%22%23000%22 stroke-width=%221.7%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22%3E%3Cpath d=%22M5.5 20.5V4.2%22/%3E%3Cpath d=%22M5.5 4.7c2.6-1.3 4.6-.9 6.7 0s4.2 1.3 7.3 0v9c-3.1 1.3-5.2.9-7.3 0s-4.1-1.3-6.7 0%22/%3E%3Cpath d=%22m26 11 3 3 3-3%22/%3E%3C/svg%3E");
+  --mi-folder-split: url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 46 24%22 fill=%22none%22 stroke=%22%23000%22 stroke-width=%221.7%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22%3E%3Cpath d=%22M3 7.8A2.3 2.3 0 0 1 5.3 5.5h3.9l2.1 2.1h7.4A2.3 2.3 0 0 1 21 9.9v7.8a2.3 2.3 0 0 1-2.3 2.3H5.3A2.3 2.3 0 0 1 3 17.7z%22/%3E%3Cpath d=%22M3 10.3h18%22/%3E%3Cpath d=%22M30.5 6v12%22 stroke-width=%221%22/%3E%3Cpath d=%22m36 10.5 3.5 3.5 3.5-3.5%22/%3E%3C/svg%3E");
+  --mi-flag-split: url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 46 24%22 fill=%22none%22 stroke=%22%23000%22 stroke-width=%221.7%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22%3E%3Cpath d=%22M5.5 20.5V4.2%22/%3E%3Cpath d=%22M5.5 4.7c2.6-1.3 4.6-.9 6.7 0s4.2 1.3 7.3 0v9c-3.1 1.3-5.2.9-7.3 0s-4.1-1.3-6.7 0%22/%3E%3Cpath d=%22M30.5 6v12%22 stroke-width=%221%22/%3E%3Cpath d=%22m36 10.5 3.5 3.5 3.5-3.5%22/%3E%3C/svg%3E");
+  --mi-chevron: url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22%23000%22 stroke-width=%221.7%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22%3E%3Cpath d=%22m6.5 9.5 5.5 5.5 5.5-5.5%22/%3E%3C/svg%3E");
+  --mi-addressbook: url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22%23000%22 stroke-width=%221.7%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22%3E%3Crect x=%224.5%22 y=%223.5%22 width=%2215%22 height=%2217%22 rx=%222.4%22/%3E%3Ccircle cx=%2212%22 cy=%2210.2%22 r=%222.6%22/%3E%3Cpath d=%22M8.1 16.6c.8-1.9 2.2-2.8 3.9-2.8s3.1.9 3.9 2.8%22/%3E%3Cpath d=%22M4.5 7.5H3M4.5 12H3M4.5 16.5H3%22/%3E%3C/svg%3E");
+  --mi-calendar: url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22%23000%22 stroke-width=%221.7%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22%3E%3Crect x=%223.5%22 y=%225%22 width=%2217%22 height=%2215.5%22 rx=%222.6%22/%3E%3Cpath d=%22M3.5 9.6h17%22/%3E%3Cpath d=%22M8 3.2v3.4M16 3.2v3.4%22/%3E%3Ccircle cx=%228%22 cy=%2213.2%22 r=%22.9%22 fill=%22%23000%22 stroke=%22none%22/%3E%3Ccircle cx=%2212%22 cy=%2213.2%22 r=%22.9%22 fill=%22%23000%22 stroke=%22none%22/%3E%3Ccircle cx=%2216%22 cy=%2213.2%22 r=%22.9%22 fill=%22%23000%22 stroke=%22none%22/%3E%3Ccircle cx=%228%22 cy=%2216.8%22 r=%22.9%22 fill=%22%23000%22 stroke=%22none%22/%3E%3Ccircle cx=%2212%22 cy=%2216.8%22 r=%22.9%22 fill=%22%23000%22 stroke=%22none%22/%3E%3C/svg%3E");
+  --mi-tasks: url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22%23000%22 stroke-width=%221.7%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22%3E%3Ccircle cx=%2212%22 cy=%2212%22 r=%228.5%22/%3E%3Cpath d=%22m8.2 12.2 2.6 2.6 5-5.4%22/%3E%3C/svg%3E");
+  --mi-chat: url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22%23000%22 stroke-width=%221.7%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22%3E%3Cpath d=%22M12 4.5c4.7 0 8.5 3 8.5 6.8s-3.8 6.8-8.5 6.8c-.9 0-1.8-.1-2.6-.3L5.3 19.6l1-3.4C4.6 14.9 3.5 13.2 3.5 11.3c0-3.8 3.8-6.8 8.5-6.8z%22/%3E%3C/svg%3E");
+  --mi-settings: url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22%23000%22 stroke-width=%221.7%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22%3E%3Cpath d=%22M18.86 10.61 L21.13 10.90 L21.13 13.10 L18.86 13.39 L17.83 15.87 L19.24 17.68 L17.68 19.24 L15.87 17.83 L13.39 18.86 L13.10 21.13 L10.90 21.13 L10.61 18.86 L8.13 17.83 L6.32 19.24 L4.76 17.68 L6.17 15.87 L5.14 13.39 L2.87 13.10 L2.87 10.90 L5.14 10.61 L6.17 8.13 L4.76 6.32 L6.32 4.76 L8.13 6.17 L10.61 5.14 L10.90 2.87 L13.10 2.87 L13.39 5.14 L15.87 6.17 L17.68 4.76 L19.24 6.32 L17.83 8.13Z%22/%3E%3Ccircle cx=%2212%22 cy=%2212%22 r=%223%22/%3E%3C/svg%3E");
+  --mi-sidebar: url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22%23000%22 stroke-width=%221.7%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22%3E%3Crect x=%223%22 y=%225%22 width=%2218%22 height=%2214%22 rx=%222.6%22/%3E%3Cpath d=%22M9.5 5v14%22/%3E%3Cpath d=%22M5.6 8.4h1.6M5.6 11h1.6%22/%3E%3C/svg%3E");
+  --mi-inbox: url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22%23000%22 stroke-width=%221.7%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22%3E%3Cpath d=%22M3.5 13.4 6 6.6A1.6 1.6 0 0 1 7.5 5.5h9a1.6 1.6 0 0 1 1.5 1.1l2.5 6.8v4.5a1.6 1.6 0 0 1-1.6 1.6H5.1a1.6 1.6 0 0 1-1.6-1.6z%22/%3E%3Cpath d=%22M3.6 13.4H8l1.1 2.1h5.8l1.1-2.1h4.4%22/%3E%3C/svg%3E");
+  --mi-drafts: url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22%23000%22 stroke-width=%221.7%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22%3E%3Cpath d=%22M7.6 3.5h6.1L18.5 8.3v10.6a1.6 1.6 0 0 1-1.6 1.6H7.6A1.6 1.6 0 0 1 6 18.9V5.1a1.6 1.6 0 0 1 1.6-1.6z%22/%3E%3Cpath d=%22M13.6 3.6v4.8h4.8%22/%3E%3Cpath d=%22M9 12.6h6M9 16h4.4%22/%3E%3C/svg%3E");
+  --mi-templates: url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22%23000%22 stroke-width=%221.7%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22%3E%3Cpath d=%22M9.6 6.5h5.2l4.2 4.2v8.2a1.6 1.6 0 0 1-1.6 1.6H9.6A1.6 1.6 0 0 1 8 18.9V8.1a1.6 1.6 0 0 1 1.6-1.6z%22/%3E%3Cpath d=%22M14.7 6.6v4.2h4.2%22/%3E%3Cpath d=%22M5 16.5V5.1A1.6 1.6 0 0 1 6.6 3.5h6.4%22/%3E%3C/svg%3E");
+  --mi-sent: url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22%23000%22 stroke-width=%221.7%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22%3E%3Cpath d=%22M20.6 3.4 3.4 10.4l7.2 2.9 2.9 7.2z%22/%3E%3Cpath d=%22m20.6 3.4-10 9.9%22/%3E%3C/svg%3E");
+  --mi-outbox: url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22%23000%22 stroke-width=%221.7%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22%3E%3Cpath d=%22M3.5 13.4v4.5a1.6 1.6 0 0 0 1.6 1.6h13.8a1.6 1.6 0 0 0 1.6-1.6v-4.5H16l-1.1 2.1H9.1L8 13.4z%22/%3E%3Cpath d=%22M12 3.6v8.2%22/%3E%3Cpath d=%22M8.7 6.9 12 3.6l3.3 3.3%22/%3E%3C/svg%3E");
+  --mi-folder: url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22%23000%22 stroke-width=%221.7%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22%3E%3Cpath d=%22M3 7.8A2.3 2.3 0 0 1 5.3 5.5h3.9l2.1 2.1h7.4A2.3 2.3 0 0 1 21 9.9v7.8a2.3 2.3 0 0 1-2.3 2.3H5.3A2.3 2.3 0 0 1 3 17.7z%22/%3E%3Cpath d=%22M3 10.3h18%22/%3E%3C/svg%3E");
+  --mi-server: url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22%23000%22 stroke-width=%221.7%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22%3E%3Cpath d=%22M3.5 13.4 6 6.6A1.6 1.6 0 0 1 7.5 5.5h9a1.6 1.6 0 0 1 1.5 1.1l2.5 6.8v4.5a1.6 1.6 0 0 1-1.6 1.6H5.1a1.6 1.6 0 0 1-1.6-1.6z%22/%3E%3Cpath d=%22M3.6 13.4h16.8%22/%3E%3C/svg%3E");
+  --mi-rss: url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22%23000%22 stroke-width=%221.7%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22%3E%3Cpath d=%22M5.5 11a7.5 7.5 0 0 1 7.5 7.5M5.5 5.5a13 13 0 0 1 13 13%22/%3E%3Ccircle cx=%226.5%22 cy=%2217.5%22 r=%221.4%22 fill=%22%23000%22 stroke=%22none%22/%3E%3C/svg%3E");
+  --mi-filter: url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22%23000%22 stroke-width=%221.7%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22%3E%3Cpath d=%22M4.5 7h15M7.3 12h9.4M10 17h4%22/%3E%3C/svg%3E");
+  --mi-ellipsis: url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22%23000%22 stroke-width=%221.7%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22%3E%3Ccircle cx=%226%22 cy=%2212%22 r=%221.5%22 fill=%22%23000%22 stroke=%22none%22/%3E%3Ccircle cx=%2212%22 cy=%2212%22 r=%221.5%22 fill=%22%23000%22 stroke=%22none%22/%3E%3Ccircle cx=%2218%22 cy=%2212%22 r=%221.5%22 fill=%22%23000%22 stroke=%22none%22/%3E%3C/svg%3E");
+  --mi-new-contact: url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22%23000%22 stroke-width=%221.7%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22%3E%3Ccircle cx=%2210%22 cy=%228.3%22 r=%223.6%22/%3E%3Cpath d=%22M3.5 19.8c.9-3.7 3.4-5.6 6.5-5.6 1.3 0 2.5.3 3.5 1%22/%3E%3Cpath d=%22M18.5 14v6M15.5 17h6%22/%3E%3C/svg%3E");
+  --mi-new-address-book: url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22%23000%22 stroke-width=%221.7%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22%3E%3Crect x=%224.5%22 y=%223.5%22 width=%2215%22 height=%2217%22 rx=%222.4%22/%3E%3Cpath d=%22M12 8.5v7M8.5 12h7M4.5 7.5H3M4.5 12H3M4.5 16.5H3%22/%3E%3C/svg%3E");
+  --mi-new-list: url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22%23000%22 stroke-width=%221.7%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22%3E%3Ccircle cx=%229.5%22 cy=%228.6%22 r=%223.3%22/%3E%3Cpath d=%22M3.5 19.5c.8-3.3 3-5 6-5 1.4 0 2.6.4 3.6 1.1M15.5 5.6a3.2 3.2 0 0 1 0 6.1%22/%3E%3Cpath d=%22M18.5 14v6M15.5 17h6%22/%3E%3C/svg%3E");
+  --mi-new-event: url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22%23000%22 stroke-width=%221.7%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22%3E%3Crect x=%223.5%22 y=%225%22 width=%2217%22 height=%2215.5%22 rx=%222.6%22/%3E%3Cpath d=%22M3.5 9.6h17M8 3.2v3.4M16 3.2v3.4M12 12.3v5.4M9.3 15h5.4%22/%3E%3C/svg%3E");
+  --mi-new-task: url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22%23000%22 stroke-width=%221.7%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22%3E%3Ccircle cx=%2212%22 cy=%2212%22 r=%228.5%22/%3E%3Cpath d=%22M12 8v8M8 12h8%22/%3E%3C/svg%3E");
+  --mi-sidebar-get: url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22%23000%22 stroke-width=%221.7%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22%3E%3Crect x=%223%22 y=%225.5%22 width=%2218%22 height=%2213%22 rx=%222.6%22/%3E%3Cpath d=%22M3.9 7.4 12 13.2l8.1-5.8%22/%3E%3C/svg%3E");
+}
+
+/* Gemeinsam: Thunderbirds Bild leeren, eigenes Symbol als Maske in currentColor */
+#unifiedToolbarContent li button .button-icon,
+#folderTree li > .container .icon {
+  content: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='1' height='1'/%3E") !important;
+  background-color: currentColor !important;
+  mask-repeat: no-repeat !important;
+  mask-position: center !important;
+  mask-size: contain !important;
+  fill: none !important;
+  stroke: none !important;
+}
+
+#unifiedToolbarContent li button .button-icon {
+  width: 22px !important;
+  height: 22px !important;
+}
+
+/* Toolbar-Symbole so dunkel wie in Apple Mail */
+#unifiedToolbarContent li:not([item-id="search-bar"]) button {
+  color: color-mix(in srgb, var(--mt-text) 82%, transparent) !important;
+}
+
+/* Verschieben und Markieren: geteilter Knopf wie bei Apple (Symbol | Pfeil).
+   Thunderbirds eigener Pfeil (Hintergrundbild rechts + 20 px Abstand) entfällt. */
+#unifiedToolbarContent li button[popup] {
+  background-image: none !important;
+  padding-inline: 8px !important;
+}
+
+/* Geteilter Knopf aus denselben Teilen wie die Mehrfach-Kapseln:
+   40 px Symbolbereich | derselbe Trennstrich | 28 px Pfeilbereich */
+#unifiedToolbarContent li:is([item-id="move-to"], [item-id="mark-as"]) button {
+  position: relative !important;
+  width: 69px !important;
+  min-width: 69px !important;
+  padding: 0 !important;
+  justify-content: flex-start !important;
+}
+
+#unifiedToolbarContent li:is([item-id="move-to"], [item-id="mark-as"]) button .button-icon {
+  margin-inline-start: 9px !important;
+}
+
+#unifiedToolbarContent li:is([item-id="move-to"], [item-id="mark-as"]) button::before {
+  content: "" !important;
+  position: absolute !important;
+  inset-inline-start: 40px !important;
+  top: 11px !important;
+  bottom: 11px !important;
+  width: 1px !important;
+  background-color: var(--mt-pane-line) !important;
+  pointer-events: none !important;
+}
+
+#unifiedToolbarContent li:is([item-id="move-to"], [item-id="mark-as"]) button::after {
+  content: "" !important;
+  position: absolute !important;
+  inset-inline-start: 41px !important;
+  width: 28px !important;
+  top: 0 !important;
+  bottom: 0 !important;
+  background-color: currentColor !important;
+  mask: var(--mi-chevron) center / 14px 14px no-repeat !important;
+  pointer-events: none !important;
+}
+
+/* Feine Trennlinien zwischen den Knöpfen einer Kapsel */
+#unifiedToolbarContent > li[item-id] {
+  position: relative !important;
+}
+
+#unifiedToolbarContent > li:is([item-id="write-message"], [item-id="reply-all"], [item-id="forward-inline"], [item-id="delete"], [item-id="junk"])::before {
+  content: "" !important;
+  position: absolute !important;
+  inset-inline-start: 0 !important;
+  top: 11px !important;
+  bottom: 11px !important;
+  width: 1px !important;
+  background-color: var(--mt-pane-line) !important;
+  pointer-events: none !important;
+}
+
+/* Bereiche-Menü an die Stelle von Apples Seitenleisten-Knopf: oben rechts in
+   der Seitenleiste (--mc-sidebar-right liefert die Erweiterung) – in jedem Tab */
+#unifiedToolbarContainer {
+  position: relative !important;
+}
+
+#unifiedToolbar {
+  position: static !important;
+}
+
+#spacesPinnedButton {
+  position: absolute !important;
+  /* gleiche Stelle in allen Tabs; nie weiter links als neben die Fensterknöpfe */
+  inset-inline-start: max(calc(var(--mc-sidebar-right, 220px) - 50px), 84px) !important;
+  top: 50% !important;
+  transform: translateY(-50%) !important;
+  /* gleiche Kapsel wie die Toolbar-Knöpfe: 40 × 38 px, grauer Hintergrund */
+  width: 40px !important;
+  height: 38px !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  border: none !important;
+  border-radius: 999px !important;
+  background-color: var(--mt-control) !important;
+  color: color-mix(in srgb, var(--mt-text) 82%, transparent) !important;
+  justify-content: center !important;
+  align-items: center !important;
+}
+
+/* Thunderbird blendet den Knopf aus, sobald die Bereiche-Leiste sichtbar ist –
+   als Seitenleisten-Knopf muss er aber immer da sein */
+#spacesPinnedButton[hidden] {
+  display: flex !important;
+}
+
+#spacesPinnedButton:hover {
+  background-color: var(--mt-control-hover) !important;
+}
+
+#spacesPinnedButton .toolbarbutton-icon {
+  list-style-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='1' height='1'/%3E") !important;
+  width: 22px !important;
+  height: 22px !important;
+  background-color: currentColor !important;
+  mask: var(--mi-sidebar) center / contain no-repeat !important;
+  fill: none !important;
+}
+
+#unifiedToolbarContent li[item-id="get-messages"] button .button-icon { mask-image: var(--mi-envelope) !important; }
+#unifiedToolbarContent li[item-id="write-message"] button .button-icon { mask-image: var(--mi-compose) !important; }
+#unifiedToolbarContent li[item-id="reply"] button .button-icon { mask-image: var(--mi-reply) !important; }
+#unifiedToolbarContent li[item-id="reply-all"] button .button-icon { mask-image: var(--mi-reply-all) !important; }
+#unifiedToolbarContent li[item-id="forward-inline"] button .button-icon { mask-image: var(--mi-forward) !important; }
+#unifiedToolbarContent li[item-id="archive"] button .button-icon { mask-image: var(--mi-archive) !important; }
+#unifiedToolbarContent li[item-id="delete"] button .button-icon { mask-image: var(--mi-trash) !important; }
+#unifiedToolbarContent li[item-id="junk"] button .button-icon { mask-image: var(--mi-junk) !important; }
+#unifiedToolbarContent li[item-id="move-to"] button .button-icon { mask-image: var(--mi-folder) !important; }
+#unifiedToolbarContent li[item-id="mark-as"] button .button-icon { mask-image: var(--mi-flag) !important; }
+#unifiedToolbarContent li[item-id="create-contact"] button .button-icon { mask-image: var(--mi-new-contact) !important; }
+#unifiedToolbarContent li[item-id="create-address-book"] button .button-icon { mask-image: var(--mi-new-address-book) !important; }
+#unifiedToolbarContent li[item-id="create-list"] button .button-icon { mask-image: var(--mi-new-list) !important; }
+#unifiedToolbarContent li[item-id="new-event"] button .button-icon { mask-image: var(--mi-new-event) !important; }
+#unifiedToolbarContent li[item-id="new-task"] button .button-icon { mask-image: var(--mi-new-task) !important; }
+
+/* Ordnerliste: Symbol in Akzentfarbe wie in Apple Mail (grau, wenn das Fenster inaktiv ist); 22 px groß (sichtbar ca. 17 px wie Apple Mail),
+   Text beginnt 29 px nach dem Symbol-Anfang wie bei Apple */
+#folderTree li > .container .icon {
+  width: 22px !important;
+  height: 22px !important;
+  margin-inline-start: -2px !important;
+  margin-inline-end: 4px !important;
+  color: var(--mt-accent) !important;
+  mask-image: var(--mi-folder) !important;
+}
+/* wie Apple: blau solange Thunderbird im Vordergrund ist, grau sobald eine andere App aktiv ist */
+#folderTree li > .container .icon:-moz-window-inactive {
+  color: color-mix(in srgb, var(--mt-text) 80%, transparent) !important;
+}
+#folderTree li[data-server-type] > .container .icon { mask-image: var(--mi-server) !important; }
+#folderTree li[data-server-type="rss"] > .container .icon { mask-image: var(--mi-rss) !important; }
+#folderTree li[data-folder-type="inbox"] > .container .icon { mask-image: var(--mi-inbox) !important; }
+#folderTree li[data-folder-type="drafts"] > .container .icon { mask-image: var(--mi-drafts) !important; }
+#folderTree li[data-folder-type="templates"] > .container .icon { mask-image: var(--mi-templates) !important; }
+#folderTree li[data-folder-type="sent"] > .container .icon { mask-image: var(--mi-sent) !important; }
+#folderTree li[data-folder-type="archive"] > .container .icon { mask-image: var(--mi-archive) !important; }
+#folderTree li[data-folder-type="junk"] > .container .icon { mask-image: var(--mi-junk) !important; }
+#folderTree li[data-folder-type="trash"] > .container .icon { mask-image: var(--mi-trash) !important; }
+#folderTree li[data-folder-type="outbox"] > .container .icon { mask-image: var(--mi-outbox) !important; }
+
+/* Knöpfe über Ordner- und Mailliste: Thunderbird zeichnet ihr Symbol als
+   Hintergrundbild – das wird ausgeblendet und durch eine Masken-Ebene ersetzt */
+:is(#folderPaneGetMessages, #folderPaneWriteMessage, #folderPaneMoreButton,
+    #threadPaneQuickFilterButton, #threadPaneDisplayButton) {
+  background-image: none !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+}
+
+:is(#folderPaneGetMessages, #folderPaneWriteMessage, #folderPaneMoreButton,
+    #threadPaneQuickFilterButton, #threadPaneDisplayButton)::after {
+  content: "" !important;
+  display: block !important;
+  width: 20px !important;
+  height: 20px !important;
+  background-color: currentColor !important;
+  mask-repeat: no-repeat !important;
+  mask-position: center !important;
+  mask-size: contain !important;
+}
+
+/* Bereiche: Leiste am linken Rand und Bereiche-Menü */
+/* Bereiche-Leiste wie die Toolbar-Kapseln: senkrechte graue Kapseln mit gleich
+   großen 40-px-Knöpfen und demselben Trennstrich (hier waagerecht) */
+/* Leistenbreite 67 px (9 + 48 + 9 + 1 px Linie); Thunderbird rückt den übrigen
+   Inhalt um genau diesen Wert ein. Beim Ein-/Ausblenden animiert die
+   Erweiterung --mc-spaces-w zwischen 0 und 67 px. */
+:root,
+:root[uidensity] {
+  --spaces-total-width: var(--mc-spaces-w, 67px) !important;
+}
+
+#spacesToolbar {
+  background: var(--mt-sidebar) !important;
+  /* unten Platz für den Bereiche-Knopf (#mcSpacesToggle) */
+  padding: 8px 9px 48px !important;
+  inline-size: 67px !important;
+  /* während der Animation schiebt sich die Leiste von links herein */
+  transform: translateX(calc(var(--spaces-total-width) - 67px)) !important;
+  box-sizing: border-box !important;
+  gap: 0 !important;
+  border-inline-end: 1px solid var(--mt-sidebar-border) !important;
+  /* Thunderbirds eigene Positionierung (fest, volle Fensterhöhe) bleibt */
+}
+
+/* keine Kapsel – alle Knöpfe bekommen gleich viel Höhe (Container auflösen) */
+#spacesToolbar .spaces-toolbar-container {
+  display: contents !important;
+}
+
+#spacesToolbar > #spacesToolbarAddonsOverflowButton:not([hidden]),
+#spacesToolbar .spaces-toolbar-container > .spaces-toolbar-button:not([hidden]) {
+  flex: 1 1 0 !important;
+  max-height: none !important;
+}
+
+/* Bereiche in dezenten Farben wie Post-it-Haftmarker: jedes Segment leicht
+   getönt, Symbol in der Bereichsfarbe; der aktuelle Bereich kräftiger und mit
+   einem Chevron rechts daneben */
+#spacesToolbar .spaces-toolbar-button {
+  --c: #8E8E93;
+  position: relative !important;
+  align-self: center !important;
+  width: 48px !important;
+  height: auto !important;
+  min-height: 44px !important;
+  margin: 3px 0 !important;
+  padding: 0 !important;
+  border: none !important;
+  border-radius: 12px !important;
+  background-color: color-mix(in srgb, var(--c) 11%, transparent) !important;
+  box-shadow: none !important;
+  color: color-mix(in srgb, var(--c) 70%, #3a3a3c) !important;
+  justify-content: center !important;
+  align-items: center !important;
+}
+
+#spacesToolbar #mailButton { --c: #0A84FF; }
+#spacesToolbar #addressBookButton { --c: #30B850; }
+#spacesToolbar #calendarButton { --c: #FF8A00; }
+#spacesToolbar #tasksButton { --c: #FF2D78; }
+#spacesToolbar #chatButton { --c: #AF52DE; }
+#spacesToolbar #settingsButton { --c: #8E8E93; }
+
+#spacesToolbar .spaces-toolbar-button:hover {
+  background-color: color-mix(in srgb, var(--c) 16%, transparent) !important;
+}
+
+#spacesToolbar .spaces-toolbar-button.current {
+  background-color: color-mix(in srgb, var(--c) 22%, transparent) !important;
+  color: var(--c) !important;
+}
+
+#spacesToolbar .spaces-toolbar-button.current::after {
+  content: "" !important;
+  position: absolute !important;
+  inset-inline-end: -13px !important;
+  top: calc(50% - 9px) !important;
+  width: 18px !important;
+  height: 18px !important;
+  background-color: var(--c) !important;
+  mask: var(--mi-chevron) center / contain no-repeat !important;
+  transform: rotate(-90deg) !important;
+  pointer-events: none !important;
+}
+
+/* „Leiste ausblenden“ sitzt nicht in der Leiste, sondern als eigener Knopf
+   unten links (#mcSpacesToggle, von der Erweiterung angelegt) */
+#spacesToolbar #collapseButton,
+#spacesToolbarReveal {
+  display: none !important;
+}
+
+#mcSpacesToggle {
+  position: fixed !important;
+  z-index: 3 !important;
+  bottom: 10px !important;
+  inset-inline-start: 12px !important;
+  width: 34px !important;
+  height: 30px !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  border: none !important;
+  min-width: 0 !important;
+  border-radius: 999px !important;
+  background: transparent !important;
+  color: color-mix(in srgb, var(--mt-text) 82%, transparent) !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  appearance: none !important;
+}
+
+/* Bei sichtbarer Leiste sitzt der Knopf mittig unten in der Leiste
+   ((67 − 34) / 2 = 16,5 px), ausgeblendet 12 px vom Fensterrand. Während der
+   Animation gleitet er mit der Leistenbreite (0–67 px) zwischen beiden Plätzen. */
+#spacesToolbar:not([hidden]) ~ #mcSpacesToggle {
+  inset-inline-start: calc(12px + var(--spaces-total-width) * 0.06716) !important;
+}
+
+#mcSpacesToggle:hover {
+  background-color: var(--mt-control-hover) !important;
+  color: var(--mt-text) !important;
+}
+
+/* Thunderbirds ursprüngliches Symbol (Strich mit Pfeil), so groß wie die
+   übrigen Bereiche-Symbole; Pfeil nach rechts bei sichtbarer, nach links bei
+   ausgeblendeter Leiste */
+#mcSpacesToggle::before {
+  content: "" !important;
+  width: 24px !important;
+  height: 24px !important;
+  background-color: currentColor !important;
+  transform: scaleX(-1) !important;
+  mask: url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 16 16%22%3E%3Cpath fill=%22%23000%22 d=%22M2.5 2a.5.5 0 0 0-.5.5v10a.5.5 0 0 0 .5.5.5.5 0 0 0 .5-.5v-10a.5.5 0 0 0-.5-.5Zm6 1a.5.5 0 0 0-.354.146l-4 4A.5.5 0 0 0 4 7.5a.5.5 0 0 0 .146.354l4 4a.5.5 0 0 0 .708 0 .5.5 0 0 0 0-.708L5.707 8H13.5a.5.5 0 0 0 .5-.5.5.5 0 0 0-.5-.5H5.707l3.147-3.146a.5.5 0 0 0 0-.708A.5.5 0 0 0 8.5 3Z%22/%3E%3C/svg%3E") center / contain no-repeat !important;
+}
+
+#spacesToolbar[hidden] ~ #mcSpacesToggle::before {
+  transform: none !important;
+}
+
+.spaces-toolbar-button > img,
+.spaces-popup-menuitem > .menu-icon {
+  content: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='1' height='1'/%3E") !important;
+  list-style-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='1' height='1'/%3E") !important;
+  width: 24px !important;
+  height: 24px !important;
+  background-color: currentColor !important;
+  mask-repeat: no-repeat !important;
+  mask-position: center !important;
+  mask-size: contain !important;
+  fill: none !important;
+  stroke: none !important;
+  transform: none !important;
+}
+
+.spaces-popup-menuitem > .menu-icon {
+  width: 18px !important;
+  height: 18px !important;
+}
+
+:is(#mailButton, #spacesPopupButtonMail) > :is(img, .menu-icon) { mask-image: var(--mi-envelope) !important; }
+:is(#addressBookButton, #spacesPopupButtonAddressBook) > :is(img, .menu-icon) { mask-image: var(--mi-addressbook) !important; }
+:is(#calendarButton, #spacesPopupButtonCalendar) > :is(img, .menu-icon) { mask-image: var(--mi-calendar) !important; }
+:is(#tasksButton, #spacesPopupButtonTasks) > :is(img, .menu-icon) { mask-image: var(--mi-tasks) !important; }
+:is(#chatButton, #spacesPopupButtonChat) > :is(img, .menu-icon) { mask-image: var(--mi-chat) !important; }
+:is(#settingsButton, #spacesPopupButtonSettings) > :is(img, .menu-icon) { mask-image: var(--mi-settings) !important; }
+:is(#collapseButton, #spacesPopupButtonReveal) > :is(img, .menu-icon) { mask-image: var(--mi-sidebar) !important; }
+
+#folderPaneGetMessages::after { mask-image: var(--mi-envelope) !important; }
+#folderPaneWriteMessage::after { mask-image: var(--mi-compose) !important; }
+#folderPaneMoreButton::after,
+#threadPaneDisplayButton::after { mask-image: var(--mi-ellipsis) !important; }
+#threadPaneQuickFilterButton::after { mask-image: var(--mi-filter) !important; }
+/* ==== Ende Icons ==== */
+
+/* ---------- Menüs & Popups (wie macOS 27) ---------- */
+
+/* Durchscheinender macOS-Hintergrund (Vibrancy) statt grauer Fläche.
+   Der halbtransparente Farbton ist die Absicherung, falls macOS keinen
+   Unschärfe-Hintergrund liefert. */
+menupopup:not(.autoscroller) {
+  appearance: auto !important;
+  -moz-default-appearance: menupopup !important;
+  --panel-background-color: var(--mt-menu-bg) !important;
+  --panel-border-color: transparent !important;
+  --panel-border-radius: 12px !important;
+  --panel-padding: 5px 0 !important;
+  --menuitem-border-radius: 6px !important;
+  --menuitem-padding-block: 3px !important;
+  --menuitem-padding-inline: 10px !important;
+  font-family: var(--mt-font) !important;
+  font-size: 13px !important;
+}
+
+menupopup > :is(menu, menuitem) {
+  margin-inline: 5px !important;
+  min-height: 22px !important;
+  border-radius: 6px !important;
+}
+
+/* Markierter Eintrag in Akzentfarbe mit weißer Schrift */
+menupopup > :is(menu, menuitem)[_moz-menuactive]:not([disabled]) {
+  background-color: var(--mt-accent) !important;
+  color: var(--mt-accent-text) !important;
+  --menuitem-icon-fill: var(--mt-accent-text) !important;
+}
+
+menupopup > :is(menu, menuitem)[disabled] {
+  color: var(--mt-text-tertiary) !important;
+}
+
+menupopup > menuseparator {
+  margin: 5px 14px !important;
+  padding: 0 !important;
+  height: 0 !important;
+  min-height: 0 !important;
+  border-top: 1px solid var(--mt-separator) !important;
+}
+
+panel {
+  --panel-border-radius: 12px !important;
+}
+
+/* Symbolzeile oben im Nachrichten-Kontextmenü: die Erweiterung macht daraus
+   Textzeilen (Klasse mc-nav-list); ohne Erweiterung bleibt sie ausgeblendet */
+#mailContext-navigation:not(.mc-nav-list),
+#mailContext-navigation:not(.mc-nav-list) + menuseparator {
+  display: none !important;
+}
+
+#mailContext-navigation.mc-nav-list {
+  flex-direction: column !important;
+}
+
+#mailContext-navigation.mc-nav-list > .menuitem-iconic {
+  flex: none !important;
+  justify-content: flex-start !important;
+  margin-inline: 5px !important;
+  min-height: 22px !important;
+  padding-block: 3px !important;
+  padding-inline: 8px !important;
+  border-radius: 6px !important;
+}
+
+/* wie die übrigen Einträge ohne Symbol */
+#mailContext-navigation.mc-nav-list > .menuitem-iconic > .menu-icon {
+  display: none !important;
+}
+
+#mailContext-navigation.mc-nav-list > .menuitem-iconic[label] > .menu-text {
+  display: flex !important;
+}
+
+/* Fluent liefert hier nur aria-label; ein selbst gesetztes label-Attribut
+   würde es beim nächsten Übersetzen wieder entfernen */
+#mailContext-navigation.mc-nav-list > .menuitem-iconic:not([label])::after {
+  content: attr(aria-label);
+}
+
+#mailContext-navigation.mc-nav-list > .menuitem-iconic[_moz-menuactive]:not([disabled]) {
+  background-color: var(--mt-accent) !important;
+  color: var(--mt-accent-text) !important;
+}
+
+#mailContext-navigation.mc-nav-list > :is(#navContext-reply, #navContext-markRead, #navContext-markUnread) {
+  display: none !important;
+}
+
+/* Kein weißer Strich zwischen Toolbar und Seitenleiste: Thunderbird gibt der
+   Toolbar einen 1 px transparenten Rand unten, durch den der weiße
+   Fensterhintergrund scheint */
+unified-toolbar {
+  border-bottom: none !important;
+}
+
+/* Kein Streifen oben in der Ordnerliste: Thunderbird legt dort einen 4 px
+   hohen Balken in Fensterfarbe (#FAFAFA) und darunter einen Schatten-Verlauf
+   über die Seitenleiste */
+#folderTree.sidebar-panel-scroll::before,
+#folderTree.sidebar-panel-scroll::after {
+  display: none !important;
+}
+
+/* ---------- Kopfzeile über der Mailliste wie Apple Mail ----------
+   Titel („All Inboxes“, „Inbox – Google“) und Anzahl links, Filter und „…“
+   in einer Kapsel rechts – in der Toolbar-Zeile über der Liste. Die Elemente
+   legt die Erweiterung an (#mcListHeader). */
+#mcListHeader {
+  display: none !important;
+}
+
+:root[mc-mail] #mcListHeader {
+  --mc-lh-start: max(calc(var(--mc-sidebar-right, 0px) + 16px), 136px) !important;
+  position: absolute !important;
+  top: 0 !important;
+  bottom: 1px !important;
+  inset-inline-start: var(--mc-lh-start) !important;
+  width: calc(var(--mc-list-right, 0px) - var(--mc-lh-start) - 8px) !important;
+  min-width: 0 !important;
+  display: flex !important;
+  align-items: center !important;
+  gap: 8px !important;
+  z-index: 1 !important;
+}
+
+#mcListHeader .mc-lh-text {
+  flex: 1 !important;
+  min-width: 0 !important;
+  display: flex !important;
+  flex-direction: column !important;
+  justify-content: center !important;
+  line-height: 1.25 !important;
+}
+
+#mcListHeader :is(.mc-lh-title, .mc-lh-count) {
+  overflow: hidden !important;
+  white-space: nowrap !important;
+  text-overflow: ellipsis !important;
+}
+
+#mcListHeader .mc-lh-title {
+  font-size: 13px !important;
+  font-weight: 600 !important;
+  color: var(--mt-text) !important;
+}
+
+#mcListHeader .mc-lh-title:-moz-window-inactive {
+  color: var(--mt-text-secondary) !important;
+}
+
+#mcListHeader .mc-lh-count {
+  font-size: 11px !important;
+  color: var(--mt-text-tertiary) !important;
+}
+
+#mcListHeader .mc-lh-tools {
+  flex: none !important;
+  display: flex !important;
+  height: 38px !important;
+  border-radius: 999px !important;
+  background-color: var(--mt-control) !important;
+}
+
+#mcListHeader .mc-lh-tools > button {
+  appearance: none !important;
+  width: 40px !important;
+  min-width: 0 !important;
+  height: 38px !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  border: none !important;
+  border-radius: 999px !important;
+  background: transparent !important;
+  color: color-mix(in srgb, var(--mt-text) 82%, transparent) !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+}
+
+#mcListHeader .mc-lh-tools > button:hover {
+  background-color: var(--mt-control-hover) !important;
+  color: var(--mt-text) !important;
+}
+
+#mcListHeader .mc-lh-tools > button::before {
+  content: "" !important;
+  width: 22px !important;
+  height: 22px !important;
+  background-color: currentColor !important;
+  mask: var(--mi-filter) center / contain no-repeat !important;
+}
+
+#mcListHeader .mc-lh-tools > .mc-lh-more::before {
+  mask-image: var(--mi-ellipsis) !important;
+}
+
+/* Thunderbirds eigene Kopfzeile in der Liste ersetzt die obige */
+#threadPaneHeaderBar {
+  display: none !important;
+}
+
+/* Waagerechte Trennlinie unter der Toolbar-Zeile über Mailliste und Mail
+   (nicht über der Seitenleiste) – wie Apple Mail */
+:root[mc-mail] #unifiedToolbarContainer::after {
+  content: "" !important;
+  position: absolute !important;
+  inset-inline-start: var(--mc-sidebar-right, 0px) !important;
+  inset-inline-end: 0 !important;
+  bottom: 0 !important;
+  height: 1px !important;
+  background-color: var(--mt-pane-line) !important;
+  pointer-events: none !important;
+}
+
+/* ==== Bereiche: Kalender, Aufgaben, Adressbuch, Chat, Einstellungen ==== */
+
+/* Toolbar-Zeile über der Seitenleiste im Seitenleisten-Grau wie in Apples
+   Apps (--mc-side-right misst die Erweiterung) */
+:root:is([mc-tab="calendar"], [mc-tab="tasks"], [mc-tab="chat"], [mc-tab="addressBookTab"], [mc-tab="preferencesTab"], [mc-tab="contentTab"]) #unifiedToolbarContainer {
+  background: linear-gradient(
+    to right,
+    var(--mt-sidebar) 0 var(--mc-side-right, 0px),
+    var(--mt-sidebar-border) var(--mc-side-right, 0px) calc(var(--mc-side-right, 0px) + 1px),
+    var(--mt-window) calc(var(--mc-side-right, 0px) + 1px)
+  ) !important;
+}
+
+:root:is([mc-tab="calendar"], [mc-tab="tasks"], [mc-tab="chat"], [mc-tab="addressBookTab"], [mc-tab="preferencesTab"], [mc-tab="contentTab"]) #unifiedToolbarContainer::after {
+  content: "" !important;
+  position: absolute !important;
+  inset-inline-start: var(--mc-side-right, 0px) !important;
+  inset-inline-end: 0 !important;
+  bottom: 0 !important;
+  height: 1px !important;
+  background-color: var(--mt-pane-line) !important;
+  pointer-events: none !important;
+}
+
+/* ---------- Kalender wie Apple Kalender ---------- */
+
+/* Seitenleiste: grau, Kalenderliste oben, Minikalender unten */
+#calSidebar {
+  background: var(--mt-sidebar) !important;
+  border-inline-end: 1px solid var(--mt-sidebar-border) !important;
+}
+
+#calsidebar_splitter {
+  border: none !important;
+  background: transparent !important;
+}
+
+#primaryButtonSidePanel {
+  order: 0 !important;
+  justify-content: flex-start !important;
+  padding: 10px 16px 6px !important;
+  background: transparent !important;
+  border: none !important;
+}
+
+/* „Neuer Termin“ als Kapsel mit Plus wie Apples „+“ */
+#sidePanelNewEvent {
+  display: inline-flex !important;
+  align-items: center !important;
+  min-width: 40px !important;
+  height: 38px !important;
+  padding: 0 14px 0 12px !important;
+  border: none !important;
+  border-radius: 999px !important;
+  background: var(--mt-control) !important;
+  color: var(--mt-text) !important;
+  font-size: 13px !important;
+  font-weight: 500 !important;
+  box-shadow: none !important;
+  gap: 6px !important;
+}
+
+#sidePanelNewEvent:hover {
+  background: var(--mt-control-hover) !important;
+}
+
+#sidePanelNewEvent::before {
+  content: "" !important;
+  width: 18px !important;
+  height: 18px !important;
+  background-color: currentColor !important;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='1.9' stroke-linecap='round'%3E%3Cpath d='M12 5v14M5 12h14'/%3E%3C/svg%3E") center / contain no-repeat !important;
+}
+
+#sidePanelNewEvent .button-icon,
+#sidePanelNewEvent > img {
+  display: none !important;
+}
+
+#calendar-panel {
+  order: 1 !important;
+  flex: 1 1 auto !important;
+}
+
+#minimonth-splitter {
+  display: none !important;
+}
+
+#minimonth-pane {
+  order: 2 !important;
+  padding: 0 8px 52px !important;
+}
+
+/* Kalenderliste: Überschrift klein und grau wie „Google“/„Other“ bei Apple */
+#calendarListHeader {
+  padding: 14px 16px 4px !important;
+  background: transparent !important;
+  border: none !important;
+}
+
+#calendar-list-header-label {
+  font-size: 11px !important;
+  font-weight: 600 !important;
+  color: var(--mt-text-tertiary) !important;
+  text-transform: none !important;
+}
+
+#toggleCalendarIcon {
+  opacity: 0 !important;
+}
+
+#calendarListHeader:hover #toggleCalendarIcon {
+  opacity: 0.6 !important;
+}
+
+#calendar-list {
+  background: transparent !important;
+  padding: 0 8px !important;
+}
+
+#calendar-list > li {
+  position: relative !important;
+  min-height: 32px !important;
+  padding: 0 8px !important;
+  margin: 0 !important;
+  border-radius: 8px !important;
+  gap: 8px !important;
+  align-items: center !important;
+  font-size: 13px !important;
+  color: var(--mt-text) !important;
+  background: transparent !important;
+}
+
+#calendar-list > li:hover {
+  background: color-mix(in srgb, var(--mt-text) 5%, transparent) !important;
+}
+
+#calendar-list > li.selected {
+  background: var(--mt-selected-unfocused) !important;
+}
+
+#calendar-list > li.selected .calendar-name {
+  font-weight: 600 !important;
+}
+
+/* farbiges Häkchen-Kästchen statt Punkt + Checkbox rechts */
+#calendar-list > li .calendar-color {
+  width: 16px !important;
+  height: 16px !important;
+  min-width: 16px !important;
+  margin: 0 !important;
+  border-radius: 4px !important;
+  position: relative !important;
+}
+
+#calendar-list > li:has(input.calendar-displayed:checked) .calendar-color::after {
+  content: "" !important;
+  position: absolute !important;
+  inset: 0 !important;
+  background-color: white !important;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='%23000' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m4 8.3 2.6 2.6L12 5.4'/%3E%3C/svg%3E") center / contain no-repeat !important;
+}
+
+#calendar-list > li:has(input.calendar-displayed:not(:checked)) .calendar-color {
+  opacity: 0.3 !important;
+}
+
+/* die eigentliche Checkbox liegt unsichtbar über dem Kästchen */
+#calendar-list > li input.calendar-displayed {
+  position: absolute !important;
+  inset-inline-start: 8px !important;
+  width: 16px !important;
+  height: 16px !important;
+  margin: 0 !important;
+  opacity: 0 !important;
+  z-index: 1 !important;
+}
+
+#calendar-list > li .calendar-more-button,
+#calendar-list > li .calendar-readstatus {
+  opacity: 0 !important;
+}
+
+#calendar-list > li:hover .calendar-more-button {
+  opacity: 0.6 !important;
+}
+
+#sideButtonsBottom {
+  display: none !important;
+}
+
+/* Minikalender wie unten links bei Apple */
+:is(#calMinimonth, #today-minimonth) {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  font-size: 12px !important;
+}
+
+:is(#calMinimonth, #today-minimonth) .minimonth-header {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 4px !important;
+  padding: 0 4px 6px !important;
+}
+
+:is(#calMinimonth, #today-minimonth) .minimonth-nav-section {
+  display: contents !important;
+}
+
+:is(#calMinimonth, #today-minimonth) .today-button,
+:is(#calMinimonth, #today-minimonth) .years-back-button,
+:is(#calMinimonth, #today-minimonth) .years-forward-button {
+  display: none !important;
+}
+
+:is(#calMinimonth, #today-minimonth) .months-back-button {
+  order: 0 !important;
+  margin-inline-end: auto !important;
+}
+
+:is(#calMinimonth, #today-minimonth) .minimonth-nav-item:not(:has(.yearcell)) {
+  order: 1 !important;
+}
+
+:is(#calMinimonth, #today-minimonth) .minimonth-nav-item:has(.yearcell) {
+  order: 2 !important;
+}
+
+:is(#calMinimonth, #today-minimonth) .months-forward-button {
+  order: 3 !important;
+  margin-inline-start: auto !important;
+}
+
+:is(#calMinimonth, #today-minimonth) .minimonth-nav-btn {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  width: 26px !important;
+  height: 26px !important;
+  border-radius: 999px !important;
+  background: transparent !important;
+  border: none !important;
+  color: var(--mt-text-secondary) !important;
+}
+
+:is(#calMinimonth, #today-minimonth) .minimonth-nav-btn:hover {
+  background: var(--mt-control-hover) !important;
+}
+
+:is(#calMinimonth, #today-minimonth) :is(.minimonth-month-name, .minimonth-year-name) {
+  font-size: 15px !important;
+  font-weight: 400 !important;
+  color: var(--mt-text-secondary) !important;
+  text-align: center !important;
+}
+
+:is(#calMinimonth, #today-minimonth) .minimonth-month-name {
+  text-align: end !important;
+}
+
+:is(#calMinimonth, #today-minimonth) .minimonth-year-name {
+  text-align: start !important;
+}
+
+:is(#calMinimonth, #today-minimonth) :is(.minimonth-row-header-week, .minimonth-week) {
+  display: none !important;
+}
+
+:is(#calMinimonth, #today-minimonth) .minimonth-row-header {
+  font-size: 11px !important;
+  font-weight: 500 !important;
+  color: var(--mt-text-tertiary) !important;
+  background: transparent !important;
+}
+
+:is(#calMinimonth, #today-minimonth) td.minimonth-day {
+  height: 26px !important;
+  font-size: 12px !important;
+  font-weight: 500 !important;
+  color: var(--mt-text) !important;
+  background: transparent !important;
+  border: none !important;
+  border-radius: 999px !important;
+  box-shadow: none !important;
+  outline: none !important;
+}
+
+:is(#calMinimonth, #today-minimonth) td.minimonth-day[othermonth] {
+  color: var(--mt-text-tertiary) !important;
+}
+
+:is(#calMinimonth, #today-minimonth) td.minimonth-day:hover {
+  background: var(--mt-control-hover) !important;
+}
+
+:is(#calMinimonth, #today-minimonth) td.minimonth-day[selected] {
+  background: var(--mt-control) !important;
+}
+
+/* heute: weiße Zahl im roten Kreis wie Apple */
+:is(#calMinimonth, #today-minimonth) td.minimonth-day[today] {
+  background: radial-gradient(circle closest-side, #FF3B30 11px, transparent 11.5px) !important;
+  color: white !important;
+  font-weight: 700 !important;
+}
+
+/* Kalender-Kopfzeile: großer Monatstitel links, Umschalter und Navigation rechts */
+#calendarViewHeader {
+  display: flex !important;
+  align-items: center !important;
+  gap: 12px !important;
+  min-height: 60px !important;
+  padding: 8px 16px 8px 18px !important;
+  background: var(--mt-window) !important;
+  border: none !important;
+}
+
+#calendarViewHeader > .navigation-inner-box {
+  display: contents !important;
+}
+
+#intervalDescription {
+  order: 0 !important;
+  flex: 1 1 auto !important;
+  font-size: 28px !important;
+  font-weight: 700 !important;
+  letter-spacing: -0.3px !important;
+  color: var(--mt-text) !important;
+}
+
+#calendarWeek {
+  display: none !important;
+}
+
+/* Tag/Woche/Mehrere Wochen/Monat als Apple-Segmentschalter */
+#viewToggle {
+  order: 1 !important;
+  height: 38px !important;
+  padding: 4px !important;
+  gap: 2px !important;
+  border: none !important;
+  border-radius: 999px !important;
+  background: var(--mt-control) !important;
+  box-shadow: none !important;
+}
+
+#viewToggle .calview-toggle-item {
+  height: 30px !important;
+  min-width: 56px !important;
+  padding: 0 14px !important;
+  border: none !important;
+  border-radius: 999px !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  color: var(--mt-text) !important;
+  font-size: 13px !important;
+  font-weight: 500 !important;
+}
+
+#viewToggle .calview-toggle-item:hover {
+  background: var(--mt-control-hover) !important;
+}
+
+#viewToggle .calview-toggle-item[aria-selected="true"] {
+  background: color-mix(in srgb, var(--mt-text) 10%, transparent) !important;
+}
+
+/* ‹  Today  › wie bei Apple: zwei runde Knöpfe und eine Kapsel dazwischen */
+#calendarControls {
+  order: 2 !important;
+}
+
+#calendarControls .button-group {
+  display: flex !important;
+  align-items: center !important;
+  gap: 6px !important;
+  padding: 0 !important;
+  background: transparent !important;
+  border: none !important;
+}
+
+#calendarControls .button-group > button {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  width: 38px !important;
+  min-width: 38px !important;
+  height: 38px !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  border: none !important;
+  border-radius: 999px !important;
+  background: var(--mt-control) !important;
+  box-shadow: none !important;
+  color: color-mix(in srgb, var(--mt-text) 82%, transparent) !important;
+  font-size: 13px !important;
+  font-weight: 500 !important;
+}
+
+#calendarControls .button-group > button:hover {
+  background: var(--mt-control-hover) !important;
+  color: var(--mt-text) !important;
+}
+
+#calendarControls .button-group > :is(#previousViewButton, #nextViewButton)::before,
+:is(#calMinimonth, #today-minimonth) :is(.months-back-button, .months-forward-button)::before {
+  content: "" !important;
+  width: 18px !important;
+  height: 18px !important;
+  background-color: currentColor !important;
+  mask: var(--mi-chevron) center / contain no-repeat !important;
+  transform: rotate(90deg) !important;
+}
+
+#calendarControls .button-group > #nextViewButton::before,
+:is(#calMinimonth, #today-minimonth) .months-forward-button::before {
+  transform: rotate(-90deg) !important;
+}
+
+#calendarControls .button-group > #todayViewButton {
+  width: auto !important;
+  padding: 0 16px !important;
+  color: var(--mt-text) !important;
+}
+
+#calendarControls .button-group > #todayViewButton::before {
+  content: "Today" !important;
+}
+
+:root[lang^="de"] #calendarControls .button-group > #todayViewButton::before {
+  content: "Heute" !important;
+}
+
+#calendarControlBarMenu {
+  order: 3 !important;
+}
+
+/* Suchliste „Termine in den nächsten 7 Tagen“ gibt es bei Apple nicht */
+#bottom-events-box,
+#calendar-view-splitter {
+  display: none !important;
+}
+
+/* Monatsansicht */
+calendar-month-view .monthtable,
+calendar-multiweek-view .monthtable {
+  border: none !important;
+  background: var(--mt-window) !important;
+}
+
+calendar-month-view calendar-day-label,
+calendar-multiweek-view calendar-day-label {
+  background: var(--mt-window) !important;
+  border: none !important;
+  border-bottom: 1px solid var(--mt-pane-line) !important;
+  font-size: 15px !important;
+  font-weight: 400 !important;
+  color: var(--mt-text) !important;
+  text-align: end !important;
+  justify-content: flex-end !important;
+  padding: 4px 10px 6px !important;
+}
+
+calendar-day-label .calendar-day-label-name {
+  text-align: end !important;
+  font-weight: 400 !important;
+  font-size: 15px !important;
+}
+
+calendar-month-day-box {
+  background: var(--mt-window) !important;
+  border: none !important;
+  border-inline-end: 1px solid var(--mt-pane-line) !important;
+  border-bottom: 1px solid var(--mt-pane-line) !important;
+  box-shadow: none !important;
+}
+
+/* Wochenende wie bei Apple leicht grau */
+calendar-month-day-box.calendar-month-day-box-day-off {
+  background: color-mix(in srgb, var(--mt-sidebar) 55%, var(--mt-window)) !important;
+}
+
+calendar-month-day-box[relation="today"],
+calendar-month-day-box[selected] {
+  background: var(--mt-window) !important;
+  border-color: var(--mt-pane-line) !important;
+}
+
+calendar-month-day-box.calendar-month-day-box-day-off[relation="today"],
+calendar-month-day-box.calendar-month-day-box-day-off[selected] {
+  background: color-mix(in srgb, var(--mt-sidebar) 55%, var(--mt-window)) !important;
+}
+
+calendar-month-day-box .calendar-month-day-box-dates {
+  justify-content: flex-end !important;
+  padding: 6px 8px 2px !important;
+  background: transparent !important;
+}
+
+calendar-month-day-box .calendar-month-week-label {
+  display: none !important;
+}
+
+calendar-month-day-box .calendar-month-day-label {
+  min-width: 24px !important;
+  height: 24px !important;
+  padding: 0 6px !important;
+  border-radius: 999px !important;
+  font-size: 16px !important;
+  font-weight: 400 !important;
+  line-height: 24px !important;
+  text-align: center !important;
+  background: transparent !important;
+  color: var(--mt-text) !important;
+}
+
+calendar-month-day-box.calendar-month-day-box-other-month .calendar-month-day-label {
+  color: var(--mt-text-tertiary) !important;
+}
+
+calendar-month-day-box[relation="today"] .calendar-month-day-label {
+  background: #FF3B30 !important;
+  color: white !important;
+  font-weight: 600 !important;
+}
+
+/* Termine: Text mit farbigem Strich, Uhrzeit rechts in Grau */
+calendar-month-day-box-item {
+  min-height: 0 !important;
+  height: 18px !important;
+  margin: 0 0 1px !important;
+  padding: 0 6px 0 8px !important;
+  border: none !important;
+  border-radius: 3px !important;
+  background: transparent !important;
+  color: var(--mt-text) !important;
+  font-size: 12px !important;
+  box-shadow: inset 3px 0 0 var(--item-backcolor) !important;
+  align-items: center !important;
+}
+
+calendar-month-day-box-item .item-time-label {
+  order: 9 !important;
+  margin-inline-start: auto !important;
+  padding-inline-start: 6px !important;
+  font-size: 11px !important;
+  color: var(--mt-text-tertiary) !important;
+  font-variant-numeric: tabular-nums !important;
+}
+
+calendar-month-day-box-item .event-name-label {
+  flex: 1 1 auto !important;
+  min-width: 0 !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
+}
+
+calendar-month-day-box-item :is(.item-type-icon, .alarm-icons-box, .item-classification-icon, .item-recurrence-icon, .calendar-category-box) {
+  display: none !important;
+}
+
+/* ganztägige Termine: zarter Balken in der Kalenderfarbe */
+calendar-month-day-box-item[allday] {
+  background: color-mix(in srgb, var(--item-backcolor) 26%, var(--mt-window)) !important;
+  color: color-mix(in srgb, var(--item-backcolor) 55%, var(--mt-text)) !important;
+  box-shadow: none !important;
+  border-radius: 4px !important;
+  font-weight: 500 !important;
+}
+
+/* ausgewählter Termin: kräftig gefüllt wie bei Apple */
+calendar-month-day-box-item[selected] {
+  background: var(--item-backcolor) !important;
+  color: white !important;
+  box-shadow: none !important;
+}
+
+calendar-month-day-box-item[selected] .item-time-label {
+  color: rgba(255, 255, 255, 0.85) !important;
+}
+
+calendar-month-day-box .calendar-month-day-box-list {
+  padding: 0 4px 4px !important;
+}
+
+/* Belegt-Punkte im Minikalender gibt es bei Apple nicht */
+:is(#calMinimonth, #today-minimonth) td.minimonth-day[busy]::after,
+:is(#calMinimonth, #today-minimonth) td.minimonth-day::after {
+  display: none !important;
+}
+
+:is(#calMinimonth, #today-minimonth) .minimonth-nav-item {
+  border: none !important;
+}
+
+/* ---------- Woche, Tag, Mehrere Wochen ---------- */
+calendar-week-view, calendar-day-view {
+  background: var(--mt-window) !important;
+}
+
+.multiday-header-corner,
+.multiday-timebar-time {
+  background: var(--mt-window) !important;
+  border: none !important;
+}
+
+.multiday-timebar-time {
+  font-size: 11px !important;
+  color: var(--mt-text-tertiary) !important;
+  justify-content: flex-end !important;
+  text-align: end !important;
+  padding-inline-end: 8px !important;
+}
+
+.day-column-heading {
+  background: var(--mt-window) !important;
+  border: none !important;
+  border-bottom: 1px solid var(--mt-pane-line) !important;
+  font-size: 13px !important;
+  font-weight: 400 !important;
+  color: var(--mt-text) !important;
+  min-height: 30px !important;
+  justify-content: center !important;
+}
+
+.day-column-heading > span {
+  font-weight: 400 !important;
+}
+
+/* heute: Überschrift rot wie bei Apple, keine blaue Fläche */
+.day-column-today > .day-column-heading,
+.day-column-today > .day-column-heading > span {
+  color: #FF3B30 !important;
+  font-weight: 600 !important;
+}
+
+.day-column-container calendar-header-container {
+  background: var(--mt-window) !important;
+  border-color: var(--mt-pane-line) !important;
+}
+
+calendar-event-column {
+  background: var(--mt-window) !important;
+  border-color: var(--mt-pane-line) !important;
+}
+
+.day-column-container :is(calendar-event-column, .multiday-hour-box) {
+  background-color: transparent !important;
+}
+
+.multiday-hour-box {
+  border-color: var(--mt-pane-line) !important;
+}
+
+.timeIndicator {
+  border-color: #FF3B30 !important;
+}
+
+/* Termine pastellig mit farbigem Strich links */
+calendar-event-box.calendar-color-box {
+  background: color-mix(in srgb, var(--item-backcolor) 22%, var(--mt-window)) !important;
+  color: color-mix(in srgb, var(--item-backcolor) 50%, var(--mt-text)) !important;
+  border: none !important;
+  border-radius: 5px !important;
+  box-shadow: inset 3px 0 0 var(--item-backcolor) !important;
+  font-size: 12px !important;
+  font-weight: 500 !important;
+}
+
+calendar-event-box.calendar-color-box .calendar-item-container {
+  padding-inline-start: 4px !important;
+}
+
+calendar-event-box.calendar-color-box[selected] {
+  background: var(--item-backcolor) !important;
+  color: white !important;
+  box-shadow: none !important;
+}
+
+calendar-event-box :is(.alarm-icons-box, .item-classification-icon, .item-recurrence-icon, .calendar-category-box, .gripbar-start img, .gripbar-end img) {
+  display: none !important;
+}
+
+/* ganztägige Termine in der Kopfzeile */
+.allday-events-list .calendar-color-box {
+  background: color-mix(in srgb, var(--item-backcolor) 26%, var(--mt-window)) !important;
+  color: color-mix(in srgb, var(--item-backcolor) 55%, var(--mt-text)) !important;
+  border: none !important;
+  border-radius: 4px !important;
+  box-shadow: none !important;
+  font-size: 12px !important;
+  font-weight: 500 !important;
+}
+
+.allday-events-list .calendar-color-box[selected] {
+  background: var(--item-backcolor) !important;
+  color: white !important;
+}
+
+.allday-events-list .calendar-color-box :is(.item-type-icon, .alarm-icons-box, .item-classification-icon, .item-recurrence-icon, .calendar-category-box) {
+  display: none !important;
+}
+
+/* ---------- Aufgaben im Stil von Apple Erinnerungen ---------- */
+#sidePanelNewEvent,
+#sidePanelNewTask {
+  display: inline-flex !important;
+  align-items: center !important;
+  min-width: 40px !important;
+  height: 38px !important;
+  padding: 0 14px 0 12px !important;
+  border: none !important;
+  border-radius: 999px !important;
+  background: var(--mt-control) !important;
+  color: var(--mt-text) !important;
+  font-size: 13px !important;
+  font-weight: 500 !important;
+  box-shadow: none !important;
+  gap: 6px !important;
+}
+
+#sidePanelNewTask:hover {
+  background: var(--mt-control-hover) !important;
+}
+
+#sidePanelNewTask::before {
+  content: "" !important;
+  width: 18px !important;
+  height: 18px !important;
+  background-color: currentColor !important;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='1.9' stroke-linecap='round'%3E%3Cpath d='M12 5v14M5 12h14'/%3E%3C/svg%3E") center / contain no-repeat !important;
+}
+
+#primaryButtonSidePanel {
+  gap: 8px !important;
+}
+
+#task-tree-filter-header {
+  padding: 14px 16px 4px !important;
+  background: transparent !important;
+  border: none !important;
+}
+
+#task-tree-filter-header > span {
+  font-size: 11px !important;
+  font-weight: 600 !important;
+  color: var(--mt-text-tertiary) !important;
+}
+
+#task-tree-filtergroup {
+  padding: 0 8px !important;
+  margin: 0 !important;
+  background: transparent !important;
+}
+
+#task-tree-filtergroup > radio {
+  min-height: 32px !important;
+  margin: 0 !important;
+  padding: 0 12px !important;
+  border-radius: 8px !important;
+  font-size: 13px !important;
+  color: var(--mt-text) !important;
+  align-items: center !important;
+}
+
+#task-tree-filtergroup > radio .radio-check {
+  display: none !important;
+}
+
+#task-tree-filtergroup > radio:hover {
+  background: color-mix(in srgb, var(--mt-text) 5%, transparent) !important;
+}
+
+#task-tree-filtergroup > radio[selected] {
+  background: var(--mt-selected-unfocused) !important;
+  font-weight: 600 !important;
+}
+
+/* Eingabezeile oben: neue Aufgabe und Suche als runde Felder */
+#task-addition-box {
+  padding: 10px 14px !important;
+  gap: 10px !important;
+  background: var(--mt-window) !important;
+  border: none !important;
+  border-bottom: 1px solid var(--mt-pane-line) !important;
+  align-items: center !important;
+}
+
+#task-addition-box > box {
+  align-items: center !important;
+  gap: 8px !important;
+}
+
+#calendar-add-task-button {
+  height: 34px !important;
+  padding: 0 14px !important;
+  border: none !important;
+  border-radius: 999px !important;
+  background: var(--mt-control) !important;
+  color: var(--mt-text) !important;
+  appearance: none !important;
+}
+
+#calendar-add-task-button:hover {
+  background: var(--mt-control-hover) !important;
+}
+
+:is(#view-task-edit-field, #task-text-filter-field, #unifinder-task-edit-field) {
+  height: 34px !important;
+  padding: 0 14px !important;
+  border: none !important;
+  border-radius: 999px !important;
+  background-color: var(--mt-control) !important;
+  box-shadow: none !important;
+  outline: none !important;
+  font-size: 13px !important;
+  color: var(--mt-text) !important;
+  appearance: none !important;
+}
+
+#unifinder-task-edit-field {
+  margin: 8px !important;
+  width: calc(100% - 16px) !important;
+}
+
+#task-addition-box .input-container {
+  border: none !important;
+  background: transparent !important;
+  flex: 1 !important;
+}
+
+/* Aufgabenliste: luftige Zeilen mit runden Abhak-Kreisen */
+.calendar-task-tree > treecols {
+  background: var(--mt-window) !important;
+  border: none !important;
+  border-bottom: 1px solid var(--mt-pane-line) !important;
+}
+
+.calendar-task-tree > treecols > treecol {
+  background: transparent !important;
+  border: none !important;
+  font-size: 11px !important;
+  color: var(--mt-text-tertiary) !important;
+}
+
+.calendar-task-tree {
+  background: var(--mt-window) !important;
+  border: none !important;
+}
+
+.calendar-task-tree treechildren::-moz-tree-row {
+  height: 40px !important;
+  min-height: 40px !important;
+  border: none !important;
+  border-bottom: 1px solid var(--mt-pane-line) !important;
+  background-color: transparent !important;
+}
+
+.calendar-task-tree treechildren::-moz-tree-row(selected) {
+  background-color: var(--mt-selected-unfocused) !important;
+}
+
+.calendar-task-tree treechildren::-moz-tree-row(selected, focus) {
+  background-color: color-mix(in srgb, var(--mt-accent) 18%, transparent) !important;
+}
+
+.calendar-task-tree treechildren::-moz-tree-cell-text {
+  font-size: 13px !important;
+  color: var(--mt-text) !important;
+}
+
+.calendar-task-tree treechildren::-moz-tree-cell-text(selected) {
+  color: var(--mt-text) !important;
+}
+
+.calendar-task-tree treechildren::-moz-tree-cell-text(completed) {
+  color: var(--mt-text-tertiary) !important;
+  text-decoration: none !important;
+}
+
+.calendar-task-tree > treechildren::-moz-tree-image(calendar-task-tree-col-completed) {
+  inline-size: 18px !important;
+  block-size: 18px !important;
+  fill-opacity: 1 !important;
+  list-style-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20'%3E%3Ccircle cx='10' cy='10' r='8.6' fill='none' stroke='%23B5B5BA' stroke-width='1.5'/%3E%3C/svg%3E") !important;
+}
+
+.calendar-task-tree > treechildren::-moz-tree-image(calendar-task-tree-col-completed, completed) {
+  list-style-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20'%3E%3Ccircle cx='10' cy='10' r='9.3' fill='%23007AFF'/%3E%3Cpath d='m6 10.3 2.7 2.7L14.2 7.4' fill='none' stroke='white' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") !important;
+}
+
+/* ---------- Today-Pane rechts (Termine/Aufgaben) ---------- */
+#today-pane-panel {
+  background: var(--mt-sidebar) !important;
+  border-inline-start: 1px solid var(--mt-sidebar-border) !important;
+}
+
+#today-splitter {
+  border: none !important;
+  background: transparent !important;
+}
+
+/* ---------- Adressbuch wie Apple Kontakte ---------- */
+#booksPane {
+  background: var(--mt-sidebar) !important;
+  border-inline-end: 1px solid var(--mt-sidebar-border) !important;
+}
+
+#booksSplitter, #sharedSplitter {
+  border: none !important;
+  background: transparent !important;
+}
+
+#booksPaneHeaderBar {
+  height: auto !important;
+  padding: 10px 12px 8px !important;
+  gap: 8px !important;
+  background: transparent !important;
+  border: none !important;
+  justify-content: flex-start !important;
+}
+
+#booksPaneCreateContact {
+  display: inline-flex !important;
+  align-items: center !important;
+  height: 38px !important;
+  padding: 0 14px 0 12px !important;
+  border: none !important;
+  border-radius: 999px !important;
+  background-color: var(--mt-control) !important;
+  color: var(--mt-text) !important;
+  font-size: 13px !important;
+  font-weight: 500 !important;
+  box-shadow: none !important;
+  gap: 6px !important;
+  order: -1 !important;
+  padding-inline-start: 34px !important;
+  background-position-x: 12px !important;
+}
+
+#booksPaneCreateContact:hover {
+  background-color: var(--mt-control-hover) !important;
+}
+
+:is(#booksPaneCreateBook, #booksPaneCreateList) {
+  width: 38px !important;
+  height: 38px !important;
+  border-radius: 999px !important;
+  background-color: transparent !important;
+  color: var(--mt-text-secondary) !important;
+}
+
+:is(#booksPaneCreateBook, #booksPaneCreateList):hover {
+  background-color: var(--mt-control-hover) !important;
+}
+
+#books {
+  padding: 0 8px !important;
+  background: transparent !important;
+}
+
+#books .bookRow > .bookRow-container {
+  min-height: 34px !important;
+  padding-inline: 8px !important;
+  border-radius: 8px !important;
+  background: transparent !important;
+  color: var(--mt-text) !important;
+  font-size: 13px !important;
+  align-items: center !important;
+}
+
+#books .bookRow > .bookRow-container:hover {
+  background: color-mix(in srgb, var(--mt-text) 5%, transparent) !important;
+}
+
+#books .bookRow > .bookRow-container {
+  border: none !important;
+}
+
+#books .bookRow.selected > .bookRow-container {
+  background: var(--mt-selected-unfocused) !important;
+  font-weight: 600 !important;
+  outline: none !important;
+}
+
+#books .bookRow-icon {
+  display: none !important;
+}
+
+#books .bookRow-name {
+  margin-inline-start: 0 !important;
+}
+
+#cardCount {
+  font-size: 11px !important;
+  color: var(--mt-text-tertiary) !important;
+  padding: 8px 16px 12px !important;
+}
+
+.books-pane-bottom {
+  padding: 0 12px !important;
+}
+
+/* Kontaktliste */
+#cardsPane {
+  background: var(--mt-window) !important;
+  border-inline-end: 1px solid var(--mt-pane-line) !important;
+}
+
+#cardsPaneHeader {
+  padding: 10px 12px 6px !important;
+  gap: 8px !important;
+  align-items: center !important;
+}
+
+#cardsPaneHeader search-bar {
+  --search-field-height: 34px !important;
+}
+
+#cards {
+  background: var(--mt-window) !important;
+}
+
+#cards .card-layout > td {
+  padding: 0 8px !important;
+}
+
+#cards .card-layout .card-container {
+  min-height: 52px !important;
+  padding: 0 10px !important;
+  gap: 12px !important;
+  border-radius: 10px !important;
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  outline: none !important;
+  position: relative !important;
+}
+
+/* feine Trennlinie ab dem Namen wie bei Apple */
+#cards .card-layout:not(.selected) + .card-layout:not(.selected) .card-container::before {
+  content: "" !important;
+  position: absolute !important;
+  top: 0 !important;
+  inset-inline-start: 62px !important;
+  inset-inline-end: 10px !important;
+  height: 1px !important;
+  background: var(--mt-pane-line) !important;
+}
+
+#cards .card-layout .card-container contact-avatar {
+  width: 40px !important;
+  height: 40px !important;
+  min-width: 40px !important;
+}
+
+#cards .card-layout .ab-card-first-line .name {
+  font-size: 14px !important;
+  font-weight: 500 !important;
+  color: var(--mt-text) !important;
+}
+
+#cards .card-layout .ab-card-second-line {
+  font-size: 12px !important;
+  color: var(--mt-text-tertiary) !important;
+}
+
+#cards .card-layout:hover .card-container {
+  background: color-mix(in srgb, var(--mt-text) 4%, transparent) !important;
+}
+
+#cards .card-layout.selected .card-container {
+  background: var(--mt-selected-unfocused) !important;
+}
+
+#cards:focus-within .card-layout.selected .card-container {
+  background: var(--mt-accent) !important;
+}
+
+#cards:focus-within .card-layout.selected :is(.name, .ab-card-second-line, .address) {
+  color: white !important;
+}
+
+/* Kontaktdetails: großes Foto mittig, Name darunter, Daten in Karten */
+#detailsPane {
+  background: var(--mt-window) !important;
+  position: relative !important;
+}
+
+#viewContact > header {
+  justify-content: center !important;
+  padding-top: 40px !important;
+}
+
+#viewContact .contact-header {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  text-align: center !important;
+  gap: 14px !important;
+}
+
+#viewContactPhoto {
+  width: 180px !important;
+  height: 180px !important;
+  border-radius: 50% !important;
+}
+
+#viewContact .contact-headings {
+  align-items: center !important;
+  text-align: center !important;
+}
+
+#viewContactName {
+  font-size: 24px !important;
+  font-weight: 700 !important;
+  color: var(--mt-text) !important;
+}
+
+#viewPrimaryEmail {
+  font-size: 13px !important;
+  color: var(--mt-text-tertiary) !important;
+}
+
+#detailsBody {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: stretch !important;
+  gap: 12px !important;
+  max-width: 640px !important;
+  margin: 8px auto 40px !important;
+}
+
+#detailsBody > section {
+  width: auto !important;
+  margin: 0 !important;
+  padding: 12px 16px !important;
+  border: none !important;
+  border-radius: 12px !important;
+  background: color-mix(in srgb, var(--mt-text) 4%, var(--mt-window)) !important;
+  box-shadow: none !important;
+}
+
+#detailsBody > section > h2 {
+  font-size: 11px !important;
+  font-weight: 600 !important;
+  color: var(--mt-text-tertiary) !important;
+  margin-bottom: 6px !important;
+}
+
+#detailsBody .entry-list {
+  font-size: 14px !important;
+}
+
+/* Aktionen mittig als Kapseln, „Bearbeiten“ oben rechts */
+#detailsBody > #detailsActions {
+  background: transparent !important;
+  padding: 0 !important;
+  display: flex !important;
+  justify-content: center !important;
+}
+
+#detailsActions > div:first-child {
+  display: flex !important;
+  gap: 10px !important;
+  justify-content: center !important;
+}
+
+#detailsActions > div:first-child > button {
+  height: 38px !important;
+  padding-block: 0 !important;
+  padding-inline: 36px 16px !important;
+  background-position-x: 14px !important;
+  border: none !important;
+  border-radius: 999px !important;
+  background-color: var(--mt-control) !important;
+  color: var(--mt-text) !important;
+  font-size: 13px !important;
+  font-weight: 500 !important;
+}
+
+#detailsActions > div:first-child > button:hover {
+  background-color: var(--mt-control-hover) !important;
+}
+
+#detailsActions .edit-block {
+  position: absolute !important;
+  top: 12px !important;
+  inset-inline-end: 16px !important;
+  width: auto !important;
+}
+
+#editButton {
+  height: 38px !important;
+  padding: 0 18px !important;
+  border: none !important;
+  border-radius: 999px !important;
+  background: var(--mt-control) !important;
+  color: var(--mt-text) !important;
+  font-size: 13px !important;
+  font-weight: 500 !important;
+  box-shadow: none !important;
+}
+
+#editButton:hover {
+  background: var(--mt-control-hover) !important;
+}
+
+/* Suchfelder (Adressbuch, Chat usw.) rund wie Apples Suchfeld */
+search-bar {
+  --button-border-radius: 999px !important;
+  --search-bar-background: var(--mt-control) !important;
+  --search-bar-focus-background: var(--mt-control) !important;
+  --search-bar-border-color: transparent !important;
+  --search-padding: 12px !important;
+  min-height: 34px !important;
+}
+
+/* Today-Pane: Kopf und Terminliste wie die Seitenleisten */
+#today-pane-panel > .sidebar-header {
+  min-height: 46px !important;
+  padding: 0 10px 0 14px !important;
+  background: transparent !important;
+  border: none !important;
+}
+
+#today-pane-header {
+  font-size: 13px !important;
+  font-weight: 600 !important;
+  color: var(--mt-text) !important;
+}
+
+#agenda,
+#today-pane-panel :is(#agenda-panel, .today-subpane, calendar-minimonth) {
+  background: transparent !important;
+}
+
+#agenda .agenda-date-header {
+  margin-top: 8px !important;
+  padding: 4px 14px !important;
+  background: transparent !important;
+  font-size: 11px !important;
+  font-weight: 600 !important;
+  color: var(--mt-text-tertiary) !important;
+}
+
+#agenda .agenda-listitem {
+  border-radius: 8px !important;
+}
+
+#agenda .agenda-listitem-details {
+  min-height: 28px !important;
+  padding: 2px 8px !important;
+  border-radius: 8px !important;
+  font-size: 12px !important;
+}
+
+#agenda .agenda-listitem-calendar {
+  width: 8px !important;
+  height: 8px !important;
+  border-radius: 50% !important;
+}
+
+#agenda .agenda-listitem-time {
+  font-weight: 500 !important;
+  color: var(--mt-text-tertiary) !important;
+  font-variant-numeric: tabular-nums !important;
+}
+
+/* ganztägig: Kalenderfarbe hell überdeckt (pastellig) wie im Kalender */
+#agenda .agenda-listitem-all-day .agenda-listitem-details {
+  background-image: linear-gradient(color-mix(in srgb, var(--mt-window) 72%, transparent), color-mix(in srgb, var(--mt-window) 72%, transparent)) !important;
+  color: var(--mt-text) !important;
+  margin: 1px 6px !important;
+  font-weight: 500 !important;
+}
+
+#agenda .agenda-listitem.selected .agenda-listitem-details {
+  background-color: var(--mt-selected-unfocused) !important;
+}
+
+#agenda .agenda-listitem-relative {
+  border-radius: 999px !important;
+  padding: 0 6px !important;
+  background: #FF3B30 !important;
+}
+
+/* ---------- Chat wie Apple Nachrichten ---------- */
+#chat-view-toolbox {
+  background: var(--mt-window) !important;
+  border: none !important;
+  border-bottom: 1px solid var(--mt-pane-line) !important;
+}
+
+#chat-toolbar {
+  min-height: 52px !important;
+  padding: 0 12px !important;
+  gap: 8px !important;
+  align-items: center !important;
+}
+
+#chat-toolbar > toolbarbutton,
+#chat-status-selector > #statusTypeIcon {
+  min-height: 38px !important;
+  padding: 0 14px !important;
+  border: none !important;
+  border-radius: 999px !important;
+  background: var(--mt-control) !important;
+  color: var(--mt-text) !important;
+  appearance: none !important;
+}
+
+#chat-toolbar > toolbarbutton:hover,
+#chat-status-selector > #statusTypeIcon:hover {
+  background: var(--mt-control-hover) !important;
+}
+
+#chatPanel {
+  background: var(--mt-window) !important;
+}
+
+#listPaneBox {
+  min-width: 260px !important;
+  background: var(--mt-sidebar) !important;
+  border-inline-end: 1px solid var(--mt-sidebar-border) !important;
+}
+
+#listSplitter {
+  border: none !important;
+  background: transparent !important;
+}
+
+#contactlistbox {
+  background: transparent !important;
+  border: none !important;
+  padding: 6px 8px !important;
+}
+
+#contactlistbox > richlistitem {
+  min-height: 52px !important;
+  border-radius: 10px !important;
+}
+
+#contactlistbox > richlistitem[selected] {
+  background: var(--mt-accent) !important;
+  color: white !important;
+}
+
+#contactlistbox > richlistitem:is(#conversationsGroup, #onlinecontactsGroup, #offlinecontactsGroup) {
+  min-height: 0 !important;
+  background: transparent !important;
+  color: var(--mt-text-tertiary) !important;
+  font-size: 11px !important;
+  font-weight: 600 !important;
+}
+
+/* leerer Zustand: ruhig und mittig */
+.im-placeholder-screen {
+  background: var(--mt-window) !important;
+}
+
+.im-placeholder-screen :is(.im-placeholder-title, h1) {
+  font-size: 20px !important;
+  font-weight: 600 !important;
+  color: var(--mt-text) !important;
+  border: none !important;
+}
+
+.im-placeholder-screen :is(.im-placeholder-icon, img) {
+  opacity: 0.35 !important;
+}
+
+.im-placeholder-screen button {
+  height: 38px !important;
+  padding: 0 18px !important;
+  border: none !important;
+  border-radius: 999px !important;
+  background: var(--mt-accent) !important;
+  color: white !important;
+  font-size: 13px !important;
+  font-weight: 500 !important;
+  box-shadow: none !important;
+  outline: none !important;
+}
+
+#mini-day-box,
+#today-pane-panel :is(#mini-day-image, .today-subpane, #todo-tab-panel) {
+  background: transparent !important;
+  border-color: var(--mt-sidebar-border) !important;
+}
+
+/* ---------- Einstellungen wie die macOS-Systemeinstellungen ---------- */
+#pref-category-box {
+  background: var(--mt-sidebar) !important;
+  border-inline-end: 1px solid var(--mt-sidebar-border) !important;
+  padding-top: 12px !important;
+}
+
+#categories {
+  background: transparent !important;
+  padding: 0 10px !important;
+  margin: 0 !important;
+}
+
+#categories > richlistitem.category {
+  min-height: 34px !important;
+  margin: 1px 0 !important;
+  padding: 0 8px !important;
+  border-radius: 8px !important;
+  gap: 10px !important;
+  background: transparent !important;
+  color: var(--mt-text) !important;
+  font-size: 13px !important;
+  font-weight: 400 !important;
+}
+
+#categories > richlistitem.category:hover {
+  background: color-mix(in srgb, var(--mt-text) 5%, transparent) !important;
+}
+
+#categories > richlistitem.category[selected] {
+  background: var(--mt-selected-unfocused) !important;
+  font-weight: 500 !important;
+}
+
+/* farbige Symbolkacheln wie in den Systemeinstellungen */
+#categories .category-icon,
+.sidebar-footer-list .sidebar-footer-icon {
+  --tile: #8E8E93;
+  width: 22px !important;
+  height: 22px !important;
+  padding: 3px !important;
+  margin: 0 !important;
+  box-sizing: border-box !important;
+  border-radius: 6px !important;
+  background-color: var(--tile) !important;
+  -moz-context-properties: fill, fill-opacity, stroke, stroke-opacity !important;
+  fill: white !important;
+  stroke: white !important;
+  fill-opacity: 1 !important;
+  stroke-opacity: 1 !important;
+}
+
+#category-appearance .category-icon { --tile: #0A84FF; }
+#category-compose .category-icon,
+#category-composition .category-icon { --tile: #FF9500; }
+#category-privacy .category-icon { --tile: #007AFF; }
+#category-chat .category-icon { --tile: #AF52DE; }
+#category-calendar .category-icon { --tile: #FF3B30; }
+#categories > richlistitem:last-child .category-icon { --tile: #30B850; }
+#accountButton .sidebar-footer-icon { --tile: #5E5CE6; }
+#addonsButton .sidebar-footer-icon { --tile: #FF2D78; }
+
+.sidebar-footer-list {
+  padding: 0 10px 12px !important;
+}
+
+.sidebar-footer-link {
+  min-height: 34px !important;
+  padding: 0 8px !important;
+  border-radius: 8px !important;
+  gap: 10px !important;
+  color: var(--mt-text) !important;
+}
+
+.sidebar-footer-link:hover {
+  background: color-mix(in srgb, var(--mt-text) 5%, transparent) !important;
+}
+
+.sidebar-footer-label {
+  font-size: 13px !important;
+  margin: 0 !important;
+}
+
+/* Inhalt: Überschriften groß, Gruppen als abgerundete Karten */
+#preferencesContainer,
+.sticky-container {
+  background: var(--mt-window) !important;
+}
+
+#paneDeck h1 {
+  font-size: 22px !important;
+  font-weight: 700 !important;
+  color: var(--mt-text) !important;
+}
+
+#paneDeck .subcategory {
+  border: none !important;
+  margin-top: 18px !important;
+  padding-top: 0 !important;
+}
+
+#paneDeck fieldset {
+  margin: 0 0 12px !important;
+  padding: 12px 16px 14px !important;
+  border: none !important;
+  border-radius: 12px !important;
+  background: color-mix(in srgb, var(--mt-text) 3.5%, var(--mt-window)) !important;
+}
+
+#paneDeck fieldset > legend {
+  float: inline-start !important;
+  width: 100% !important;
+  padding: 0 0 6px !important;
+  font-size: 13px !important;
+  font-weight: 600 !important;
+  color: var(--mt-text) !important;
+}
+
+#paneDeck fieldset > :not(legend) {
+  clear: both !important;
+}
+
+/* Knöpfe, Auswahllisten und Felder im Apple-Stil */
+#paneDeck :is(button:not(.close-icon, .icon-only, [type="checkbox"]), menulist) {
+  min-height: 28px !important;
+  padding-inline: 14px !important;
+  border: none !important;
+  border-radius: 999px !important;
+  background-color: var(--mt-control) !important;
+  color: var(--mt-text) !important;
+  box-shadow: none !important;
+  font-size: 13px !important;
+}
+
+#paneDeck :is(button:not(.close-icon, .icon-only, [type="checkbox"]), menulist):not([disabled]):hover {
+  background-color: var(--mt-control-hover) !important;
+}
+
+#paneDeck :is(input[type="text"], input[type="number"], input[type="url"], input:not([type]), textarea, search-textbox) {
+  border: 1px solid var(--mt-pane-line) !important;
+  border-radius: 7px !important;
+  background-color: var(--mt-window) !important;
+  box-shadow: none !important;
+}
+
+.sticky-container #searchInput,
+#paneDeck input[type="search"] {
+  height: 32px !important;
+  padding-inline: 32px 14px !important;
+  background-position: 11px center !important;
+  border: none !important;
+  border-radius: 999px !important;
+  background-color: var(--mt-control) !important;
+  box-shadow: none !important;
+}
+
+/* ---------- Add-ons-Verwaltung ---------- */
+:root[mc-tab="contentTab"] #unifiedToolbarContainer::after {
+  inset-inline-start: var(--mc-side-right, 0px) !important;
+}
+
+#sidebar:has(categories-box) {
+  background: var(--mt-sidebar) !important;
+  border-inline-end: 1px solid var(--mt-sidebar-border) !important;
+}
+
+categories-box > .category,
+#sidebar-footer .sidebar-footer-link {
+  min-height: 34px !important;
+  margin: 1px 10px !important;
+  padding: 0 10px !important;
+  border-radius: 8px !important;
+  background: transparent !important;
+  color: var(--mt-text) !important;
+  font-size: 13px !important;
+  font-weight: 400 !important;
+}
+
+categories-box > .category:hover {
+  background: color-mix(in srgb, var(--mt-text) 5%, transparent) !important;
+}
+
+categories-box > .category[selected] {
+  background: var(--mt-selected-unfocused) !important;
+  font-weight: 500 !important;
+}
+
+addon-card .card,
+.addon.card {
+  border: none !important;
+  border-radius: 12px !important;
+  background: color-mix(in srgb, var(--mt-text) 3.5%, var(--mt-window)) !important;
+  box-shadow: none !important;
+}
+
+:is(addon-list, addon-page-header, .main-search, .addon-details) button:not(.toggle-button, [role="switch"]),
+.main-search button {
+  min-height: 28px !important;
+  border: none !important;
+  border-radius: 999px !important;
+  background-color: var(--mt-control) !important;
+  box-shadow: none !important;
+}
+
+search-addons input,
+.main-search input[type="search"] {
+  height: 32px !important;
+  border: none !important;
+  border-radius: 999px !important;
+  background-color: var(--mt-control) !important;
+  padding-inline: 14px !important;
+  box-shadow: none !important;
+}
+
+addon-page-header h1,
+.header-name {
+  font-size: 22px !important;
+  font-weight: 700 !important;
+}
+
+/* ---------- Verfassen-Fenster wie Apple Mail ---------- */
+#compose-toolbox,
+#composeToolbar2 {
+  background: var(--mt-window) !important;
+  border: none !important;
+}
+
+#composeToolbar2 {
+  min-height: 52px !important;
+  /* oben Platz für die Titelzeile mit den Fensterknöpfen */
+  padding: 26px 12px 8px !important;
+  gap: 6px !important;
+  border-bottom: 1px solid var(--mt-pane-line) !important;
+  align-items: center !important;
+}
+
+#composeToolbar2 > toolbarbutton,
+#composeToolbar2 > toolbarbutton > .toolbarbutton-menubutton-button {
+  min-height: 34px !important;
+  padding: 0 12px !important;
+  margin: 0 !important;
+  border: none !important;
+  border-radius: 999px !important;
+  background: var(--mt-control) !important;
+  color: var(--mt-text) !important;
+  appearance: none !important;
+  box-shadow: none !important;
+}
+
+#composeToolbar2 > toolbarbutton[type="menu-button"] {
+  padding: 0 !important;
+}
+
+#composeToolbar2 > toolbarbutton > .toolbarbutton-menubutton-button {
+  background-color: transparent !important;
+}
+
+#composeToolbar2 > toolbarbutton:not([disabled]):hover {
+  background: var(--mt-control-hover) !important;
+}
+
+#composeToolbar2 > toolbarbutton .toolbarbutton-menubutton-dropmarker {
+  border: none !important;
+  border-inline-start: 1px solid var(--mt-pane-line) !important;
+  background-color: transparent !important;
+}
+
+/* Senden in Akzentfarbe wie Apples Papierflieger */
+#composeToolbar2 > #button-send {
+  background: var(--mt-accent) !important;
+  color: white !important;
+  -moz-context-properties: fill, stroke !important;
+  fill: white !important;
+  stroke: white !important;
+}
+
+#composeToolbar2 > #button-send[disabled] {
+  background: color-mix(in srgb, var(--mt-accent) 40%, var(--mt-window)) !important;
+}
+
+#composeToolbar2 > #button-send:not([disabled]):hover {
+  background: color-mix(in srgb, var(--mt-accent) 88%, black) !important;
+}
+
+#composeToolbar2 > toolbarseparator {
+  display: none !important;
+}
+
+/* Kopfzeilen: weiß, randlose Felder, Trennlinien */
+#MsgHeadersToolbar {
+  background: var(--mt-window) !important;
+  border: none !important;
+  padding: 0 !important;
+}
+
+#MsgHeadersToolbar > :is(#top-gradient-box, #recipientsContainer, #subject-box) {
+  border-bottom: 1px solid var(--mt-pane-line) !important;
+  min-height: 40px !important;
+  align-items: center !important;
+}
+
+#MsgHeadersToolbar :is(#identityLabel-box, #subjectLabel-box, .address-label-container) label,
+#MsgHeadersToolbar .address-label-container,
+#MsgHeadersToolbar :is(#identityLabel, #subjectLabel) {
+  color: var(--mt-text-tertiary) !important;
+  font-size: 13px !important;
+}
+
+#MsgHeadersToolbar :is(.address-container, #msgSubject, .input-container),
+#MsgHeadersToolbar #msgSubjectContainer {
+  border: none !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  outline: none !important;
+}
+
+#MsgHeadersToolbar :is(.address-container, #msgSubjectContainer):focus-within {
+  outline: none !important;
+  box-shadow: none !important;
+}
+
+#msgSubject {
+  font-size: 14px !important;
+  font-weight: 500 !important;
+}
+
+#msgIdentity {
+  border: none !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+/* Formatleiste dezent */
+#FormatToolbox {
+  background: var(--mt-window) !important;
+  border: none !important;
+  border-bottom: 1px solid var(--mt-pane-line) !important;
+}
+
+#FormatToolbar menulist {
+  min-height: 28px !important;
+  border: none !important;
+  border-radius: 999px !important;
+  background-color: var(--mt-control) !important;
+  box-shadow: none !important;
+}
+
+#FormatToolbar .formatting-button {
+  border-radius: 8px !important;
+}
+
+#headersSplitter {
+  border: none !important;
+  background: transparent !important;
+}
+
+/* schmale Fenster: Kopfzeile des Kalenders schrumpft statt überzustehen */
+#calendarViewHeader {
+  min-width: 0 !important;
+}
+
+#intervalDescription {
+  min-width: 0 !important;
+  overflow: hidden !important;
+  white-space: nowrap !important;
+  text-overflow: ellipsis !important;
+}
+
+#viewToggle, #calendarControls, #calendarControlBarMenu {
+  flex-shrink: 0 !important;
+}
+
+@media (max-width: 1250px) {
+  #intervalDescription {
+    font-size: 22px !important;
+  }
+
+  #viewToggle .calview-toggle-item {
+    min-width: 0 !important;
+    padding: 0 10px !important;
+  }
+}
+
+/* Today-Pane: Datumskopf wie Apple Kalender (rote Wochentags-Zeile,
+   große dünne Tageszahl), ohne Kalenderwoche */
+#mini-day-image {
+  padding: 6px 12px 10px 14px !important;
+  align-items: center !important;
+  gap: 8px !important;
+}
+
+#datevalue-label {
+  font-size: 34px !important;
+  font-weight: 300 !important;
+  color: var(--mt-text) !important;
+  margin: 0 !important;
+  line-height: 1 !important;
+}
+
+#weekdayNameLabel {
+  font-size: 13px !important;
+  font-weight: 600 !important;
+  color: #FF3B30 !important;
+  padding: 0 !important;
+  margin: 0 !important;
+}
+
+#monthNameContainer {
+  font-size: 12px !important;
+  color: var(--mt-text-tertiary) !important;
+  margin: 0 !important;
+}
+
+#currentWeek-label {
+  display: none !important;
+}
+
+#today-pane-panel :is(.miniday-nav-buttons, #miniday-dropdown-button, .today-pane-cycler, #today-closer) {
+  min-width: 26px !important;
+  min-height: 26px !important;
+  padding: 0 !important;
+  border: none !important;
+  border-radius: 999px !important;
+  background-color: transparent !important;
+  color: var(--mt-text-secondary) !important;
+  appearance: none !important;
+  justify-content: center !important;
+  align-items: center !important;
+}
+
+#today-pane-panel :is(.miniday-nav-buttons, #miniday-dropdown-button, .today-pane-cycler, #today-closer):hover {
+  background-color: var(--mt-control-hover) !important;
+}
+
+/* „Neuer Termin“ als Kapsel */
+#agenda-toolbar {
+  padding: 4px 12px 8px !important;
+  border: none !important;
+  background: transparent !important;
+}
+
+#agenda-toolbar > toolbarbutton {
+  min-height: 32px !important;
+  padding: 0 12px !important;
+  border: none !important;
+  border-radius: 999px !important;
+  background-color: var(--mt-control) !important;
+  color: var(--mt-text) !important;
+  appearance: none !important;
+}
+
+#agenda-toolbar > toolbarbutton:hover {
+  background-color: var(--mt-control-hover) !important;
+}
+
+/* Termine: gleichmäßige Abstände statt fester Mindesthöhe */
+#agenda {
+  padding: 0 6px 8px !important;
+}
+
+#agenda .agenda-listitem-details {
+  min-height: 0 !important;
+  padding: 5px 8px !important;
+  align-items: flex-start !important;
+}
+
+#agenda .agenda-listitem-calendar {
+  margin-top: 4px !important;
+  flex-shrink: 0 !important;
+}
+
+#agenda .agenda-listitem-details-inner {
+  line-height: 1.3 !important;
+}
+
+#agenda .agenda-listitem-all-day .agenda-listitem-details {
+  padding: 5px 10px !important;
+  margin: 2px 4px !important;
+}
+
+#agenda .agenda-date-header {
+  margin-top: 10px !important;
+  padding: 2px 10px !important;
+}
+
+/* Adressbuch-Labels je Kontakt in der vereinigten Ansicht */
+#cards .ab-card-first-line {
+  display: flex !important;
+  align-items: center !important;
+  gap: 6px !important;
+  min-width: 0 !important;
+}
+
+#cards .ab-card-first-line .name {
+  flex: 0 1 auto !important;
+  min-width: 0 !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+}
+
+#cards .mc-books {
+  display: inline-flex !important;
+  flex: none !important;
+  gap: 4px !important;
+  margin-inline-start: auto !important;
+}
+
+#cards .mc-book {
+  padding: 1px 7px !important;
+  border-radius: 999px !important;
+  font-size: 10px !important;
+  font-weight: 600 !important;
+  line-height: 15px !important;
+  background: color-mix(in srgb, var(--c) 15%, transparent) !important;
+  color: color-mix(in srgb, var(--c) 75%, var(--mt-text)) !important;
+}
+
+/* sehr dunkle Kontofarbe (z. B. Schwarz): im Dunkelmodus hellere Schrift
+   und etwas kräftigere Fläche, damit das Etikett lesbar bleibt */
+@media (prefers-color-scheme: dark) {
+  #cards .mc-book.mc-dark-color {
+    background: color-mix(in srgb, var(--c) 40%, rgba(255, 255, 255, 0.18)) !important;
+    color: color-mix(in srgb, var(--c) 25%, var(--mt-text)) !important;
+  }
+}
+
+#cards:focus-within .card-layout.selected .mc-book {
+  background: rgba(255, 255, 255, 0.25) !important;
+  color: white !important;
+}
+
+/* Thunderbirds eigene Adressbuch-Angabe wäre doppelt */
+#cards .address-book-name {
+  display: none !important;
+}
+
+/* Initialen-Kreise im Adressbuch wie Apple: Verlauf Blaugrau → Lavendel,
+   weiße halbfette Initialen mit ~54 % des Kreisdurchmessers */
+#cards contact-avatar:not(.is-mail-list) {
+  background: linear-gradient(180deg, #B4CAE4, #8A97C5) !important;
+  color: #fff !important;
+  box-shadow: none !important;
+  font: 600 21px -apple-system, BlinkMacSystemFont, system-ui, sans-serif !important;
+  letter-spacing: 0 !important;
+}
+
+/* Seitenleisten der Bereiche ein-/ausblenden (Klasse setzt die Erweiterung) */
+.mc-side-hidden {
+  display: none !important;
+}
+
+/* Seitenleisten-Knopf: in jedem Bereich gleich weit vom rechten Rand der
+   jeweiligen Seitenleiste (wie in der Mail), bei ausgeblendeter Leiste neben
+   den Fensterknöpfen */
+:root:not([mc-mail]) #spacesPinnedButton {
+  inset-inline-start: max(calc(var(--mc-side-right, 0px) - 50px), 84px) !important;
+}
+
+/* ---------- Adressbuch: Kopfknöpfe einheitlich als Kapseln ---------- */
+#booksPaneHeaderBar > button {
+  height: 38px !important;
+  min-height: 38px !important;
+  border: none !important;
+  border-radius: 999px !important;
+  background-color: var(--mt-control) !important;
+  color: var(--mt-text) !important;
+  box-shadow: none !important;
+}
+
+#booksPaneHeaderBar > :is(#booksPaneCreateBook, #booksPaneCreateList) {
+  width: 38px !important;
+  min-width: 38px !important;
+  padding: 0 !important;
+  background-position: center !important;
+}
+
+#booksPaneHeaderBar > button:hover {
+  background-color: var(--mt-control-hover) !important;
+}
+
+/* ---------- Kontakt bearbeiten / neuer Kontakt ---------- */
+#editContactForm .contact-header {
+  padding-top: 24px !important;
+}
+
+#editContactHeadingName {
+  font-size: 24px !important;
+  font-weight: 700 !important;
+  color: var(--mt-text) !important;
+}
+
+#editContactForm vcard-edit {
+  gap: 12px !important;
+  max-width: 900px !important;
+}
+
+#editContactForm .addr-book-edit-fieldset {
+  padding: 12px 16px 14px !important;
+  border: none !important;
+  border-radius: 12px !important;
+  background: color-mix(in srgb, var(--mt-text) 3.5%, var(--mt-window)) !important;
+}
+
+#editContactForm .addr-book-edit-fieldset > legend:not(.screen-reader-only) {
+  float: inline-start !important;
+  width: 100% !important;
+  padding: 0 0 8px !important;
+  font-size: 12px !important;
+  font-weight: 600 !important;
+  color: var(--mt-text-secondary) !important;
+}
+
+#editContactForm .addr-book-edit-fieldset > :not(legend) {
+  clear: both !important;
+}
+
+#editContactForm label {
+  font-size: 12px !important;
+  font-weight: 500 !important;
+  color: var(--mt-text-secondary) !important;
+}
+
+#editContactForm :is(input:not([type="checkbox"], [type="radio"]), textarea) {
+  min-height: 34px !important;
+  padding: 0 10px !important;
+  border: 1px solid var(--mt-pane-line) !important;
+  border-radius: 8px !important;
+  background-color: var(--mt-window) !important;
+  color: var(--mt-text) !important;
+  box-shadow: none !important;
+  font-size: 13px !important;
+}
+
+#editContactForm textarea {
+  padding: 8px 10px !important;
+}
+
+#editContactForm :is(input, textarea):focus {
+  outline: none !important;
+  border-color: var(--mt-accent) !important;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--mt-accent) 22%, transparent) !important;
+}
+
+#editContactForm select,
+#editContactForm menulist,
+#detailsFooter menulist {
+  min-height: 34px !important;
+  border: none !important;
+  border-radius: 8px !important;
+  background-color: var(--mt-control) !important;
+  color: var(--mt-text) !important;
+  box-shadow: none !important;
+}
+
+/* „Add …“ als dezente Links, ohne gefüllte Fokusfläche */
+#editContactForm .add-property-button {
+  min-height: 28px !important;
+  padding: 0 10px 0 6px !important;
+  border: none !important;
+  border-radius: 999px !important;
+  background-color: transparent !important;
+  color: var(--mt-accent) !important;
+  font-size: 13px !important;
+  font-weight: 500 !important;
+  box-shadow: none !important;
+  outline: none !important;
+}
+
+#editContactForm .add-property-button:is(:hover, :focus-visible) {
+  background-color: color-mix(in srgb, var(--mt-accent) 10%, transparent) !important;
+  color: var(--mt-accent) !important;
+}
+
+#editContactForm .add-property-button:active {
+  background-color: color-mix(in srgb, var(--mt-accent) 18%, transparent) !important;
+}
+
+/* Fußzeile: Abbrechen / Sichern als Kapseln */
+#detailsFooter {
+  border-top: 1px solid var(--mt-pane-line) !important;
+  background: var(--mt-window) !important;
+}
+
+#detailsFooter button {
+  height: 34px !important;
+  min-width: 84px !important;
+  padding: 0 18px !important;
+  border: none !important;
+  border-radius: 999px !important;
+  background-color: var(--mt-control) !important;
+  color: var(--mt-text) !important;
+  font-size: 13px !important;
+  font-weight: 500 !important;
+  box-shadow: none !important;
+}
+
+#detailsFooter button:hover {
+  background-color: var(--mt-control-hover) !important;
+}
+
+#detailsFooter button.button-primary,
+#detailsFooter #saveEditButton {
+  background-color: var(--mt-accent) !important;
+  color: white !important;
+}
+
+#detailsFooter button.button-primary:hover,
+#detailsFooter #saveEditButton:hover {
+  background-color: color-mix(in srgb, var(--mt-accent) 88%, black) !important;
+}
+
+#detailsFooter #detailsDeleteButton {
+  color: #FF3B30 !important;
+}
+
+/* ---------- Terminspalte rechts im Stil von Fastmail ---------- */
+#today-minimonth-box {
+  padding: 4px 8px 8px !important;
+  background: transparent !important;
+  border: none !important;
+}
+
+#mini-day-box:not([collapsed]) + #today-minimonth-box,
+#today-pane-panel #mini-day-box {
+  border: none !important;
+}
+
+#agenda-container {
+  background: transparent !important;
+  border-top: 1px solid var(--mt-sidebar-border) !important;
+}
+
+#agenda-toolbar {
+  padding: 8px 12px 4px !important;
+}
+
+#mcAgendaTitle {
+  padding: 8px 14px 6px !important;
+  font-size: 18px !important;
+  font-weight: 400 !important;
+  color: var(--mt-text) !important;
+}
+
+#mcAgendaTitle b {
+  font-weight: 700 !important;
+}
+
+#agenda {
+  padding: 0 10px 12px 6px !important;
+}
+
+/* jede Zeile: links Platz für die Tagesspalte, rechts der Farbblock */
+#agenda > li.agenda-listitem {
+  position: relative !important;
+  padding: 0 0 0 50px !important;
+  margin: 2px 0 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+}
+
+#agenda > li.agenda-listitem:has(> .agenda-date-header:not([hidden])) {
+  margin-top: 14px !important;
+}
+
+/* Tagesspalte: Wochentag klein, Tageszahl groß, heute rot */
+#agenda .agenda-date-header {
+  position: absolute !important;
+  inset-inline-start: 0 !important;
+  top: 2px !important;
+  width: 46px !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  background: transparent !important;
+  text-align: center !important;
+  font-size: 0 !important;
+  line-height: 1 !important;
+  color: var(--mt-text) !important;
+}
+
+#agenda .agenda-date-header::before {
+  content: attr(data-mc-wd) !important;
+  display: block !important;
+  font-size: 11px !important;
+  font-weight: 600 !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.3px !important;
+  color: var(--mt-text-secondary) !important;
+}
+
+#agenda .agenda-date-header::after {
+  content: attr(data-mc-day) !important;
+  display: block !important;
+  margin-top: 3px !important;
+  font-size: 22px !important;
+  font-weight: 600 !important;
+}
+
+#agenda .agenda-date-header[data-mc-today],
+#agenda .agenda-date-header[data-mc-today]::before {
+  color: #FF3B30 !important;
+}
+
+/* Termin als Farbblock: Strich links, Titel fett in der Kalenderfarbe, Zeit rechts */
+#agenda .agenda-listitem-details,
+#agenda .agenda-listitem-all-day .agenda-listitem-details {
+  margin: 0 !important;
+  padding: 6px 10px !important;
+  min-height: 0 !important;
+  border-radius: 4px !important;
+  background: color-mix(in srgb, var(--mc-c, var(--mt-accent)) 15%, var(--mt-window)) !important;
+  background-image: none !important;
+  box-shadow: inset 3px 0 0 var(--mc-c, var(--mt-accent)) !important;
+  align-items: center !important;
+}
+
+#agenda .agenda-listitem-calendar {
+  display: none !important;
+}
+
+#agenda .agenda-listitem-details-inner {
+  display: flex !important;
+  flex-wrap: wrap !important;
+  align-items: baseline !important;
+  gap: 2px 8px !important;
+  width: 100% !important;
+}
+
+#agenda .agenda-listitem-title {
+  flex: 1 1 auto !important;
+  min-width: 0 !important;
+  font-size: 12px !important;
+  font-weight: 600 !important;
+  color: color-mix(in srgb, var(--mc-c, var(--mt-accent)) 62%, var(--mt-text)) !important;
+}
+
+#agenda .agenda-listitem-time {
+  order: 2 !important;
+  margin-inline-start: auto !important;
+  font-size: 11px !important;
+  font-weight: 500 !important;
+  color: color-mix(in srgb, var(--mc-c, var(--mt-accent)) 45%, var(--mt-text)) !important;
+}
+
+#agenda .agenda-listitem-past .agenda-listitem-details {
+  opacity: 0.55 !important;
+}
+
+#agenda .agenda-listitem.selected .agenda-listitem-details {
+  background: color-mix(in srgb, var(--mc-c, var(--mt-accent)) 32%, var(--mt-window)) !important;
+}
+
+/* Minikalender: Zahlen exakt mittig, damit der rote Heute-Kreis sitzt */
+:is(#calMinimonth, #today-minimonth) td.minimonth-day {
+  line-height: 26px !important;
+  vertical-align: middle !important;
+  text-align: center !important;
+  padding: 0 !important;
+  background-position: center !important;
+}
+
+/* ---------- Knöpfe, Felder und Dialoge app-weit im gleichen Stil ----------
+   Thunderbirds eigene Knopf-Variablen auf unsere Kapseln umstellen: gilt für
+   alle .button-Knöpfe und die Knöpfe in Dialogen (OK/Abbrechen usw.);
+   am Dialog-Element selbst nochmals, weil Thunderbird es dort neu setzt */
+:root,
+dialog {
+  /* Felder nutzen dieselbe Variable: 7 px; Knöpfe werden unten eigens zur Kapsel */
+  --button-border-radius: 7px !important;
+  --button-border-color: transparent !important;
+  --button-background-color: var(--mt-control) !important;
+  --button-hover-background-color: var(--mt-control-hover) !important;
+  --button-active-background-color: color-mix(in srgb, var(--mt-text) 14%, transparent) !important;
+  --button-text-color: var(--mt-text) !important;
+  --button-hover-text-color: var(--mt-text) !important;
+  --button-primary-background-color: var(--mt-accent) !important;
+  --button-primary-hover-background-color: color-mix(in srgb, var(--mt-accent) 88%, black) !important;
+  --button-primary-active-background-color: color-mix(in srgb, var(--mt-accent) 78%, black) !important;
+  --button-primary-border-color: transparent !important;
+  --button-primary-hover-border-color: transparent !important;
+  --button-primary-text-color: white !important;
+  --button-primary-shadow: none !important;
+  --button-primary-hover-shadow: none !important;
+  --button-pressed-shadow: none !important;
+}
+
+dialog::part(dialog-button),
+dialog {
+  --mc-dlg: 1;
+}
+
+dialog::part(dialog-button) {
+  min-height: 30px !important;
+  min-width: 84px !important;
+  padding-inline: 16px !important;
+  border: none !important;
+  border-radius: 999px !important;
+  box-shadow: none !important;
+  font-weight: 500 !important;
+}
+
+/* Eingabefelder und Auswahllisten in Dialogen */
+dialog :is(input:not([type="checkbox"], [type="radio"], [type="color"], [type="range"]), textarea),
+dialog search-textbox {
+  min-height: 28px !important;
+  padding-inline: 8px !important;
+  border: 1px solid var(--mt-pane-line) !important;
+  border-radius: 7px !important;
+  background-color: var(--mt-window) !important;
+  box-shadow: none !important;
+}
+
+dialog :is(input, textarea):focus {
+  outline: none !important;
+  border-color: var(--mt-accent) !important;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--mt-accent) 22%, transparent) !important;
+}
+
+dialog menulist {
+  min-height: 28px !important;
+  border: none !important;
+  border-radius: 7px !important;
+  background-color: var(--mt-control) !important;
+  box-shadow: none !important;
+}
+
+dialog richlistbox {
+  border: 1px solid var(--mt-pane-line) !important;
+  border-radius: 8px !important;
+}
+
+/* ---------- Termin- und Aufgaben-Fenster wie Apple Kalender ---------- */
+#event-toolbox,
+#event-toolbar {
+  background: var(--mt-window) !important;
+  border: none !important;
+}
+
+#event-toolbar {
+  padding: 8px 12px !important;
+  gap: 6px !important;
+  border-bottom: 1px solid var(--mt-pane-line) !important;
+}
+
+#event-toolbar > toolbarbutton {
+  min-height: 32px !important;
+  padding: 0 12px !important;
+  margin: 0 !important;
+  border: none !important;
+  border-radius: 999px !important;
+  background-color: var(--mt-control) !important;
+  color: var(--mt-text) !important;
+  appearance: none !important;
+  box-shadow: none !important;
+}
+
+#event-toolbar > toolbarbutton:not([disabled]):hover {
+  background-color: var(--mt-control-hover) !important;
+}
+
+#event-toolbar > #button-saveandclose {
+  background-color: var(--mt-accent) !important;
+  color: white !important;
+  -moz-context-properties: fill, stroke !important;
+  fill: white !important;
+  stroke: white !important;
+}
+
+#event-toolbar > #button-saveandclose[disabled] {
+  background-color: color-mix(in srgb, var(--mt-accent) 40%, var(--mt-window)) !important;
+}
+
+#calendar-event-dialog-inner {
+  background: var(--mt-window) !important;
+}
+
+#calendar-event-dialog-inner :is(input:not([type="checkbox"], [type="radio"]), textarea) {
+  min-height: 28px !important;
+  padding-inline: 8px !important;
+  border: 1px solid var(--mt-pane-line) !important;
+  border-radius: 7px !important;
+  background-color: var(--mt-window) !important;
+  box-shadow: none !important;
+}
+
+#calendar-event-dialog-inner :is(input, textarea):focus {
+  outline: none !important;
+  border-color: var(--mt-accent) !important;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--mt-accent) 22%, transparent) !important;
+}
+
+#calendar-event-dialog-inner menulist:not([editable]) {
+  min-height: 28px !important;
+  border: none !important;
+  border-radius: 7px !important;
+  background-color: var(--mt-control) !important;
+  box-shadow: none !important;
+}
+
+/* Datum/Uhrzeit: ein abgerundetes Feld, Pfeil ohne eigenen Kasten */
+#calendar-event-dialog-inner menulist[editable] {
+  min-height: 28px !important;
+  border: 1px solid var(--mt-pane-line) !important;
+  border-radius: 7px !important;
+  background-color: var(--mt-window) !important;
+  box-shadow: none !important;
+  overflow: hidden !important;
+}
+
+#calendar-event-dialog-inner menulist[editable] input {
+  border: none !important;
+  box-shadow: none !important;
+  min-height: 26px !important;
+}
+
+#calendar-event-dialog-inner menulist[editable] dropmarker,
+#calendar-event-dialog-inner menulist[editable] > .menulist-dropmarker {
+  border: none !important;
+  background: transparent !important;
+  appearance: none !important;
+}
+
+/* Reiter Beschreibung/Anhänge/Teilnehmer als Segment-Kapseln */
+#event-grid-tabs {
+  gap: 4px !important;
+  border: none !important;
+  padding-bottom: 6px !important;
+}
+
+#event-grid-tabs > tab {
+  appearance: none !important;
+  margin: 0 !important;
+  padding: 4px 14px !important;
+  border: none !important;
+  border-radius: 999px !important;
+  background: transparent !important;
+  color: var(--mt-text) !important;
+  font-weight: 500 !important;
+  box-shadow: none !important;
+}
+
+#event-grid-tabs > tab:hover {
+  background: var(--mt-control-hover) !important;
+}
+
+#event-grid-tabs > tab[selected] {
+  background: var(--mt-control) !important;
+  border: none !important;
+}
+
+#event-grid-tabs > tab::after,
+#event-grid-tabs > tab[selected]::after {
+  display: none !important;
+}
+
+#event-grid-tabpanels {
+  border: none !important;
+  background: transparent !important;
+}
+
+#item-description {
+  border: 1px solid var(--mt-pane-line) !important;
+  border-radius: 8px !important;
+}
+
+#status-bar.statusbar {
+  background: var(--mt-window) !important;
+  border-top: 1px solid var(--mt-pane-line) !important;
+  color: var(--mt-text-tertiary) !important;
+}
+
+/* schmale Termin-Fenster: Symbol-Knöpfe ohne Beschriftung (Tooltip bleibt) */
+#event-toolbar > toolbarbutton:not(#button-saveandclose) .toolbarbutton-text {
+  display: none !important;
+}
+
+#event-toolbar > toolbarbutton:not(#button-saveandclose) {
+  min-width: 36px !important;
+  padding: 0 9px !important;
+}
+
+#event-toolbar > toolbarbutton .toolbarbutton-menu-dropmarker {
+  margin-inline-start: 2px !important;
+}
+
+/* Knöpfe überall als Kapseln – direkt am Knopf, weil einzelne Thunderbird-
+   Seiten (Einstellungen, Konten) die Rundung dort selbst setzen */
+button:not(.icon-only, .tree-button-more, .twisty, .button-flat, [is="tree-view-table-column-picker"]) {
+  --button-border-radius: 999px !important;
+}
+
+/* ---------- Konteneinstellungen ---------- */
+#accountTreeBox {
+  background: var(--mt-sidebar) !important;
+  border-inline-end: 1px solid var(--mt-sidebar-border) !important;
+}
+
+#accounttree {
+  padding: 4px 10px !important;
+  background: transparent !important;
+}
+
+#accounttree li > .container {
+  min-height: 30px !important;
+  padding-inline-end: 8px !important;
+  border: none !important;
+  border-radius: 8px !important;
+  background: transparent !important;
+  color: var(--mt-text) !important;
+  font-size: 13px !important;
+  align-items: center !important;
+}
+
+#accounttree li > .container:hover {
+  background: color-mix(in srgb, var(--mt-text) 5%, transparent) !important;
+}
+
+#accounttree li.selected > .container {
+  background: var(--mt-selected-unfocused) !important;
+  font-weight: 600 !important;
+  outline: none !important;
+}
+
+#accountTreeBox .sidebar-panel-header button,
+#accountTreeBox > header button {
+  height: 34px !important;
+  padding-block: 0 !important;
+  padding-inline: 32px 14px !important;
+  background-position-x: 12px !important;
+  border: none !important;
+  border-radius: 999px !important;
+  background-color: var(--mt-control) !important;
+  color: var(--mt-text) !important;
+  box-shadow: none !important;
+}
+
+#accountTreeBox .sidebar-panel-header button:hover,
+#accountTreeBox > header button:hover {
+  background-color: var(--mt-control-hover) !important;
+}
+
+/* Inhaltsseiten (am-*.xhtml) wie die Einstellungen: große Überschrift, runde Felder */
+:root:has(> body > #containerBox, > body .am-container) .dialogheader-title,
+.dialogheader-title {
+  font-size: 22px !important;
+  font-weight: 700 !important;
+}
+
+/* Dialogknöpfe liegen im Schatten-DOM des Dialogs: Kapsel über die Variable */
+dialog {
+  --button-border-radius: 999px !important;
+}
+
+dialog :is(input, textarea, menulist, select, richlistbox) {
+  --button-border-radius: 7px !important;
+}
+
+/* Abschnittstitel in Menüs (z. B. Darstellungsmenü im Adressbuch) */
+menucaption.mc-caption,
+menupopup menucaption {
+  padding: 6px 12px 2px !important;
+  font-size: 11px !important;
+  font-weight: 600 !important;
+  color: var(--mt-text-tertiary) !important;
+  background: transparent !important;
+}
+
+/* ---------- App-Menü (≡) ---------- */
+/* Dichte als macOS-Segmentschalter: graue Spur, gewähltes Segment als
+   weiße Kapsel mit leichtem Schatten statt blau gefüllter Kachel */
+#appMenu-uiDensity-controls > .subviewbutton {
+  margin: 0 !important;
+  padding: 2px !important;
+  min-height: 0 !important;
+  border: none !important;
+  border-radius: 0 !important;
+  background: var(--mt-control) !important;
+  box-shadow: none !important;
+  outline: none !important;
+  color: var(--mt-text) !important;
+  fill: transparent !important;
+  stroke: currentColor !important;
+}
+
+#appMenu-uiDensity-controls > .subviewbutton:first-of-type {
+  border-start-start-radius: 8px !important;
+  border-end-start-radius: 8px !important;
+  padding-inline-start: 2px !important;
+}
+
+#appMenu-uiDensity-controls > .subviewbutton:last-of-type {
+  border-start-end-radius: 8px !important;
+  border-end-end-radius: 8px !important;
+}
+
+#appMenu-uiDensity-controls > .subviewbutton > .toolbarbutton-icon {
+  width: 38px !important;
+  height: 22px !important;
+  padding: 3px 11px !important;
+  margin: 0 !important;
+  border-radius: 6px !important;
+  transition: background-color 250ms cubic-bezier(0.25, 0.1, 0.25, 1), box-shadow 250ms cubic-bezier(0.25, 0.1, 0.25, 1) !important;
+}
+
+#appMenu-uiDensity-controls > .subviewbutton:not([checked]):hover > .toolbarbutton-icon {
+  background: var(--mt-control) !important;
+}
+
+#appMenu-uiDensity-controls > .subviewbutton[checked] > .toolbarbutton-icon {
+  background: light-dark(#fff, rgba(255, 255, 255, 0.22)) !important;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.14), 0 0 0 0.5px rgba(0, 0, 0, 0.06) !important;
+}
+
+/* Schriftgröße: runde graue Knöpfe und Wert als Kapsel */
+#appMenu-fontSizeReduce-button > .toolbarbutton-icon,
+#appMenu-fontSizeEnlarge-button > .toolbarbutton-icon {
+  width: 24px !important;
+  height: 24px !important;
+  padding: 5px !important;
+  margin: 0 !important;
+  border-radius: 50% !important;
+  background: var(--mt-control) !important;
+  fill: transparent !important;
+  stroke: var(--mt-text) !important;
+}
+
+#appMenu-fontSizeReduce-button > .toolbarbutton-icon {
+  list-style-image: none !important;
+  content: var(--icon-remove) !important;
+}
+
+#appMenu-fontSizeEnlarge-button > .toolbarbutton-icon {
+  content: var(--icon-add) !important;
+}
+
+#appMenu-fontSizeReduce-button:hover > .toolbarbutton-icon,
+#appMenu-fontSizeEnlarge-button:hover > .toolbarbutton-icon {
+  background: var(--mt-control-hover) !important;
+}
+
+#appMenu-fontSizeReset-button > .toolbarbutton-text {
+  min-width: 52px !important;
+  padding: 3px 10px !important;
+  border: none !important;
+  border-radius: 999px !important;
+  background: var(--mt-control) !important;
+  font-variant-numeric: tabular-nums !important;
+}
+
+#appMenu-fontSizeReset-button:hover > .toolbarbutton-text {
+  background: var(--mt-control-hover) !important;
+}
+
+/* Thundermail-Zeile: normale Menüzeile mit feiner Trennlinie statt Farbverlauf */
+.tbpro-header-button .tbpro-header-content {
+  font-size: 13px !important;
+}
+
+.tbpro-divider {
+  height: 1px !important;
+  background: var(--mt-separator) !important;
+  left: 14px !important;
+  width: calc(100% - 28px) !important;
+}
+
+.tbpro-divider.tbpro-submenu-divider {
+  left: 14px !important;
+  width: calc(100% - 28px) !important;
+}
+
+/* ---------- Gleiches Toolbar-Layout in allen Bereichen ----------
+   Knöpfe beginnen wie in der Mail an einer Spaltenkante (Adressbuch: rechts
+   der Kontaktliste, sonst rechts der Seitenleiste; --mc-tab-offset misst die
+   Erweiterung), Suchfeld oben rechts. */
+:root:not([mc-mail]) #unifiedToolbarContent > li[item-id="spacer"]:not(li[item-id="spacer"] ~ li) {
+  /* (Mail: --mc-toolbar-offset, siehe Apple-Mail-Toolbar) */
+  flex: 0 0 var(--mc-tab-offset, 0px) !important;
+}
+
+#unifiedToolbarContent > li:is(
+  [item-id="create-contact"], [item-id="create-address-book"], [item-id="create-list"],
+  [item-id="new-event"], [item-id="new-task"]
+) {
+  background-color: var(--mt-control) !important;
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
+/* Kapseln: „Neuer Kontakt“ allein; „Neues Adressbuch | Neue Liste“ und
+   „Neuer Termin | Neue Aufgabe“ zusammen mit Trennstrich */
+#unifiedToolbarContent > li[item-id="create-contact"],
+#unifiedToolbarContent > li[item-id="create-address-book"],
+#unifiedToolbarContent > li[item-id="spacer"] + li:is([item-id="new-event"], [item-id="new-task"]),
+#unifiedToolbarContent > li[item-id="spacer"] + li[hidden] + li:is([item-id="new-event"], [item-id="new-task"]) {
+  border-start-start-radius: 999px !important;
+  border-end-start-radius: 999px !important;
+}
+
+#unifiedToolbarContent > li[item-id="create-contact"],
+#unifiedToolbarContent > li[item-id="create-list"],
+#unifiedToolbarContent > li:is([item-id="new-event"], [item-id="new-task"]):has(+ li[item-id="spacer"]) {
+  border-start-end-radius: 999px !important;
+  border-end-end-radius: 999px !important;
+  margin-inline-end: 6px !important;
+}
+
+#unifiedToolbarContent > li:is([item-id="create-list"], [item-id="new-event"], [item-id="new-task"]):not(li[item-id="spacer"] + li)::before {
+  content: "" !important;
+  position: absolute !important;
+  inset-inline-start: 0 !important;
+  top: 11px !important;
+  bottom: 11px !important;
+  width: 1px !important;
+  background-color: var(--mt-pane-line) !important;
+  pointer-events: none !important;
+}
+
+/* „Neuer Kontakt“ wird am häufigsten gebraucht: Symbol mit Text */
+#unifiedToolbarContent > li[item-id="create-contact"] button {
+  padding-inline: 12px 16px !important;
+  gap: 6px !important;
+  color: var(--mt-text) !important;
+}
+
+#unifiedToolbarContent > li[item-id="create-contact"] button .button-label {
+  display: inline !important;
+  font-size: 13px !important;
+  font-weight: 500 !important;
+}
+
+/* Adressbuch: Knöpfe und Suche sitzen oben in der Toolbar – die Zeilen im
+   Adressbuch selbst entfallen (Kopfzeile über der Liste: #mcListHeader) */
+#booksPaneHeaderBar,
+#cardsPaneHeader {
+  display: none !important;
+}
+
+:root[mc-tab="addressBookTab"] #mcListHeader {
+  --mc-lh-start: max(calc(var(--mc-side-right, 0px) + 16px), 136px) !important;
+  position: absolute !important;
+  top: 0 !important;
+  bottom: 1px !important;
+  inset-inline-start: var(--mc-lh-start) !important;
+  width: calc(var(--mc-ab-list-right, 0px) - var(--mc-lh-start) - 8px) !important;
+  min-width: 0 !important;
+  display: flex !important;
+  align-items: center !important;
+  gap: 8px !important;
+  z-index: 1 !important;
+}
+
+:root[mc-tab="addressBookTab"] #mcListHeader .mc-lh-filter {
+  display: none !important;
+}
+
+/* feine Linie an der rechten Kante der Kontaktliste, wie über der Mailliste */
+:root[mc-tab="addressBookTab"] #unifiedToolbarContainer::before {
+  content: "" !important;
+  position: absolute !important;
+  inset-inline-start: var(--mc-ab-list-right, -10px) !important;
+  top: 0 !important;
+  bottom: 0 !important;
+  width: 1px !important;
+  background-color: var(--mt-pane-line) !important;
+  pointer-events: none !important;
+}
+
+/* ---------- Kontofarben (überall gleich, --mc-acc setzt die Erweiterung) ---------- */
+#books li[style*="--mc-acc"] .bookRow-name::before,
+#folderTree li[style*="--mc-acc"] > .container .name::before {
+  content: "" !important;
+  display: inline-block !important;
+  width: 8px !important;
+  height: 8px !important;
+  margin-inline-end: 7px !important;
+  border-radius: 50% !important;
+  background-color: var(--mc-acc) !important;
+  vertical-align: 1px !important;
+}
+
+/* Kalender/Aufgaben: „Neuer Termin“/„Neue Aufgabe“ sitzen oben in der
+   Toolbar – die Knöpfe in der Seitenleiste und neben dem Aufgabenfeld entfallen */
+#sidePanelNewEvent,
+#sidePanelNewTask,
+#calendar-add-task-button {
+  display: none !important;
+}
+
+/* Einstellungen: gesucht wird oben rechts in der Toolbar (die Erweiterung
+   leitet die Eingabe weiter) – kein zweites Suchfeld in der Seite */
+#searchInput[data-l10n-id="search-preferences-input2"] {
+  display: none !important;
+}
+
+/* Suche in den Einstellungen: nur die gelbe Markierung im Text wie in den
+   macOS-Systemeinstellungen – keine Hinweis-Kästchen über Knöpfen und
+   Menüs (sie überdecken die Beschriftung und zeigen oft einen alten
+   Zwischenstand der Eingabe) */
+.search-tooltip {
+  display: none !important;
+}
+
+/* ---------- Chat: Knöpfe oben in der Toolbar-Zeile ----------
+   wie im Adressbuch rechts neben der Kontaktspalte (--mc-tab-left,
+   --mc-row-top/-h misst die Erweiterung); keine eigene weiße Leiste mehr */
+:root[mc-tab="chat"] #chat-view-toolbox {
+  position: fixed !important;
+  /* senkrecht mittig in der Toolbar-Zeile, Kapselhöhe 38 px */
+  top: calc(var(--mc-row-top, 0px) + (var(--mc-row-h, 50px) - 38px) / 2) !important;
+  height: 38px !important;
+  inset-inline-start: var(--mc-tab-left, 300px) !important;
+  z-index: 3 !important;
+  width: max-content !important;
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+  display: flex !important;
+  align-items: center !important;
+}
+
+:root:not([mc-tab="chat"]) #chat-view-toolbox {
+  display: none !important;
+}
+
+#chat-toolbar {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  min-height: 0 !important;
+  gap: 0 !important;
+  align-items: center !important;
+}
+
+#chat-toolbar > toolbarspacer,
+#chat-toolbar > toolbarspring {
+  display: none !important;
+}
+
+/* Kapseln: „Kontakt hinzufügen“ mit Text | „Chat beitreten · Konten“ als
+   Symbolgruppe mit Trennstrich | Status */
+#chat-toolbar > :is(#button-add-buddy, #button-join-chat, #button-chat-accounts, #chat-status-selector) {
+  height: 38px !important;
+  min-height: 38px !important;
+  margin: 0 !important;
+  padding: 0 11px !important;
+  border: none !important;
+  border-radius: 0 !important;
+  background-color: var(--mt-control) !important;
+  box-shadow: none !important;
+  color: var(--mt-text-secondary) !important;
+  position: relative !important;
+  -moz-window-dragging: no-drag !important;
+}
+
+#chat-toolbar > #button-add-buddy {
+  border-radius: 999px !important;
+  margin-inline-end: 6px !important;
+  padding-inline: 12px 16px !important;
+  color: var(--mt-text) !important;
+  order: 1 !important;
+}
+
+#chat-toolbar > #button-join-chat {
+  order: 2 !important;
+  border-start-start-radius: 999px !important;
+  border-end-start-radius: 999px !important;
+}
+
+#chat-toolbar > #button-chat-accounts {
+  order: 3 !important;
+  border-start-end-radius: 999px !important;
+  border-end-end-radius: 999px !important;
+  margin-inline-end: 6px !important;
+}
+
+#chat-toolbar > #button-chat-accounts::before {
+  content: "" !important;
+  position: absolute !important;
+  inset-inline-start: 0 !important;
+  top: 11px !important;
+  bottom: 11px !important;
+  width: 1px !important;
+  background-color: var(--mt-pane-line) !important;
+}
+
+#chat-toolbar > :is(#button-join-chat, #button-chat-accounts) .toolbarbutton-text {
+  display: none !important;
+}
+
+#chat-toolbar > :is(#button-add-buddy, #button-join-chat, #button-chat-accounts) .toolbarbutton-icon {
+  width: 22px !important;
+  height: 22px !important;
+}
+
+#chat-toolbar > #button-add-buddy .toolbarbutton-text {
+  display: flex !important;
+  font-size: 13px !important;
+  font-weight: 500 !important;
+  padding-inline-start: 6px !important;
+}
+
+#chat-toolbar > #chat-status-selector {
+  order: 4 !important;
+  border-radius: 999px !important;
+  padding-inline: 4px 14px !important;
+  color: var(--mt-text) !important;
+}
+
+#chat-toolbar > :is(#button-add-buddy, #button-join-chat, #button-chat-accounts):hover {
+  background-color: var(--mt-control-hover) !important;
+}
+
+#chat-toolbar > #chat-status-selector {
+  flex: none !important;
+  width: max-content !important;
+  max-width: max-content !important;
+}
+
+#chat-status-selector :is(button, toolbarbutton, img, .statusImageStack, #statusTypeIcon) {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+}
+
+#chat-status-selector :is(#statusTypeIcon, img) {
+  width: 12px !important;
+  height: 12px !important;
+  min-width: 0 !important;
+  margin: 0 6px 0 4px !important;
+}
+
+/* Statustext nur so breit wie nötig */
+#chat-status-selector > vbox {
+  flex: none !important;
+  width: auto !important;
+  min-width: 0 !important;
+}
+
+#chat-status-selector > vbox > * {
+  min-width: 0 !important;
+  width: auto !important;
+}
+
+/* ---------- App-Menü wie die übrigen Menüs (macOS 27) ----------
+   durchscheinender Hintergrund, 13-px-Schrift, kompakte Zeilen, Symbole in
+   Textfarbe ohne Füllung, markierte Zeile in Akzentfarbe mit weißer Schrift */
+#appMenu-popup {
+  appearance: auto !important;
+  -moz-default-appearance: menupopup !important;
+  --panel-background-color: var(--mt-menu-bg) !important;
+  --panel-border-color: transparent !important;
+  --panel-border-radius: 12px !important;
+  --panel-padding: 5px 0 !important;
+  --panel-separator-color: var(--mt-separator) !important;
+  --panel-separator-margin: 5px 14px !important;
+  font-family: var(--mt-font) !important;
+  font-size: 13px !important;
+}
+
+#appMenu-popup :is(.subviewbutton, .subview-subheader):not(.toolbaritem-combined-buttons > *) {
+  min-height: 22px !important;
+  margin: 0 5px !important;
+  padding: 3px 8px !important;
+  border-radius: 6px !important;
+  font-size: 13px !important;
+  color: var(--mt-text) !important;
+}
+
+#appMenu-popup .subviewbutton:not(.toolbaritem-combined-buttons > *) > .toolbarbutton-icon {
+  width: 16px !important;
+  height: 16px !important;
+  fill: transparent !important;
+  fill-opacity: 0 !important;
+  stroke: currentColor !important;
+}
+
+#appMenu-popup .subviewbutton-iconic:not(.toolbaritem-combined-buttons > *) > .toolbarbutton-text {
+  padding-inline-start: 8px !important;
+}
+
+/* Abstand unter der Thundermail-Zeile */
+#appMenu-popup .subviewbutton.tbpro-header-button:not(.toolbaritem-combined-buttons > *) {
+  padding-top: 7px !important;
+  padding-bottom: 14px !important;
+  margin-bottom: 9px !important;
+}
+
+/* Markierung wie in Kontextmenüs – nicht für die Dichte-/Schriftgrößen-Zeilen */
+#appMenu-popup toolbarbutton.subviewbutton:not(.toolbaritem-combined-buttons > *):not([disabled]):is(:hover, :focus-visible, [open]) {
+  background-color: var(--mt-accent) !important;
+  color: var(--mt-accent-text) !important;
+  box-shadow: none !important;
+}
+
+#appMenu-popup toolbarbutton.subviewbutton:not(.toolbaritem-combined-buttons > *):not([disabled]):is(:hover, :focus-visible, [open]) :is(.toolbarbutton-icon, .toolbarbutton-text) {
+  color: var(--mt-accent-text) !important;
+  stroke: var(--mt-accent-text) !important;
+}
+
+#appMenu-popup .toolbaritem-combined-buttons:hover,
+#appMenu-popup .toolbaritem-combined-buttons {
+  background-color: transparent !important;
+}
+
+/* Tastenkürzel und Pfeile grau wie bei macOS */
+#appMenu-popup .subviewbutton[shortcut]::after,
+#appMenu-popup .subviewbutton-nav::after {
+  color: var(--mt-text-tertiary) !important;
+  stroke: var(--mt-text-tertiary) !important;
+}
+
+#appMenu-popup toolbarbutton.subviewbutton:not(.toolbaritem-combined-buttons > *):hover::after {
+  color: var(--mt-accent-text) !important;
+  stroke: var(--mt-accent-text) !important;
+}
+
+#appMenu-popup toolbarseparator {
+  margin: 5px 14px !important;
+  border: none !important;
+  border-top: 1px solid var(--mt-separator) !important;
+  min-height: 0 !important;
+  height: 0 !important;
+}
+
+/* Kopf der Untermenüs: Titel halbfett, Zurück-Knopf schlicht */
+#appMenu-popup .panel-header {
+  min-height: 32px !important;
+  padding: 2px 6px !important;
+  border-bottom: 1px solid var(--mt-separator) !important;
+  margin-bottom: 4px !important;
+}
+
+#appMenu-popup .panel-header h1 {
+  font-size: 13px !important;
+  font-weight: 600 !important;
+}
+
+#appMenu-popup .subviewbutton-back {
+  margin: 0 !important;
+  padding: 4px !important;
+  border-radius: 999px !important;
+}
+/* ==== Ende Bereiche ==== */

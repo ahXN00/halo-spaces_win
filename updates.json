@@ -1,0 +1,18 @@
+{
+  "addons": {
+    "mail-cards@sebastian.local": {
+      "updates": [
+        {
+          "version": "3.0.0",
+          "update_link": "https://github.com/sruf79/halo-spaces/releases/download/v3.0.0/halo-spaces-3.0.0.xpi",
+          "update_hash": "sha256:f10d4bfbbb088ea6ec87a284b1d558ad5c64e80f21947892ac0fcf300d317e04",
+          "applications": {
+            "gecko": {
+              "strict_min_version": "128.0"
+            }
+          }
+        }
+      ]
+    }
+  }
+}

@@ -1,0 +1,3 @@
+# Kopieren nach repo.conf und anpassen
+GITHUB_REPO="besitzer/repo"
+GITHUB_BRANCH="main"
