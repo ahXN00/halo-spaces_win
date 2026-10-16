@@ -4862,10 +4862,27 @@ calendar-month-day-box > .mc-more:hover {
   min-width: 160px !important;
 }
 
+/* … und nicht breiter als 360 px – sonst verdrängt die Seitenleiste die
+   Knöpfe und das Suchfeld oben aus der Toolbar */
+:is(#listPaneBox, #calSidebar, #booksPane):not(.mc-side-anim) {
+  max-width: 360px !important;
+}
+
 /* Adressbuch: Thunderbird schreibt der Bücherliste mindestens 240 px vor
    (Variable am body von about:addressbook) */
 body {
   --ab-pane-min-width: 160px !important;
+}
+
+/* Adressbuchliste ausgeblendet: ihre Spalte im Raster entfällt ganz, die
+   Kontaktliste rückt nach links (wie die Mailliste ohne Ordnerliste) */
+body:has(> #booksPane.mc-side-hidden) {
+  --booksSplitter-width: 0px !important;
+  --ab-pane-min-width: 0px !important;
+}
+
+body:has(> #booksPane.mc-side-anim) {
+  --ab-pane-min-width: 0px !important;
 }
 
 /* keine waagrechte Trennlinie unter der Toolbar-Zeile – in keinem Bereich */

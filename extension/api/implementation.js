@@ -1065,6 +1065,33 @@ function setVar(el, name, value) {
   }
 }
 
+// Platz, den die Toolbar rechts der Mailliste braucht: alle Knöpfe in
+// natürlicher Breite, das Suchfeld mit 333 px, der kleinste Abstand nach
+// „Verfassen“ (12 px), der Rand rechts und 6 px Einzug an der Listenkante
+function toolbarNeed(doc) {
+  const content = doc.getElementById("unifiedToolbarContent");
+  if (!content) {
+    return 0;
+  }
+  const win = doc.defaultView;
+  let need = 10 + (parseFloat(win.getComputedStyle(content).paddingInlineEnd) || 0) + 12;
+  let afterFirst = false;
+  for (const li of content.children) {
+    const id = li.getAttribute("item-id");
+    if (id == "spacer") {
+      afterFirst = true;
+      continue;
+    }
+    if (!afterFirst || li.hidden || !li.getBoundingClientRect().width) {
+      continue;
+    }
+    const cs = win.getComputedStyle(li);
+    const margins = (parseFloat(cs.marginInlineStart) || 0) + (id == "write-message" ? 12 : parseFloat(cs.marginInlineEnd) || 0);
+    need += (id == "search-bar" ? 333 : li.getBoundingClientRect().width) + margins;
+  }
+  return Math.ceil(need);
+}
+
 // Kanten für die Toolbar-Zeile nur dort setzen, wo sie gebraucht werden:
 // an der Wurzel ließe jede Änderung alle ~5000 Elemente neu berechnen
 // (25–40 ms pro Bild – die Seitenleisten-Animation ruckelt), an der
@@ -1391,22 +1418,75 @@ class CardEnhancer {
       }
       if (tab.mode.name == "addressBookTab") {
         const cards = el.ownerDocument.getElementById("cardsPane");
-        if (cards && !cards.__mcObserved) {
-          cards.__mcObserved = true;
-          new el.ownerDocument.defaultView.ResizeObserver(() => updateSideEdge()).observe(cards);
+        // (beim Abschalten/Update wieder abmelden – sonst richtet die alte
+        // Fassung bis zum Neustart weiter aus und kämpft mit der neuen)
+        if (cards && cards.__mcObserver?.owner !== this) {
+          const ro = new el.ownerDocument.defaultView.ResizeObserver(() => updateSideEdge());
+          ro.observe(cards);
+          ro.observe(el); // Adressbuchliste ein-/ausgeblendet: Kontaktliste rückt
+          el.ownerDocument.getElementById("booksSplitter") && ro.observe(el.ownerDocument.getElementById("booksSplitter"));
+          cards.__mcObserver = { owner: this, ro };
+          this.restorers.push(() => {
+            ro.disconnect();
+            delete cards.__mcObserver;
+          });
         }
         // Kontaktliste so breit wie die Mailliste – dann passen Kopfzeile und
         // Knöpfe genau ins selbe Raster
         const shared = el.ownerDocument.getElementById("sharedSplitter");
-        if (this.mcListWidth && shared && "width" in shared && Math.abs((shared.width || 0) - this.mcListWidth) >= 1 &&
+        // Ziehen am Teiler im Adressbuch: flüssig (währenddessen nicht
+        // angleichen), nur so weit, dass Knöpfe und Suche Platz haben; die
+        // neue Breite gilt danach auch für die Mailliste
+        if (shared && !shared.__mcHooked && typeof shared._updateSize == "function") {
+          shared.__mcHooked = true;
+          const origUpdate = shared._updateSize;
+          shared._updateSize = function (size) {
+            const c = cards?.getBoundingClientRect();
+            const b = tab.browser?.getBoundingClientRect();
+            if (c && b) {
+              const maxRight = row.getBoundingClientRect().right - toolbarNeed(d);
+              size = Math.min(size, Math.max(160, maxRight - (b.left + c.left)));
+            }
+            return origUpdate.call(this, size);
+          };
+          const onResizing = () => (shared.__mcDragging = true);
+          const onResized = () => {
+            if (!shared.__mcDragging) {
+              return;
+            }
+            shared.__mcDragging = false;
+            const c = cards?.getBoundingClientRect();
+            const b = tab.browser?.getBoundingClientRect();
+            if (c?.width && b) {
+              this.mcListWidth = Math.round(c.width);
+              this.mcButtonsLeft = b.left + c.right + 6;
+              this.mcListPending = true; // die Mail übernimmt die Breite beim nächsten Anzeigen
+            }
+            updateSideEdge();
+          };
+          shared.addEventListener("splitter-resizing", onResizing);
+          shared.addEventListener("splitter-resized", onResized);
+          this.restorers.push(() => {
+            shared._updateSize = origUpdate;
+            shared.removeEventListener("splitter-resizing", onResizing);
+            shared.removeEventListener("splitter-resized", onResized);
+            delete shared.__mcHooked;
+          });
+        }
+        // rechte Kante der Kontaktliste dort, wo in der Mail die Mailliste endet –
+        // auch bei ausgeblendeter Adressbuchliste (die Liste wird dann breiter)
+        const cl = cards?.getBoundingClientRect();
+        if (this.mcButtonsLeft && shared && "width" in shared && !shared.__mcDragging && cl &&
             !el.ownerDocument.body.classList.contains("layout-table")) {
-          shared.width = this.mcListWidth;
+          const want = Math.round(this.mcButtonsLeft - 6 - (shift + cl.left));
+          if (want >= 160 && Math.abs((shared.width || 0) - want) >= 1) {
+            shared.width = want;
+          }
         }
         const cr = cards?.getBoundingClientRect();
         if (cr?.width) {
-          if (!this.mcButtonsLeft) {
-            edge = shift + cr.right + 6;
-          }
+          // Knöpfe nie über der Kontaktliste
+          edge = Math.max(this.mcButtonsLeft ? edge : 0, shift + cr.right + 6);
           setBarVar(d, "--mc-ab-list-right", `${Math.round(shift + cr.right - rowLeft)}px`);
         }
       }
@@ -2005,9 +2085,14 @@ class CardEnhancer {
       kids.forEach(k => k.style.setProperty("min-width", `${full}px`));
       el.style.setProperty("overflow", "hidden", "important");
       el.style.setProperty("min-width", "0px", "important");
+      // Adressbuch: die Rasterspalte der Liste mitziehen, sonst bliebe die
+      // Kontaktliste stehen und spränge erst am Ende
+      const gridBody = el.id == "booksPane" ? el.ownerDocument.body : null;
+      const savedColumn = gridBody?.style.getPropertyValue("--booksSplitter-width");
       const setW = v => {
         el.style.setProperty("width", `${v}px`, "important");
         el.style.setProperty("max-width", `${v}px`, "important");
+        gridBody?.style.setProperty("--booksSplitter-width", `${v}px`);
       };
       if (show) {
         setW(0);
@@ -2032,6 +2117,13 @@ class CardEnhancer {
           }
         }
         kids.forEach(kid => kid.style.removeProperty("min-width"));
+        if (gridBody) {
+          if (savedColumn) {
+            gridBody.style.setProperty("--booksSplitter-width", savedColumn);
+          } else {
+            gridBody.style.removeProperty("--booksSplitter-width");
+          }
+        }
         if (!show) {
           el.classList.add("mc-side-hidden");
           splitter?.classList.add("mc-side-hidden");
@@ -3230,19 +3322,75 @@ class CardEnhancer {
         pane.style.setProperty("width", `${column}px`, "important");
       }
     };
+    // Die Mailliste lässt sich nur so weit nach rechts ziehen, dass Knöpfe
+    // und Suchfeld rechts davon Platz haben (wie in Apple Mail) – Thunderbirds
+    // Teiler kennt kein Maximum, daher hier die kleinste Breite der Nachricht
+    const minMessageWidth = () => {
+      const pane = win.document.getElementById("messagePane");
+      const browser = win.browsingContext.embedderElement;
+      const row = top.document.getElementById("unifiedToolbarContainer");
+      if (!pane || !browser || !row || !win.document.body.classList.contains("layout-vertical")) {
+        return 0;
+      }
+      const msgRight = browser.getBoundingClientRect().left + pane.getBoundingClientRect().right;
+      const want = toolbarNeed(top.document) - (row.getBoundingClientRect().right - msgRight);
+      // die Liste selbst nie schmaler als 240 px machen
+      const list = threadPane.getBoundingClientRect();
+      const room = pane.getBoundingClientRect().right - list.left - 240;
+      return Math.max(0, Math.min(want, room));
+    };
+    const msgSplitter = win.document.getElementById("messagePaneSplitter");
+    if (msgSplitter && typeof msgSplitter._updateSize == "function" && !msgSplitter.__mcClamp) {
+      msgSplitter.__mcClamp = true;
+      const origUpdate = msgSplitter._updateSize;
+      msgSplitter._updateSize = function (size) {
+        return origUpdate.call(this, Math.max(size, minMessageWidth()));
+      };
+      this.restorers.push(() => {
+        msgSplitter._updateSize = origUpdate;
+        delete msgSplitter.__mcClamp;
+      });
+    }
+    const enforceMessageWidth = () => {
+      if (!msgSplitter || msgSplitter.isCollapsed || win.__mcAnimating || top.__mcSpacesAnimating ||
+          msgSplitter.resizeElement?.id != "messagePane") {
+        return;
+      }
+      const min = minMessageWidth();
+      const pane = win.document.getElementById("messagePane");
+      if (min && pane.getBoundingClientRect().width < min - 1) {
+        msgSplitter.width = Math.ceil(min);
+      }
+    };
     const update = () => {
       const content = top.document.getElementById("unifiedToolbarContent");
       const browser = win.browsingContext.embedderElement;
       if (!content || !browser || win.closed || top.__mcSpacesAnimating) {
         return;
       }
+      enforceMessageWidth();
       // nur der Mail-Tab, der gerade vorne ist, richtet die Toolbar aus –
       // sonst überschreibt ein zweiter Mail-Tab im Hintergrund die Kanten
+      // (auch nicht, solange ein anderer Bereich vorne ist)
       const current = top.document.getElementById("tabmail")?.currentTabInfo;
-      if (current?.chromeBrowser && current.chromeBrowser != browser) {
+      if (current?.chromeBrowser != browser) {
         return;
       }
       fixFolderLock();
+      // im Adressbuch neu gezogene Listenbreite übernehmen
+      if (this.mcListPending && msgSplitter && !msgSplitter.isCollapsed && msgSplitter.resizeElement?.id == "messagePane") {
+        const listNow = threadPane.getBoundingClientRect().width;
+        const pane = win.document.getElementById("messagePane");
+        if (listNow > 1 && this.mcButtonsLeft) {
+          this.mcListPending = false;
+          // rechte Listenkante auf die im Adressbuch gezogene Stelle
+          const browserLeft = win.browsingContext.embedderElement.getBoundingClientRect().left;
+          const diff = browserLeft + threadPane.getBoundingClientRect().right - (this.mcButtonsLeft - 6);
+          if (Math.abs(diff) >= 1) {
+            msgSplitter.width = Math.max(minMessageWidth(), Math.round(pane.getBoundingClientRect().width + diff));
+          }
+        }
+      }
       // Ohne sichtbare Mailliste (z. B. Kontoübersicht) bleiben die Knöpfe
       // dort, wo sie in der Mailansicht zuletzt standen.
       const listRect = threadPane.getBoundingClientRect();
