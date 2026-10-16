@@ -1,4 +1,4 @@
-/* Halo Spaces – Erweiterung zum Design (Vorschau, Absenderbilder, Adressbuch, Bereiche).
+/* halo.spaces – Erweiterung zum Design (Vorschau, Absenderbilder, Adressbuch, Bereiche).
  *
  * Hängt sich in die Thread-Karten jedes about:3pane-Fensters ein und ergänzt
  *  - eine zweizeilige Textvorschau (aus der Vorschau-Eigenschaft der Nachricht,
@@ -57,6 +57,10 @@ const SPACE_TOOLBARS = {
   settings: ["spacer", "spacer", "search-bar"],
 };
 const SPACE_TOOLBAR_PREF = "extensions.mailcards.spaceToolbarsApplied";
+// Feedback aus dem Hilfe-Menü geht an diese Adresse
+const FEEDBACK_ADDRESS = "halo.cat@icloud.com";
+// „Danke sagen“ im Info-Fenster
+const DONATE_URL = "https://buymeacoffee.com/diversion";
 const CACHE_FILE = "mail-cards-logos.json";
 const DAY = 24 * 60 * 60 * 1000;
 const HIT_TTL = 30 * DAY;
@@ -133,6 +137,93 @@ function isVeryDark(color) {
   }
   const n = parseInt(m[1], 16);
   return 0.299 * (n >> 16) + 0.587 * ((n >> 8) & 255) + 0.114 * (n & 255) < 70;
+}
+
+// Adressbuch: „Total contacts …“ unten erscheint erst, wenn alle Bücher
+// geladen sind – bis dahin bleibt die Zeile leer. Den zuletzt gezeigten Text
+// merken und sofort zeigen; Thunderbird ersetzt ihn mit dem aktuellen Wert.
+const CARD_COUNT_PREF = "extensions.mailcards.cardCountText";
+function cacheCardCount(doc) {
+  const el = doc?.getElementById("cardCount");
+  if (!el || el.__mcCached) {
+    return;
+  }
+  el.__mcCached = true;
+  if (!el.textContent.trim()) {
+    el.textContent = Services.prefs.getStringPref(CARD_COUNT_PREF, "");
+  }
+  const remember = () => {
+    const text = el.textContent.trim();
+    // nur die Gesamtzahl „aller Adressbücher“ merken (so öffnet das Adressbuch)
+    if (text && el.hasAttribute("data-l10n-id") && doc.getElementById("books")?.selectedIndex == 0 &&
+        text != Services.prefs.getStringPref(CARD_COUNT_PREF, "")) {
+      Services.prefs.setStringPref(CARD_COUNT_PREF, text);
+    }
+  };
+  remember();
+  new doc.defaultView.MutationObserver(remember).observe(el, { childList: true, characterData: true, subtree: true });
+}
+
+// Einstellungen → Appearance: „Erscheinungsbild“ Automatisch / Hell / Dunkel.
+// Schaltet zwischen Thunderbirds eingebauten Themes um; das Design folgt dem
+// über prefers-color-scheme (die Themes „System“, „Light“, „Dark“).
+const APPEARANCE_THEMES = {
+  auto: "default-theme@mozilla.org",
+  light: "thunderbird-compact-light@mozilla.org",
+  dark: "thunderbird-compact-dark@mozilla.org",
+};
+function hookAppearanceChoice(cw) {
+  const doc = cw.document;
+  const colorGroup = doc.getElementById("colorGroup");
+  if (!colorGroup) {
+    return;
+  }
+  const existing = doc.getElementById("mcAppearanceGroup");
+  if (existing) {
+    // Thunderbird blendet beim Seitenwechsel alles ohne passende Kategorie aus
+    existing.setAttribute("data-category", "paneAppearance");
+    existing.hidden = colorGroup.hidden;
+    return;
+  }
+  const de = Services.locale.appLocaleAsBCP47.startsWith("de");
+  const t = (a, b) => (de ? a : b);
+  const X = "http://www.w3.org/1999/xhtml";
+  const group = doc.createElementNS(X, "fieldset");
+  group.id = "mcAppearanceGroup";
+  group.setAttribute("data-category", "paneAppearance");
+  group.hidden = colorGroup.hidden;
+  const legend = doc.createElementNS(X, "legend");
+  legend.textContent = t("Erscheinungsbild", "Appearance");
+  const row = doc.createXULElement("hbox");
+  row.setAttribute("align", "center");
+  const label = doc.createXULElement("label");
+  label.setAttribute("value", t("Hell, dunkel oder wie macOS", "Light, dark or follow macOS"));
+  label.setAttribute("flex", "1");
+  const list = doc.createXULElement("menulist");
+  list.id = "mcAppearance";
+  const popup = doc.createXULElement("menupopup");
+  for (const [value, text] of [["auto", t("Automatisch (wie macOS)", "Automatic (like macOS)")], ["light", t("Hell", "Light")], ["dark", t("Dunkel", "Dark")]]) {
+    const item = doc.createXULElement("menuitem");
+    item.setAttribute("value", value);
+    item.setAttribute("label", text);
+    popup.appendChild(item);
+  }
+  list.appendChild(popup);
+  row.append(label, list);
+  group.append(legend, row);
+  colorGroup.before(group);
+  const { AddonManager } = ChromeUtils.importESModule("resource://gre/modules/AddonManager.sys.mjs");
+  const sync = async () => {
+    const themes = await AddonManager.getAddonsByTypes(["theme"]);
+    const active = themes.find(a => a.isActive)?.id;
+    const key = Object.keys(APPEARANCE_THEMES).find(k => APPEARANCE_THEMES[k] == active);
+    list.value = key || "auto";
+  };
+  sync();
+  list.addEventListener("command", async () => {
+    const addon = await AddonManager.getAddonByID(APPEARANCE_THEMES[list.value]);
+    await addon?.enable();
+  });
 }
 
 // Schrift auf der Kontofarbe: weiß auf dunklen, dunkel auf hellen Farben
@@ -926,6 +1017,25 @@ class AvatarResolver {
   }
 }
 
+// CSS-Variable nur setzen, wenn sich der Wert ändert – jede Änderung am
+// Wurzelelement lässt Thunderbird das ganze Fenster neu durchrechnen (~10 ms)
+function setVar(el, name, value) {
+  if (el && el.style.getPropertyValue(name) != value) {
+    el.style.setProperty(name, value);
+  }
+}
+
+// Kanten für die Toolbar-Zeile nur dort setzen, wo sie gebraucht werden:
+// an der Wurzel ließe jede Änderung alle ~5000 Elemente neu berechnen
+// (25–40 ms pro Bild – die Seitenleisten-Animation ruckelt), an der
+// Toolbar-Zeile sind es ~80.
+function barTarget(doc) {
+  return doc.getElementById("unifiedToolbarContainer") || doc.documentElement;
+}
+function setBarVar(doc, name, value) {
+  setVar(barTarget(doc), name, value);
+}
+
 // ---------------------------------------------------------------------------
 // Kalender: Offline-Unterstützung standardmäßig an
 // ---------------------------------------------------------------------------
@@ -1009,22 +1119,43 @@ const ThemeSheet = {
       /^about:(addressbook|preferences|addons|accountsettings|accountsetup|message|3pane|import|profiling)/.test(url);
   },
   apply(win) {
-    if (!this.active || !win || win.__mcTheme || !this.wanted(win.document)) {
+    if (!this.active || !win || win.__mcTheme == this.uri || !this.wanted(win.document)) {
       return;
     }
     try {
+      // nach einem Update: die alte Fassung in schon offenen Seiten ersetzen
+      if (win.__mcTheme) {
+        try {
+          win.windowUtils.removeSheetUsingURIString(win.__mcTheme, win.windowUtils.USER_SHEET);
+        } catch {}
+      }
       win.windowUtils.loadSheetUsingURIString(this.uri, win.windowUtils.USER_SHEET);
       win.__mcTheme = this.uri;
     } catch {}
   },
+  // alle Dokumente eines Fensters – auch die der Inhalts-Tabs (Einstellungen,
+  // Adressbuch …): deren Browser sind eigene Bäume, nicht Teil des Fensters
+  contexts(top) {
+    const roots = [top?.browsingContext];
+    for (const browser of top?.document?.querySelectorAll("browser") || []) {
+      roots.push(browser.browsingContext);
+    }
+    const all = new Set();
+    for (const root of roots) {
+      for (const bc of root?.getAllBrowsingContextsInSubtree?.() || []) {
+        all.add(bc);
+      }
+    }
+    return all;
+  },
   applyTree(top) {
-    for (const bc of top?.browsingContext?.getAllBrowsingContextsInSubtree?.() || []) {
+    for (const bc of this.contexts(top)) {
       this.apply(bc.window); // null für Inhalte in anderen Prozessen (Mails)
     }
   },
   removeAll() {
     for (const top of Services.wm.getEnumerator(null)) {
-      for (const bc of top.browsingContext?.getAllBrowsingContextsInSubtree?.() || []) {
+      for (const bc of this.contexts(top)) {
         const win = bc.window;
         if (win?.__mcTheme) {
           try {
@@ -1081,6 +1212,11 @@ class CardEnhancer {
           const url = doc.documentURI || "";
           if (ThemeSheet.active) {
             ThemeSheet.apply(doc.defaultView);
+          }
+          // Termin-Details: Fenster so groß, dass alles sichtbar ist
+          if (url.startsWith("chrome://calendar/content/calendar-summary-dialog.xhtml") && doc.defaultView) {
+            const dlg = doc.defaultView;
+            dlg.addEventListener("load", () => dlg.setTimeout(() => this.fitSummaryDialog(dlg), 250), { once: true });
           }
           if (!/^(chrome:\/\/(messenger|calendar|messenger-newsblog)\/|about:(addressbook|preferences|addons|accountsettings|accountsetup|message|3pane))/.test(url)) {
             return;
@@ -1152,7 +1288,12 @@ class CardEnhancer {
       tasks: () => w.document.getElementById("calSidebar"),
       chat: () => w.document.getElementById("listPaneBox"),
       addressBookTab: tab => tab.browser?.contentDocument?.getElementById("booksPane"),
-      preferencesTab: tab => tab.browser?.contentDocument?.getElementById("categories"),
+      // (die animierte Leiste selbst – ihr Inhalt behält beim Ein-/Ausblenden
+      // seine volle Breite)
+      preferencesTab: tab => {
+        const doc = tab.browser?.contentDocument;
+        return doc?.getElementById("pref-category-box") || doc?.getElementById("categories");
+      },
       contentTab: tab => {
         const doc = tab.browser?.contentDocument;
         const url = doc?.documentURI || "";
@@ -1162,12 +1303,18 @@ class CardEnhancer {
       },
     };
     const updateSideEdge = () => {
+      // während die Bereiche-Leiste animiert, nichts ans Fenster schreiben –
+      // jede Variable dort kostet ein komplettes Neuberechnen (25–40 ms);
+      // am Ende der Animation wird einmal ausgerichtet
+      if (w.__mcSpacesAnimating) {
+        return;
+      }
       const d = w.document;
       const tab = d.getElementById("tabmail")?.currentTabInfo;
       const el = SIDEBARS[tab?.mode?.name]?.(tab);
       const row = d.getElementById("unifiedToolbarContainer");
       if (!el || !row) {
-        d.documentElement.style.removeProperty("--mc-side-right");
+        barTarget(d).style.removeProperty("--mc-side-right");
         return;
       }
       const inContent = el.ownerDocument != d;
@@ -1175,7 +1322,7 @@ class CardEnhancer {
       const r = el.getBoundingClientRect();
       const rowLeft = row.getBoundingClientRect().left;
       const right = r.width ? shift + r.right - rowLeft : 0;
-      d.documentElement.style.setProperty("--mc-side-right", `${Math.max(0, Math.round(right))}px`);
+      setBarVar(d, "--mc-side-right", `${Math.max(0, Math.round(right))}px`);
       // Wo die Knöpfe beginnen (erster Abstandhalter der Toolbar): im
       // Adressbuch über der Kontaktkarte rechts der Liste – wie in der Mail
       // über der geöffneten Nachricht –, sonst neben der Seitenleiste.
@@ -1184,7 +1331,10 @@ class CardEnhancer {
       const start = (content?.querySelector(':scope > li[item-id="spacer"]') || content)?.getBoundingClientRect().left ?? rowLeft;
       let edge = shift + (r.width ? r.right : 0) + 12;
       // erste Knöpfe in jedem Bereich an derselben Stelle wie in der Mail
-      if (this.mcButtonsLeft) {
+      // (Kalender und Aufgaben: „+“ wie in Apple Kalender gleich rechts der
+      // Seitenleiste)
+      const ownEdge = tab.mode.name == "calendar" || tab.mode.name == "tasks";
+      if (this.mcButtonsLeft && !ownEdge) {
         edge = this.mcButtonsLeft;
       }
       if (tab.mode.name == "addressBookTab") {
@@ -1205,20 +1355,26 @@ class CardEnhancer {
           if (!this.mcButtonsLeft) {
             edge = shift + cr.right + 6;
           }
-          d.documentElement.style.setProperty("--mc-ab-list-right", `${Math.round(shift + cr.right - rowLeft)}px`);
+          setBarVar(d, "--mc-ab-list-right", `${Math.round(shift + cr.right - rowLeft)}px`);
         }
       }
       const toggle = d.getElementById("spacesPinnedButton")?.getBoundingClientRect();
       if (toggle?.width) {
         edge = Math.max(edge, toggle.right + 12);
       }
-      d.documentElement.style.setProperty("--mc-tab-offset", `${Math.max(0, Math.round(edge - start))}px`);
+      setBarVar(d, "--mc-tab-offset", `${Math.max(0, Math.round(edge - start))}px`);
       // dieselbe Kante im Fenster und die Toolbar-Zeile – für Leisten, die
       // in diese Zeile verlegt werden (Chat)
       const rr = row.getBoundingClientRect();
-      d.documentElement.style.setProperty("--mc-tab-left", `${Math.round(edge)}px`);
-      d.documentElement.style.setProperty("--mc-row-top", `${Math.round(rr.top)}px`);
-      d.documentElement.style.setProperty("--mc-row-h", `${Math.round(rr.height)}px`);
+      // nur an den Leisten, die in die Toolbar-Zeile verlegt werden
+      const rowVar = (name, value) => {
+        for (const id of ["chat-view-toolbox", "viewToggle"]) {
+          setVar(d.getElementById(id), name, value);
+        }
+      };
+      rowVar("--mc-tab-left", `${Math.round(edge)}px`);
+      rowVar("--mc-row-top", `${Math.round(rr.top)}px`);
+      rowVar("--mc-row-h", `${Math.round(rr.height)}px`);
     };
     this.sideEdgeUpdaters ??= new Set();
     this.sideEdgeUpdaters.add(updateSideEdge);
@@ -1584,6 +1740,13 @@ class CardEnhancer {
       for (const tab of tabmail.tabInfo) {
         const cw = tab.browser?.contentWindow;
         const url = cw?.document?.documentURI || "";
+        if (cw && url.startsWith("about:preferences")) {
+          try {
+            hookAppearanceChoice(cw);
+          } catch (e) {
+            log("appearance choice error", e);
+          }
+        }
         if (cw && url.startsWith("about:addressbook")) {
           try {
             hookAvatars(cw);
@@ -1593,6 +1756,7 @@ class CardEnhancer {
           try {
             hookDedupe(cw);
             colorAccountRows(cw.document);
+            cacheCardCount(cw.document);
           } catch (e) {
             log("dedupe error", e);
           }
@@ -1775,6 +1939,7 @@ class CardEnhancer {
         return;
       }
       el.__mcAnimating = true;
+      el.classList.add("mc-side-anim");
       // gespeicherte Breite der Leiste (Inline-Stil) merken und danach wiederherstellen
       const PROPS = ["overflow", "min-width", "width", "max-width"];
       const saved = PROPS.map(p => [p, el.style.getPropertyValue(p), el.style.getPropertyPriority(p)]);
@@ -1813,6 +1978,7 @@ class CardEnhancer {
           el.classList.add("mc-side-hidden");
           splitter?.classList.add("mc-side-hidden");
         }
+        el.classList.remove("mc-side-anim");
         el.__mcAnimating = false;
         updateSideEdge();
         this.sidebarTip?.();
@@ -1902,8 +2068,33 @@ class CardEnhancer {
       });
     };
 
+    // Menüleiste → Help: „Halo Spaces …“ öffnet das Info-Fenster mit
+    // Update-Prüfung, Feedback und „Danke sagen“.
+    const hookHelpMenu = () => {
+      const d = w.document;
+      const popup = d.getElementById("menu_HelpPopup");
+      if (!popup || d.getElementById("mcHaloSpaces")) {
+        return;
+      }
+      const de = Services.locale.appLocaleAsBCP47.startsWith("de");
+      const sep = d.createXULElement("menuseparator");
+      sep.id = "mcCheckUpdatesSeparator";
+      const item = d.createXULElement("menuitem");
+      item.id = "mcHaloSpaces";
+      item.setAttribute("label", "halo.spaces …");
+      item.addEventListener("command", () => this.openHaloWindow(w));
+      const anchor = d.getElementById("aboutName");
+      popup.insertBefore(sep, anchor);
+      popup.insertBefore(item, anchor);
+      this.restorers.push(() => {
+        sep.remove();
+        item.remove();
+      });
+    };
+
     const markTab = () => {
       hookSearchForwarding();
+      hookHelpMenu();
       this.hideTodayPaneInChatOnce(w);
       styleContentPages();
       applySideState();
@@ -1917,6 +2108,9 @@ class CardEnhancer {
         mode == "mail3PaneTab" || mode == "mailMessageTab"
       );
       w.document.documentElement.setAttribute("mc-tab", mode || "");
+      if (mode == "calendar") {
+        w.document.getElementById("month-view")?.__mcMoreRefresh?.();
+      }
       syncSearchForTab(mode);
       this.updateListHeader(w);
       syncSidebarWidth();
@@ -2206,10 +2400,24 @@ class CardEnhancer {
           more.textContent = de ? `+${hidden} weitere` : `+${hidden} more`;
         }
       };
+      // nur messen, wenn der Kalender vorne ist – sonst liefe das bei jeder
+      // Größenänderung (z. B. Ein-/Ausblend-Animation in der Mail) mit
+      let dirty = false;
+      const visible = () => w.document.getElementById("tabmail")?.currentTabInfo?.mode?.name == "calendar";
       const schedule = () => {
+        if (!visible() || w.__mcSpacesAnimating) {
+          dirty = true;
+          return;
+        }
         if (!pending) {
           pending = true;
           w.requestAnimationFrame(update);
+        }
+      };
+      mv.__mcMoreRefresh = () => {
+        if (dirty) {
+          dirty = false;
+          schedule();
         }
       };
       const mo = new w.MutationObserver(records => {
@@ -2244,6 +2452,51 @@ class CardEnhancer {
         zoom = setZoom(zoom * (event.deltaY < 0 ? 1.08 : 1 / 1.08));
         schedule();
       };
+      // Mausrad blättert immer den Monat – Thunderbird gibt es sonst an einen
+      // Tag weiter, dessen Einträge nicht ganz hineinpassen (der scrollt dann
+      // unsichtbar in sich, und das Blättern scheint zu hängen); verborgene
+      // Einträge zeigt „+N weitere“
+      let pixels = 0;
+      let lastWheel = -Infinity;
+      let lastDir = 0;
+      const onMonthWheel = event => {
+        if (event.ctrlKey || event.metaKey || event.altKey || event.shiftKey || mv.hasAttribute("mc-zoomed") ||
+            !Services.prefs.getBoolPref("calendar.view.mousescroll", true)) {
+          return;
+        }
+        event.stopPropagation();
+        event.preventDefault();
+        // Jede Raste blättert sofort einen Monat (macOS liefert eine Raste als
+        // weiche Folge kleiner Schritte, zusammen ~100 px – Thunderbirds
+        // Schwelle von 150 px verschluckte sie). Innerhalb einer Folge
+        // (Abstand < 150 ms) erst nach weiteren 200 px den nächsten Monat –
+        // schnelles Drehen und das Trackpad blättern so weiter.
+        let delta = 0;
+        if (!event.deltaY) {
+          return;
+        }
+        const now = event.timeStamp;
+        const dir = Math.sign(event.deltaY);
+        if (event.deltaMode != event.DOM_DELTA_PIXEL) {
+          delta = dir;
+        } else if (now - lastWheel > 150 || dir != lastDir) {
+          delta = dir;
+          pixels = 0;
+        } else {
+          pixels += event.deltaY;
+          if (Math.abs(pixels) >= 200) {
+            delta = dir;
+            pixels = 0;
+          }
+        }
+        lastWheel = now;
+        lastDir = dir;
+        if (delta) {
+          mv.moveView(delta);
+        }
+      };
+      mv.addEventListener("wheel", onMonthWheel, { capture: true, passive: false });
+      this.restorers.push(() => mv.removeEventListener("wheel", onMonthWheel, { capture: true }));
       mv.addEventListener("MozMagnifyGestureUpdate", onGesture);
       mv.addEventListener("MozMagnifyGesture", onGesture);
       mv.addEventListener("wheel", onWheel, { passive: false });
@@ -2358,10 +2611,158 @@ class CardEnhancer {
       });
     };
 
+    // Kalender und Aufgaben: ein „+“ wie in Apple Kalender – fragt in einem
+    // Menü nach Termin oder Aufgabe (der zweite Knopf ist per CSS ausgeblendet)
+    const hookNewButton = () => {
+      const d = w.document;
+      const bar = d.querySelector("unified-toolbar");
+      if (!bar || bar.__mcNewHooked) {
+        return;
+      }
+      bar.__mcNewHooked = true;
+      const de = Services.locale.appLocaleAsBCP47.startsWith("de");
+      // Popover wie in Apple Kalender: zwei runde Symbole mit Beschriftung
+      const popup = d.createXULElement("panel");
+      popup.id = "mcNewPopup";
+      popup.setAttribute("type", "arrow");
+      popup.setAttribute("noautofocus", "true");
+      const NS = "http://www.w3.org/1999/xhtml";
+      const box = d.createElementNS(NS, "div");
+      box.className = "mc-pop";
+      const ICONS = {
+        // Kalenderblatt mit Uhr
+        event: '<rect x="3.5" y="5" width="15" height="13.5" rx="2.4"/><path d="M3.5 9.2h15M7.6 3.2v3.2M14.4 3.2v3.2"/><circle cx="17.6" cy="17.6" r="4.4" fill="var(--mc-pop-icon-bg)"/><path d="M17.6 15.6v2.2l1.4 0.9"/>',
+        // Liste mit abgehaktem und offenem Punkt
+        task: '<circle cx="6" cy="7.5" r="2.4"/><path d="M4.9 7.5l0.8 0.8 1.4-1.6"/><circle cx="6" cy="16.5" r="2.4"/><path d="M11 7.5h9M11 16.5h9"/>',
+      };
+      for (const [id, label, icon, command] of [
+        ["mcNewEvent", de ? "Neuer Termin" : "New Event", "event", "calendar_new_event_command"],
+        ["mcNewTask", de ? "Neue Aufgabe" : "New Task", "task", "calendar_new_todo_command"],
+      ]) {
+        const btn = d.createElementNS(NS, "button");
+        btn.id = id;
+        btn.className = "mc-pop-item";
+        const circle = d.createElementNS(NS, "span");
+        circle.className = "mc-pop-icon";
+        circle.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">${ICONS[icon]}</svg>`;
+        const text = d.createElementNS(NS, "span");
+        text.className = "mc-pop-label";
+        text.textContent = label;
+        btn.append(circle, text);
+        btn.addEventListener("click", () => {
+          popup.hidePopup();
+          w.goDoCommand(command);
+        });
+        box.append(btn);
+      }
+      popup.append(box);
+      (d.getElementById("mainPopupSet") || d.documentElement).append(popup);
+      const onClick = event => {
+        const li = event.target.closest?.('li[item-id="new-event"]');
+        const mode = d.getElementById("tabmail")?.currentTabInfo?.mode?.name;
+        if (!li || (mode != "calendar" && mode != "tasks")) {
+          return;
+        }
+        event.preventDefault();
+        event.stopPropagation();
+        if (popup.state == "open" || popup.state == "showing") {
+          popup.hidePopup();
+          return;
+        }
+        popup.openPopup(li, "after_start", -14, -6); // Rand für den Schatten ausgleichen, Pfeil über der Mitte
+      };
+      bar.addEventListener("click", onClick, true);
+      this.restorers.push(() => {
+        bar.removeEventListener("click", onClick, true);
+        popup.remove();
+        delete bar.__mcNewHooked;
+      });
+    };
+
+    // Kalender-Titel wie in Apple Kalender: Monat fett, Jahreszahl dünn
+    const hookTitle = () => {
+      const el = w.document.getElementById("intervalDescription");
+      if (!el || el.__mcTitle) {
+        return;
+      }
+      el.__mcTitle = true;
+      const split = () => {
+        if (el.querySelector(".mc-year")) {
+          return;
+        }
+        const m = el.textContent.match(/^(.*\S)(\s+)(\d{4})\s*$/s);
+        if (!m) {
+          return;
+        }
+        const year = w.document.createElement("span");
+        year.className = "mc-year";
+        year.textContent = m[3];
+        el.replaceChildren(m[1] + m[2], year);
+      };
+      const mo = new w.MutationObserver(split);
+      mo.observe(el, { childList: true, characterData: true, subtree: true });
+      split();
+      this.restorers.push(() => {
+        mo.disconnect();
+        el.textContent = el.textContent;
+        delete el.__mcTitle;
+      });
+    };
+
+    // Tag und Woche: Cmd + Mausrad (oder Zwei-Finger-Zoom) ändert wie
+    // Cmd+Plus/Minus den Stundenabstand
+    const hookMultidayZoom = () => {
+      for (const id of ["day-view", "week-view"]) {
+        const view = w.document.getElementById(id);
+        if (!view || view.__mcZoom || typeof view.zoomIn != "function") {
+          continue;
+        }
+        view.__mcZoom = true;
+        let acc = 0;
+        const STEP = 40; // Pixel Mausrad pro Zoomstufe
+        const zoom = delta => {
+          acc += delta;
+          while (Math.abs(acc) >= STEP) {
+            // wie Cmd+Plus/Minus: nach oben = größer (weniger Stunden sichtbar)
+            if (acc < 0) {
+              view.zoomOut();
+              acc += STEP;
+            } else {
+              view.zoomIn();
+              acc -= STEP;
+            }
+          }
+        };
+        const onWheel = event => {
+          if (!event.metaKey && !event.ctrlKey) {
+            return;
+          }
+          event.preventDefault();
+          event.stopPropagation();
+          const px = event.deltaMode == 1 ? event.deltaY * 16 : event.deltaMode == 2 ? event.deltaY * 400 : event.deltaY;
+          zoom(px);
+        };
+        const onGesture = event => {
+          event.preventDefault();
+          zoom(-event.delta * 2);
+        };
+        view.addEventListener("wheel", onWheel, { passive: false, capture: true });
+        view.addEventListener("MozMagnifyGestureUpdate", onGesture);
+        this.restorers.push(() => {
+          view.removeEventListener("wheel", onWheel, { capture: true });
+          view.removeEventListener("MozMagnifyGestureUpdate", onGesture);
+          delete view.__mcZoom;
+        });
+      }
+    };
+
     const scan = () => {
       markTab();
       decorateAgenda();
       hookMonthView();
+      hookMultidayZoom();
+      hookNewButton();
+      hookTitle();
       hookEscape();
       hookSidebarButton();
       hookSpacesToggle();
@@ -2602,7 +3003,37 @@ class CardEnhancer {
     const DURATION = 250;
     const curve = cubicBezier(0.25, 0.1, 0.25, 1);
     const showing = spaces.isHidden;
-    const set = v => root.style.setProperty("--mc-spaces-w", `${v}px`);
+    // Die Breite nicht als Variable am Wurzelelement ändern – das ließe
+    // Thunderbird pro Bild alle ~5000 Elemente des Fensters neu durchrechnen
+    // (~20 ms, die Animation ruckelt). Stattdessen direkt an den fünf
+    // Elementen, die sich bewegen; am Ende wieder entfernen.
+    const d = w.document;
+    const bar = d.getElementById("spacesToolbar");
+    const body = d.getElementById("messengerBody");
+    const title = d.getElementById("titlebar");
+    const row = d.getElementById("unifiedToolbarContainer");
+    const toggle = d.getElementById("mcSpacesToggle");
+    const set = v => {
+      const px = `${v}px`;
+      bar?.style.setProperty("--spaces-total-width", px);
+      toggle?.style.setProperty("--spaces-total-width", px);
+      if (body) {
+        body.style.marginInlineStart = px;
+      }
+      if (title) {
+        title.style.marginInlineStart = px;
+      }
+      if (row) {
+        row.style.inlineSize = `calc(100vw - ${px})`;
+      }
+    };
+    const clear = () => {
+      bar?.style.removeProperty("--spaces-total-width");
+      toggle?.style.removeProperty("--spaces-total-width");
+      body?.style.removeProperty("margin-inline-start");
+      title?.style.removeProperty("margin-inline-start");
+      row?.style.removeProperty("inline-size");
+    };
     w.__mcSpacesAnimating = true;
     if (showing) {
       set(0);
@@ -2616,7 +3047,6 @@ class CardEnhancer {
       }
       const k = Math.min(1, (now - start) / DURATION);
       set(FULL * (showing ? curve(k) : 1 - curve(k)));
-      this.offsetUpdaters?.forEach(fn => fn());
       if (k < 1) {
         w.requestAnimationFrame(step);
         return;
@@ -2624,10 +3054,16 @@ class CardEnhancer {
       if (!showing) {
         spaces.toggleToolbar(true);
       }
+      clear();
       root.style.removeProperty("--mc-spaces-w");
       w.__mcSpacesAnimating = false;
       onDone?.();
-      w.setTimeout(() => this.offsetUpdaters?.forEach(fn => fn()), 30);
+      const realign = () => {
+        this.offsetUpdaters?.forEach(fn => fn());
+        this.sideEdgeUpdaters?.forEach(fn => fn());
+      };
+      realign();
+      w.setTimeout(realign, 30);
     };
     w.requestAnimationFrame(() => w.requestAnimationFrame(step));
   }
@@ -2704,7 +3140,13 @@ class CardEnhancer {
     const update = () => {
       const content = top.document.getElementById("unifiedToolbarContent");
       const browser = win.browsingContext.embedderElement;
-      if (!content || !browser || win.closed) {
+      if (!content || !browser || win.closed || top.__mcSpacesAnimating) {
+        return;
+      }
+      // nur der Mail-Tab, der gerade vorne ist, richtet die Toolbar aus –
+      // sonst überschreibt ein zweiter Mail-Tab im Hintergrund die Kanten
+      const current = top.document.getElementById("tabmail")?.currentTabInfo;
+      if (current?.chromeBrowser && current.chromeBrowser != browser) {
         return;
       }
       fixFolderLock();
@@ -2736,22 +3178,22 @@ class CardEnhancer {
       if (tb && tb.width) {
         offset = Math.max(offset, Math.round(tb.right - start + 12));
       }
-      top.document.documentElement.style.setProperty(
-        "--mc-toolbar-offset",
-        `${offset}px`
-      );
+      setBarVar(top.document, "--mc-toolbar-offset", `${offset}px`);
+      const animating = top.__mcSpacesAnimating || win.__mcAnimating;
       // Suchfeld in jedem Bereich gleich breit (333 px wie Apple Mail): fehlt
       // dafür Platz, wird zuerst der Abstand nach „Verfassen“ kleiner (69 → 12 px)
       const write = content.querySelector(':scope > li[item-id="write-message"]');
       const search = content.querySelector(':scope > li[item-id="search-bar"]');
-      if (write && search && write.getBoundingClientRect().width) {
+      // (nicht während einer Ein-/Ausblend-Animation – das kostet pro Bild ein
+      // komplettes Neuberechnen; am Ende wird einmal gemessen)
+      if (!animating && write && search && write.getBoundingClientRect().width) {
         const spacer = search.previousElementSibling;
         const gap = parseFloat(top.getComputedStyle(write).marginInlineEnd) || 0;
         const spare = (spacer?.getAttribute("item-id") == "spacer" ? spacer.getBoundingClientRect().width : 0) -
           (333 - search.getBoundingClientRect().width);
         const next = Math.max(12, Math.min(69, Math.round(gap + spare)));
         if (Math.abs(next - gap) >= 1) {
-          top.document.documentElement.style.setProperty("--mc-write-gap", `${next}px`);
+          setBarVar(top.document, "--mc-write-gap", `${next}px`);
         }
       }
       // Rechte Kante der Ordnerliste relativ zur Toolbar-Zeile: damit färbt
@@ -2763,23 +3205,19 @@ class CardEnhancer {
         const right = fr.width
           ? browser.getBoundingClientRect().left + fr.right - row.getBoundingClientRect().left
           : 0;
-        top.document.documentElement.style.setProperty(
-          "--mc-sidebar-right",
-          `${Math.max(0, Math.round(right))}px`
+        setBarVar(top.document, "--mc-sidebar-right", `${Math.max(0, Math.round(right))}px`
         );
         // rechte Kante der Mailliste für die Trennlinie in der Toolbar-Zeile
         const listRight = paneRight - row.getBoundingClientRect().left;
-        top.document.documentElement.style.setProperty(
-          "--mc-list-right",
-          `${Math.round(listRight)}px`
+        setBarVar(top.document, "--mc-list-right", `${Math.round(listRight)}px`
         );
         // Die Tab-Leiste kann weiter rechts beginnen (z. B. neben der
         // Bereiche-Leiste) – dort dieselben Kanten, um den Versatz korrigiert.
         const tabs = top.document.getElementById("tabs-toolbar");
         if (tabs) {
           const shift = tabs.getBoundingClientRect().left - row.getBoundingClientRect().left;
-          tabs.style.setProperty("--mc-sidebar-right", `${Math.max(0, Math.round(right - shift))}px`);
-          tabs.style.setProperty("--mc-list-right", `${Math.round(listRight - shift)}px`);
+          setVar(tabs, "--mc-sidebar-right", `${Math.max(0, Math.round(right - shift))}px`);
+          setVar(tabs, "--mc-list-right", `${Math.round(listRight - shift)}px`);
         }
       }
     };
@@ -2791,6 +3229,18 @@ class CardEnhancer {
     if (fp) {
       ro.observe(fp);
     }
+    // Ordnerliste ein-/ausgeklappt: sofort neu ausrichten (ein eingeklapptes
+    // Element meldet der ResizeObserver nicht zuverlässig)
+    const splitterEl = win.document.getElementById("folderPaneSplitter");
+    const onSplitter = () => win.setTimeout(update, 0);
+    for (const type of ["splitter-collapsed", "splitter-expanded", "splitter-resized"]) {
+      splitterEl?.addEventListener(type, onSplitter);
+    }
+    this.restorers.push(() => {
+      for (const type of ["splitter-collapsed", "splitter-expanded", "splitter-resized"]) {
+        splitterEl?.removeEventListener(type, onSplitter);
+      }
+    });
     ro.observe(win.document.documentElement);
     update();
     this.restorers.push(() => {
@@ -2799,9 +3249,9 @@ class CardEnhancer {
       const tabsBar = top.document.getElementById("tabs-toolbar");
       tabsBar?.style.removeProperty("--mc-sidebar-right");
       tabsBar?.style.removeProperty("--mc-list-right");
-      top.document.documentElement.style.removeProperty("--mc-toolbar-offset");
-      top.document.documentElement.style.removeProperty("--mc-sidebar-right");
-      top.document.documentElement.style.removeProperty("--mc-list-right");
+      barTarget(top.document).style.removeProperty("--mc-toolbar-offset");
+      barTarget(top.document).style.removeProperty("--mc-sidebar-right");
+      barTarget(top.document).style.removeProperty("--mc-list-right");
     });
   }
 
@@ -2882,6 +3332,194 @@ class CardEnhancer {
       w.TodayPane?.setVisible?.(false);
     }
     Services.prefs.setBoolPref(PREF, true);
+  }
+
+  // Termin-Details: an den Inhalt anpassen (mindestens 480 px breit, höchstens
+  // so groß wie der Bildschirm) und iClouds Platzhalter-Erinnerung ausblenden
+  // (Apple legt für Standard-Erinnerungen eine feste vom 1. April 1976 an)
+  fitSummaryDialog(dlg) {
+    try {
+      const doc = dlg.document;
+      const cell = doc.querySelector(".reminder-details");
+      if (cell) {
+        const year = /\b1976\b/;
+        for (const node of [...cell.childNodes]) {
+          if (node.nodeType == 3 && year.test(node.textContent)) {
+            if (node.nextSibling?.localName == "br") {
+              node.nextSibling.remove();
+            }
+            node.remove();
+          }
+        }
+        if (cell.lastChild?.localName == "br") {
+          cell.lastChild.remove();
+        }
+      }
+      // Titel steht groß im Inhalt – nicht zusätzlich in der Fensterleiste
+      if (doc.querySelector(".item-title")?.textContent.trim()) {
+        doc.title = " ";
+      }
+      dlg.sizeToContent();
+      const maxW = dlg.screen.availWidth - 40;
+      const maxH = dlg.screen.availHeight - 40;
+      const width = Math.min(maxW, Math.max(480, dlg.outerWidth));
+      const height = Math.min(maxH, dlg.outerHeight);
+      dlg.resizeTo(width, height);
+      // ein zweites Mal, falls der breitere Text weniger Zeilen braucht
+      dlg.setTimeout(() => {
+        dlg.sizeToContent();
+        dlg.resizeTo(Math.min(maxW, Math.max(480, dlg.outerWidth)), Math.min(maxH, dlg.outerHeight));
+      }, 50);
+    } catch (e) {
+      log("summary size error", String(e).slice(0, 120));
+    }
+  }
+
+  // Feedback: neue Mail an die Feedback-Adresse, mit Versionen zum Nachvollziehen
+  async sendFeedback() {
+    const de = Services.locale.appLocaleAsBCP47.startsWith("de");
+    let version = extensionVersion;
+    try {
+      const { AddonManager } = ChromeUtils.importESModule("resource://gre/modules/AddonManager.sys.mjs");
+      version = (await AddonManager.getAddonByID("mail-cards@sebastian.local"))?.version || version;
+    } catch {}
+    const mac = Services.sysinfo.getProperty("version");
+    const subject = `halo.spaces ${version} – Feedback`;
+    const body = (de ? "Hallo,\n\n\n\n—\n" : "Hi,\n\n\n\n—\n") +
+      `halo.spaces ${version} · Thunderbird ${Services.appinfo.version} · macOS (Darwin ${mac})`;
+    const params = Cc["@mozilla.org/messengercompose/composeparams;1"].createInstance(Ci.nsIMsgComposeParams);
+    const fields = Cc["@mozilla.org/messengercompose/composefields;1"].createInstance(Ci.nsIMsgCompFields);
+    fields.to = FEEDBACK_ADDRESS;
+    fields.subject = subject;
+    fields.body = body;
+    params.type = Ci.nsIMsgCompType.New;
+    params.format = Ci.nsIMsgCompFormat.PlainText;
+    params.composeFields = fields;
+    MailServices.compose.OpenComposeWindowWithParams(null, params);
+  }
+
+  // Update auf Wunsch: dieselbe Prüfung wie Thunderbirds tägliche, nur sofort.
+  // Ergebnis: { available, version, install() } | { error } | {} (aktuell)
+  async findUpdate() {
+    const { AddonManager } = ChromeUtils.importESModule("resource://gre/modules/AddonManager.sys.mjs");
+    const addon = await AddonManager.getAddonByID("mail-cards@sebastian.local");
+    if (!addon) {
+      return { error: true };
+    }
+    return new Promise(resolve => {
+      let found = null;
+      addon.findUpdates({
+        onUpdateAvailable: (_addon, install) => {
+          found = { available: true, version: install.version, install: () => install.install() };
+        },
+        onUpdateFinished: (_addon, error) => resolve(found || (error ? { error: true } : {})),
+      }, AddonManager.UPDATE_WHEN_USER_REQUESTED);
+    });
+  }
+
+  // Info-Fenster „Halo Spaces“ (Help-Menü): Version, Updates, Feedback, Spenden
+  async openHaloWindow(w) {
+    const open = [...Services.wm.getEnumerator(null)].find(win => win.location?.href.startsWith("resource://mailcards/about/halo.html"));
+    if (open) {
+      open.focus();
+      return;
+    }
+    let version = extensionVersion;
+    try {
+      const { AddonManager } = ChromeUtils.importESModule("resource://gre/modules/AddonManager.sys.mjs");
+      version = (await AddonManager.getAddonByID("mail-cards@sebastian.local"))?.version || version;
+    } catch {}
+    const api = {
+      german: Services.locale.appLocaleAsBCP47.startsWith("de"),
+      version,
+      feedbackAddress: FEEDBACK_ADDRESS,
+      checkUpdate: () => this.findUpdate(),
+      sendFeedback: () => this.sendFeedback(),
+      donate: () => {
+        const ext = Cc["@mozilla.org/uriloader/external-protocol-service;1"].getService(Ci.nsIExternalProtocolService);
+        ext.loadURI(Services.io.newURI(DONATE_URL));
+      },
+    };
+    const hw = w.openDialog("resource://mailcards/about/halo.html", "halo-spaces",
+      "chrome,dialog=yes,centerscreen,resizable=no,width=360,height=292");
+    // erst lädt das Fenster about:blank, dann unsere Seite – darauf warten
+    let tries = 0;
+    const wire = () => {
+      if (hw.closed || tries++ > 100) {
+        return;
+      }
+      const doc = hw.document;
+      if (doc?.documentURI?.startsWith("resource://mailcards/about/halo.html") && doc.readyState == "complete" && doc.getElementById("version")) {
+        this.wireHaloWindow(hw, api);
+      } else {
+        w.setTimeout(wire, 30);
+      }
+    };
+    w.setTimeout(wire, 30);
+  }
+
+  // Texte setzen und Knöpfe verbinden (aus der Erweiterung heraus)
+  wireHaloWindow(hw, api) {
+    const doc = hw.document;
+    const de = api.german;
+    const t = (deText, enText) => (de ? deText : enText);
+    const $ = id => doc.getElementById(id);
+    doc.documentElement.lang = de ? "de" : "en";
+    for (const el of doc.querySelectorAll("[data-de]")) {
+      el.textContent = de ? el.dataset.de : el.dataset.en;
+    }
+    $("version").textContent = `Version ${api.version}`;
+    $("mail").textContent = api.feedbackAddress;
+
+    const button = $("update");
+    const label = button.querySelector(".label");
+    const status = $("update-status");
+    let install = null;
+    button.addEventListener("click", async () => {
+      if (install) {
+        button.disabled = true;
+        label.textContent = t("Wird installiert …", "Installing …");
+        try {
+          await install();
+          label.textContent = t("Installiert – wird gleich aktiv", "Installed – active in a moment");
+        } catch {
+          label.textContent = t("Installation fehlgeschlagen", "Installation failed");
+          button.disabled = false;
+        }
+        button.classList.remove("available");
+        install = null;
+        return;
+      }
+      button.disabled = true;
+      label.textContent = t("Suche nach Updates …", "Checking for updates …");
+      status.textContent = "";
+      const result = await api.checkUpdate();
+      button.disabled = false;
+      if (result.available) {
+        install = result.install;
+        button.classList.add("available");
+        label.textContent = t(`Version ${result.version} installieren`, `Install version ${result.version}`);
+      } else if (result.error) {
+        label.textContent = t("Keine Verbindung – erneut versuchen", "No connection – try again");
+      } else {
+        label.textContent = t("halo.spaces ist aktuell", "halo.spaces is up to date");
+        status.textContent = "✓";
+      }
+    });
+    const feedback = event => {
+      event.preventDefault();
+      api.sendFeedback();
+      hw.close();
+    };
+    $("feedback").addEventListener("click", feedback);
+    $("mail").addEventListener("click", feedback);
+    $("donate").addEventListener("click", () => api.donate());
+    // Logo mit Versionsnummer laden (sonst zeigt Thunderbird nach einem
+    // Update noch das zwischengespeicherte alte)
+    const icon = doc.querySelector(".icon");
+    if (icon) {
+      icon.src = `icon.svg?v=${api.version}`;
+    }
   }
 
   stop() {

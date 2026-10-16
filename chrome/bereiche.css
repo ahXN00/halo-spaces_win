@@ -233,7 +233,7 @@
   margin-inline-start: auto !important;
 }
 
-:is(#calMinimonth, #today-minimonth) .minimonth-nav-btn {
+:is(#calMinimonth, #today-minimonth) .minimonth-nav-btn:not(.today-button, .years-back-button, .years-forward-button) {
   display: inline-flex !important;
   align-items: center !important;
   justify-content: center !important;
@@ -262,6 +262,40 @@
 
 :is(#calMinimonth, #today-minimonth) .minimonth-year-name {
   text-align: start !important;
+}
+
+/* Kopf wie in Apple Kalender: ‹  Oktober 2026  › – Monat und Jahr so breit
+   wie ihr Text und zusammen mittig, die Pfeile über der ersten bzw. letzten
+   Spalte */
+:is(#calMinimonth, #today-minimonth) .minimonth-header {
+  justify-content: space-between !important;
+  gap: 0 !important;
+  padding: 0 0 6px !important;
+}
+
+:is(#calMinimonth, #today-minimonth) .minimonth-nav-item {
+  display: flex !important;
+  min-width: 0 !important;
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
+:is(#calMinimonth, #today-minimonth) :is(.minimonth-month-name, .minimonth-year-name) {
+  field-sizing: content !important;
+  width: auto !important;
+  min-width: 0 !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  border: none !important;
+  background: transparent !important;
+  font-size: 13px !important;
+  font-weight: 600 !important;
+  color: var(--mt-text) !important;
+  opacity: 1 !important;
+}
+
+:is(#calMinimonth, #today-minimonth) .minimonth-month-name {
+  margin-inline-end: 0.3em !important;
 }
 
 :is(#calMinimonth, #today-minimonth) :is(.minimonth-row-header-week, .minimonth-week) {
@@ -321,6 +355,11 @@
   display: contents !important;
 }
 
+/* Monat fett, Jahreszahl dünn wie in Apple Kalender (.mc-year: Erweiterung) */
+#intervalDescription .mc-year {
+  font-weight: 400 !important;
+}
+
 #intervalDescription {
   order: 0 !important;
   flex: 1 1 auto !important;
@@ -367,7 +406,7 @@
   background: color-mix(in srgb, var(--mt-text) 10%, transparent) !important;
 }
 
-/* ‹  Today  › wie bei Apple: zwei runde Knöpfe und eine Kapsel dazwischen */
+/* ‹  Today  › wie in Apple Kalender: eine Kapsel, darin Pfeil – „Heute“ – Pfeil */
 #calendarControls {
   order: 2 !important;
 }
@@ -375,24 +414,29 @@
 #calendarControls .button-group {
   display: flex !important;
   align-items: center !important;
-  gap: 6px !important;
-  padding: 0 !important;
-  background: transparent !important;
+  gap: 0 !important;
+  box-sizing: border-box !important;
+  width: max-content !important;
+  height: 38px !important;
+  padding: 3px !important;
   border: none !important;
+  border-radius: 999px !important;
+  background: var(--mt-control) !important;
 }
 
 #calendarControls .button-group > button {
   display: inline-flex !important;
   align-items: center !important;
   justify-content: center !important;
-  width: 38px !important;
-  min-width: 38px !important;
-  height: 38px !important;
+  width: 32px !important;
+  min-width: 32px !important;
+  height: 32px !important;
+  flex: none !important;
   margin: 0 !important;
   padding: 0 !important;
   border: none !important;
   border-radius: 999px !important;
-  background: var(--mt-control) !important;
+  background: transparent !important;
   box-shadow: none !important;
   color: color-mix(in srgb, var(--mt-text) 82%, transparent) !important;
   font-size: 13px !important;
@@ -407,8 +451,8 @@
 #calendarControls .button-group > :is(#previousViewButton, #nextViewButton)::before,
 :is(#calMinimonth, #today-minimonth) :is(.months-back-button, .months-forward-button)::before {
   content: "" !important;
-  width: 18px !important;
-  height: 18px !important;
+  width: 16px !important;
+  height: 16px !important;
   background-color: currentColor !important;
   mask: var(--mi-chevron) center / contain no-repeat !important;
   transform: rotate(90deg) !important;
@@ -421,7 +465,10 @@
 
 #calendarControls .button-group > #todayViewButton {
   width: auto !important;
-  padding: 0 16px !important;
+  min-width: max-content !important;
+  aspect-ratio: auto !important;
+  padding: 0 14px !important;
+  font-size: 14px !important;
   color: var(--mt-text) !important;
 }
 
@@ -433,8 +480,28 @@
   content: "Heute" !important;
 }
 
+/* Layout-Optionen gibt es auch im Menü Ansicht und in den Einstellungen */
 #calendarControlBarMenu {
-  order: 3 !important;
+  display: none !important;
+}
+
+/* Tag/Woche/Mehrere Wochen/Monat oben in der Toolbar-Zeile wie in Apple
+   Kalender – mittig über dem Kalender (--mc-tab-left, --mc-row-top/-h
+   misst die Erweiterung) */
+#viewToggle {
+  position: fixed !important;
+  display: flex !important;
+  align-items: center !important;
+  box-sizing: border-box !important;
+  top: calc(var(--mc-row-top, 0px) + (var(--mc-row-h, 50px) - 38px) / 2) !important;
+  /* mittig über der Kalenderfläche (rechts der Seitenleiste), nie über „+“ */
+  inset-inline-start: max(
+    calc((var(--mc-tab-left, 300px) - 12px + 100vw) / 2),
+    calc(var(--mc-tab-left, 300px) + 56px + var(--mc-toggle-half, 157px))
+  ) !important;
+  transform: translateX(-50%) !important;
+  z-index: 3 !important;
+  margin: 0 !important;
 }
 
 /* Suchliste „Termine in den nächsten 7 Tagen“ gibt es bei Apple nicht */
@@ -1361,7 +1428,7 @@ search-bar {
 
 #contactlistbox > richlistitem[selected] {
   background: var(--mt-accent) !important;
-  color: white !important;
+  color: var(--mt-accent-text) !important;
 }
 
 #contactlistbox > richlistitem:is(#conversationsGroup, #onlinecontactsGroup, #offlinecontactsGroup) {
@@ -1394,7 +1461,7 @@ search-bar {
   border: none !important;
   border-radius: 999px !important;
   background: var(--mt-accent) !important;
-  color: white !important;
+  color: var(--mt-accent-text) !important;
   font-size: 13px !important;
   font-weight: 500 !important;
   box-shadow: none !important;
@@ -1677,10 +1744,10 @@ addon-page-header h1,
 /* Senden in Akzentfarbe wie Apples Papierflieger */
 #composeToolbar2 > #button-send {
   background: var(--mt-accent) !important;
-  color: white !important;
+  color: var(--mt-accent-text) !important;
   -moz-context-properties: fill, stroke !important;
-  fill: white !important;
-  stroke: white !important;
+  fill: var(--mt-accent-text) !important;
+  stroke: var(--mt-accent-text) !important;
 }
 
 #composeToolbar2 > #button-send[disabled] {
@@ -1775,7 +1842,7 @@ addon-page-header h1,
   text-overflow: ellipsis !important;
 }
 
-#viewToggle, #calendarControls, #calendarControlBarMenu {
+#calendarControls {
   flex-shrink: 0 !important;
 }
 
@@ -2110,7 +2177,7 @@ addon-page-header h1,
 #detailsFooter button.button-primary,
 #detailsFooter #saveEditButton {
   background-color: var(--mt-accent) !important;
-  color: white !important;
+  color: var(--mt-accent-text) !important;
 }
 
 #detailsFooter button.button-primary:hover,
@@ -2368,10 +2435,10 @@ dialog richlistbox {
 
 #event-toolbar > #button-saveandclose {
   background-color: var(--mt-accent) !important;
-  color: white !important;
+  color: var(--mt-accent-text) !important;
   -moz-context-properties: fill, stroke !important;
-  fill: white !important;
-  stroke: white !important;
+  fill: var(--mt-accent-text) !important;
+  stroke: var(--mt-accent-text) !important;
 }
 
 #event-toolbar > #button-saveandclose[disabled] {
@@ -3054,8 +3121,10 @@ menupopup menucaption {
 
 
 /* Aufgaben: gefiltert wird über das Suchfeld oben rechts (die Erweiterung
-   leitet die Eingabe an den Aufgabenfilter weiter) – kein zweites Suchfeld */
-box:has(> #task-text-filter-field) {
+   leitet die Eingabe an den Aufgabenfilter weiter) – kein zweites Suchfeld.
+   (gezielter Selektor statt :has() – :has() auf alle „box“ wäre bei jedem
+   Neuberechnen teuer) */
+#task-addition-box > box:last-of-type {
   display: none !important;
 }
 
@@ -3108,7 +3177,9 @@ calendar-month-day-box > .mc-more:hover {
 
 /* gemeinsame Seitenleisten-Breite (setzt die Erweiterung): keine festen
    Mindestbreiten, die einzelne Bereiche breiter machen würden */
-:is(#listPaneBox, #calSidebar, #accountTreeBox, #pref-category-box) {
+/* (nicht während der Ein-/Ausblend-Animation – sonst bleibt die Leiste bei
+   160 px stehen und springt am Ende) */
+:is(#listPaneBox, #calSidebar, #accountTreeBox, #pref-category-box):not(.mc-side-anim) {
   min-width: 160px !important;
 }
 
@@ -3127,4 +3198,359 @@ body {
    steht wie bei Apple Kontakte in der Menüleiste (Tools → Import…) */
 #booksPaneImport {
   display: none !important;
+}
+
+/* ---------- Erinnerungsfenster (Kalender) wie unsere übrigen Ansichten ----------
+   ruhige Karten statt blau gefüllter Zeile, Apple-Kalender-Symbol,
+   Kapselknöpfe */
+#calendar-alarm-dialog {
+  background: var(--mt-window) !important;
+  font-family: var(--mt-font) !important;
+}
+
+#alarm-richlist {
+  appearance: none !important;
+  border: none !important;
+  background: transparent !important;
+  padding: 4px 2px !important;
+  margin: 8px 12px 0 !important;
+}
+
+#alarm-richlist > richlistitem {
+  margin: 0 0 8px !important;
+  padding: 12px 14px !important;
+  border: none !important;
+  border-radius: 12px !important;
+  background: var(--mt-control) !important;
+  color: var(--mt-text) !important;
+  box-shadow: none !important;
+  outline: none !important;
+}
+
+#alarm-richlist > richlistitem[selected] {
+  background: var(--mt-control-hover) !important;
+  color: var(--mt-text) !important;
+}
+
+#alarm-richlist > richlistitem :is(label, description) {
+  color: inherit !important;
+}
+
+#alarm-richlist .alarm-calendar-image {
+  content: url("resource://mailcards/icons/calendar-24.svg") !important;
+  -moz-context-properties: fill, fill-opacity, stroke !important;
+  stroke: #FF3B30 !important;
+  fill: #FF3B30 !important;
+  fill-opacity: 0.12 !important;
+  width: 28px !important;
+  height: 28px !important;
+  margin: 2px 12px 0 0 !important;
+}
+
+#alarm-richlist .alarm-title-label {
+  font-size: 13px !important;
+  font-weight: 600 !important;
+  margin: 0 0 2px !important;
+}
+
+#alarm-richlist :is(.alarm-date-label, .alarm-location-description, .alarm-relative-date-label) {
+  font-size: 12px !important;
+  color: var(--mt-text-secondary) !important;
+  margin: 0 !important;
+}
+
+#alarm-richlist .alarm-details-label {
+  font-size: 12px !important;
+  color: var(--mt-accent) !important;
+  text-decoration: none !important;
+  margin: 4px 0 0 !important;
+}
+
+#alarm-richlist .alarm-details-label:hover {
+  text-decoration: underline !important;
+}
+
+#alarm-richlist .alarm-action-buttons {
+  gap: 6px !important;
+}
+
+#alarm-richlist .alarm-action-buttons button,
+#alarm-actionbar button {
+  min-height: 30px !important;
+  margin: 0 !important;
+  padding: 0 14px !important;
+  border: none !important;
+  border-radius: 999px !important;
+  background: color-mix(in srgb, var(--mt-text) 8%, transparent) !important;
+  color: var(--mt-text) !important;
+  box-shadow: none !important;
+  font-size: 13px !important;
+}
+
+#alarm-richlist .alarm-action-buttons button:hover,
+#alarm-actionbar button:hover {
+  background: color-mix(in srgb, var(--mt-text) 14%, transparent) !important;
+}
+
+#alarm-actionbar {
+  padding: 10px 12px 12px !important;
+  gap: 8px !important;
+  border: none !important;
+  background: transparent !important;
+}
+
+/* ---------- Termin-Details (Fenster „Details…“) wie eine Apple-Karte ----------
+   Titel groß oben, darunter die Angaben als ruhige Zeilen mit grauen
+   Beschriftungen – ohne Abschnittsrahmen „General“ */
+#calendar-summary-dialog {
+  background: var(--mt-window) !important;
+  font-family: var(--mt-font) !important;
+}
+
+#calendar-summary-dialog .item-summary-box > .calendar-caption {
+  display: none !important;
+}
+
+/* Raster statt Tabelle: Beschriftung so breit wie nötig, Wert daneben,
+   Titel über die ganze Breite (die Zeilen hängen direkt an der Tabelle –
+   in XHTML gibt es kein automatisches tbody) */
+#calendar-summary-dialog .calendar-summary-table,
+#calendar-summary-dialog .calendar-summary-table > tbody {
+  margin: 14px 16px 6px !important;
+  padding: 12px 14px !important;
+  border-radius: 12px !important;
+  background: var(--mt-control) !important;
+  width: auto !important;
+  display: grid !important;
+  grid-template-columns: max-content 1fr !important;
+  column-gap: 14px !important;
+  row-gap: 6px !important;
+}
+
+#calendar-summary-dialog .calendar-summary-table tr {
+  display: contents !important;
+}
+
+#calendar-summary-dialog .calendar-summary-table tr[hidden] {
+  display: none !important;
+}
+
+#calendar-summary-dialog .calendar-summary-table th {
+  padding: 0 !important;
+  text-align: start !important;
+  font-size: 12px !important;
+  font-weight: 400 !important;
+  line-height: 17px !important;
+  color: var(--mt-text-secondary) !important;
+  white-space: nowrap !important;
+}
+
+#calendar-summary-dialog .calendar-summary-table td {
+  max-width: none !important;
+  max-inline-size: none !important;
+  min-width: 0 !important;
+  padding: 0 !important;
+  font-size: 13px !important;
+  line-height: 17px !important;
+  color: var(--mt-text) !important;
+}
+
+#calendar-summary-dialog .calendar-summary-table tr:has(> .item-title) > th {
+  display: none !important;
+}
+
+#calendar-summary-dialog .calendar-summary-table td.item-title {
+  grid-column: 1 / -1 !important;
+  padding-bottom: 6px !important;
+  font-size: 17px !important;
+  font-weight: 600 !important;
+  line-height: 22px !important;
+}
+
+#calendar-summary-dialog :is(#calendar-summary-dialog-edit-button, #calendar-summary-dialog-edit-menu-button, #calendar-summary-dialog-custom-button-footer button) {
+  margin: 0 16px 14px 0 !important;
+  min-height: 30px !important;
+  padding: 0 18px !important;
+  border-radius: 999px !important;
+  font-size: 13px !important;
+}
+
+/* Adressbuch: keine Linie über „Total contacts …“ und keine über der
+   Kontaktliste (die Kopfzeile sitzt oben in der Toolbar) */
+#cardCount,
+#cards {
+  border-top: none !important;
+}
+
+/* „Total contacts …“ rechtsbündig – unten links sitzt bei ausgeblendeter
+   Bereiche-Leiste deren Einblend-Knopf */
+#cardCount {
+  text-align: end !important;
+  padding-inline-start: 44px !important;
+}
+
+/* Akzentfarbe immer wie macOS (wie in Apples Apps): Thunderbirds eigene
+   Farbwahl ist ausgeblendet; eine früher gewählte Farbe wird auch in
+   Thunderbirds eigenen Flächen durch die macOS-Farbe ersetzt */
+@media not -moz-pref("mail.appearance.accentColor", "accent-color") {
+  :root, :host {
+    --selected-item-color: AccentColor !important;
+    --selected-item-text-color: AccentColorText !important;
+    accent-color: AccentColor !important;
+  }
+}
+
+#colorGroup {
+  display: none !important;
+}
+
+/* Einstellungen → Window Layout: Erklärung zu „Hide title bar“ unter dem
+   Schalter wie bei den übrigen Optionen */
+#layoutGroup > hbox:first-of-type {
+  flex-direction: column !important;
+  align-items: flex-start !important;
+}
+
+#layoutGroup > hbox:first-of-type > description {
+  margin-inline-start: 22px !important;
+}
+
+/* ---------- Kalender und Aufgaben: ein „+“ wie in Apple Kalender ----------
+   fragt in einem Menü nach Termin oder Aufgabe (#mcNewPopup, Erweiterung) */
+:root:is([mc-tab="calendar"], [mc-tab="tasks"]) #unifiedToolbarContent > li[item-id="new-task"] {
+  display: none !important;
+}
+
+:root:is([mc-tab="calendar"], [mc-tab="tasks"]) #unifiedToolbarContent > li[item-id="new-event"] {
+  --mc-plus: url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22%23000%22 stroke-width=%221.8%22 stroke-linecap=%22round%22%3E%3Cpath d=%22M12 5v14M5 12h14%22/%3E%3C/svg%3E");
+  border-radius: 999px !important;
+  margin-inline-end: 6px !important;
+}
+
+:root:is([mc-tab="calendar"], [mc-tab="tasks"]) #unifiedToolbarContent > li[item-id="new-event"] button .button-icon {
+  mask-image: var(--mc-plus) !important;
+}
+
+:root:not([mc-tab="calendar"]) #viewToggle {
+  display: none !important;
+}
+
+/* „+“-Popover wie in Apple Kalender: Pfeil zum Knopf, zwei runde Symbole
+   mit Beschriftung darunter */
+#mcNewPopup {
+  appearance: none !important;
+  --panel-background-color: transparent !important;
+  --panel-background: transparent !important;
+  --panel-border-color: transparent !important;
+  --panel-shadow: none !important;
+  --panel-shadow-margin: 0px !important;
+  --panel-padding: 0 !important;
+  background: transparent !important;
+  border: none !important;
+  font-family: var(--mt-font) !important;
+}
+
+#mcNewPopup::part(content) {
+  appearance: none !important;
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+}
+
+#mcNewPopup .mc-pop {
+  --mc-pop-bg: #fbfbfc;
+  --mc-pop-icon-bg: #ebebed;
+  position: relative !important;
+  display: flex !important;
+  gap: 8px !important;
+  margin: 18px 18px 22px !important;
+  padding: 16px 14px 14px !important;
+  border-radius: 18px !important;
+  background: var(--mc-pop-bg) !important;
+  border: 0.5px solid rgba(0, 0, 0, 0.12) !important;
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.16), 0 1px 4px rgba(0, 0, 0, 0.08) !important;
+}
+
+/* Pfeil über der Mitte des „+“ (Knopf 44 px breit) */
+#mcNewPopup .mc-pop::before {
+  content: "" !important;
+  position: absolute !important;
+  top: -7px !important;
+  inset-inline-start: 11px !important;
+  width: 14px !important;
+  height: 14px !important;
+  background: var(--mc-pop-bg) !important;
+  border-top: 0.5px solid rgba(0, 0, 0, 0.12) !important;
+  border-left: 0.5px solid rgba(0, 0, 0, 0.12) !important;
+  border-top-left-radius: 3px !important;
+  transform: rotate(45deg) !important;
+}
+
+#mcNewPopup .mc-pop-item {
+  appearance: none !important;
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  gap: 8px !important;
+  min-width: 112px !important;
+  height: auto !important;
+  min-height: 0 !important;
+  margin: 0 !important;
+  box-shadow: none !important;
+  padding: 4px 8px 2px !important;
+  border: none !important;
+  border-radius: 12px !important;
+  background: transparent !important;
+  color: var(--mt-text) !important;
+  font: inherit !important;
+  font-size: 13px !important;
+  font-weight: 500 !important;
+}
+
+#mcNewPopup .mc-pop-icon {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  width: 44px !important;
+  height: 44px !important;
+  border-radius: 999px !important;
+  background: var(--mc-pop-icon-bg) !important;
+  color: color-mix(in srgb, var(--mt-text) 85%, transparent) !important;
+  transition: background-color 150ms ease !important;
+}
+
+#mcNewPopup .mc-pop-item:hover .mc-pop-icon {
+  background: color-mix(in srgb, var(--mt-text) 14%, transparent) !important;
+}
+
+#mcNewPopup .mc-pop-item:active .mc-pop-icon {
+  background: color-mix(in srgb, var(--mt-text) 20%, transparent) !important;
+}
+
+@media (prefers-color-scheme: dark) {
+  #mcNewPopup .mc-pop {
+    --mc-pop-bg: #2c2c2e;
+    --mc-pop-icon-bg: #3a3a3c;
+    border-color: rgba(255, 255, 255, 0.12);
+  }
+
+  #mcNewPopup .mc-pop::before {
+    border-color: rgba(255, 255, 255, 0.12);
+  }
+}
+
+/* Monatsansicht ohne Scrollleisten wie in Apple Kalender – weder rechts für
+   den Monat (beim Zoomen) noch in Tagen mit mehr Einträgen; scrollen geht
+   weiter mit Mausrad und Trackpad */
+#month-view,
+#month-view * {
+  scrollbar-width: none !important;
+}
+
+/* Tage selbst nicht scrollbar: sonst bindet macOS das Mausrad für ~1,5 s an
+   den vollen Tag, und nach dem Blättern kommt nichts mehr an (Verzögerung);
+   was nicht hineinpasst, zeigt „+N weitere“ */
+#month-view ol.calendar-month-day-box-list {
+  overflow: hidden !important;
 }

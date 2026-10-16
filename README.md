@@ -1,10 +1,10 @@
-# Halo Spaces
+# halo.spaces
 
 **Ein ruhiges, aufgeräumtes Design für Thunderbird auf dem Mac.**
 Inspiriert von Apple Mail, mit eigener Note: farbige Bereiche links und
 dasselbe Layout in jedem Bereich.
 
-Halo Spaces ist ein Komplettpaket für Thunderbird 128+ auf macOS: Design, eigene Symbole im
+halo.spaces ist ein Komplettpaket für Thunderbird 128+ auf macOS: Design, eigene Symbole im
 Apple-Stil und eine Erweiterung für alles, was CSS allein nicht kann.
 
 - Layout, Farben, Größen und Animationen wie Apple Mail, Kalender, Kontakte,
@@ -33,12 +33,17 @@ Adressen, keine Schreibmaschinenschrift bei Textmails).
 
 Die Erweiterung bringt eine Update-Adresse mit. Thunderbird fragt dort
 selbst regelmäßig nach neuen Versionen (Standard: alle 24 Stunden) und
-installiert sie automatisch. Sofort prüfen: **Add-ons und Themes → Zahnrad →
-Nach Updates suchen**.
+installiert sie automatisch. Sofort prüfen: **Help → halo.spaces … → Nach Updates suchen**
+(oder Add-ons und Themes → Zahnrad → Nach Updates suchen).
 
 Das Design steckt in der Erweiterung. Eine `userChrome.css` im Profil ist
 nicht mehr nötig; eine früher kopierte Version dieses Designs hätte Vorrang
 und würde Updates verdecken (`install.sh` legt sie beiseite).
+
+## Feedback
+
+In Thunderbird: **Help → halo.spaces … → Feedback senden** öffnet eine neue Mail
+an halo.cat@icloud.com. Dort gibt es auch „Danke sagen ☕“. Fehler und Wünsche gern auch als Issue hier auf GitHub.
 
 ## Entwickeln
 
