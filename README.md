@@ -66,3 +66,7 @@ Abschalten lässt sich das mitgelieferte Design über die Einstellung
 `extensions.mailcards.bundledTheme = false`, die eigenen Symbole über
 `extensions.mailcards.appleIcons = false`, die automatische
 Offline-Unterstützung für Kalender über `extensions.mailcards.calendarOffline = false`.
+
+## Lizenz
+
+Mozilla Public License 2.0 – siehe [LICENSE](LICENSE).

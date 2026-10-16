@@ -385,6 +385,10 @@ function log(...parts) {
 // ---------------------------------------------------------------------------
 
 function orgDomain(domain) {
+  // Thunderbirds Liste der Domain-Endungen (co.uk, com.pl, co.kr …)
+  try {
+    return Services.eTLD.getBaseDomainFromHost(domain.toLowerCase().replace(/\.$/, ""));
+  } catch {}
   const parts = domain.toLowerCase().replace(/\.$/, "").split(".");
   if (parts.length <= 2) {
     return parts.join(".");
@@ -447,7 +451,28 @@ function sandboxFetch() {
   return netSandbox.fetch;
 }
 
+// Nur öffentliche https-Adressen – Absender bestimmen die Adresse (BIMI,
+// Kontaktfotos), damit darf kein Zugriff auf lokale Geräte oder Firmennetze
+// ausgelöst werden
+function isPublicHttps(url) {
+  try {
+    const u = new URL(url);
+    if (u.protocol != "https:") {
+      return false;
+    }
+    const host = u.hostname.toLowerCase();
+    return !(host == "localhost" || host.endsWith(".local") || host.endsWith(".localhost") ||
+      host.endsWith(".internal") || host.endsWith(".lan") || host.endsWith(".home") ||
+      /^[\d.]+$/.test(host) || host.includes(":") || !host.includes("."));
+  } catch {
+    return false;
+  }
+}
+
 async function fetchWithTimeout(win, url, opts = {}) {
+  if (!isPublicHttps(url)) {
+    throw new Error("blocked url");
+  }
   const request = sandboxFetch()(url, {
     credentials: "omit",
     redirect: "follow",
@@ -462,7 +487,12 @@ async function fetchWithTimeout(win, url, opts = {}) {
 // Zeitkurve wie CSS cubic-bezier(x1, y1, x2, y2)
 // Ordnernamen wie in Apple Mail (Ordnerliste und Titel über der Mailliste)
 function appleLabels() {
-  return Services.locale.appLocaleAsBCP47.startsWith("de")
+  const lang = Services.locale.appLocaleAsBCP47;
+  // andere Sprachen: Thunderbirds eigene, übersetzte Namen behalten
+  if (!lang.startsWith("de") && !lang.startsWith("en")) {
+    return { native: true };
+  }
+  return lang.startsWith("de")
     ? { favourites: "Favoriten", allInboxes: "Alle Eingänge", allSent: "Alle gesendeten", onMyMac: "Auf meinem Mac",
         Inbox: "Posteingang", Drafts: "Entwürfe", SentMail: "Gesendet", Junk: "Werbung", Trash: "Papierkorb", Archive: "Archiv", Templates: "Vorlagen" }
     : { favourites: "Favourites", allInboxes: "All Inboxes", allSent: "All Sent", onMyMac: "On My Mac",
@@ -478,12 +508,12 @@ function appleFolderTitle(folder) {
   const L = appleLabels();
   const role = folderRole(folder);
   if (/^mailbox:\/\/[^/]*smart%20mailboxes\//i.test(folder.URI)) {
-    if (role == "Inbox") return L.allInboxes;
-    if (role == "SentMail") return L.allSent;
+    if (role == "Inbox" && !L.native) return L.allInboxes;
+    if (role == "SentMail" && !L.native) return L.allSent;
     return folder.prettyName;
   }
-  const name = role ? L[role] : folder.prettyName;
-  const account = folder.server?.type == "none" ? L.onMyMac : folder.server?.prettyName;
+  const name = role && !L.native ? L[role] : folder.prettyName;
+  const account = folder.server?.type == "none" && !L.native ? L.onMyMac : folder.server?.prettyName;
   return account ? `${name} – ${account}` : name;
 }
 
@@ -601,8 +631,18 @@ const MacPhotos = {
     return PathUtils.toFileURI(path) + "?v=" + this.version;
   },
 
+  // Liest die macOS-Kontakte (dafür fragt macOS einmal nach Zugriff) – nur,
+  // wenn eingeschaltet (extensions.mailcards.macContactPhotos = true) oder
+  // schon einmal eingerichtet (Fotoverzeichnis vorhanden)
+  async enabled() {
+    if (Services.prefs.prefHasUserValue(MAC_PHOTOS_PREF)) {
+      return Services.prefs.getBoolPref(MAC_PHOTOS_PREF);
+    }
+    return IOUtils.exists(PathUtils.join(this.folder(), "index.json")).catch(() => false);
+  },
+
   async sync() {
-    if (Services.appinfo.OS != "Darwin" || !Services.prefs.getBoolPref(MAC_PHOTOS_PREF, true) || this.running) {
+    if (Services.appinfo.OS != "Darwin" || this.running || !(await this.enabled())) {
       return;
     }
     this.running = true;
@@ -1044,10 +1084,12 @@ function setBarVar(doc, name, value) {
 // bei jedem Start komplett vom Server – bis dahin bleibt die Ansicht leer.
 // Mit Offline-Unterstützung erscheinen die Termine sofort aus der lokalen
 // Kopie, Änderungen kommen im Hintergrund nach. Eingeschaltet wird nur, wo
-// die Einstellung nie angefasst wurde; abschaltbar über
-// extensions.mailcards.calendarOffline = false.
+// die Einstellung nie angefasst wurde. Nur auf Wunsch
+// (extensions.mailcards.calendarOffline = true): Thunderbird legt den
+// Kalender dafür neu an (neue Kennung) – das stört Kalender, die andere
+// Add-ons verwalten (TbSync, Provider), und lädt alles neu herunter.
 function enableCalendarOffline() {
-  if (!Services.prefs.getBoolPref("extensions.mailcards.calendarOffline", true)) {
+  if (!Services.prefs.getBoolPref("extensions.mailcards.calendarOffline", false)) {
     return 0;
   }
   let changed = 0;
@@ -1194,8 +1236,10 @@ class CardEnhancer {
   start() {
     // Wie Apple Mail: Absender, Betreff, darunter die Vorschau. Thunderbirds
     // dritte Kartenzeile wäre sonst nur eine Leerzeile über der Vorschau.
-    if (this.previewLines) {
+    // (einmalig – wer danach wieder 3 Zeilen wählt, behält sie)
+    if (this.previewLines && !Services.prefs.getBoolPref("extensions.mailcards.rowcountApplied", false)) {
       Services.prefs.setIntPref("mail.threadpane.cardsview.rowcount", 2);
+      Services.prefs.setBoolPref("extensions.mailcards.rowcountApplied", true);
     }
     this.applyToolbarOnce();
     this.applySpaceToolbarsOnce();
@@ -1226,7 +1270,15 @@ class CardEnhancer {
             win.addEventListener("DOMContentLoaded", () => {
               this.hookMailContext(doc);
               // Nachricht im eigenen Fenster: Knöpfe im Mailkopf zeigen
-              if (url.startsWith("about:message") && win.top?.document.documentElement.getAttribute("windowtype") == "mail:messageWindow") {
+              // – ebenso, wenn die Mail-Toolbar keine Antworten-Knöpfe hat
+              // (eigene Toolbar-Anordnung), sonst fehlten sie ganz
+              let replyInToolbar = false;
+              try {
+                const { getState } = ChromeUtils.importESModule("resource:///modules/CustomizationState.mjs");
+                replyInToolbar = getState().mail?.includes("reply") ?? false;
+              } catch {}
+              if (url.startsWith("about:message") &&
+                  (!replyInToolbar || win.top?.document.documentElement.getAttribute("windowtype") == "mail:messageWindow")) {
                 doc.documentElement.setAttribute("mc-standalone", "true");
               }
             }, { once: true });
@@ -1375,6 +1427,10 @@ class CardEnhancer {
       rowVar("--mc-tab-left", `${Math.round(edge)}px`);
       rowVar("--mc-row-top", `${Math.round(rr.top)}px`);
       rowVar("--mc-row-h", `${Math.round(rr.height)}px`);
+      const toggle2 = d.getElementById("viewToggle");
+      if (toggle2?.offsetWidth) {
+        setVar(toggle2, "--mc-toggle-half", `${Math.ceil(toggle2.offsetWidth / 2)}px`);
+      }
     };
     this.sideEdgeUpdaters ??= new Set();
     this.sideEdgeUpdaters.add(updateSideEdge);
@@ -1732,6 +1788,7 @@ class CardEnhancer {
     };
 
     const styleContentPages = () => {
+      markSearch();
       const uri = sheetURI();
       const tabmail = w.document.getElementById("tabmail");
       if (!uri || !tabmail) {
@@ -1810,7 +1867,8 @@ class CardEnhancer {
     };
     const busy = (el, win) => !el || el.__mcAnimating || win?.__mcAnimating || el.classList.contains("mc-side-hidden");
     const applyCommonWidth = tab => {
-      const W = Services.prefs.getIntPref(WIDTH_PREF, 0);
+      // (noch keine eigene Breite gespeichert: 206 px wie die Ordnerliste in Apple Mail)
+      const W = Services.prefs.getIntPref(WIDTH_PREF, 0) || 206;
       const [el, splitter, win] = sidebarFor(tab);
       if (W < 160 || busy(el, win)) {
         return;
@@ -2092,6 +2150,16 @@ class CardEnhancer {
       });
     };
 
+    // Gibt es oben das Suchfeld? (fehlt, wenn die globale Suche/Indexierung
+    // aus ist oder es aus der Toolbar entfernt wurde) – nur dann blendet
+    // userChrome.css die Suchfelder in Einstellungen, Adressbuch, Aufgaben aus
+    const markSearch = () => {
+      const has = !!w.document.querySelector('#unifiedToolbarContent > li[item-id="search-bar"]');
+      w.document.documentElement.toggleAttribute("mc-search", has);
+      for (const tab of w.document.getElementById("tabmail")?.tabInfo || []) {
+        tab.browser?.contentDocument?.documentElement?.toggleAttribute("mc-search", has);
+      }
+    };
     const markTab = () => {
       hookSearchForwarding();
       hookHelpMenu();
@@ -2108,6 +2176,7 @@ class CardEnhancer {
         mode == "mail3PaneTab" || mode == "mailMessageTab"
       );
       w.document.documentElement.setAttribute("mc-tab", mode || "");
+      markSearch();
       if (mode == "calendar") {
         w.document.getElementById("month-view")?.__mcMoreRefresh?.();
       }
@@ -2133,6 +2202,10 @@ class CardEnhancer {
       const tabmail = w.document.getElementById("tabmail");
       const tab = tabmail?.currentTabInfo;
       if (!tab || MAIL_MODES.has(tab.mode?.name) || tabmail.tabInfo.length < 2) {
+        return;
+      }
+      // Konto einrichten nicht versehentlich mit Esc verwerfen
+      if (/^about:accountsetup/.test(tab.browser?.currentURI?.spec || "")) {
         return;
       }
       // Text in einem Eingabefeld: Esc leert zuerst nur das Feld
@@ -2679,6 +2752,20 @@ class CardEnhancer {
       });
     };
 
+    // „Heute“ in der Sprache der Oberfläche (Thunderbird hat dafür nur einen Tooltip)
+    const labelToday = () => {
+      const btn = w.document.getElementById("todayViewButton");
+      if (!btn || btn.dataset.mcLabel) {
+        return;
+      }
+      let text = "Today";
+      try {
+        text = new Intl.RelativeTimeFormat(Services.locale.appLocaleAsBCP47, { numeric: "auto" }).format(0, "day");
+        text = text.charAt(0).toLocaleUpperCase(Services.locale.appLocaleAsBCP47) + text.slice(1);
+      } catch {}
+      btn.dataset.mcLabel = text;
+    };
+
     // Kalender-Titel wie in Apple Kalender: Monat fett, Jahreszahl dünn
     const hookTitle = () => {
       const el = w.document.getElementById("intervalDescription");
@@ -2763,6 +2850,7 @@ class CardEnhancer {
       hookMultidayZoom();
       hookNewButton();
       hookTitle();
+      labelToday();
       hookEscape();
       hookSidebarButton();
       hookSpacesToggle();
@@ -3076,8 +3164,13 @@ class CardEnhancer {
       const { getState, storeState } = ChromeUtils.importESModule(
         "resource:///modules/CustomizationState.mjs"
       );
-      storeState({ ...getState(), mail: APPLE_TOOLBAR });
-      Services.prefs.setIntPref("toolbar.unifiedtoolbar.buttonstyle", 2); // nur Symbole
+      // nur, wenn die Mail-Toolbar noch auf Thunderbirds Standard steht –
+      // eigene Anordnungen und Knöpfe anderer Add-ons bleiben erhalten
+      const state = getState();
+      if (!state.mail) {
+        storeState({ ...state, mail: APPLE_TOOLBAR });
+        Services.prefs.setIntPref("toolbar.unifiedtoolbar.buttonstyle", 2); // nur Symbole
+      }
       Services.prefs.setBoolPref(TOOLBAR_PREF, true);
     } catch (e) {
       log("toolbar error", e);
@@ -3208,7 +3301,11 @@ class CardEnhancer {
         setBarVar(top.document, "--mc-sidebar-right", `${Math.max(0, Math.round(right))}px`
         );
         // rechte Kante der Mailliste für die Trennlinie in der Toolbar-Zeile
-        const listRight = paneRight - row.getBoundingClientRect().left;
+        // Ist das Fenster für alle Knöpfe zu schmal, schrumpft der Einzug davor –
+        // die Kopfzeile über der Liste endet dann vor dem ersten Knopf
+        const firstSpacer = content.querySelector(':scope > li[item-id="spacer"]');
+        const buttonsStart = firstSpacer ? firstSpacer.getBoundingClientRect().right : paneRight;
+        const listRight = Math.min(paneRight, buttonsStart - 6) - row.getBoundingClientRect().left;
         setBarVar(top.document, "--mc-list-right", `${Math.round(listRight)}px`
         );
         // Die Tab-Leiste kann weiter rechts beginnen (z. B. neben der
@@ -3434,6 +3531,18 @@ class CardEnhancer {
       version,
       feedbackAddress: FEEDBACK_ADDRESS,
       checkUpdate: () => this.findUpdate(),
+      mac: Services.appinfo.OS == "Darwin",
+      photosEnabled: () => MacPhotos.enabled(),
+      // Fotos aus der Kontakte-App: einschalten und gleich abgleichen
+      // (macOS fragt dabei einmal nach dem Zugriff auf die Kontakte)
+      setPhotos: async on => {
+        Services.prefs.setBoolPref(MAC_PHOTOS_PREF, on);
+        if (!on) {
+          return 0;
+        }
+        await MacPhotos.sync();
+        return MacPhotos.byEmail.size;
+      },
       sendFeedback: () => this.sendFeedback(),
       donate: () => {
         const ext = Cc["@mozilla.org/uriloader/external-protocol-service;1"].getService(Ci.nsIExternalProtocolService);
@@ -3441,7 +3550,7 @@ class CardEnhancer {
       },
     };
     const hw = w.openDialog("resource://mailcards/about/halo.html", "halo-spaces",
-      "chrome,dialog=yes,centerscreen,resizable=no,width=360,height=292");
+      `chrome,dialog=yes,centerscreen,resizable=no,width=360,height=${api.mac ? 340 : 292}`);
     // erst lädt das Fenster about:blank, dann unsere Seite – darauf warten
     let tries = 0;
     const wire = () => {
@@ -3511,6 +3620,41 @@ class CardEnhancer {
       api.sendFeedback();
       hw.close();
     };
+    // Mac: Absenderbilder aus der Kontakte-App
+    const photos = $("photos");
+    if (api.mac && photos) {
+      const pLabel = photos.querySelector(".label");
+      const pStatus = $("photos-status");
+      const show = on => {
+        pLabel.textContent = on
+          ? t("Fotos aus Kontakte: an", "Photos from Contacts: on")
+          : t("Fotos aus Kontakte verwenden", "Use photos from Contacts");
+        pStatus.textContent = on ? "✓" : "";
+        photos.dataset.on = on ? "1" : "";
+      };
+      photos.hidden = false;
+      api.photosEnabled().then(show);
+      photos.addEventListener("click", async () => {
+        const on = !photos.dataset.on;
+        photos.disabled = true;
+        if (on) {
+          pLabel.textContent = t("Kontakte werden gelesen …", "Reading contacts …");
+          pStatus.textContent = "";
+        }
+        try {
+          const count = await api.setPhotos(on);
+          show(on);
+          if (on) {
+            pStatus.textContent = count
+              ? `✓ ${count}`
+              : t("keine – Zugriff in den Systemeinstellungen erlauben", "none – allow access in System Settings");
+          }
+        } catch {
+          show(false);
+        }
+        photos.disabled = false;
+      });
+    }
     $("feedback").addEventListener("click", feedback);
     $("mail").addEventListener("click", feedback);
     $("donate").addEventListener("click", () => api.donate());
@@ -3696,7 +3840,7 @@ class CardEnhancer {
     const ORDER = FOLDER_ORDER;
     const roleOf = folderRole;
     const setText = (el, text) => {
-      if (el && el.textContent != text) {
+      if (el && text && !L.native && el.textContent != text) {
         el.textContent = text;
       }
     };
@@ -3708,11 +3852,28 @@ class CardEnhancer {
       }
     };
 
-    const apply = () => {
-      for (const header of tree.querySelectorAll(':scope > li[data-mode="smart"] > .mode-container .mode-name')) {
-        header.removeAttribute("data-l10n-id");
-        setText(header, L.favourites);
+    // Lokale Ordner nur zusammenklappen, wenn darin nichts Eigenes liegt
+    // (nur leere Standardordner) – POP3-Konten mit globalem Posteingang,
+    // Archive oder Filterziele dort bleiben sichtbar
+    const localIsEmpty = () => {
+      try {
+        const root = MailServices.accounts.localFoldersServer?.rootFolder;
+        return !root || root.subFolders.every(f => !f.hasSubFolders && f.getTotalMessages(false) == 0);
+      } catch {
+        return false;
       }
+    };
+    const apply = () => {
+      // Favoriten nur straffen, wenn darunter auch „Alle Ordner“ angezeigt
+      // wird – sonst wären die übrigen Ordner gar nicht erreichbar
+      const allShown = !!tree.querySelector(':scope > li[data-mode="all"]');
+      if (!L.native) {
+        for (const header of tree.querySelectorAll(':scope > li[data-mode="smart"] > .mode-container .mode-name')) {
+          header.removeAttribute("data-l10n-id");
+          setText(header, L.favourites);
+        }
+      }
+      const hideLocal = localIsEmpty();
       for (const li of tree.querySelectorAll('li[is="folder-tree-row"]')) {
         const modeLi = li.closest("li[data-mode]");
         const mode = modeLi?.dataset.mode;
@@ -3725,12 +3886,12 @@ class CardEnhancer {
 
         if (mode == "smart") {
           if (li.hasAttribute("data-server-type")) {
-            setAttr(li, "data-mc-hide", true); // Konto-Abschnitte gibt es unten schon
+            setAttr(li, "data-mc-hide", allShown); // Konto-Abschnitte gibt es unten schon
             continue;
           }
           if (topLevel) {
             const type = li.dataset.folderType;
-            setAttr(li, "data-mc-hide", type != "inbox" && type != "sent");
+            setAttr(li, "data-mc-hide", allShown && type != "inbox" && type != "sent");
             if (type == "inbox") setText(label, L.allInboxes);
             if (type == "sent") setText(label, L.allSent);
           } else if (folder?.server) {
@@ -3745,7 +3906,7 @@ class CardEnhancer {
         if (li.hasAttribute("data-server-type")) {
           if (li.dataset.serverType == "none") {
             setText(label, L.onMyMac);
-            li.querySelectorAll(':scope > ul > li').forEach(c => setAttr(c, "data-mc-hide", true));
+            li.querySelectorAll(':scope > ul > li').forEach(c => setAttr(c, "data-mc-hide", hideLocal));
           }
           continue;
         }
@@ -3927,6 +4088,13 @@ class CardEnhancer {
       return;
     }
     show(null);
+    // in Werbung/Junk keine Logos laden (das würde Spam-Absendern zeigen,
+    // dass die Mail angesehen wurde)
+    try {
+      if (hdr.folder?.getFlag(Ci.nsMsgFolderFlags.Junk) || hdr.getStringProperty("junkscore") == "100") {
+        return;
+      }
+    } catch {}
     this.avatars.resolve(email).then(show);
   }
 
@@ -4024,7 +4192,17 @@ class CardEnhancer {
             }
             finish();
           },
-          true,
+          // nur aus der lokalen Kopie lesen – sonst würde für jede Vorschau
+          // die ganze Mail vom Server geladen (IMAP ohne Offline-Kopie, Exchange)
+          (() => {
+            try {
+              const folder = hdr.folder;
+              return folder.server.type == "none" || folder.server.type == "pop3" || folder.server.type == "rss" ||
+                folder.getFlag(Ci.nsMsgFolderFlags.Offline);
+            } catch {
+              return false;
+            }
+          })(),
           { saneBodySize: true, examineEncryptedParts: false }
         );
       } catch (e) {

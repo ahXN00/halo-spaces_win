@@ -2,7 +2,7 @@
   "manifest_version": 2,
   "name": "halo.spaces",
   "description": "Ein ruhiges, aufgeräumtes Design im Stil von macOS – mit farbigen Bereichen, Absenderbildern, Vorschau und vereinigtem Adressbuch.",
-  "version": "3.0.18",
+  "version": "3.0.22",
   "author": "sruf79",
   "browser_specific_settings": {
     "gecko": {

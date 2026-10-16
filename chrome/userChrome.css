@@ -856,8 +856,11 @@ hr[is="pane-splitter"],
    der Menüleiste, der Toolbar und den Einstellungen. Nur wenn Thunderbird
    etwas meldet (Neustart für Update, Add-on-Hinweis), erscheint er wieder.
    Zurückholen: diese Regel löschen. */
-#button-appmenu:not([badge-status]) {
-  display: none !important;
+@media (-moz-platform: macos) {
+  /* (nur auf dem Mac – unter Windows/Linux fehlt meist die Menüleiste) */
+  #button-appmenu:not([badge-status]) {
+    display: none !important;
+  }
 }
 
 /* ---------- Apple-Mail-Toolbar (Belegung setzt die Erweiterung) ---------- */
@@ -872,7 +875,9 @@ hr[is="pane-splitter"],
 /* erster sichtbarer Abstandhalter – davor können ausgeblendete Knöpfe
    anderer Bereiche liegen, daher nicht :first-child */
 #unifiedToolbarContent > li[item-id="spacer"]:not(li[item-id="spacer"] ~ li) {
-  flex: 0 0 var(--mc-toolbar-offset, 0px) !important;
+  /* schrumpft, wenn das Fenster für alle Knöpfe zu schmal ist – sonst
+     würde das Suchfeld rechts aus dem Fenster geschoben */
+  flex: 0 1 var(--mc-toolbar-offset, 0px) !important;
   min-width: 0 !important;
   max-width: none !important;
 }
@@ -1224,7 +1229,8 @@ hr[is="pane-splitter"],
   height: 22px !important;
   margin-inline-start: -2px !important;
   margin-inline-end: 4px !important;
-  color: var(--mt-accent) !important;
+  /* eigene Ordnerfarben und Schlagwort-Farben (--icon-color) bleiben erhalten */
+  color: var(--icon-color, var(--mt-accent)) !important;
   mask-image: var(--mi-folder) !important;
 }
 /* wie Apple: blau solange Thunderbird im Vordergrund ist, grau sobald eine andere App aktiv ist */
@@ -2139,12 +2145,9 @@ unified-toolbar {
   color: var(--mt-text) !important;
 }
 
+/* (Wort in der Sprache der Oberfläche setzt die Erweiterung) */
 #calendarControls .button-group > #todayViewButton::before {
-  content: "Today" !important;
-}
-
-:root[lang^="de"] #calendarControls .button-group > #todayViewButton::before {
-  content: "Heute" !important;
+  content: attr(data-mc-label) !important;
 }
 
 /* Layout-Optionen gibt es auch im Menü Ansicht und in den Einstellungen */
@@ -4020,7 +4023,7 @@ dialog {
   --button-primary-active-background-color: color-mix(in srgb, var(--mt-accent) 78%, black) !important;
   --button-primary-border-color: transparent !important;
   --button-primary-hover-border-color: transparent !important;
-  --button-primary-text-color: white !important;
+  --button-primary-text-color: var(--mt-accent-text) !important;
   --button-primary-shadow: none !important;
   --button-primary-hover-shadow: none !important;
   --button-pressed-shadow: none !important;
@@ -4297,6 +4300,12 @@ dialog :is(input, textarea, menulist, select, richlistbox) {
   --button-border-radius: 7px !important;
 }
 
+/* Dialoge im Fenster (Konto einrichten beim ersten Start, Hinweise) runden
+   ihre Ecken mit derselben Variable – sonst würden sie zur Ellipse */
+dialog:is([open], :modal) {
+  border-radius: 16px !important;
+}
+
 /* Abschnittstitel in Menüs (z. B. Darstellungsmenü im Adressbuch) */
 menucaption.mc-caption,
 menupopup menucaption {
@@ -4416,7 +4425,8 @@ menupopup menucaption {
    Erweiterung), Suchfeld oben rechts. */
 :root:not([mc-mail]) #unifiedToolbarContent > li[item-id="spacer"]:not(li[item-id="spacer"] ~ li) {
   /* (Mail: --mc-toolbar-offset, siehe Apple-Mail-Toolbar) */
-  flex: 0 0 var(--mc-tab-offset, 0px) !important;
+  flex: 0 1 var(--mc-tab-offset, 0px) !important;
+  min-width: 0 !important;
 }
 
 #unifiedToolbarContent > li:is(
@@ -4473,7 +4483,7 @@ menupopup menucaption {
 /* Adressbuch: Knöpfe und Suche sitzen oben in der Toolbar – die Zeilen im
    Adressbuch selbst entfallen (Kopfzeile über der Liste: #mcListHeader) */
 #booksPaneHeaderBar,
-#cardsPaneHeader {
+:root[mc-search] #cardsPaneHeader {
   display: none !important;
 }
 
@@ -4530,7 +4540,7 @@ menupopup menucaption {
 
 /* Einstellungen: gesucht wird oben rechts in der Toolbar (die Erweiterung
    leitet die Eingabe weiter) – kein zweites Suchfeld in der Seite */
-#searchInput[data-l10n-id="search-preferences-input2"] {
+:root[mc-search] #searchInput[data-l10n-id="search-preferences-input2"] {
   display: none !important;
 }
 
@@ -4791,7 +4801,7 @@ menupopup menucaption {
    leitet die Eingabe an den Aufgabenfilter weiter) – kein zweites Suchfeld.
    (gezielter Selektor statt :has() – :has() auf alle „box“ wäre bei jedem
    Neuberechnen teuer) */
-#task-addition-box > box:last-of-type {
+:root[mc-search] #task-addition-box > box:last-of-type {
   display: none !important;
 }
 
