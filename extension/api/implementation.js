@@ -172,6 +172,20 @@ const APPEARANCE_THEMES = {
   light: "thunderbird-compact-light@mozilla.org",
   dark: "thunderbird-compact-dark@mozilla.org",
 };
+// Adressbuch: kleine Überschrift über der Liste wie „Favoriten“ in der Mail
+// und „Kalender“ im Kalender
+function hookBooksHeader(cw) {
+  const doc = cw.document;
+  const books = doc.getElementById("books");
+  if (!books || doc.getElementById("mcBooksHeader")) {
+    return;
+  }
+  const header = doc.createElement("div");
+  header.id = "mcBooksHeader";
+  header.textContent = Services.locale.appLocaleAsBCP47.startsWith("de") ? "Adressbücher" : "Address Books";
+  books.before(header);
+}
+
 function hookAppearanceChoice(cw) {
   const doc = cw.document;
   const colorGroup = doc.getElementById("colorGroup");
@@ -1443,7 +1457,8 @@ class CardEnhancer {
           shared._updateSize = function (size) {
             const c = cards?.getBoundingClientRect();
             const b = tab.browser?.getBoundingClientRect();
-            if (c && b) {
+            // (ohne Wert – beim Loslassen – nur die tatsächliche Größe übernehmen)
+            if (typeof size == "number" && c && b) {
               const maxRight = row.getBoundingClientRect().right - toolbarNeed(d);
               size = Math.min(size, Math.max(160, maxRight - (b.left + c.left)));
             }
@@ -1887,6 +1902,7 @@ class CardEnhancer {
         if (cw && url.startsWith("about:addressbook")) {
           try {
             hookAvatars(cw);
+            hookBooksHeader(cw);
           } catch (e) {
             log("avatar fix error", e);
           }
@@ -2039,11 +2055,28 @@ class CardEnhancer {
       const [el, splitter] = SIDE_TOGGLE[mode]?.(tab) || [];
       return { mode, el, splitter };
     };
+    // Thunderbirds eigenes Zuklappen der Leiste (Trenner ganz nach links
+    // gezogen) aufheben und abschalten – ein-/ausgeblendet wird über den
+    // Seitenleisten-Knopf, sonst bliebe die Leiste nach dem Einblenden leer
+    const unCollapse = (el, splitter) => {
+      if (splitter?.localName == "splitter") {
+        if (splitter.getAttribute("collapse") != "none") {
+          splitter.setAttribute("collapse", "none");
+        }
+        if (splitter.getAttribute("state") == "collapsed") {
+          splitter.setAttribute("state", "open");
+        }
+      }
+      if (el?.getAttribute("collapsed") == "true") {
+        el.removeAttribute("collapsed");
+      }
+    };
     const applySideState = () => {
       const { mode, el, splitter } = currentSide();
       if (!el || el.__mcAnimating) {
         return;
       }
+      unCollapse(el, splitter);
       const hidden = !!sideState()[mode];
       el.classList.toggle("mc-side-hidden", hidden);
       splitter?.classList.toggle("mc-side-hidden", hidden);
@@ -2068,6 +2101,7 @@ class CardEnhancer {
       Services.prefs.setStringPref(SIDE_PREF, JSON.stringify(state));
       const DURATION = 250;
       const curve = cubicBezier(0.25, 0.1, 0.25, 1);
+      unCollapse(el, splitter);
       if (show) {
         el.classList.remove("mc-side-hidden");
         splitter?.classList.remove("mc-side-hidden");
@@ -3059,6 +3093,7 @@ class CardEnhancer {
     inner.forEach(el => (el.style.minWidth = `${full}px`));
     pane.style.overflow = "hidden";
     pane.style.minWidth = "0px"; // Thunderbirds Mindestbreite (100 px) würde die Animation stoppen
+    pane.classList.add("mc-side-anim"); // (auch unsere 160 px)
     // Der Teiler fixiert die Ordnerliste beim Ändern der Fenstergröße mit
     // „width: …px !important“ – das hält sonst das Raster fest
     const lockedWidth = pane.style.getPropertyValue("width");
@@ -3091,6 +3126,7 @@ class CardEnhancer {
       inner.forEach(el => (el.style.minWidth = ""));
       pane.style.overflow = "";
       pane.style.minWidth = "";
+      pane.classList.remove("mc-side-anim");
       if ((lockedWidth || relocked) && !collapsing) {
         pane.style.setProperty("width", `${full}px`, "important");
       }
@@ -3344,7 +3380,7 @@ class CardEnhancer {
       msgSplitter.__mcClamp = true;
       const origUpdate = msgSplitter._updateSize;
       msgSplitter._updateSize = function (size) {
-        return origUpdate.call(this, Math.max(size, minMessageWidth()));
+        return origUpdate.call(this, typeof size == "number" ? Math.max(size, minMessageWidth()) : size);
       };
       this.restorers.push(() => {
         msgSplitter._updateSize = origUpdate;

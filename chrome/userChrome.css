@@ -2711,6 +2711,17 @@ calendar-event-box :is(.alarm-icons-box, .item-classification-icon, .item-recurr
   background-color: var(--mt-control-hover) !important;
 }
 
+/* Überschrift (setzt die Erweiterung) auf derselben Höhe und im selben Stil
+   wie „Favoriten“ in der Mail */
+#mcBooksHeader {
+  padding: 14px 16px 6px 37px !important;
+  font-size: 11px !important;
+  line-height: 14px !important;
+  font-weight: 600 !important;
+  color: var(--mt-text-tertiary) !important;
+  user-select: none !important;
+}
+
 #books {
   padding: 0 8px !important;
   background: transparent !important;
@@ -2736,7 +2747,7 @@ calendar-event-box :is(.alarm-icons-box, .item-classification-icon, .item-recurr
 
 #books .bookRow.selected > .bookRow-container {
   background: var(--mt-selected-unfocused) !important;
-  font-weight: 600 !important;
+  font-weight: 400 !important;
   outline: none !important;
 }
 
@@ -3150,7 +3161,8 @@ search-bar {
 #pref-category-box {
   background: var(--mt-sidebar) !important;
   border-inline-end: 1px solid var(--mt-sidebar-border) !important;
-  padding-top: 12px !important;
+  /* erster Eintrag auf derselben Höhe wie „Favoriten“ in der Mail */
+  padding-top: 3px !important;
 }
 
 #categories {
@@ -3995,6 +4007,59 @@ addon-page-header h1,
 
 #agenda .agenda-listitem.selected .agenda-listitem-details {
   background: color-mix(in srgb, var(--mc-c, var(--mt-accent)) 32%, var(--mt-window)) !important;
+}
+
+/* wie im Monatskalender: Termine mit Uhrzeit mit kleinem runden Farbbalken
+   vor dem Titel (keine Klammer, keine Fläche), Uhrzeit grau; ganztägige
+   zart gefüllt ohne Strich */
+#agenda .agenda-listitem:not(.agenda-listitem-all-day) .agenda-listitem-details {
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: center !important;
+  padding: 4px 8px 4px 2px !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+#agenda .agenda-listitem:not(.agenda-listitem-all-day) .agenda-listitem-details::before {
+  content: "" !important;
+  flex: none !important;
+  align-self: flex-start !important;
+  width: 4px !important;
+  height: 12px !important;
+  margin: 2px 6px 0 0 !important;
+  border-radius: 2px !important;
+  background-color: var(--mc-c, var(--mt-accent)) !important;
+}
+
+#agenda .agenda-listitem:not(.agenda-listitem-all-day) .agenda-listitem-title {
+  font-weight: 500 !important;
+  color: var(--mt-text) !important;
+}
+
+#agenda .agenda-listitem:not(.agenda-listitem-all-day) .agenda-listitem-time {
+  color: var(--mt-text-tertiary) !important;
+  font-variant-numeric: tabular-nums !important;
+}
+
+#agenda .agenda-listitem:not(.agenda-listitem-all-day).selected .agenda-listitem-details {
+  background: var(--mt-selected-unfocused) !important;
+}
+
+#agenda .agenda-listitem-all-day .agenda-listitem-details {
+  background: color-mix(in srgb, var(--mc-c, var(--mt-accent)) 26%, var(--mt-window)) !important;
+  box-shadow: none !important;
+}
+
+#agenda .agenda-listitem-all-day .agenda-listitem-title {
+  font-weight: 500 !important;
+  color: color-mix(in srgb, var(--mc-c, var(--mt-accent)) 55%, var(--mt-text)) !important;
+}
+
+/* Aufgaben: der Monatskalender steht schon links in der Seitenleiste –
+   in der Today-Pane rechts nicht noch einmal */
+:root[mc-tab="tasks"] #today-minimonth-box {
+  display: none !important;
 }
 
 /* Minikalender: Zahlen exakt mittig, damit der rote Heute-Kreis sitzt */
@@ -4858,7 +4923,7 @@ calendar-month-day-box > .mc-more:hover {
    Mindestbreiten, die einzelne Bereiche breiter machen würden */
 /* (nicht während der Ein-/Ausblend-Animation – sonst bleibt die Leiste bei
    160 px stehen und springt am Ende) */
-:is(#listPaneBox, #calSidebar, #accountTreeBox, #pref-category-box):not(.mc-side-anim) {
+:is(#listPaneBox, #calSidebar, #accountTreeBox, #pref-category-box, #folderPane):not(.mc-side-anim) {
   min-width: 160px !important;
 }
 
@@ -5249,5 +5314,13 @@ body:has(> #booksPane.mc-side-anim) {
    was nicht hineinpasst, zeigt „+N weitere“ */
 #month-view ol.calendar-month-day-box-list {
   overflow: hidden !important;
+}
+
+/* Kalender und Aufgaben: die Leiste über der Kalenderliste enthält nur die
+   (ausgeblendeten) Knöpfe „Neuer Termin/Aufgabe“ – ganz weg, damit
+   „Kalender“ bzw. „Aufgaben filtern“ auf derselben Höhe wie „Favoriten“ in
+   der Mail beginnt */
+#primaryButtonSidePanel {
+  display: none !important;
 }
 /* ==== Ende Bereiche ==== */
