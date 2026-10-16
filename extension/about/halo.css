@@ -150,3 +150,12 @@ footer a {
 footer a:hover {
   text-decoration: underline;
 }
+
+.note {
+  margin: -6px 0 0;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: var(--control);
+  font-size: 12px;
+  color: var(--text-secondary);
+}

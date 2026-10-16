@@ -1166,6 +1166,20 @@ hr[is="pane-splitter"],
   position: relative !important;
 }
 
+/* Platz für die Fensterknöpfe links oben – nur auf dem Mac (Ampel); unter
+   Windows und Linux sitzen sie rechts in der Toolbar-Zeile */
+:root {
+  --mc-tl-reserve: 84px;
+  --mc-tl-header: 136px;
+}
+
+@media not (-moz-platform: macos) {
+  :root {
+    --mc-tl-reserve: 12px;
+    --mc-tl-header: 64px;
+  }
+}
+
 #unifiedToolbar {
   position: static !important;
 }
@@ -1173,7 +1187,7 @@ hr[is="pane-splitter"],
 #spacesPinnedButton {
   position: absolute !important;
   /* gleiche Stelle in allen Tabs; nie weiter links als neben die Fensterknöpfe */
-  inset-inline-start: max(calc(var(--mc-sidebar-right, 220px) - 50px), 84px) !important;
+  inset-inline-start: max(calc(var(--mc-sidebar-right, 220px) - 50px), var(--mc-tl-reserve)) !important;
   top: 50% !important;
   transform: translateY(-50%) !important;
   /* gleiche Kapsel wie die Toolbar-Knöpfe: 40 × 38 px, grauer Hintergrund */
@@ -1571,7 +1585,7 @@ unified-toolbar {
 }
 
 :root[mc-mail] #mcListHeader {
-  --mc-lh-start: max(calc(var(--mc-sidebar-right, 0px) + 16px), 136px) !important;
+  --mc-lh-start: max(calc(var(--mc-sidebar-right, 0px) + 16px), var(--mc-tl-header)) !important;
   position: absolute !important;
   top: 0 !important;
   bottom: 1px !important;
@@ -2168,7 +2182,7 @@ unified-toolbar {
   top: calc(var(--mc-row-top, 0px) + (var(--mc-row-h, 50px) - 38px) / 2) !important;
   /* mittig über der Kalenderfläche (rechts der Seitenleiste), nie über „+“ */
   inset-inline-start: max(
-    calc((var(--mc-tab-left, 300px) - 12px + 100vw) / 2),
+    calc((var(--mc-tab-left, 300px) - 12px + 100vw - var(--mc-caption-w, 0px)) / 2),
     calc(var(--mc-tab-left, 300px) + 56px + var(--mc-toggle-half, 157px))
   ) !important;
   transform: translateX(-50%) !important;
@@ -3599,7 +3613,8 @@ addon-page-header h1,
   background: transparent !important;
 }
 
-#agenda-toolbar > toolbarbutton {
+#agenda-toolbar > toolbarbutton,
+#today-pane-panel .sidebar-header > #todaypane-new-event-button {
   min-height: 32px !important;
   padding: 0 12px !important;
   border: none !important;
@@ -3609,7 +3624,8 @@ addon-page-header h1,
   appearance: none !important;
 }
 
-#agenda-toolbar > toolbarbutton:hover {
+#agenda-toolbar > toolbarbutton:hover,
+#today-pane-panel .sidebar-header > #todaypane-new-event-button:hover {
   background-color: var(--mt-control-hover) !important;
 }
 
@@ -3713,7 +3729,7 @@ addon-page-header h1,
    jeweiligen Seitenleiste (wie in der Mail), bei ausgeblendeter Leiste neben
    den Fensterknöpfen */
 :root:not([mc-mail]) #spacesPinnedButton {
-  inset-inline-start: max(calc(var(--mc-side-right, 0px) - 50px), 84px) !important;
+  inset-inline-start: max(calc(var(--mc-side-right, 0px) - 50px), var(--mc-tl-reserve, 84px)) !important;
 }
 
 /* ---------- Adressbuch: Kopfknöpfe einheitlich als Kapseln ---------- */
@@ -4033,7 +4049,7 @@ addon-page-header h1,
 }
 
 #agenda .agenda-listitem:not(.agenda-listitem-all-day) .agenda-listitem-title {
-  font-weight: 500 !important;
+  font-weight: 400 !important;
   color: var(--mt-text) !important;
 }
 
@@ -4052,7 +4068,7 @@ addon-page-header h1,
 }
 
 #agenda .agenda-listitem-all-day .agenda-listitem-title {
-  font-weight: 500 !important;
+  font-weight: 400 !important;
   color: color-mix(in srgb, var(--mc-c, var(--mt-accent)) 55%, var(--mt-text)) !important;
 }
 
@@ -4555,7 +4571,7 @@ menupopup menucaption {
 }
 
 :root[mc-tab="addressBookTab"] #mcListHeader {
-  --mc-lh-start: max(calc(var(--mc-side-right, 0px) + 16px), 136px) !important;
+  --mc-lh-start: max(calc(var(--mc-side-right, 0px) + 16px), var(--mc-tl-header, 136px)) !important;
   position: absolute !important;
   top: 0 !important;
   bottom: 1px !important;
@@ -5322,5 +5338,128 @@ body:has(> #booksPane.mc-side-anim) {
    der Mail beginnt */
 #primaryButtonSidePanel {
   display: none !important;
+}
+
+/* ---------- Today-Pane: „Today Pane“ als Titel, „Neuer Termin“ rechts daneben ---------- */
+#today-pane-header {
+  font-size: 0 !important;
+}
+
+#today-pane-header::before {
+  content: attr(data-mc-title);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+#today-pane-panel .sidebar-header > #todaypane-new-event-button {
+  margin-inline-start: 12px !important;
+  min-height: 28px !important;
+}
+
+/* die Leiste darunter ist ohne den Knopf leer */
+#agenda-toolbar:not(:has(> toolbarbutton)) {
+  display: none !important;
+}
+
+/* ---------- Minikalender in der Kalenderleiste so groß wie in Apple Kalender ----------
+   volle Breite der Leiste, sieben gleich breite Spalten */
+#calMinimonth {
+  align-self: stretch !important;
+  width: auto !important;
+  margin-inline: 14px !important;
+}
+
+/* Today-Pane: derselbe Minikalender in derselben Größe (Breite übernimmt
+   die Erweiterung vom Kalender), mittig */
+#today-minimonth {
+  align-self: center !important;
+  width: var(--mc-mm-w, 244px) !important;
+  margin-inline: auto !important;
+}
+
+:is(#calMinimonth, #today-minimonth) table {
+  width: 100% !important;
+  table-layout: fixed !important;
+}
+
+:is(#calMinimonth, #today-minimonth) td.minimonth-day {
+  width: auto !important;
+  height: 28px !important;
+  line-height: 28px !important;
+  font-size: 13px !important;
+}
+
+:is(#calMinimonth, #today-minimonth) .minimonth-row-header {
+  font-size: 11px !important;
+  height: 22px !important;
+}
+
+/* Kalenderleiste nie schmaler als der Minikalender (7 × 28 px + Rand) */
+#calSidebar:not(.mc-side-anim) {
+  min-width: 228px !important;
+}
+
+:is(#calMinimonth, #today-minimonth) td.minimonth-day:not([today]) {
+  font-weight: 400 !important;
+}
+
+/* ---------- Today-Pane: Knopf unten rechts statt ✕ oben ----------
+   gespiegeltes Seitenleisten-Symbol (#mcTodayToggle, Erweiterung); nur in
+   Mail und Aufgaben, wo es die Today-Pane gibt */
+#today-closer {
+  display: none !important;
+}
+
+/* unten ein freier Streifen für den Knopf – die Termine enden auf derselben
+   Höhe wie der Bereiche-Knopf „Einstellungen“ (wie die Bereiche-Leiste mit
+   ihrem Knopf unten links) */
+#today-pane-panel {
+  padding-bottom: 51px !important;
+  box-sizing: border-box !important;
+}
+
+#mcTodayToggle {
+  display: none !important;
+}
+
+:root:is([mc-tab="mail3PaneTab"], [mc-tab="mailMessageTab"], [mc-tab="tasks"]) #mcTodayToggle {
+  position: fixed !important;
+  z-index: 3 !important;
+  bottom: 10px !important;
+  inset-inline-end: 12px !important;
+  width: 34px !important;
+  height: 30px !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  border: none !important;
+  min-width: 0 !important;
+  border-radius: 999px !important;
+  background: transparent !important;
+  color: color-mix(in srgb, var(--mt-text) 82%, transparent) !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  appearance: none !important;
+}
+
+#mcTodayToggle:hover {
+  background-color: var(--mt-control-hover) !important;
+  color: var(--mt-text) !important;
+}
+
+#mcTodayToggle::before {
+  content: "" !important;
+  width: 22px !important;
+  height: 22px !important;
+  background-color: currentColor !important;
+  mask: var(--mi-sidebar) center / contain no-repeat !important;
+  transform: scaleX(-1) !important;
+}
+
+/* Termine in der Today-Pane nie fett – nur Wochentag und Tageszahl bleiben */
+#agenda .agenda-listitem .agenda-listitem-title,
+#agenda .agenda-listitem-all-day .agenda-listitem-title,
+#agenda .agenda-listitem .agenda-listitem-time {
+  font-weight: 400 !important;
 }
 /* ==== Ende Bereiche ==== */

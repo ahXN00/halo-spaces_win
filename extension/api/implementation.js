@@ -1082,13 +1082,19 @@ function setVar(el, name, value) {
 // Platz, den die Toolbar rechts der Mailliste braucht: alle Knöpfe in
 // natürlicher Breite, das Suchfeld mit 333 px, der kleinste Abstand nach
 // „Verfassen“ (12 px), der Rand rechts und 6 px Einzug an der Listenkante
+// Breite der Fensterknöpfe rechts in der Toolbar-Zeile (Windows/Linux:
+// Minimieren, Maximieren, Schließen; auf dem Mac 0)
+function captionWidth(doc) {
+  return Math.round(doc.querySelector("#unifiedToolbarContainer .titlebar-buttonbox-container")?.getBoundingClientRect().width || 0);
+}
+
 function toolbarNeed(doc) {
   const content = doc.getElementById("unifiedToolbarContent");
   if (!content) {
     return 0;
   }
   const win = doc.defaultView;
-  let need = 10 + (parseFloat(win.getComputedStyle(content).paddingInlineEnd) || 0) + 12;
+  let need = 10 + (parseFloat(win.getComputedStyle(content).paddingInlineEnd) || 0) + 12 + captionWidth(doc);
   let afterFirst = false;
   for (const li of content.children) {
     const id = li.getAttribute("item-id");
@@ -1284,6 +1290,18 @@ class CardEnhancer {
     }
     this.applyToolbarOnce();
     this.applySpaceToolbarsOnce();
+    // Windows/Linux: einmal beim ersten Start sagen, dass halo.spaces für
+    // macOS gemacht ist und dort noch erprobt wird
+    const NOTE_PREF = "extensions.mailcards.platformNoteShown";
+    if (Services.appinfo.OS != "Darwin" && !Services.prefs.getBoolPref(NOTE_PREF, false)) {
+      setTimeout(() => {
+        const w = Services.wm.getMostRecentWindow("mail:3pane");
+        if (w) {
+          Services.prefs.setBoolPref(NOTE_PREF, true);
+          this.openHaloWindow(w, { platformNote: true });
+        }
+      }, 6000);
+    }
     // nach dem Start, wenn der Kalender-Manager bereit ist
     setTimeout(() => enableCalendarOffline(), 8000);
     // Fotos aus der macOS-Kontakte-App: kurz nach dem Start und dann stündlich
@@ -1519,6 +1537,12 @@ class CardEnhancer {
           setVar(d.getElementById(id), name, value);
         }
       };
+      rowVar("--mc-caption-w", `${captionWidth(d)}px`);
+      // Minikalender der Today-Pane so breit wie der in der Kalenderleiste
+      const calMm = d.getElementById("calMinimonth");
+      if (calMm?.offsetWidth) {
+        setVar(d.getElementById("today-minimonth"), "--mc-mm-w", `${calMm.offsetWidth}px`);
+      }
       rowVar("--mc-tab-left", `${Math.round(edge)}px`);
       rowVar("--mc-row-top", `${Math.round(rr.top)}px`);
       rowVar("--mc-row-h", `${Math.round(rr.height)}px`);
@@ -1903,6 +1927,7 @@ class CardEnhancer {
           try {
             hookAvatars(cw);
             hookBooksHeader(cw);
+            hookSplitterReset(cw.document);
           } catch (e) {
             log("avatar fix error", e);
           }
@@ -2031,6 +2056,60 @@ class CardEnhancer {
         this.restorers.push(() => splitter.removeEventListener("pointerdown", onDown));
       }
     };
+    // Doppelklick auf eine Trennlinie stellt ihre Standardbreite wieder her:
+    // Seitenleisten 206 px (gemeinsam), Mail-/Kontaktliste Thunderbirds
+    // Standard (die andere Liste zieht mit), Today-Pane 280 px
+    const hookSplitterReset = doc => {
+      if (!doc || doc.__mcSplitterReset) {
+        return;
+      }
+      doc.__mcSplitterReset = true;
+      const SIDEBAR_SPLITTERS = new Set(["folderPaneSplitter", "booksSplitter", "calsidebar_splitter", "listSplitter"]);
+      const onDblClick = event => {
+        const splitter = event.target.closest?.("splitter, hr[is='pane-splitter'], [is='pane-splitter']");
+        if (!splitter?.id) {
+          return;
+        }
+        if (SIDEBAR_SPLITTERS.has(splitter.id)) {
+          event.preventDefault();
+          Services.prefs.clearUserPref(WIDTH_PREF);
+          syncSidebarWidth();
+        } else if (splitter.id == "messagePaneSplitter") {
+          event.preventDefault();
+          splitter.width = null;
+          w.setTimeout(() => this.offsetUpdaters?.forEach(fn => fn()), 50);
+        } else if (splitter.id == "sharedSplitter") {
+          event.preventDefault();
+          this.mcButtonsLeft = undefined; // nicht gleich wieder an die Mailliste angleichen
+          splitter.width = null;
+          w.setTimeout(() => {
+            const cards = doc.getElementById("cardsPane")?.getBoundingClientRect();
+            const tab = w.document.getElementById("tabmail")?.currentTabInfo;
+            const b = tab?.browser?.getBoundingClientRect();
+            if (cards?.width && b) {
+              this.mcListWidth = Math.round(cards.width);
+              this.mcButtonsLeft = b.left + cards.right + 6;
+              this.mcListPending = true; // die Mailliste übernimmt die Kante
+            }
+            updateSideEdge();
+          }, 50);
+        } else if (splitter.id == "today-splitter") {
+          event.preventDefault();
+          const panel = doc.getElementById("today-pane-panel");
+          if (panel) {
+            panel.setAttribute("width", "280");
+            panel.style.width = "280px";
+            panel.setModeAttribute?.("modewidths", "280");
+          }
+        }
+      };
+      doc.addEventListener("dblclick", onDblClick, true);
+      this.restorers.push(() => {
+        doc.removeEventListener("dblclick", onDblClick, true);
+        delete doc.__mcSplitterReset;
+      });
+    };
+
     const syncSidebarWidth = () => {
       const tabmail = w.document.getElementById("tabmail");
       const tab = tabmail?.currentTabInfo;
@@ -2469,6 +2548,40 @@ class CardEnhancer {
       this.restorers.push(() => btn.remove());
     };
 
+    // Today-Pane ein-/ausblenden: Knopf unten rechts (Gegenstück zum
+    // Bereiche-Knopf unten links) statt des ✕ oben in der Today-Pane
+    const hookTodayToggle = () => {
+      const d = w.document;
+      const command = d.getElementById("calendar_toggle_todaypane_command");
+      if (!command || d.getElementById("mcTodayToggle")) {
+        return;
+      }
+      const btn = d.createElementNS("http://www.w3.org/1999/xhtml", "button");
+      btn.id = "mcTodayToggle";
+      btn.type = "button";
+      const updateTip = () => {
+        const de = Services.locale.appLocaleAsBCP47.startsWith("de");
+        const shown = !!w.TodayPane?.isVisible;
+        const label = shown
+          ? (de ? "Heute-Leiste ausblenden" : "Hide Today Pane")
+          : (de ? "Heute-Leiste einblenden" : "Show Today Pane");
+        btn.title = label;
+        btn.setAttribute("aria-label", label);
+        btn.toggleAttribute("data-shown", shown);
+      };
+      updateTip();
+      btn.addEventListener("mouseenter", updateTip);
+      btn.addEventListener("click", () => this.animateTodayPane(w, command, updateTip));
+      const panel = d.getElementById("today-pane-panel");
+      const mo = panel ? new w.MutationObserver(updateTip) : null;
+      mo?.observe(panel, { attributes: true, attributeFilter: ["collapsed", "hidden", "collapsedinmodes"] });
+      d.body.append(btn);
+      this.restorers.push(() => {
+        mo?.disconnect();
+        btn.remove();
+      });
+    };
+
     // Titel und Anzahl über der Mailliste in der Toolbar-Zeile, rechts davon
     // Filter und „…“ in einer Kapsel – wie Apple Mail. Thunderbirds eigene
     // Kopfzeile in der Liste wird per CSS ausgeblendet.
@@ -2878,6 +2991,29 @@ class CardEnhancer {
       });
     };
 
+    // Today-Pane: Titel „Today Pane“ (statt „Termine“/„Aufgaben“) und der Knopf
+    // „Neuer Termin“ gleich rechts daneben in der Kopfzeile
+    const hookTodayPaneHeader = () => {
+      const d = w.document;
+      const header = d.getElementById("today-pane-header");
+      const button = d.getElementById("todaypane-new-event-button");
+      if (!header || header.dataset.mcTitle) {
+        return;
+      }
+      header.dataset.mcTitle = Services.locale.appLocaleAsBCP47.startsWith("de") ? "Heute-Leiste" : "Today Pane";
+      const home = button?.parentElement;
+      const next = button?.nextSibling;
+      if (button) {
+        header.after(button);
+      }
+      this.restorers.push(() => {
+        delete header.dataset.mcTitle;
+        if (button && home) {
+          home.insertBefore(button, next);
+        }
+      });
+    };
+
     // „Heute“ in der Sprache der Oberfläche (Thunderbird hat dafür nur einen Tooltip)
     const labelToday = () => {
       const btn = w.document.getElementById("todayViewButton");
@@ -2977,9 +3113,12 @@ class CardEnhancer {
       hookNewButton();
       hookTitle();
       labelToday();
+      hookTodayPaneHeader();
       hookEscape();
       hookSidebarButton();
       hookSpacesToggle();
+      hookTodayToggle();
+      hookSplitterReset(w.document);
       hookListHeader();
       this.updateListHeader(w);
       this.styleSearch(w);
@@ -2987,6 +3126,7 @@ class CardEnhancer {
       for (const tab of tabmail?.tabInfo || []) {
         const cw = tab.chromeBrowser?.contentWindow;
         if (cw && cw.location?.href == "about:3pane") {
+          hookSplitterReset(cw.document);
           this.patch(cw, 0);
         }
       }
@@ -3280,6 +3420,71 @@ class CardEnhancer {
       };
       realign();
       w.setTimeout(realign, 30);
+    };
+    w.requestAnimationFrame(() => w.requestAnimationFrame(step));
+  }
+
+  // Today-Pane weich ein-/ausblenden wie die Seitenleisten: die Breite
+  // gleitet zwischen 0 und voller Breite, der Inhalt behält seine Breite und
+  // wird nur zugedeckt
+  animateTodayPane(w, command, onDone) {
+    const d = w.document;
+    const panel = d.getElementById("today-pane-panel");
+    if (!panel || panel.__mcAnimating) {
+      return;
+    }
+    const showing = !w.TodayPane?.isVisible;
+    if (showing) {
+      command.doCommand();
+    }
+    const full = panel.getBoundingClientRect().width;
+    if (!full) {
+      if (!showing) {
+        command.doCommand();
+      }
+      onDone?.();
+      return;
+    }
+    panel.__mcAnimating = true;
+    const DURATION = 250;
+    const curve = cubicBezier(0.25, 0.1, 0.25, 1);
+    const PROPS = ["overflow", "min-width", "width", "max-width"];
+    const saved = PROPS.map(p => [p, panel.style.getPropertyValue(p), panel.style.getPropertyPriority(p)]);
+    const kids = [...panel.children];
+    kids.forEach(k => k.style.setProperty("min-width", `${full}px`));
+    panel.style.setProperty("overflow", "hidden", "important");
+    panel.style.setProperty("min-width", "0px", "important");
+    const setW = v => {
+      panel.style.setProperty("width", `${v}px`, "important");
+      panel.style.setProperty("max-width", `${v}px`, "important");
+    };
+    if (showing) {
+      setW(0);
+    }
+    let start = null;
+    const step = now => {
+      if (start === null) {
+        start = now;
+      }
+      const k = Math.min(1, (now - start) / DURATION);
+      setW(full * (showing ? curve(k) : 1 - curve(k)));
+      if (k < 1) {
+        w.requestAnimationFrame(step);
+        return;
+      }
+      for (const [prop, value, prio] of saved) {
+        if (value) {
+          panel.style.setProperty(prop, value, prio);
+        } else {
+          panel.style.removeProperty(prop);
+        }
+      }
+      kids.forEach(k2 => k2.style.removeProperty("min-width"));
+      if (!showing) {
+        command.doCommand();
+      }
+      panel.__mcAnimating = false;
+      onDone?.();
     };
     w.requestAnimationFrame(() => w.requestAnimationFrame(step));
   }
@@ -3705,7 +3910,7 @@ class CardEnhancer {
   }
 
   // Info-Fenster „Halo Spaces“ (Help-Menü): Version, Updates, Feedback, Spenden
-  async openHaloWindow(w) {
+  async openHaloWindow(w, { platformNote = false } = {}) {
     const open = [...Services.wm.getEnumerator(null)].find(win => win.location?.href.startsWith("resource://mailcards/about/halo.html"));
     if (open) {
       open.focus();
@@ -3722,6 +3927,7 @@ class CardEnhancer {
       feedbackAddress: FEEDBACK_ADDRESS,
       checkUpdate: () => this.findUpdate(),
       mac: Services.appinfo.OS == "Darwin",
+      platformNote,
       photosEnabled: () => MacPhotos.enabled(),
       // Fotos aus der Kontakte-App: einschalten und gleich abgleichen
       // (macOS fragt dabei einmal nach dem Zugriff auf die Kontakte)
@@ -3740,7 +3946,7 @@ class CardEnhancer {
       },
     };
     const hw = w.openDialog("resource://mailcards/about/halo.html", "halo-spaces",
-      `chrome,dialog=yes,centerscreen,resizable=no,width=360,height=${api.mac ? 340 : 292}`);
+      `chrome,dialog=yes,centerscreen,resizable=no,width=360,height=${(api.mac ? 340 : 292) + (platformNote ? 64 : 0)}`);
     // erst lädt das Fenster about:blank, dann unsere Seite – darauf warten
     let tries = 0;
     const wire = () => {
@@ -3768,6 +3974,15 @@ class CardEnhancer {
       el.textContent = de ? el.dataset.de : el.dataset.en;
     }
     $("version").textContent = `Version ${api.version}`;
+    // Windows/Linux: einmaliger Hinweis beim ersten Start
+    const note = $("platform-note");
+    if (note && api.platformNote) {
+      note.textContent = t(
+        "halo.spaces ist für macOS gemacht – unter Windows und Linux wird es gerade erst erprobt. Wenn etwas komisch aussieht, freuen wir uns über eine kurze Rückmeldung!",
+        "halo.spaces is made for macOS – on Windows and Linux it is still being tested. If something looks odd, we'd love a quick note!"
+      );
+      note.hidden = false;
+    }
     $("mail").textContent = api.feedbackAddress;
 
     const button = $("update");
