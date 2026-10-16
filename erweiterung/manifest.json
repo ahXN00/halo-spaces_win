@@ -2,7 +2,7 @@
   "manifest_version": 2,
   "name": "Halo Spaces",
   "description": "Ein ruhiges, aufgeräumtes Design im Stil von macOS – mit farbigen Bereichen, Absenderbildern, Vorschau und vereinigtem Adressbuch.",
-  "version": "3.0.0",
+  "version": "3.0.1",
   "author": "sruf79",
   "browser_specific_settings": {
     "gecko": {

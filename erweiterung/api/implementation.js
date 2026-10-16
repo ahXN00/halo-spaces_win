@@ -927,6 +927,45 @@ class AvatarResolver {
 }
 
 // ---------------------------------------------------------------------------
+// Kalender: Offline-Unterstützung standardmäßig an
+// ---------------------------------------------------------------------------
+
+// Online-Kalender (CalDAV, abonnierte ICS) ohne lokale Kopie lädt Thunderbird
+// bei jedem Start komplett vom Server – bis dahin bleibt die Ansicht leer.
+// Mit Offline-Unterstützung erscheinen die Termine sofort aus der lokalen
+// Kopie, Änderungen kommen im Hintergrund nach. Eingeschaltet wird nur, wo
+// die Einstellung nie angefasst wurde; abschaltbar über
+// extensions.mailcards.calendarOffline = false.
+function enableCalendarOffline() {
+  if (!Services.prefs.getBoolPref("extensions.mailcards.calendarOffline", true)) {
+    return 0;
+  }
+  let changed = 0;
+  try {
+    const { cal } = ChromeUtils.importESModule("resource:///modules/calendar/calUtils.sys.mjs");
+    for (const calendar of cal.manager.getCalendars()) {
+      if (!["caldav", "ics"].includes(calendar.type) || !/^https?:/.test(calendar.uri?.spec || "")) {
+        continue;
+      }
+      if (calendar.getProperty("cache.supported") === false || calendar.getProperty("cache.always")) {
+        continue;
+      }
+      if (Services.prefs.prefHasUserValue(`calendar.registry.${calendar.id}.cache.enabled`)) {
+        continue; // bewusst gesetzt – so lassen
+      }
+      calendar.setProperty("cache.enabled", true);
+      changed++;
+    }
+  } catch (e) {
+    log("calendar offline error", String(e).slice(0, 160));
+  }
+  if (changed) {
+    log("calendar offline enabled", { changed });
+  }
+  return changed;
+}
+
+// ---------------------------------------------------------------------------
 // Design aus der Erweiterung (theme.css)
 // ---------------------------------------------------------------------------
 
@@ -1029,6 +1068,8 @@ class CardEnhancer {
     }
     this.applyToolbarOnce();
     this.applySpaceToolbarsOnce();
+    // nach dem Start, wenn der Kalender-Manager bereit ist
+    setTimeout(() => enableCalendarOffline(), 8000);
     // Fotos aus der macOS-Kontakte-App: kurz nach dem Start und dann stündlich
     MacPhotos.load();
     this.registerIconVars();
@@ -1142,15 +1183,28 @@ class CardEnhancer {
       // Bezug: erster Abstandhalter (davor liegen ausgeblendete Knöpfe anderer Bereiche)
       const start = (content?.querySelector(':scope > li[item-id="spacer"]') || content)?.getBoundingClientRect().left ?? rowLeft;
       let edge = shift + (r.width ? r.right : 0) + 12;
+      // erste Knöpfe in jedem Bereich an derselben Stelle wie in der Mail
+      if (this.mcButtonsLeft) {
+        edge = this.mcButtonsLeft;
+      }
       if (tab.mode.name == "addressBookTab") {
         const cards = el.ownerDocument.getElementById("cardsPane");
         if (cards && !cards.__mcObserved) {
           cards.__mcObserved = true;
           new el.ownerDocument.defaultView.ResizeObserver(() => updateSideEdge()).observe(cards);
         }
+        // Kontaktliste so breit wie die Mailliste – dann passen Kopfzeile und
+        // Knöpfe genau ins selbe Raster
+        const shared = el.ownerDocument.getElementById("sharedSplitter");
+        if (this.mcListWidth && shared && "width" in shared && Math.abs((shared.width || 0) - this.mcListWidth) >= 1 &&
+            !el.ownerDocument.body.classList.contains("layout-table")) {
+          shared.width = this.mcListWidth;
+        }
         const cr = cards?.getBoundingClientRect();
         if (cr?.width) {
-          edge = shift + cr.right + 6;
+          if (!this.mcButtonsLeft) {
+            edge = shift + cr.right + 6;
+          }
           d.documentElement.style.setProperty("--mc-ab-list-right", `${Math.round(shift + cr.right - rowLeft)}px`);
         }
       }
@@ -1425,6 +1479,58 @@ class CardEnhancer {
         });
       }
 
+      // Tabellenansicht: Thunderbirds Spalte „Adressbuch“ zeigt dieselben
+      // Konto-Etiketten wie die Karten – bei zusammengeführten Kontakten alle
+      // Bücher, nicht nur eines. Einmalig eingeblendet.
+      const TableRow = cw.customElements.get("ab-table-card-row");
+      if (TableRow && !TableRow.prototype.__mcBooks) {
+        const origTableFill = TableRow.prototype.fillRow;
+        TableRow.prototype.fillRow = function (...args) {
+          const result = origTableFill.apply(this, args);
+          try {
+            const cell = this.querySelector(".addrbook-column");
+            const row = this.view?._rowMap?.[this._index];
+            const sources = row?.mcSources?.length ? row.mcSources : [row?.directory?.dirName].filter(Boolean);
+            if (cell && !cell.hidden && sources.length) {
+              const box = cw.document.createElement("span");
+              box.className = "mc-books";
+              box.replaceChildren(...sources.map(n => {
+                const pill = cw.document.createElement("span");
+                pill.className = "mc-book";
+                pill.textContent = n;
+                const c = accountColor(n);
+                pill.style.setProperty("--c", c);
+                pill.classList.toggle("mc-dark-color", textOnColor(c) == "#fff" && isVeryDark(c));
+                return pill;
+              }));
+              cell.replaceChildren(box);
+              cell.title = sources.join(", ");
+            }
+          } catch (e) {
+            log("table labels error", e);
+          }
+          return result;
+        };
+        TableRow.prototype.__mcBooks = true;
+        this.restorers.push(() => {
+          TableRow.prototype.fillRow = origTableFill;
+          delete TableRow.prototype.__mcBooks;
+        });
+        const COLUMN_PREF = "extensions.mailcards.abLabelColumn";
+        const pane = cw.cardsPane;
+        const abColumn = pane?.COLUMNS?.find(c => c.id == "addrbook");
+        if (abColumn && !Services.prefs.getBoolPref(COLUMN_PREF, false)) {
+          abColumn.hidden = false;
+          const visible = pane.COLUMNS.filter(c => !c.hidden).map(c => c.id).join(",");
+          Services.xulStore.setValue("about:addressbook", "cards", "columns", visible);
+          try {
+            pane.table.setColumns(pane.COLUMNS);
+            pane.cardsList.reset?.();
+          } catch {}
+          Services.prefs.setBoolPref(COLUMN_PREF, true);
+        }
+      }
+
       // Schalter im Darstellungsmenü („…“ neben der Suche)
       const menu = cw.document.getElementById("sortContext");
       // Abschnittstitel, damit klar ist, dass „Anzeigename“ eine Auswahl ist
@@ -1523,6 +1629,101 @@ class CardEnhancer {
           : [null, null];
       },
     };
+    // Eine gemeinsame Breite für alle Seitenleisten: Wechselt man den Bereich,
+    // bekommt dessen Seitenleiste dieselbe Breite – die Knöpfe springen nicht.
+    // Zieht man eine Seitenleiste breiter/schmaler, gilt das für alle.
+    const WIDTH_PREF = "extensions.mailcards.sidebarWidth";
+    const sidebarFor = tab => {
+      if (!tab) {
+        return [null, null, null];
+      }
+      if (tab.mode?.name == "mail3PaneTab") {
+        const ab = tab.chromeBrowser?.contentWindow;
+        return [ab?.document?.getElementById("folderPane"), ab?.document?.getElementById("folderPaneSplitter"), ab];
+      }
+      const [el, splitter] = SIDE_TOGGLE[tab.mode?.name]?.(tab) || [];
+      return [el, splitter, el?.ownerDocument?.defaultView];
+    };
+    const busy = (el, win) => !el || el.__mcAnimating || win?.__mcAnimating || el.classList.contains("mc-side-hidden");
+    const applyCommonWidth = tab => {
+      const W = Services.prefs.getIntPref(WIDTH_PREF, 0);
+      const [el, splitter, win] = sidebarFor(tab);
+      if (W < 160 || busy(el, win)) {
+        return;
+      }
+      const current = el.getBoundingClientRect().width;
+      if (!current || Math.abs(current - W) < 1.5) {
+        return;
+      }
+      el.__mcSetting = Date.now();
+      if (splitter?.localName == "hr" && "width" in splitter) {
+        // Thunderbirds Pane-Splitter (Mail, Adressbuch) – speichert selbst
+        splitter.width = W;
+        splitter.dispatchEvent(new win.CustomEvent("splitter-resized", { bubbles: true }));
+        // feste Breite aus der Ein-/Ausblend-Animation mitziehen
+        if (el.style.getPropertyPriority("width") == "important") {
+          el.style.setProperty("width", `${W}px`, "important");
+        }
+      } else {
+        el.style.setProperty("width", `${W}px`, "important");
+        if (splitter) {
+          el.setAttribute("width", String(W));
+          try {
+            Services.xulStore.persist(el, "width");
+          } catch {}
+        }
+      }
+      // Toolbar-Kanten (Mail: Beginn der Knöpfe über der Nachricht) neu messen
+      for (const ms of [50, 300, 700]) {
+        w.setTimeout(() => {
+          this.sideEdgeUpdaters?.forEach(fn => fn());
+          this.offsetUpdaters?.forEach(fn => fn());
+        }, ms);
+      }
+    };
+    const watchWidth = tab => {
+      const [el, splitter, win] = sidebarFor(tab);
+      if (!el || el.__mcWidthWatch) {
+        return;
+      }
+      el.__mcWidthWatch = true;
+      // Startwert: die Breite der Ordnerliste in der Mail
+      if (!Services.prefs.getIntPref(WIDTH_PREF, 0) && tab.mode?.name == "mail3PaneTab") {
+        const width = Math.round(el.getBoundingClientRect().width);
+        if (width >= 160) {
+          Services.prefs.setIntPref(WIDTH_PREF, width);
+        }
+      }
+      // Nur echtes Ziehen am Trenner zählt als neue Breite – übernommen erst
+      // beim Loslassen und nie schmaler als 160 px (nicht das Einrichten der
+      // Seite, Animationen oder Thunderbirds Mindestbreiten)
+      if (splitter) {
+        const onDown = () => {
+          win.addEventListener("pointerup", () => win.setTimeout(() => {
+            if (busy(el, win)) {
+              return;
+            }
+            const width = Math.round(el.getBoundingClientRect().width);
+            if (width >= 160 && Math.abs(width - Services.prefs.getIntPref(WIDTH_PREF, 0)) >= 2) {
+              Services.prefs.setIntPref(WIDTH_PREF, width);
+            }
+          }, 300), { once: true });
+        };
+        splitter.addEventListener("pointerdown", onDown);
+        this.restorers.push(() => splitter.removeEventListener("pointerdown", onDown));
+      }
+    };
+    const syncSidebarWidth = () => {
+      const tabmail = w.document.getElementById("tabmail");
+      const tab = tabmail?.currentTabInfo;
+      const mail = tabmail?.tabInfo?.find(t => t.mode?.name == "mail3PaneTab");
+      if (mail) {
+        watchWidth(mail);
+      }
+      watchWidth(tab);
+      applyCommonWidth(tab);
+    };
+
     const sideState = () => {
       try {
         return JSON.parse(Services.prefs.getStringPref(SIDE_PREF, "{}"));
@@ -1620,13 +1821,21 @@ class CardEnhancer {
     };
 
     // Suchfeld oben rechts: im Adressbuch filtert es die Kontakte, in den
-    // Einstellungen durchsucht es die Einstellungen (statt der
+    // Aufgaben die Aufgabenliste, in den Einstellungen die Einstellungen (statt der
     // Mail-Volltextsuche) – die Suchfelder in diesen Seiten entfallen.
     const SEARCH_TARGETS = {
       addressBookTab: {
         de: "Kontakte durchsuchen", en: "Search Contacts",
         input: cw => cw?.cardsPane?.searchInput,
         set: (input, text) => input.overrideSearchTerm(text), // löst dort selbst die Suche aus
+      },
+      tasks: {
+        de: "Aufgaben durchsuchen", en: "Search Tasks",
+        input: () => w.document.getElementById("task-text-filter-field"),
+        set: (input, text) => {
+          input.value = text;
+          input.dispatchEvent(new w.Event("input", { bubbles: true }));
+        },
       },
       preferencesTab: {
         de: "Einstellungen durchsuchen", en: "Find in Settings",
@@ -1710,6 +1919,8 @@ class CardEnhancer {
       w.document.documentElement.setAttribute("mc-tab", mode || "");
       syncSearchForTab(mode);
       this.updateListHeader(w);
+      syncSidebarWidth();
+      w.setTimeout(syncSidebarWidth, 400); // Inhalte (Adressbuch …) evtl. später
       updateSideEdge();
       // Inhalt (Adressbuch, Einstellungen) ist evtl. erst später aufgebaut
       w.setTimeout(updateSideEdge, 300);
@@ -1912,6 +2123,148 @@ class CardEnhancer {
     // Terminspalte rechts im Stil von Fastmail, in unserem Design:
     // Minikalender oben, darunter Monatstitel und Agenda mit Wochentag und
     // großer Tageszahl links, Termine als Farbblöcke rechts.
+    // Monatsansicht wie Apple Kalender: passen nicht alle Termine in einen
+    // Tag, steht unten „+N weitere“ – ein Klick öffnet den Tag in der
+    // Tagesansicht. Dazu Zoom per Trackpad (Pinch) oder ⌘/Ctrl + Mausrad:
+    // höhere Wochenzeilen, die Monatsansicht wird dann scrollbar.
+    const ZOOM_PREF = "extensions.mailcards.monthZoom";
+    const hookMonthView = () => {
+      const d = w.document;
+      const mv = d.getElementById("month-view");
+      if (!mv || mv.__mcMore) {
+        return;
+      }
+      mv.__mcMore = true;
+      const de = Services.locale.appLocaleAsBCP47.startsWith("de");
+      // Höhe der Monatstabelle in Pixeln: sichtbare Höhe × Zoom (eine
+      // Prozentangabe greift in der scrollbaren Ansicht nicht mehr)
+      const applyHeight = () => {
+        const table = mv.querySelector("table.monthtable");
+        const z = parseFloat(mv.style.getPropertyValue("--mc-month-zoom")) || 1;
+        if (!table) {
+          return;
+        }
+        if (z <= 1.01) {
+          table.style.removeProperty("height");
+          return;
+        }
+        const visible = mv.clientHeight - (table.getBoundingClientRect().top - mv.getBoundingClientRect().top - mv.scrollTop);
+        table.style.setProperty("height", `${Math.round(Math.max(200, visible) * z)}px`, "important");
+      };
+      const setZoom = z => {
+        const zoom = Math.max(1, Math.min(3, Math.round(z * 100) / 100));
+        mv.style.setProperty("--mc-month-zoom", zoom);
+        mv.toggleAttribute("mc-zoomed", zoom > 1.01);
+        applyHeight();
+        Services.prefs.setStringPref(ZOOM_PREF, String(zoom));
+        return zoom;
+      };
+      let zoom = setZoom(parseFloat(Services.prefs.getStringPref(ZOOM_PREF, "1")) || 1);
+      let pending = false;
+      const update = () => {
+        pending = false;
+        for (const box of mv.querySelectorAll("calendar-month-day-box")) {
+          const list = box.querySelector(".calendar-month-day-box-list");
+          let more = box.querySelector(":scope > .mc-more");
+          if (!list) {
+            continue;
+          }
+          const lr = list.getBoundingClientRect();
+          const items = [...list.children];
+          // Platz für die Zeile „+N weitere“ freihalten, sobald etwas fehlt
+          for (const i of items) {
+            i.removeAttribute("data-mc-cut");
+          }
+          let cut = [];
+          if (items.some(i => i.getBoundingClientRect().bottom > lr.bottom + 1)) {
+            cut = items.filter(i => i.getBoundingClientRect().bottom > lr.bottom - 18);
+          }
+          const hidden = cut.length;
+          for (const i of cut) {
+            i.setAttribute("data-mc-cut", "true");
+          }
+          if (!hidden) {
+            more?.remove();
+            box.removeAttribute("mc-has-more");
+            continue;
+          }
+          if (!more) {
+            more = d.createElementNS("http://www.w3.org/1999/xhtml", "button");
+            more.className = "mc-more";
+            more.addEventListener("click", event => {
+              event.stopPropagation();
+              const date = box.date;
+              if (date) {
+                w.switchToView?.("day");
+                w.currentView?.()?.goToDay?.(date);
+              }
+            });
+            more.addEventListener("dblclick", event => event.stopPropagation());
+            box.appendChild(more);
+          }
+          box.setAttribute("mc-has-more", "true");
+          more.textContent = de ? `+${hidden} weitere` : `+${hidden} more`;
+        }
+      };
+      const schedule = () => {
+        if (!pending) {
+          pending = true;
+          w.requestAnimationFrame(update);
+        }
+      };
+      const mo = new w.MutationObserver(records => {
+        // eigene Änderungen (die „+N“-Knöpfe) lösen keine neue Runde aus
+        if (records.some(r => ![...r.addedNodes, ...r.removedNodes].every(n => n.classList?.contains("mc-more")) || r.type == "attributes")) {
+          schedule();
+        }
+      });
+      mo.observe(mv, { childList: true, subtree: true });
+      const ro = new w.ResizeObserver(() => {
+        schedule();
+      });
+      ro.observe(mv);
+      const table = mv.querySelector("table.monthtable");
+      if (table) {
+        ro.observe(table);
+      }
+      // Fenstergröße geändert: Tabellenhöhe neu berechnen
+      const outer = new w.ResizeObserver(() => applyHeight());
+      outer.observe(mv.parentElement || mv);
+      // Zoom: Pinch-Geste auf dem Trackpad und ⌘/Ctrl + Mausrad
+      const onGesture = event => {
+        zoom = setZoom(zoom * (1 + (event.delta || 0) / 100));
+        event.preventDefault();
+        schedule();
+      };
+      const onWheel = event => {
+        if (!(event.ctrlKey || event.metaKey)) {
+          return;
+        }
+        event.preventDefault();
+        zoom = setZoom(zoom * (event.deltaY < 0 ? 1.08 : 1 / 1.08));
+        schedule();
+      };
+      mv.addEventListener("MozMagnifyGestureUpdate", onGesture);
+      mv.addEventListener("MozMagnifyGesture", onGesture);
+      mv.addEventListener("wheel", onWheel, { passive: false });
+      this.restorers.push(() => {
+        mo.disconnect();
+        ro.disconnect();
+        outer.disconnect();
+        mv.querySelector("table.monthtable")?.style.removeProperty("height");
+        mv.removeEventListener("MozMagnifyGestureUpdate", onGesture);
+        mv.removeEventListener("MozMagnifyGesture", onGesture);
+        mv.removeEventListener("wheel", onWheel);
+        for (const el of mv.querySelectorAll(".mc-more")) {
+          el.remove();
+        }
+        mv.style.removeProperty("--mc-month-zoom");
+        mv.removeAttribute("mc-zoomed");
+        delete mv.__mcMore;
+      });
+      schedule();
+    };
+
     const decorateAgenda = () => {
       const d = w.document;
       const agenda = d.getElementById("agenda");
@@ -2008,6 +2361,7 @@ class CardEnhancer {
     const scan = () => {
       markTab();
       decorateAgenda();
+      hookMonthView();
       hookEscape();
       hookSidebarButton();
       hookSpacesToggle();
@@ -2366,6 +2720,12 @@ class CardEnhancer {
         listRight = (folderRect?.right || 0) + (this.lastListRight ?? 0);
       }
       const paneRight = browser.getBoundingClientRect().left + listRight;
+      // für die übrigen Bereiche merken: dort beginnen die Knöpfe an derselben
+      // Stelle, und die Kontaktliste im Adressbuch ist so breit wie die Mailliste
+      this.mcButtonsLeft = paneRight + 6;
+      if (listRect.width > 1) {
+        this.mcListWidth = Math.round(listRect.width);
+      }
       // Bezug ist der Anfang des ersten Abstandhalters (die Toolbar hat
       // eigenen Innenabstand); +6 px wie der Einzug in Apple Mail.
       const start = (content.querySelector(':scope > li[item-id="spacer"]') || content).getBoundingClientRect().left;
@@ -2380,6 +2740,20 @@ class CardEnhancer {
         "--mc-toolbar-offset",
         `${offset}px`
       );
+      // Suchfeld in jedem Bereich gleich breit (333 px wie Apple Mail): fehlt
+      // dafür Platz, wird zuerst der Abstand nach „Verfassen“ kleiner (69 → 12 px)
+      const write = content.querySelector(':scope > li[item-id="write-message"]');
+      const search = content.querySelector(':scope > li[item-id="search-bar"]');
+      if (write && search && write.getBoundingClientRect().width) {
+        const spacer = search.previousElementSibling;
+        const gap = parseFloat(top.getComputedStyle(write).marginInlineEnd) || 0;
+        const spare = (spacer?.getAttribute("item-id") == "spacer" ? spacer.getBoundingClientRect().width : 0) -
+          (333 - search.getBoundingClientRect().width);
+        const next = Math.max(12, Math.min(69, Math.round(gap + spare)));
+        if (Math.abs(next - gap) >= 1) {
+          top.document.documentElement.style.setProperty("--mc-write-gap", `${next}px`);
+        }
+      }
       // Rechte Kante der Ordnerliste relativ zur Toolbar-Zeile: damit färbt
       // userChrome.css die Seitenleiste bis ganz nach oben grau wie in Apple Mail.
       const folderPane = win.document.getElementById("folderPane");
@@ -2442,7 +2816,9 @@ class CardEnhancer {
     const res = Services.io.getProtocolHandler("resource").QueryInterface(Ci.nsIResProtocolHandler);
     res.setSubstitution("mailcards", extensionRoot);
     this.restorers.push(() => res.setSubstitution("mailcards", null));
-    // Design in alle offenen Fenster (neue übernimmt der docObserver)
+    // Design in alle offenen Fenster (neue übernimmt der docObserver);
+    // die Version in der Adresse umgeht Thunderbirds Stylesheet-Zwischenspeicher
+    ThemeSheet.uri = `resource://mailcards/theme.css?v=${extensionVersion}`;
     ThemeSheet.init();
     for (const win of Services.wm.getEnumerator(null)) {
       ThemeSheet.applyTree(win);
@@ -2452,7 +2828,7 @@ class CardEnhancer {
       return;
     }
     const sss = Cc["@mozilla.org/content/style-sheet-service;1"].getService(Ci.nsIStyleSheetService);
-    const uri = Services.io.newURI("resource://mailcards/icon-vars.css");
+    const uri = Services.io.newURI(`resource://mailcards/icon-vars.css?v=${extensionVersion}`);
     if (!sss.sheetRegistered(uri, sss.USER_SHEET)) {
       sss.loadAndRegisterSheet(uri, sss.USER_SHEET);
     }
@@ -3057,6 +3433,7 @@ class CardEnhancer {
 
 var enhancer = null;
 var extensionRoot = null; // rootURI der Erweiterung, für resource://mailcards/
+var extensionVersion = ""; // hängt an den Stylesheet-Adressen, damit ein Update sofort greift
 
 this.mailCards = class extends ExtensionCommon.ExtensionAPI {
   getAPI(context) {
@@ -3064,6 +3441,7 @@ this.mailCards = class extends ExtensionCommon.ExtensionAPI {
       mailCards: {
         async start(options) {
           extensionRoot ||= context.extension.rootURI;
+          extensionVersion ||= context.extension.version;
           if (enhancer) {
             return;
           }
@@ -3084,6 +3462,7 @@ this.mailCards = class extends ExtensionCommon.ExtensionAPI {
       return;
     }
     extensionRoot = this.extension.rootURI;
+    extensionVersion = this.extension.version;
     log("start (onStartup)", { version: this.extension.version }, Services.appinfo.version);
     enhancer = new CardEnhancer({});
     enhancer.start();

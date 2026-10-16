@@ -526,19 +526,34 @@ calendar-month-day-box[relation="today"] .calendar-month-day-label {
   font-weight: 600 !important;
 }
 
-/* Termine: Text mit farbigem Strich, Uhrzeit rechts in Grau */
+/* Termine wie Apple Kalender: kleiner senkrechter Farbbalken mit runden
+   Enden vor dem Titel, Uhrzeit rechts in Grau */
 calendar-month-day-box-item {
   min-height: 0 !important;
   height: 18px !important;
   margin: 0 0 1px !important;
-  padding: 0 6px 0 8px !important;
+  padding: 0 6px 0 4px !important;
   border: none !important;
-  border-radius: 3px !important;
+  border-radius: 4px !important;
   background: transparent !important;
   color: var(--mt-text) !important;
   font-size: 12px !important;
-  box-shadow: inset 3px 0 0 var(--item-backcolor) !important;
+  box-shadow: none !important;
   align-items: center !important;
+}
+
+calendar-month-day-box-item:not([allday])::before {
+  content: "" !important;
+  flex: none !important;
+  width: 4px !important;
+  height: 12px !important;
+  margin-inline-end: 6px !important;
+  border-radius: 2px !important;
+  background-color: var(--item-backcolor) !important;
+}
+
+calendar-month-day-box-item[selected]::before {
+  background-color: rgba(255, 255, 255, 0.9) !important;
 }
 
 calendar-month-day-box-item .item-time-label {
@@ -3035,4 +3050,81 @@ menupopup menucaption {
   margin: 0 !important;
   padding: 4px !important;
   border-radius: 999px !important;
+}
+
+
+/* Aufgaben: gefiltert wird über das Suchfeld oben rechts (die Erweiterung
+   leitet die Eingabe an den Aufgabenfilter weiter) – kein zweites Suchfeld */
+box:has(> #task-text-filter-field) {
+  display: none !important;
+}
+
+/* ---------- Monatsansicht: „+N weitere“ und Zoom ----------
+   (Knopf und --mc-month-zoom setzt die Erweiterung) */
+calendar-month-day-box {
+  position: relative !important;
+}
+
+/* Termine, die nicht mehr ganz passen, weichen der Zeile „+N weitere“ */
+calendar-month-day-box .calendar-month-day-box-list > li[data-mc-cut] {
+  visibility: hidden !important;
+}
+
+calendar-month-day-box[mc-has-more] .calendar-month-day-box-list {
+  overflow: hidden !important;
+}
+
+calendar-month-day-box > .mc-more {
+  position: absolute !important;
+  inset-inline: 4px !important;
+  bottom: 3px !important;
+  height: 16px !important;
+  min-height: 0 !important;
+  margin: 0 !important;
+  padding: 0 6px !important;
+  border: none !important;
+  border-radius: 999px !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  font-size: 11px !important;
+  font-weight: 600 !important;
+  line-height: 16px !important;
+  text-align: start !important;
+  color: var(--mt-text-secondary) !important;
+  cursor: pointer !important;
+}
+
+calendar-month-day-box > .mc-more:hover {
+  background: var(--mt-control) !important;
+  color: var(--mt-text) !important;
+}
+
+/* Zoom: Wochenzeilen höher, die Ansicht scrollt */
+#month-view[mc-zoomed] {
+  overflow-y: auto !important;
+}
+
+/* (Höhe der Tabelle setzt die Erweiterung in Pixeln) */
+
+/* gemeinsame Seitenleisten-Breite (setzt die Erweiterung): keine festen
+   Mindestbreiten, die einzelne Bereiche breiter machen würden */
+:is(#listPaneBox, #calSidebar, #accountTreeBox, #pref-category-box) {
+  min-width: 160px !important;
+}
+
+/* Adressbuch: Thunderbird schreibt der Bücherliste mindestens 240 px vor
+   (Variable am body von about:addressbook) */
+body {
+  --ab-pane-min-width: 160px !important;
+}
+
+/* keine waagrechte Trennlinie unter der Toolbar-Zeile – in keinem Bereich */
+#unifiedToolbarContainer::after {
+  display: none !important;
+}
+
+/* Adressbuch: kein Import-Knopf unten in der Seitenleiste – Importieren
+   steht wie bei Apple Kontakte in der Menüleiste (Tools → Import…) */
+#booksPaneImport {
+  display: none !important;
 }

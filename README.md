@@ -15,6 +15,8 @@ Apple-Stil und eine Erweiterung für alles, was CSS allein nicht kann.
   Konto-Etiketten in den Kontofarben
 - dieselbe Toolbar in jedem Bereich, Suchfeld oben rechts
 - Hell und Dunkel folgen automatisch dem System
+- Kalender laden schneller: Offline-Unterstützung für Online-Kalender wird
+  eingeschaltet (nur wo die Einstellung nie geändert wurde)
 
 ## Installation
 
@@ -57,4 +59,5 @@ und würde Updates verdecken (`install.sh` legt sie beiseite).
 am Ende die Befehle zum Veröffentlichen aus (`git push`, `gh release create`).
 Abschalten lässt sich das mitgelieferte Design über die Einstellung
 `extensions.mailcards.bundledTheme = false`, die eigenen Symbole über
-`extensions.mailcards.appleIcons = false`.
+`extensions.mailcards.appleIcons = false`, die automatische
+Offline-Unterstützung für Kalender über `extensions.mailcards.calendarOffline = false`.
