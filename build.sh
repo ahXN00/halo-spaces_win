@@ -24,7 +24,11 @@ python3 - "$TMP/ext/manifest.json" <<'PY'
 import json, sys
 p = sys.argv[1]
 m = json.load(open(p))
-m["browser_specific_settings"]["gecko"].pop("update_url", None)
+g = m["browser_specific_settings"]["gecko"]
+g.pop("update_url", None)
+# der Store verlangt für Experiment-Add-ons eine Obergrenze (store/max-version,
+# neueste getestete Thunderbird-Version – mit jeder neuen Version anheben)
+g["strict_max_version"] = open("store/max-version").read().strip()
 json.dump(m, open(p, "w"), indent=2, ensure_ascii=False)
 PY
 rm -f "$STORE"

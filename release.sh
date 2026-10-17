@@ -46,6 +46,11 @@ if [[ -z "$SKIP_TESTS" ]]; then
   # die nächste Thunderbird-Version: Fehler dort sind eine Warnung, kein Abbruch
   if [[ "$OSTYPE" == darwin* && -z "$SKIP_BETA" ]]; then
     tests/beta.sh --xpi "$XPI" || echo "WARNUNG: Tests mit Thunderbird Beta fehlgeschlagen (SKIP_BETA=1 überspringt)"
+    BETA=$(defaults read "$HOME/Library/Caches/halo-spaces/tb-beta/Thunderbird Beta.app/Contents/Info.plist" CFBundleShortVersionString 2>/dev/null | cut -d. -f1)
+    MAX=$(cut -d. -f1 store/max-version)
+    if [[ -n "$BETA" && "$BETA" -gt "$MAX" ]]; then
+      echo "HINWEIS: Thunderbird Beta $BETA ist neuer als store/max-version ($MAX.*) – nach erfolgreichem Test anheben, sonst sperrt Thunderbird die Store-Version ab $((MAX + 1))"
+    fi
   fi
 fi
 ID=$(python3 -c "import json; print(json.load(open('extension/manifest.json'))['browser_specific_settings']['gecko']['id'])")

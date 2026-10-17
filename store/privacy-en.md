@@ -8,7 +8,7 @@ Network requests it makes:
 
 2. Contact photos that you have stored as a web link in your own address book are loaded from that link.
 
-3. Update checks: Thunderbird itself checks addons.thunderbird.net for new versions, as with every add-on.
+3. Update checks: like every add-on, Thunderbird checks addons.thunderbird.net for new versions. halo.spaces also starts this check once when Thunderbird starts (at most every 6 hours; can be turned off: Preferences → "Install updates at start"). No data other than the add-on ID and version is sent.
 
 Data stored locally (only in your Thunderbird profile): the logo cache, your halo.spaces settings, and – only if you turn on "Detailed log" – a debug log file that may contain sender addresses.
 

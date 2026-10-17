@@ -19,8 +19,14 @@ ready to paste; the package is `dist/halo-spaces-<version>-atn.xpi`
 | License | Mozilla Public License 2.0 |
 | Privacy policy | `privacy-en.md` (required: the add-on loads sender logos) |
 | Notes to reviewer | `reviewer-notes.md` |
-| Screenshots | `../screenshots/mail.png`, `calendar.png`, `addressbook.png`, `quick-event.png` (personal data blurred) |
+| Screenshots | `shot-mail.png`, `shot-calendar.png`, `shot-addressbook.png`, `shot-quick-event.png` (1280 px wide, personal data blurred) |
 | Icon | `../extension/about/icon.svg` (export as 128×128 PNG: `store/icon-128.png`) |
 
 Later versions: `./publish.sh <version> notes.md` also uploads the store
 package when `~/.config/halo-spaces/atn.env` exists (see `atn_upload.py`).
+
+Notes from the first submission (2026-10-17):
+- ATN stores no 4-byte characters: emoji in description or captions make saving fail silently.
+- Experiment add-ons need `strict_max_version` (store/max-version) – raise it with every new Thunderbird release after testing.
+- The upload sometimes fails with "status: 502" – just upload again.
+- Source code upload is needed (theme.css is generated): `git archive` of the release plus the current build.sh/store files; reviewer notes contain the build steps.

@@ -10,6 +10,7 @@ Ein ruhiges, aufgeräumtes Design im Stil von macOS für Thunderbird: farbige Be
 <ul>
 <li>Mailkarten mit zweizeiliger Vorschau und Absenderbildern: aus dem Adressbuch, der macOS-Kontakte-App (optional), dem BIMI-Logo oder Website-Symbol des Absenders, sonst Initialen</li>
 <li>Optional: Markieren, Archivieren und Löschen direkt auf der Karte, wenn man darüberfährt (Einstellungen)</li>
+<li>Mailkopf wie in Apple Mail: Absenderbild, Ordner und Uhrzeit, Verteiler-Hinweis mit Abmelden, Antworten und Weiterleiten auf der Trennlinie</li>
 <li>Gemeinsame Posteingänge, der Posteingang immer zuerst, das Suchfeld oben rechts</li>
 </ul>
 
@@ -17,7 +18,7 @@ Ein ruhiges, aufgeräumtes Design im Stil von macOS für Thunderbird: farbige Be
 <ul>
 <li>Umschalter für Tag, Woche, Mehrere Wochen und Monat in der Titelleiste, Monatsansicht ohne Scrollbalken</li>
 <li>Schnellfenster für Termine: einfach schreiben – „morgen 12:30 für 90 min“, „Fr 9–11“. Auch ein Doppelklick im Kalender öffnet es</li>
-<li>Passende Emojis vor Termintiteln (🎂 Geburtstag, 🦷 Zahnarzt …), mit eigenen Stichwörtern</li>
+<li>Passende Emojis vor Termintiteln (Geburtstag, Zahnarzt, Training …), mit eigenen Stichwörtern</li>
 <li>Geburtstage aus den Adressbüchern als eigener, schreibgeschützter Kalender</li>
 </ul>
 

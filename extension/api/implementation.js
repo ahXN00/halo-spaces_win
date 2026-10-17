@@ -4237,7 +4237,12 @@ class CardEnhancer {
         btn.className = "mc-pop-item";
         const circle = d.createElementNS(NS, "span");
         circle.className = "mc-pop-icon";
-        circle.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">${ICONS[icon]}</svg>`;
+        // festes, eingebautes Symbol – per DOMParser statt innerHTML
+        const svg = new w.DOMParser().parseFromString(
+          `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">${ICONS[icon]}</svg>`,
+          "image/svg+xml"
+        ).documentElement;
+        circle.append(d.importNode(svg, true));
         const text = d.createElementNS(NS, "span");
         text.className = "mc-pop-label";
         text.textContent = label;

@@ -10,6 +10,7 @@ A calm, tidy macOS-style design for Thunderbird: colourful spaces, message cards
 <ul>
 <li>Message cards with a two-line preview and sender pictures: from your address book, macOS Contacts (optional), the sender's BIMI logo or website icon, otherwise initials</li>
 <li>Optional: flag, archive and delete right on the card when you hover over it (Preferences)</li>
+<li>Message header like Apple Mail: sender picture, folder and time, a mailing-list note with Unsubscribe, Reply and Forward on the divider</li>
 <li>Unified inboxes, Inbox always first, the search field top right</li>
 </ul>
 
@@ -17,7 +18,7 @@ A calm, tidy macOS-style design for Thunderbird: colourful spaces, message cards
 <ul>
 <li>Day, week, multiweek and month switcher in the title bar, a month view without scrollbars</li>
 <li>Quick event window: type naturally – “tomorrow 12:30 for 90 min”, “Fri 9–11”. A double-click in the calendar opens it too</li>
-<li>Matching emoji before event titles (🎂 birthday, 🦷 dentist …), with your own keywords</li>
+<li>Matching emoji before event titles (birthday, dentist, training …), with your own keywords</li>
 <li>Birthdays from your address books as their own read-only calendar</li>
 </ul>
 
