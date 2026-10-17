@@ -211,7 +211,7 @@ def take_shots(m, folder, scheme):
         ("message-remote", """const { MailServices } = ChromeUtils.importESModule("resource:///modules/MailServices.sys.mjs"); await toMail(); const f = MailServices.accounts.localFoldersServer.rootFolder.getChildNamed("Schrift");
           const a3 = tm.currentAbout3Pane; a3.displayFolder(f.URI); await wait(800);
           for (let i = 0; i < a3.gDBView.rowCount; i++) if (a3.gDBView.getMsgHdrAt(i).subject == "Schrift 1") a3.threadTree.selectedIndex = i;
-          await wait(3500);"""),
+          await wait(6000);"""),
         ("mail-1280", "w.resizeTo(1280, 900); await wait(1200); await toMail();"),
         ("calendar-week", 'await toCalendar(); w.switchToView("week"); await wait(800);'),
         ("calendar-month", 'await toCalendar(); w.switchToView("month"); await wait(800);'),
@@ -514,7 +514,8 @@ def run_checks(m, version, profile, results):
           await until(() => a3.document.querySelectorAll('#threadTree tr[is="thread-card"] .mc-act-flag').length >= 2, 15000);
           const rows = a3.document.querySelectorAll('#threadTree tr[is="thread-card"]');
           if (!rows[0]?.querySelector(".mc-act-flag")) {
-            return { diag: true, rows: rows.length, tableRows: a3.document.querySelectorAll('#threadTree tr[is="thread-row"]').length,
+            return { diag: true, rows: rows.length, avatars: a3.document.querySelectorAll('#threadTree tr[is="thread-card"] .mc-avatar').length,
+                     patched: !!a3.document.__mcPatched, tableRows: a3.document.querySelectorAll('#threadTree tr[is="thread-row"]').length,
                      pref: Services.prefs.getBoolPref("extensions.mailcards.hoverActions", false), msgs: inbox.getTotalMessages(false),
                      folder: a3.gFolder?.URI == inbox.URI, view: Services.prefs.getIntPref("mail.threadpane.listview", -1) };
           }
@@ -585,7 +586,7 @@ def run_checks(m, version, profile, results):
           const root = MailServices.accounts.localFoldersServer.rootFolder;
           if (!root.containsChildNamed("Schrift")) { root.createSubfolder("Schrift", null); await wait(800); }
           const f = root.getChildNamed("Schrift"); const lf = f.QueryInterface(Ci.nsIMsgLocalMailFolder);
-          const mail = (n, body) => `From - Sat Oct 17 10:00:00 2026\r\nFrom: Halo <h@example.invalid>\r\nSubject: Schrift ${n}\r\nDate: Sat, 17 Oct 2026 10:0${n}:00 +0200\r\nMessage-ID: <halo-font-${n}@example.invalid>\r\nMIME-Version: 1.0\r\nContent-Type: text/html; charset=UTF-8\r\n\r\n${body}\r\n\r\n`;
+          const mail = (n, body) => `From: Halo <h@example.invalid>\r\nSubject: Schrift ${n}\r\nDate: Sat, 17 Oct 2026 10:0${n}:00 +0200\r\nMessage-ID: <halo-font-${n}@example.invalid>\r\nMIME-Version: 1.0\r\nContent-Type: text/html; charset=UTF-8\r\n\r\n${body}\r\n\r\n`;
           if (!f.getTotalMessages(false)) {
             lf.addMessage(mail(1, "<html><body><p id='t'>Ohne eigene Schrift</p><img src='https://example.invalid/bild.png' width='1' height='1'></body></html>"));
             lf.addMessage(mail(2, "<html><body style='font-family: Georgia, serif'><p id='t'>Mit eigener Schrift</p></body></html>"));
@@ -607,6 +608,23 @@ def run_checks(m, version, profile, results):
         ok = "apple-system" in plain and own.startswith("Georgia") and not res["pill"] and res["dates"] == 1
         return ok, f"{res}"
     check("Mails in Systemschrift, eigene Schrift bleibt, keine Kapsel im Kopf", html_font, results)
+
+    def remote_bar():
+        res = m.js(r"""
+          const { MailServices } = ChromeUtils.importESModule("resource:///modules/MailServices.sys.mjs");
+          const f = MailServices.accounts.localFoldersServer.rootFolder.getChildNamed("Schrift");
+          const a3 = await toMail(); a3.displayFolder(f.URI); await wait(800);
+          for (let i = 0; i < a3.gDBView.rowCount; i++) if (a3.gDBView.getMsgHdrAt(i).subject == "Schrift 1") a3.threadTree.selectedIndex = i;
+          const md = a3.messageBrowser.contentDocument; const mw = md.defaultView;
+          const n = await until(() => md.querySelector('#mail-notification-top notification-message[value="remoteContent"]'));
+          await until(() => n?.shadowRoot?.querySelector("style.mc-layout"), 3000); await wait(600);
+          const text = n?.shadowRoot?.querySelector(".text-container")?.getBoundingClientRect();
+          const btn = n?.querySelector("button")?.getBoundingClientRect();
+          return { bar: !!n, styled: !!n?.shadowRoot?.querySelector("style.mc-layout"), paneWidth: Math.round(md.documentElement.clientWidth),
+                   sameRow: !!(text && btn && btn.top < text.bottom && btn.left >= text.right - 1), bg: n && mw.getComputedStyle(n).backgroundColor };""")
+        yellow = res.get("bg", "").startswith("rgb(255, 2")
+        return res.get("bar") and res.get("styled") and res.get("sameRow") and yellow, f"{res}"
+    check("Hinweis über der Mail: Knopf neben dem Text, Farbe unverändert", remote_bar, results)
 
     def birthdays():
         res = m.js('''

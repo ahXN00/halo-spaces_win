@@ -2349,6 +2349,10 @@ class CardEnhancer {
           if (/^about:(3pane|message)/.test(url) && win) {
             win.addEventListener("DOMContentLoaded", () => {
               this.hookMailContext(doc);
+              // neu geladene Mailansicht gleich einrichten (Karten, Bilder, …)
+              if (url.startsWith("about:3pane")) {
+                this.patch(win, 0);
+              }
               if (url.startsWith("about:message")) {
                 this.hookHeaderAvatar(doc);
               }
@@ -6217,7 +6221,9 @@ class CardEnhancer {
   }
 
   patch(win, attempt) {
-    if (this.windows.has(win) || win.closed) {
+    // Merkmal an der Seite selbst: lädt Thunderbird die Mailansicht neu, bleibt
+    // das Fensterobjekt dasselbe, die Seite (und ihre Karten) aber ist neu
+    if (win.closed || (this.windows.has(win) && win.document?.__mcPatched)) {
       return;
     }
     const Card = win.customElements?.get("thread-card");
@@ -6231,12 +6237,22 @@ class CardEnhancer {
     }
     this.windows.add(win);
     const doc = win.document;
-    this.hookMailContext(doc);
-    colorAccountRows(doc, this.restorers);
+    doc.__mcPatched = true;
+    // Nebenschritte einzeln absichern: ein Fehler darin darf das Einrichten
+    // der Karten nicht abbrechen (sonst fehlen Bilder, Vorschau und Knöpfe)
+    const safely = (name, fn) => {
+      try {
+        fn();
+      } catch (e) {
+        log("patch step error", name, e);
+      }
+    };
+    safely("mail context", () => this.hookMailContext(doc));
+    safely("account rows", () => colorAccountRows(doc, this.restorers));
     const mb = win.messageBrowser?.contentDocument;
     if (mb?.readyState == "complete") {
-      this.hookMailContext(mb);
-      this.hookHeaderAvatar(mb);
+      safely("message context", () => this.hookMailContext(mb));
+      safely("message header", () => this.hookHeaderAvatar(mb));
     }
     const threadPane = win.threadPane;
 
@@ -6833,6 +6849,7 @@ class CardEnhancer {
     });
     mo.observe(doc.getElementById("messageHeader") || doc.documentElement, { childList: true, subtree: true });
     run();
+    this.hookNotificationLayout(doc);
     this.restorers.push(() => {
       mo.disconnect();
       delete doc.__mcHdrAvatar;
@@ -6847,6 +6864,48 @@ class CardEnhancer {
       for (const box of doc.querySelectorAll(".mc-hdr-avatar")) {
         box.classList.remove("mc-hdr-avatar", "mc-has-img", "mc-small");
         delete box.dataset.mcFor;
+      }
+    });
+  }
+
+  // Hinweise über der Mail (entfernte Inhalte, Spam …): bei wenig Platz bricht
+  // der Text in seiner Spalte um, der Knopf bleibt rechts daneben – statt in
+  // eine eigene Zeile darunter zu rutschen. Thunderbirds moz-message-bar legt
+  // das im Schatten-DOM fest (flex-wrap ohne Variable), daher eine kleine
+  // Stilregel dort hinein; Farben bleiben unverändert.
+  hookNotificationLayout(doc) {
+    const win = doc.defaultView;
+    const box = doc.getElementById("mail-notification-top");
+    if (!win || !box || box.__mcLayout) {
+      return;
+    }
+    box.__mcLayout = true;
+    const CSS_TEXT = `
+      .container { align-items: flex-start; }
+      .content { flex-wrap: nowrap; column-gap: 12px; }
+      .text-container { flex: 1 1 auto; min-width: 0; }
+      .actions.active { flex: none; }
+      /* sehr schmal: Knopf doch unter den Text */
+      @media (max-width: 420px) { .content { flex-wrap: wrap; } }`;
+    const apply = () => {
+      for (const n of box.querySelectorAll("notification-message")) {
+        const root = n.shadowRoot;
+        if (root && !root.querySelector("style.mc-layout")) {
+          const style = doc.createElementNS("http://www.w3.org/1999/xhtml", "style");
+          style.className = "mc-layout";
+          style.textContent = CSS_TEXT;
+          root.append(style);
+        }
+      }
+    };
+    const mo = new win.MutationObserver(() => win.setTimeout(apply, 0));
+    mo.observe(box, { childList: true, subtree: true });
+    apply();
+    this.restorers.push(() => {
+      mo.disconnect();
+      delete box.__mcLayout;
+      for (const n of box.querySelectorAll("notification-message")) {
+        n.shadowRoot?.querySelector("style.mc-layout")?.remove();
       }
     });
   }

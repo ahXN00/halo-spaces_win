@@ -6525,35 +6525,4 @@ notification-message:not([type="warning"]) button.notification-button {
   content: "✕" !important;
   font-size: 11px !important;
 }
-
-/* Hinweise über der Mail (entfernte Inhalte, Spam, Lesebestätigung …) wie der
-   Verteiler-Hinweis: grau statt gelb, kompakt. Das Innere liegt im Schatten-DOM –
-   dort greifen nur die Variablen von moz-message-bar. Die Betrugswarnung
-   (maybeScam) bleibt gelb und auffällig. */
-#mail-notification-top notification-message:not([value="maybeScam"]) {
-  --message-bar-background-color: var(--mt-control) !important;
-  --message-bar-text-color: var(--mt-text) !important;
-  --message-bar-border-color: transparent !important;
-  --message-bar-border-radius: 12px !important;
-  margin: 10px 12px 2px !important;
-  font: 600 12.5px var(--mt-font, system-ui) !important;
-  box-shadow: none !important;
-}
-
-#mail-notification-top notification-message:not([value="maybeScam"]) .notification-button {
-  appearance: none !important;
-  min-height: 26px !important;
-  margin: 0 !important;
-  padding: 0 12px !important;
-  border: none !important;
-  border-radius: 999px !important;
-  background: color-mix(in srgb, var(--mt-accent) 14%, transparent) !important;
-  color: var(--mt-accent) !important;
-  font: inherit !important;
-  box-shadow: none !important;
-}
-
-#mail-notification-top notification-message:not([value="maybeScam"]) .notification-button:hover {
-  background: color-mix(in srgb, var(--mt-accent) 22%, transparent) !important;
-}
 /* ==== Ende Bereiche ==== */
