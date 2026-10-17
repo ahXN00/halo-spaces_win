@@ -3935,6 +3935,13 @@ class CardEnhancer {
           def = w.getSelectedCalendar?.();
         } catch {}
         f.calendar.value = list.some(c => c.id == current) ? current : (list.some(c => c.id == def?.id) ? def.id : list[0]?.id || "");
+        // kein passender Kalender (z. B. keiner kann Aufgaben): sagen statt still nichts tun
+        if (!list.length) {
+          f.calendar.replaceChildren(el("option", { value: "" },
+            state.mode == "task" ? t("Kein Kalender für Aufgaben", "No calendar for tasks") : t("Kein beschreibbarer Kalender", "No writable calendar")));
+        }
+        f.add.disabled = !list.length;
+        f.more.disabled = !list.length;
         updateColor();
       };
       const selectedCalendar = () => cal.manager.getCalendarById(f.calendar.value);
@@ -4026,6 +4033,9 @@ class CardEnhancer {
       calMenu.id = "mcQuickCalMenu";
       panel.append(calMenu);
       const openCalMenu = () => {
+        if (!calendars().length) {
+          return;
+        }
         const current = f.calendar.value;
         calMenu.replaceChildren(...calendars().map(c => {
           const item = d.createXULElement("menuitem");

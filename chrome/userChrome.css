@@ -339,8 +339,6 @@ body.layout-wide {
   font-weight: 400 !important;
 }
 
-/* Ausgewählter Ordner: Symbol bleibt grau wie in Apple Mail */
-
 #folderTree .account-indicator {
   display: none !important;
 }
@@ -435,8 +433,6 @@ hr[is="pane-splitter"],
 }
 
 #threadPaneFolderName {
-  font-size: 15px !important;
-  font-weight: 700 !important;
   color: var(--mt-text) !important;
 }
 
@@ -634,15 +630,6 @@ hr[is="pane-splitter"],
   visibility: hidden !important;
 }
 
-/* ⋮-Menü nur beim Überfahren mit der Maus */
-#threadTree tr[is="thread-card"] .tree-button-more {
-  opacity: 0 !important;
-}
-
-#threadTree tr[is="thread-card"]:hover .tree-button-more {
-  opacity: 1 !important;
-}
-
 /* Klassische Tabellenansicht (falls verwendet) */
 #threadTree tr:not([is="thread-card"]).selected,
 #threadTree tr:not([is="thread-card"])[aria-selected="true"] {
@@ -675,7 +662,6 @@ hr[is="pane-splitter"],
   background: var(--mt-window) !important;
   border: none !important;
   border-bottom: 1px solid var(--mt-separator) !important;
-  padding: 14px 20px 12px !important;
   font-family: var(--mt-font) !important;
 }
 
@@ -894,10 +880,9 @@ hr[is="pane-splitter"],
 }
 
 #unifiedToolbarContent > li[item-id="search-bar"] {
-  /* Apple Mail: 333 × 38 px – in jedem Bereich gleich breit; nur wenn das
-     Fenster selbst zu schmal ist, wird es kleiner */
-  /* wird bei Platzmangel zuerst schmaler (bis 160 px) – erst danach rücken
-     die Knöpfe von der Kante der Mailliste ab */
+  /* Apple Mail: 333 × 38 px – in jedem Bereich gleich breit. In der Mail
+     weichen bei Platzmangel zuerst unwichtige Knöpfe (die Erweiterung blendet
+     sie aus), bevor das Suchfeld unter 160 px schrumpft */
   flex: 0 50 333px !important;
   max-width: 333px !important;
   min-width: 160px !important;
@@ -1369,6 +1354,13 @@ hr[is="pane-splitter"],
   align-items: center !important;
 }
 
+@media (prefers-color-scheme: dark) {
+  /* im Dunkeln heller gemischt, sonst dunkles Symbol auf dunkler Leiste */
+  #spacesToolbar .spaces-toolbar-button {
+    color: color-mix(in srgb, var(--c) 75%, #f5f5f7) !important;
+  }
+}
+
 #spacesToolbar #mailButton { --c: #0A84FF; }
 #spacesToolbar #addressBookButton { --c: #30B850; }
 #spacesToolbar #calendarButton { --c: #FF8A00; }
@@ -1700,18 +1692,6 @@ unified-toolbar {
   display: none !important;
 }
 
-/* Waagerechte Trennlinie unter der Toolbar-Zeile über Mailliste und Mail
-   (nicht über der Seitenleiste) – wie Apple Mail */
-:root[mc-mail] #unifiedToolbarContainer::after {
-  content: "" !important;
-  position: absolute !important;
-  inset-inline-start: var(--mc-sidebar-right, 0px) !important;
-  inset-inline-end: 0 !important;
-  bottom: 0 !important;
-  height: 1px !important;
-  background-color: var(--mt-pane-line) !important;
-  pointer-events: none !important;
-}
 
 /* ==== Bereiche: Kalender, Aufgaben, Adressbuch, Chat, Einstellungen ==== */
 
@@ -1724,17 +1704,6 @@ unified-toolbar {
     var(--mt-sidebar-border) var(--mc-side-right, 0px) calc(var(--mc-side-right, 0px) + 1px),
     var(--mt-window) calc(var(--mc-side-right, 0px) + 1px)
   ) !important;
-}
-
-:root:is([mc-tab="calendar"], [mc-tab="tasks"], [mc-tab="chat"], [mc-tab="addressBookTab"], [mc-tab="preferencesTab"], [mc-tab="contentTab"]) #unifiedToolbarContainer::after {
-  content: "" !important;
-  position: absolute !important;
-  inset-inline-start: var(--mc-side-right, 0px) !important;
-  inset-inline-end: 0 !important;
-  bottom: 0 !important;
-  height: 1px !important;
-  background-color: var(--mt-pane-line) !important;
-  pointer-events: none !important;
 }
 
 /* ---------- Kalender wie Apple Kalender ---------- */
@@ -1898,6 +1867,12 @@ unified-toolbar {
 
 #calendar-list > li:hover .calendar-more-button {
   opacity: 0.6 !important;
+}
+
+/* Sync-Fehler und schreibgeschützte Kalender bleiben erkennbar (Thunderbirds
+   Symbol mit Tooltip) – nur im Normalfall ist es ausgeblendet */
+#calendar-list > li:is([calendar-readfailed], [calendar-readonly]) .calendar-readstatus {
+  opacity: 0.75 !important;
 }
 
 #sideButtonsBottom {
@@ -2378,12 +2353,14 @@ calendar-month-day-box-item[allday] {
 /* ausgewählter Termin: kräftig gefüllt wie bei Apple */
 calendar-month-day-box-item[selected] {
   background: var(--item-backcolor) !important;
-  color: white !important;
+  /* Thunderbird berechnet die lesbare Schriftfarbe zur Kalenderfarbe */
+  color: var(--item-forecolor, white) !important;
   box-shadow: none !important;
 }
 
 calendar-month-day-box-item[selected] .item-time-label {
-  color: rgba(255, 255, 255, 0.85) !important;
+  color: var(--item-forecolor, white) !important;
+  opacity: 0.85 !important;
 }
 
 calendar-month-day-box .calendar-month-day-box-list {
@@ -2498,7 +2475,7 @@ calendar-event-box.calendar-color-box .calendar-item-container {
 
 calendar-event-box.calendar-color-box[selected] {
   background: var(--item-backcolor) !important;
-  color: white !important;
+  color: var(--item-forecolor, white) !important;
   box-shadow: none !important;
 }
 
@@ -2519,7 +2496,7 @@ calendar-event-box :is(.alarm-icons-box, .item-classification-icon, .item-recurr
 
 .allday-events-list .calendar-color-box[selected] {
   background: var(--item-backcolor) !important;
-  color: white !important;
+  color: var(--item-forecolor, white) !important;
 }
 
 .allday-events-list .calendar-color-box :is(.item-type-icon, .alarm-icons-box, .item-classification-icon, .item-recurrence-icon, .calendar-category-box) {
@@ -2967,7 +2944,7 @@ calendar-event-box :is(.alarm-icons-box, .item-classification-icon, .item-recurr
 }
 
 #cards:focus-within .card-layout.selected :is(.name, .ab-card-second-line, .address) {
-  color: white !important;
+  color: var(--mt-accent-text) !important;
 }
 
 /* Kontaktdetails: großes Foto mittig, Name darunter, Daten in Karten */
@@ -3436,10 +3413,6 @@ search-bar {
 }
 
 /* ---------- Add-ons-Verwaltung ---------- */
-:root[mc-tab="contentTab"] #unifiedToolbarContainer::after {
-  inset-inline-start: var(--mc-side-right, 0px) !important;
-}
-
 #sidebar:has(categories-box) {
   background: var(--mt-sidebar) !important;
   border-inline-end: 1px solid var(--mt-sidebar-border) !important;
@@ -3508,11 +3481,18 @@ addon-page-header h1,
 
 #composeToolbar2 {
   min-height: 52px !important;
-  /* oben Platz für die Titelzeile mit den Fensterknöpfen */
-  padding: 26px 12px 8px !important;
+  padding: 8px 12px !important;
   gap: 6px !important;
   border-bottom: 1px solid var(--mt-pane-line) !important;
   align-items: center !important;
+}
+
+/* oben Platz für die Titelzeile mit der Ampel – nur auf dem Mac (unter
+   Windows/Linux hat das Verfassen-Fenster eine eigene Titelleiste) */
+@media (-moz-platform: macos) {
+  #composeToolbar2 {
+    padding-top: 26px !important;
+  }
 }
 
 #composeToolbar2 > toolbarbutton,
@@ -3808,8 +3788,8 @@ addon-page-header h1,
 }
 
 #cards:focus-within .card-layout.selected .mc-book {
-  background: rgba(255, 255, 255, 0.25) !important;
-  color: white !important;
+  background: color-mix(in srgb, var(--mt-accent-text) 25%, transparent) !important;
+  color: var(--mt-accent-text) !important;
 }
 
 /* Thunderbirds eigene Adressbuch-Angabe wäre doppelt */
@@ -6248,6 +6228,10 @@ notification-message:not([type="warning"]) button.notification-button {
 #mcQuickPanel .mc-qc-primary {
   background: var(--mt-accent) !important;
   color: var(--mt-accent-text) !important;
+}
+
+#mcQuickPanel :is(.mc-qc-btn, .mc-qc-link)[disabled] {
+  opacity: 0.45 !important;
 }
 
 #mcQuickPanel .mc-qc-primary:hover {

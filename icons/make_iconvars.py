@@ -14,6 +14,7 @@ Aufruf: python3 make_iconvars.py   → schreibt ../extension/icons/*.svg und ../
 import math
 import os
 import re
+import sys
 
 from make_icons import ICONS, STROKE
 
@@ -240,6 +241,14 @@ def tb_names():
 
 
 def main():
+    # Ohne Thunderbirds icons.css fehlen die Größenvarianten (-12, -20, -24 …):
+    # dann nicht den vollständigen Satz im Repo durch einen kleineren ersetzen
+    if not (TB_ICONS_CSS and os.path.exists(TB_ICONS_CSS)) and "--minimal" not in sys.argv:
+        raise SystemExit(
+            "TB_ICONS_CSS fehlt (Pfad zu icons.css aus den Thunderbird-Quellen) – ohne sie "
+            "entstünden nur die Grundgrößen und vorhandene Symbole würden gelöscht.\n"
+            "Aufruf: TB_ICONS_CSS=…/icons.css python3 make_iconvars.py  (oder --minimal)"
+        )
     folder = os.path.join(OUT, "icons")
     os.makedirs(folder, exist_ok=True)
     for old in os.listdir(folder):

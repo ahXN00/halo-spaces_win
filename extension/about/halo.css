@@ -33,7 +33,7 @@ body {
   margin: 0;
   background: var(--window);
   color: var(--text);
-  font: 13px/1.4 -apple-system, "SF Pro Text", "Helvetica Neue", sans-serif;
+  font: 13px/1.4 -apple-system, "SF Pro Text", system-ui, "Helvetica Neue", sans-serif;
   -moz-user-select: none;
   user-select: none;
 }

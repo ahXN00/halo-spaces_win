@@ -11,17 +11,6 @@
   ) !important;
 }
 
-:root:is([mc-tab="calendar"], [mc-tab="tasks"], [mc-tab="chat"], [mc-tab="addressBookTab"], [mc-tab="preferencesTab"], [mc-tab="contentTab"]) #unifiedToolbarContainer::after {
-  content: "" !important;
-  position: absolute !important;
-  inset-inline-start: var(--mc-side-right, 0px) !important;
-  inset-inline-end: 0 !important;
-  bottom: 0 !important;
-  height: 1px !important;
-  background-color: var(--mt-pane-line) !important;
-  pointer-events: none !important;
-}
-
 /* ---------- Kalender wie Apple Kalender ---------- */
 
 /* Seitenleiste: grau, Kalenderliste oben, Minikalender unten */
@@ -183,6 +172,12 @@
 
 #calendar-list > li:hover .calendar-more-button {
   opacity: 0.6 !important;
+}
+
+/* Sync-Fehler und schreibgeschützte Kalender bleiben erkennbar (Thunderbirds
+   Symbol mit Tooltip) – nur im Normalfall ist es ausgeblendet */
+#calendar-list > li:is([calendar-readfailed], [calendar-readonly]) .calendar-readstatus {
+  opacity: 0.75 !important;
 }
 
 #sideButtonsBottom {
@@ -663,12 +658,14 @@ calendar-month-day-box-item[allday] {
 /* ausgewählter Termin: kräftig gefüllt wie bei Apple */
 calendar-month-day-box-item[selected] {
   background: var(--item-backcolor) !important;
-  color: white !important;
+  /* Thunderbird berechnet die lesbare Schriftfarbe zur Kalenderfarbe */
+  color: var(--item-forecolor, white) !important;
   box-shadow: none !important;
 }
 
 calendar-month-day-box-item[selected] .item-time-label {
-  color: rgba(255, 255, 255, 0.85) !important;
+  color: var(--item-forecolor, white) !important;
+  opacity: 0.85 !important;
 }
 
 calendar-month-day-box .calendar-month-day-box-list {
@@ -783,7 +780,7 @@ calendar-event-box.calendar-color-box .calendar-item-container {
 
 calendar-event-box.calendar-color-box[selected] {
   background: var(--item-backcolor) !important;
-  color: white !important;
+  color: var(--item-forecolor, white) !important;
   box-shadow: none !important;
 }
 
@@ -804,7 +801,7 @@ calendar-event-box :is(.alarm-icons-box, .item-classification-icon, .item-recurr
 
 .allday-events-list .calendar-color-box[selected] {
   background: var(--item-backcolor) !important;
-  color: white !important;
+  color: var(--item-forecolor, white) !important;
 }
 
 .allday-events-list .calendar-color-box :is(.item-type-icon, .alarm-icons-box, .item-classification-icon, .item-recurrence-icon, .calendar-category-box) {
@@ -1252,7 +1249,7 @@ calendar-event-box :is(.alarm-icons-box, .item-classification-icon, .item-recurr
 }
 
 #cards:focus-within .card-layout.selected :is(.name, .ab-card-second-line, .address) {
-  color: white !important;
+  color: var(--mt-accent-text) !important;
 }
 
 /* Kontaktdetails: großes Foto mittig, Name darunter, Daten in Karten */
@@ -1721,10 +1718,6 @@ search-bar {
 }
 
 /* ---------- Add-ons-Verwaltung ---------- */
-:root[mc-tab="contentTab"] #unifiedToolbarContainer::after {
-  inset-inline-start: var(--mc-side-right, 0px) !important;
-}
-
 #sidebar:has(categories-box) {
   background: var(--mt-sidebar) !important;
   border-inline-end: 1px solid var(--mt-sidebar-border) !important;
@@ -1793,11 +1786,18 @@ addon-page-header h1,
 
 #composeToolbar2 {
   min-height: 52px !important;
-  /* oben Platz für die Titelzeile mit den Fensterknöpfen */
-  padding: 26px 12px 8px !important;
+  padding: 8px 12px !important;
   gap: 6px !important;
   border-bottom: 1px solid var(--mt-pane-line) !important;
   align-items: center !important;
+}
+
+/* oben Platz für die Titelzeile mit der Ampel – nur auf dem Mac (unter
+   Windows/Linux hat das Verfassen-Fenster eine eigene Titelleiste) */
+@media (-moz-platform: macos) {
+  #composeToolbar2 {
+    padding-top: 26px !important;
+  }
 }
 
 #composeToolbar2 > toolbarbutton,
@@ -2093,8 +2093,8 @@ addon-page-header h1,
 }
 
 #cards:focus-within .card-layout.selected .mc-book {
-  background: rgba(255, 255, 255, 0.25) !important;
-  color: white !important;
+  background: color-mix(in srgb, var(--mt-accent-text) 25%, transparent) !important;
+  color: var(--mt-accent-text) !important;
 }
 
 /* Thunderbirds eigene Adressbuch-Angabe wäre doppelt */
@@ -4533,6 +4533,10 @@ notification-message:not([type="warning"]) button.notification-button {
 #mcQuickPanel .mc-qc-primary {
   background: var(--mt-accent) !important;
   color: var(--mt-accent-text) !important;
+}
+
+#mcQuickPanel :is(.mc-qc-btn, .mc-qc-link)[disabled] {
+  opacity: 0.45 !important;
 }
 
 #mcQuickPanel .mc-qc-primary:hover {

@@ -483,7 +483,18 @@ def main():
         start = text.find("/* ==== Icons im Apple-Mail-Stil")
         end = text.find("/* ==== Ende Icons ==== */")
         if start != -1 and end != -1:
-            text = text[:start] + block + text[end + len("/* ==== Ende Icons ==== */\n"):]
+            # nur die erzeugten Symbol-Variablen (:root { --mi-… }) ersetzen –
+            # die Regeln darunter werden in userChrome.css von Hand gepflegt
+            # (eine veraltete Vorlage hier würde sie sonst zurücksetzen)
+            def root_vars(css_text, offset=0):
+                a = css_text.index(":root {", offset)
+                b = css_text.index("\n}\n", a) + 3
+                return a, b
+            ga, gb = root_vars(block)
+            ua, ub = root_vars(text, start)
+            if ub > end:
+                raise SystemExit("Symbol-Variablen in userChrome.css nicht gefunden")
+            text = text[:ua] + block[ga:gb] + text[ub:]
         else:
             anchor = "/* ---------- Menüs & Popups (wie macOS 27) ---------- */"
             text = text.replace(anchor, block + "\n" + anchor)
