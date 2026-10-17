@@ -207,6 +207,7 @@ def take_shots(m, folder, scheme):
     for name, js in [
         ("mail", "await toMail();"),
         ("message", MESSAGE_JS),
+        ("mail-1280", "w.resizeTo(1280, 900); await wait(1200); await toMail();"),
         ("calendar-week", 'await toCalendar(); w.switchToView("week"); await wait(800);'),
         ("calendar-month", 'await toCalendar(); w.switchToView("month"); await wait(800);'),
         ("tasks", 'tm.openTab("tasks", {}); await wait(1500);'),
@@ -214,7 +215,7 @@ def take_shots(m, folder, scheme):
         ("settings", "w.openPreferencesTab(); await wait(2000);"),
         ("addon-settings", f'w.openAddonsMgr("addons://detail/" + encodeURIComponent("{ADDON_ID}") + "/preferences"); await wait(3000);'),
     ]:
-        m.js("w.resizeTo(1500, 900); " + js + " await wait(600); return 1;")
+        m.js(("" if "resizeTo" in js else "w.resizeTo(1500, 900); ") + js + " await wait(600); return 1;")
         data = m.cmd("WebDriver:TakeScreenshot", {})["value"]
         path = os.path.join(folder, f"{scheme}-{name}.png")
         open(path, "wb").write(base64.b64decode(data))
@@ -251,7 +252,7 @@ MESSAGE_JS = r"""
   if (!root.containsChildNamed("Lesen")) { root.createSubfolder("Lesen", null); await wait(800); }
   const f = root.getChildNamed("Lesen");
   if (!f.getTotalMessages(false)) {
-    f.QueryInterface(Ci.nsIMsgLocalMailFolder).addMessage(unescape(encodeURIComponent("From - Sat Oct 17 10:00:00 2026\r\nFrom: Anna Beispiel <anna@example.invalid>\r\nTo: Halo Test <halo@example.invalid>\r\nCc: Ben Muster <ben@example.invalid>\r\nSubject: Treffen am Donnerstag\r\nDate: Sat, 17 Oct 2026 09:41:00 +0200\r\nMessage-ID: <halo-read@example.invalid>\r\nContent-Type: text/plain; charset=UTF-8\r\n\r\nHallo,\r\n\r\npasst dir Donnerstag um 10 Uhr? Ich bringe die Unterlagen mit.\r\n\r\nLiebe Grüße\r\nAnna\r\n")));
+    f.QueryInterface(Ci.nsIMsgLocalMailFolder).addMessage(unescape(encodeURIComponent("From - Sat Oct 17 10:00:00 2026\r\nFrom: Anna Beispiel <anna@example.invalid>\r\nTo: Halo Test <halo@example.invalid>\r\nCc: Ben Muster <ben@example.invalid>\r\nSubject: Treffen am Donnerstag\r\nDate: Sat, 17 Oct 2026 09:41:00 +0200\r\nMessage-ID: <halo-read@example.invalid>\r\nList-ID: Halo Neuigkeiten <news.example.invalid>\r\nList-Unsubscribe: <https://example.invalid/abmelden?id=1>, <mailto:abmelden@example.invalid?subject=unsubscribe>\r\nContent-Type: text/plain; charset=UTF-8\r\n\r\nHallo,\r\n\r\npasst dir Donnerstag um 10 Uhr? Ich bringe die Unterlagen mit.\r\n\r\nLiebe Grüße\r\nAnna\r\n")));
     await wait(800);
   }
   const a3 = await toMail(); a3.displayFolder(f.URI); await wait(800);
