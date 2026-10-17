@@ -1252,6 +1252,90 @@ function squeezeToolbar(doc, fits) {
   }
 }
 
+// ---------------------------------------------------------------------------
+// Kalender: passendes Emoji vor dem Titel (nur Anzeige, der Termin bleibt
+// unverändert). stems greifen auch in zusammengesetzten Wörtern
+// („Geburtstagsfeier“, „Herbstferien“), words nur als ganzes Wort („Bad“
+// nicht in „Badminton“). Reihenfolge: Spezielles vor Allgemeinem.
+// ---------------------------------------------------------------------------
+const EMOJI_PREF = "extensions.mailcards.calendarEmoji";
+const EMOJI_RULES = [
+  ["🎂", { stems: ["geburtstag", "birthday", "rodjendan", "rođendan"], words: ["bday"] }],
+  ["🎃", { stems: ["halloween"] }],
+  ["🎄", { stems: ["weihnacht", "christmas", "xmas", "nikolaus", "advent"] }],
+  ["🎆", { stems: ["silvester", "new year"] }],
+  ["🐣", { stems: ["ostern", "easter"] }],
+  ["💍", { stems: ["hochzeit", "wedding"] }],
+  ["🐾", { stems: ["tierarzt", "tierärzt"], words: ["vet"] }],
+  ["🦷", { stems: ["zahnarzt", "zahnärzt", "kieferchirurg", "kieferorthop", "dentist", "zahnreinigung"] }],
+  ["💉", { stems: ["impfung", "vaccin", "blutabnahme"] }],
+  ["🏥", { stems: ["krankenhaus", "spital", "hospital"] }],
+  ["🩺", { stems: ["arzt", "ärztin", "doctor", "ordination", "therapie", "physio", "untersuchung", "befund"] }],
+  ["💇", { stems: ["friseur", "frisör", "haircut", "beauty", "kosmetik", "maniküre", "pediküre"] }],
+  ["✈️", { stems: ["flughafen", "airport", "abflug", "rückflug", "flight"], words: ["flug"] }],
+  ["🚆", { stems: ["bahnhof"], words: ["zug", "bahn", "train", "öbb"] }],
+  ["🏖️", { stems: ["urlaub", "ferien", "vacation", "holiday", "strand"] }],
+  ["🧘", { stems: ["yoga", "pilates", "meditation"] }],
+  ["🏃", { stems: ["joggen", "laufen", "marathon"], words: ["run", "lauf"] }],
+  ["🏊", { stems: ["schwimm"], words: ["swim"] }],
+  ["⚽", { stems: ["fußball", "fussball", "soccer"], words: ["match"] }],
+  ["🎾", { stems: ["tennis", "padel"] }],
+  ["⛷️", { stems: ["skifahren", "skitag", "skiurlaub"], words: ["ski"] }],
+  ["🏋️", { stems: ["training", "fitness", "workout", "turnen"], words: ["gym", "sport"] }],
+  ["🎓", { stems: ["sponsion", "graduation", "matura", "abschlussfeier"] }],
+  ["📚", { stems: ["schule", "schul", "englisch", "mathe", "nachhilfe", "prüfung", "hausübung", "hausaufgabe", "vorlesung", "lernen", "exam"], words: ["uni", "kurs", "course"] }],
+  ["🏠", { stems: ["home office", "homeoffice"] }],
+  ["📞", { stems: ["telefon", "anruf"], words: ["call", "zoom", "teams", "webex", "facetime"] }],
+  ["👥", { stems: ["meeting", "besprechung", "jour fixe", "standup", "workshop"] }],
+  ["☕", { stems: ["kaffee", "coffee"] }],
+  ["🍽️", { stems: ["mittagessen", "abendessen", "frühstück", "breakfast", "brunch", "lunch", "dinner", "restaurant"], words: ["essen"] }],
+  ["🍻", { stems: ["stammtisch"], words: ["bier", "drinks", "beer"] }],
+  ["🎉", { stems: ["party", "feier", "fest "] }],
+  ["🎵", { stems: ["konzert", "concert", "klavier", "gitarre", "musikschule", "chorprobe"] }],
+  ["🎬", { stems: ["kino", "movie"] }],
+  ["🎭", { stems: ["theater", "musical"], words: ["oper"] }],
+  ["⚖️", { stems: ["gericht", "anwalt", "verhandlung", "notar"] }],
+  ["💰", { stems: ["steuer", "finanzamt", "steuerberat"], words: ["bank"] }],
+  ["🛒", { stems: ["einkauf", "shopping", "supermarkt"] }],
+  ["📦", { stems: ["umzug", "paket", "lieferung"] }],
+  ["🚗", { stems: ["werkstatt", "pickerl", "reifenwechsel", "autoservice"], words: ["auto"] }],
+  ["🔧", { stems: ["handwerker", "installateur", "reparatur", "elektriker"] }],
+  ["🛁", { stems: ["badezimmer"], words: ["bad"] }],
+  ["💻", { stems: ["laptop", "computer"] }],
+  ["🧹", { stems: ["putzen", "reinigung", "putzfrau"] }],
+  ["👶", { stems: ["baby", "kindergarten", "kita"] }],
+  ["🐶", { stems: ["hund", "gassi"] }],
+].map(([emoji, { stems = [], words = [] }]) => ({
+  emoji,
+  stems,
+  // ganze Wörter: davor und danach kein Buchstabe und keine Ziffer
+  word: words.length ? new RegExp(`(?<![\\p{L}\\p{N}])(?:${words.join("|")})(?![\\p{L}\\p{N}])`, "iu") : null,
+}));
+const HAS_EMOJI = /\p{Extended_Pictographic}/u;
+const emojiCache = new Map();
+function emojiFor(title) {
+  const text = String(title || "").trim();
+  if (!text || HAS_EMOJI.test(text)) {
+    return ""; // schon ein Emoji im Titel – nichts zusätzlich
+  }
+  if (emojiCache.has(text)) {
+    return emojiCache.get(text);
+  }
+  const lower = text.toLocaleLowerCase();
+  let found = "";
+  for (const rule of EMOJI_RULES) {
+    if (rule.stems.some(st => lower.includes(st)) || rule.word?.test(text)) {
+      found = rule.emoji;
+      break;
+    }
+  }
+  if (emojiCache.size > 2000) {
+    emojiCache.clear();
+  }
+  emojiCache.set(text, found);
+  return found;
+}
+
 // iCloud hängt alten Erinnerungslisten nach dem Update der Erinnerungen-App
 // ein ⚠️ an den Namen – diese Listen werden nicht mehr über CalDAV abgeglichen
 function calendarNote(calendar) {
@@ -3200,6 +3284,55 @@ class CardEnhancer {
       });
     };
 
+    // Emoji vor Termintiteln (Monat, Woche, Tag, ganztägig, Today-Pane):
+    // Attribut am Titel, gezeichnet von spaces.css – der Termin bleibt unverändert
+    const EMOJI_LABELS = ".event-name-label, .agenda-listitem-title";
+    const annotateEmoji = root => {
+      const on = Services.prefs.getBoolPref(EMOJI_PREF, true);
+      for (const label of root.querySelectorAll(EMOJI_LABELS)) {
+        const emoji = on ? emojiFor(label.textContent) : "";
+        if (emoji) {
+          if (label.getAttribute("data-mc-emoji") != emoji) {
+            label.setAttribute("data-mc-emoji", emoji);
+          }
+        } else if (label.hasAttribute("data-mc-emoji")) {
+          label.removeAttribute("data-mc-emoji");
+        }
+      }
+    };
+    const hookCalendarEmoji = () => {
+      for (const id of ["view-box", "agenda"]) {
+        const root = w.document.getElementById(id);
+        if (!root || root.__mcEmoji) {
+          continue;
+        }
+        root.__mcEmoji = true;
+        let pending = false;
+        const run = () => {
+          pending = false;
+          annotateEmoji(root);
+        };
+        const mo = new w.MutationObserver(() => {
+          if (!pending) {
+            pending = true;
+            w.requestAnimationFrame(run);
+          }
+        });
+        mo.observe(root, { childList: true, subtree: true, characterData: true });
+        const prefObs = { observe: () => annotateEmoji(root) };
+        Services.prefs.addObserver(EMOJI_PREF, prefObs);
+        run();
+        this.restorers.push(() => {
+          mo.disconnect();
+          Services.prefs.removeObserver(EMOJI_PREF, prefObs);
+          for (const label of root.querySelectorAll("[data-mc-emoji]")) {
+            label.removeAttribute("data-mc-emoji");
+          }
+          delete root.__mcEmoji;
+        });
+      }
+    };
+
     // Tooltip mit Erklärung an Kalendern, die iCloud mit ⚠️ markiert
     const hookCalendarNotes = () => {
       const list = w.document.getElementById("calendar-list");
@@ -3473,6 +3606,7 @@ class CardEnhancer {
       hookMultidayZoom();
       hookNewButton();
       hookCalendarNotes();
+      hookCalendarEmoji();
       hookTaskHint();
       hookTitle();
       labelToday();
@@ -4940,6 +5074,8 @@ class CardEnhancer {
       mac: Services.appinfo.OS == "Darwin",
       platformNote,
       photosEnabled: () => MacPhotos.enabled(),
+      emojiEnabled: () => Services.prefs.getBoolPref(EMOJI_PREF, true),
+      setEmoji: on => Services.prefs.setBoolPref(EMOJI_PREF, on),
       // Fotos aus der Kontakte-App: einschalten und gleich abgleichen
       // (macOS fragt dabei einmal nach dem Zugriff auf die Kontakte)
       setPhotos: async on => {
@@ -4962,7 +5098,7 @@ class CardEnhancer {
       },
     };
     const hw = w.openDialog("resource://mailcards/about/halo.html", "halo-spaces",
-      `chrome,dialog=yes,centerscreen,resizable=no,width=360,height=${(api.mac ? 340 : 292) + (platformNote ? 64 : 0)}`);
+      `chrome,dialog=yes,centerscreen,resizable=no,width=360,height=${(api.mac ? 386 : 338) + (platformNote ? 64 : 0)}`);
     // erst lädt das Fenster about:blank, dann unsere Seite – darauf warten
     let tries = 0;
     const wire = () => {
@@ -5074,6 +5210,22 @@ class CardEnhancer {
           show(false);
         }
         photos.disabled = false;
+      });
+    }
+    // Emojis im Kalender ein/aus (sofort sichtbar)
+    const emoji = $("emoji");
+    if (emoji) {
+      const eLabel = emoji.querySelector(".label");
+      const eStatus = $("emoji-status");
+      const showEmoji = on => {
+        eLabel.textContent = on ? t("Emojis im Kalender: an", "Emojis in Calendar: on") : t("Emojis im Kalender zeigen", "Show Emojis in Calendar");
+        eStatus.textContent = on ? "🎂" : "";
+      };
+      showEmoji(api.emojiEnabled());
+      emoji.addEventListener("click", () => {
+        const on = !api.emojiEnabled();
+        api.setEmoji(on);
+        showEmoji(on);
       });
     }
     $("feedback").addEventListener("click", feedback);

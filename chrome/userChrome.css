@@ -6250,4 +6250,13 @@ notification-message:not([type="warning"]) button.notification-button {
 #pref-category-box .sidebar-footer-link {
   min-width: 0 !important;
 }
+
+/* Emoji vor dem Termintitel (data-mc-emoji setzt die Erweiterung) */
+:is(.event-name-label, .agenda-listitem-title)[data-mc-emoji]::before {
+  content: attr(data-mc-emoji) !important;
+  /* fester Abstand statt Leerzeichen – das ist in der Emoji-Schrift sehr breit */
+  margin-inline-end: 4px !important;
+  font-family: "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif !important;
+  font-weight: 400 !important;
+}
 /* ==== Ende Bereiche ==== */
