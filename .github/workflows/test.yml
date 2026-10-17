@@ -31,12 +31,13 @@ jobs:
           tb/thunderbird/thunderbird --version
 
       - name: Test
-        run: xvfb-run -a -s "-screen 0 1920x1200x24" python3 tests/halo_test.py --tb tb/thunderbird/thunderbird --shots shots
+        timeout-minutes: 15
+        run: mkdir -p shots && xvfb-run -a -s "-screen 0 1920x1200x24" python3 -u tests/halo_test.py --tb tb/thunderbird/thunderbird --shots shots --tb-log shots/thunderbird.log
 
       - name: Screenshots
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: screenshots-${{ matrix.channel }}
+          name: test-${{ matrix.channel }}
           path: shots/
           if-no-files-found: ignore

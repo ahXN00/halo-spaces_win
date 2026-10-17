@@ -35,19 +35,27 @@ DEFAULT_TB = {
 class Marionette:
     def __init__(self, port):
         self.sock = socket.create_connection(("127.0.0.1", port))
+        # nie endlos warten: ein Befehl darf höchstens 11 Minuten dauern (--perf)
+        self.sock.settimeout(660)
         self.id = 0
         self._read()
         self.cmd("WebDriver:NewSession", {"capabilities": {}})
         self.cmd("Marionette:SetContext", {"value": "chrome"})
 
+    def _recv(self, n):
+        chunk = self.sock.recv(n)
+        if not chunk:  # Thunderbird hat die Verbindung geschlossen (beendet/abgestürzt)
+            raise ConnectionError("Marionette-Verbindung geschlossen")
+        return chunk
+
     def _read(self):
         buf = b""
         while b":" not in buf:
-            buf += self.sock.recv(1)
+            buf += self._recv(1)
         n, rest = buf.split(b":", 1)
         n = int(n)
         while len(rest) < n:
-            rest += self.sock.recv(n - len(rest))
+            rest += self._recv(n - len(rest))
         return json.loads(rest)
 
     def cmd(self, name, params=None):
@@ -110,6 +118,7 @@ def main():
     ap.add_argument("--xpi", help="Paket (Standard: neuestes dist/halo-spaces-*.xpi)")
     ap.add_argument("--tb", default=DEFAULT_TB, help="Thunderbird-Programm")
     ap.add_argument("--keep", action="store_true", help="Testprofil nicht löschen")
+    ap.add_argument("--tb-log", help="Ausgabe von Thunderbird in diese Datei schreiben (zur Fehlersuche)")
     ap.add_argument("--dark", action="store_true", help="im Dunkelmodus starten")
     ap.add_argument("--shots", help="Ordner für Screenshots aller Bereiche")
     ap.add_argument("--eval", help="nur dieses JavaScript ausführen (Chrome-Kontext, mit den Hilfen aus PRELUDE) und das Ergebnis ausgeben – zum Untersuchen")
@@ -152,8 +161,9 @@ def main():
             f.write(f"user_pref({json.dumps(pref)}, {json.dumps(value)});\n")
 
     print(f"halo.spaces {version} · Paket {os.path.basename(xpi)} · Profil {profile}", flush=True)
+    out = open(args.tb_log, "w") if args.tb_log else subprocess.DEVNULL
     proc = subprocess.Popen([args.tb, "-profile", profile, "-no-remote", "-marionette", "-remote-allow-system-access"],
-                            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                            stdout=out, stderr=subprocess.STDOUT if args.tb_log else subprocess.DEVNULL,
                             # ab Thunderbird 159 zusätzlich als Umgebungsvariable nötig
                             env={**os.environ, "MOZ_REMOTE_ALLOW_SYSTEM_ACCESS": "1"})
     results = []
