@@ -1132,7 +1132,9 @@ function captionWidth(doc) {
   return Math.round(doc.querySelector("#unifiedToolbarContainer .titlebar-buttonbox-container")?.getBoundingClientRect().width || 0);
 }
 
-function toolbarNeed(doc) {
+// minimal: nur die Knöpfe, die bei Platzmangel nicht weichen (SQUEEZE), und
+// das Suchfeld in seiner kleinsten sinnvollen Breite – für Ziehgrenzen
+function toolbarNeed(doc, minimal = false) {
   const content = doc.getElementById("unifiedToolbarContent");
   if (!content) {
     return 0;
@@ -1149,12 +1151,18 @@ function toolbarNeed(doc) {
       afterFirst = true;
       continue;
     }
-    if (!afterFirst || li.hidden || !li.getBoundingClientRect().width) {
+    if (!afterFirst || li.hidden || (!li.getBoundingClientRect().width && !li.hasAttribute("mc-squeezed"))) {
+      continue;
+    }
+    if (minimal && SQUEEZE.includes(id)) {
+      continue;
+    }
+    if (!minimal && li.hasAttribute("mc-squeezed")) {
       continue;
     }
     const cs = win.getComputedStyle(li);
     const margins = (parseFloat(cs.marginInlineStart) || 0) + (id == "write-message" ? 12 : parseFloat(cs.marginInlineEnd) || 0);
-    need += (id == "search-bar" ? 333 : li.getBoundingClientRect().width) + margins;
+    need += (id == "search-bar" ? (minimal ? 160 : 333) : li.getBoundingClientRect().width) + margins;
   }
   return Math.ceil(need);
 }
@@ -2169,8 +2177,18 @@ class CardEnhancer {
       }
       doc.__mcSplitterReset = true;
       const SIDEBAR_SPLITTERS = new Set(["folderPaneSplitter", "booksSplitter", "calsidebar_splitter", "listSplitter"]);
+      // Teiler fangen den Zeiger beim Drücken ein – Loslassen, Klick und
+      // Doppelklick landen dann am Dokument statt am Teiler; deshalb den
+      // Teiler vom letzten Drücken merken
+      const SPLITTER = "splitter, hr[is='pane-splitter'], [is='pane-splitter']";
+      let lastDown = null;
+      const onDown = event => {
+        const splitter = event.target.closest?.(SPLITTER);
+        lastDown = splitter ? { splitter, time: Date.now() } : null;
+      };
       const onDblClick = event => {
-        const splitter = event.target.closest?.("splitter, hr[is='pane-splitter'], [is='pane-splitter']");
+        const splitter = event.target.closest?.(SPLITTER) ||
+          (lastDown && Date.now() - lastDown.time < 800 ? lastDown.splitter : null);
         if (!splitter?.id) {
           return;
         }
@@ -2207,8 +2225,10 @@ class CardEnhancer {
           }
         }
       };
+      doc.addEventListener("mousedown", onDown, true);
       doc.addEventListener("dblclick", onDblClick, true);
       this.restorers.push(() => {
+        doc.removeEventListener("mousedown", onDown, true);
         doc.removeEventListener("dblclick", onDblClick, true);
         delete doc.__mcSplitterReset;
       });
@@ -4198,10 +4218,11 @@ class CardEnhancer {
         return 0;
       }
       const msgRight = browser.getBoundingClientRect().left + pane.getBoundingClientRect().right;
-      const want = toolbarNeed(top.document) - (row.getBoundingClientRect().right - msgRight);
-      // die Liste selbst nie schmaler als 240 px machen
+      const want = toolbarNeed(top.document, true) - (row.getBoundingClientRect().right - msgRight);
+      // die Liste selbst nie schmaler als ihre Mindestbreite (CSS) machen
       const list = threadPane.getBoundingClientRect();
-      const room = pane.getBoundingClientRect().right - list.left - 240;
+      const listMin = parseFloat(win.getComputedStyle(threadPane).minWidth) || 240;
+      const room = pane.getBoundingClientRect().right - list.left - listMin;
       return Math.max(0, Math.min(want, room));
     };
     const msgSplitter = win.document.getElementById("messagePaneSplitter");
