@@ -41,12 +41,13 @@ Features
 
 Personal data in the screenshots is blurred.
 
-3.0.84 Release Notes
+3.0.95 Release Notes
 --------
-- Narrow windows: the least important mail toolbar buttons are hidden instead of piling up over the message list
-- Calendar week/day view: the days share the available width, so no day is cut off
-- Calendar search field no longer slides under the view switcher
-- Windows/Linux: the Today pane title keeps clear of the window buttons
+- Quick event window: type naturally, e.g. "tomorrow 12:30 for 90 min". A double-click in the calendar opens it too
+- Mail cards: flag, archive and delete on hover
+- Birthdays from your address books as their own calendar
+- A settings page (Add-ons and Themes → halo.spaces → Preferences)
+- Visible keyboard focus on halo.spaces controls
 
 See [Releases](https://github.com/sruf79/halo-spaces/releases) for all versions.
 
