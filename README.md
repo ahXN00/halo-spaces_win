@@ -1,74 +1,120 @@
 # halo.spaces
 
-**Ein ruhiges, aufgeräumtes Design für Thunderbird auf dem Mac.**
-Inspiriert von Apple Mail, mit eigener Note: farbige Bereiche links und
-dasselbe Layout in jedem Bereich.
+<p align="center">
+  <img src="extension/about/icon.svg" alt="halo.spaces logo" width="128">
+</p>
 
-halo.spaces ist ein Komplettpaket für Thunderbird 128+ auf macOS: Design, eigene Symbole im
-Apple-Stil und eine Erweiterung für alles, was CSS allein nicht kann.
+halo.spaces gives Mozilla Thunderbird on macOS a calm, tidy look inspired by
+Apple Mail, Calendar and Contacts. It adds coloured spaces on the left and
+uses the same layout in every space.
 
-- Layout, Farben, Größen und Animationen wie Apple Mail, Kalender, Kontakte,
-  Nachrichten und Systemeinstellungen, mit farbigen Bereichen links
-- Kartenansicht mit zweizeiliger Vorschau und Absenderbildern (Adressbuch,
-  macOS-Kontakte, BIMI, Website-Icon, sonst Initialen)
-- vereinigtes Adressbuch mit zusammengeführten Doppeleinträgen und
-  Konto-Etiketten in den Kontofarben
-- dieselbe Toolbar in jedem Bereich, Suchfeld oben rechts
-- Hell und Dunkel folgen automatisch dem System
-- Kalender laden schneller: Offline-Unterstützung für Online-Kalender wird
-  eingeschaltet (nur wo die Einstellung nie geändert wurde)
+It is one package for Thunderbird 128+: the theme, its own Apple-style icons,
+and an extension for the things CSS alone can't do.
 
-## Installation
+Created by Sebastian Ruf · Released under the Mozilla Public License 2.0
 
-1. Die neueste `halo-spaces-<version>.xpi` unter **Releases** herunterladen.
-2. In Thunderbird: **Add-ons und Themes → Zahnrad → Add-on aus Datei
-   installieren…** und die Datei wählen.
-3. Unter **Themes** „System – automatisch“ wählen.
+<p align="center">
+  <img src="screenshots/mail.png" alt="halo.spaces – mail with Today pane" width="90%">
+</p>
 
-Alternativ bei geschlossenem Thunderbird: `./install.sh pfad/zur/datei.xpi`.
-Das setzt zusätzlich zwei Einstellungen wie in Apple Mail (nur Namen statt
-Adressen, keine Schreibmaschinenschrift bei Textmails).
+---------------------------------------------------------------
 
-## Updates
+Features
+--------
+- **Apple Mail layout**: card list with a two-line preview, sender logos (address book, macOS Contacts, BIMI, website icon, otherwise initials), unified inboxes and the search field top right
+- **Coloured spaces**: Mail, Contacts, Calendar, Tasks and Chat, all with the same toolbar and sidebar edges. Sidebars slide in and out, and a double-click on a divider resets it
+- **Calendar like Apple Calendar**: Day, Week, Multiweek and Month switcher in the title bar, a month view without scrollbars, and a **quick event/task window** for new entries
+- **Today pane**: runs to the top of the window, has a mini calendar plus an agenda card to the end of the month, and marks upcoming events with "now" or "in 2 hr"
+- **Unified address book**: duplicates merged, account labels in the account colours
+- **Light and dark** follow the system, and the accent colour follows macOS
+- No scrollbars anywhere. Scrolling still works with the wheel, trackpad and keyboard
+- Automatic updates via GitHub
 
-Die Erweiterung bringt eine Update-Adresse mit. Thunderbird fragt dort
-selbst regelmäßig nach neuen Versionen (Standard: alle 24 Stunden) und
-installiert sie automatisch. Sofort prüfen: **Help → halo.spaces … → Nach Updates suchen**
-(oder Add-ons und Themes → Zahnrad → Nach Updates suchen).
+<p align="center">
+  <img src="screenshots/calendar.png" alt="Calendar month view" width="49%">
+  <img src="screenshots/addressbook.png" alt="Address book" width="49%">
+</p>
 
-Das Design steckt in der Erweiterung. Eine `userChrome.css` im Profil ist
-nicht mehr nötig; eine früher kopierte Version dieses Designs hätte Vorrang
-und würde Updates verdecken (`install.sh` legt sie beiseite).
+<p align="center">
+  <img src="screenshots/quick-event.png" alt="Quick event window" width="320">
+</p>
 
-## Feedback
+Personal data in the screenshots is blurred.
 
-In Thunderbird: **Help → halo.spaces … → Feedback senden** öffnet eine neue Mail
-an halo.cat@icloud.com. Dort gibt es auch „Danke sagen ☕“. Fehler und Wünsche gern auch als Issue hier auf GitHub.
+3.0.84 Release Notes
+--------
+- Narrow windows: the least important mail toolbar buttons are hidden instead of piling up over the message list
+- Calendar week/day view: the days share the available width, so no day is cut off
+- Calendar search field no longer slides under the view switcher
+- Windows/Linux: the Today pane title keeps clear of the window buttons
 
-## Entwickeln
+See [Releases](https://github.com/sruf79/halo-spaces/releases) for all versions.
 
-| Ordner/Datei | Inhalt |
+Credits
+--------
+halo.spaces uses the coffee cup from [Noto Emoji](https://github.com/googlefonts/noto-emoji)
+(© Google LLC, Apache License 2.0) – see `extension/about/NOTICE.txt`.
+The layout of this page follows [FluentBird](https://github.com/Deathbyteacup/fluentbird) by Danny King.
+
+---------------------------------------------------------------
+
+Setup Instructions
+------------------
+
+1. Download the latest `halo-spaces-<version>.xpi` from
+   [Releases](https://github.com/sruf79/halo-spaces/releases).
+
+2. In Thunderbird open **Add-ons and Themes** → gear icon →
+   **Install Add-on From File…** and choose the file.
+
+3. Under **Themes**, select **System theme – auto**.
+   *Do not* select Light, Dark or a theme from the add-on store.
+
+4. Restart Thunderbird once.
+
+Updates arrive automatically (Thunderbird checks every 24 hours). To check
+right away: **Help → halo.spaces… → Check for Updates**.
+
+No `userChrome.css` is needed. The theme ships inside the extension. An older
+copy of this theme in your profile's `chrome` folder takes precedence and
+would hide updates, so remove it.
+
+---------------------------------------------------------------
+
+Known Issues
+------------
+- Made for **macOS**. Windows and Linux work, but they aren't the focus.
+  Window buttons and some spacing differ there, and you'll see a short note
+  on first start.
+- The compose window and a few dialogs are only partly themed.
+- Report issues via [GitHub Issues](https://github.com/sruf79/halo-spaces/issues). Please include your OS, Thunderbird version and a screenshot.
+
+Settings for turning parts off (Config Editor):
+
+| Preference | Effect |
 |---|---|
-| `chrome/userChrome.css` | Design (Mail, Menüs, Dialoge) |
-| `chrome/spaces.css` | Kalender, Aufgaben, Adressbuch, Chat, Einstellungen – wird mit `chrome/merge_spaces.py` eingefügt |
-| `icons/make_icons.py` | Toolbar- und Ordnersymbole (`--inject` schreibt in userChrome.css) |
-| `icons/make_iconvars.py` | Ersatz für Thunderbirds `--icon-*`-Symbole |
-| `extension/` | die Erweiterung (Manifest, `api/implementation.js`) |
+| `extensions.mailcards.bundledTheme = false` | turns off the bundled theme |
+| `extensions.mailcards.appleIcons = false` | keeps Thunderbird's own icons |
+| `extensions.mailcards.calendarOffline = true` | turns on offline support for online calendars (faster loading) |
+
+---------------------------------------------------------------
+
+Development
+-----------
+
+| Folder/File | Content |
+|---|---|
+| `chrome/userChrome.css` | theme (mail, menus, dialogs) |
+| `chrome/spaces.css` | calendar, tasks, contacts, chat, settings – merged in by `chrome/merge_spaces.py` |
+| `icons/` | toolbar, folder and `--icon-*` replacement icons |
+| `extension/` | the extension (manifest, `api/implementation.js`) |
 
 ```bash
-./build.sh            # → dist/halo-spaces-<version>.xpi (inkl. theme.css)
-./release.sh 2.11.0   # Version, Update-Adresse, updates.json – veröffentlicht nichts
+./build.sh            # → dist/halo-spaces-<version>.xpi (includes theme.css)
+./release.sh 3.1.0    # version, update URL, updates.json – publishes nothing
 ```
 
-`release.sh` braucht eine `repo.conf` (Vorlage: `repo.conf.example`) und gibt
-am Ende die Befehle zum Veröffentlichen aus (`git push`, `gh release create`).
-Abschalten lässt sich das mitgelieferte Design über die Einstellung
-`extensions.mailcards.bundledTheme = false`, die eigenen Symbole über
-`extensions.mailcards.appleIcons = false`, die automatische
-Offline-Unterstützung für Kalender über `extensions.mailcards.calendarOffline = false`.
+---------------------------------------------------------------
 
-## Lizenz
-
-Mozilla Public License 2.0 – siehe [LICENSE](LICENSE).
-
-Das Kaffeetassen-Symbol stammt aus [Noto Emoji](https://github.com/googlefonts/noto-emoji) (© Google LLC, Apache License 2.0) – siehe `extension/about/NOTICE.txt`.
+Questions or feedback?
+In Thunderbird: **Help → halo.spaces… → Send Feedback**, or open an issue here. Enjoy!
