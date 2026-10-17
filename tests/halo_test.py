@@ -107,6 +107,8 @@ def main():
     ap.add_argument("--xpi", help="Paket (Standard: neuestes dist/halo-spaces-*.xpi)")
     ap.add_argument("--tb", default=DEFAULT_TB, help="Thunderbird-Programm")
     ap.add_argument("--keep", action="store_true", help="Testprofil nicht löschen")
+    ap.add_argument("--dark", action="store_true", help="im Dunkelmodus starten")
+    ap.add_argument("--shots", help="Ordner für Screenshots aller Bereiche")
     args = ap.parse_args()
 
     xpi = args.xpi or max(glob.glob(os.path.join(ROOT, "dist", "halo-spaces-*.xpi")), key=os.path.getmtime, default=None)
@@ -130,6 +132,7 @@ def main():
             "calendar.timezone.useSystemTimezone": True,
             # das macOS-Adressbuch (echte Kontakte) nicht einbinden
             "ldap_2.servers.osx.position": 0,
+            **({"ui.systemUsesDarkTheme": 1} if args.dark else {}),
         }.items():
             f.write(f"user_pref({json.dumps(pref)}, {json.dumps(value)});\n")
 
@@ -143,6 +146,8 @@ def main():
         time.sleep(8)  # Erweiterung und Fenster fertig aufbauen lassen
         m = Marionette(PORT)
         run_checks(m, version, profile, results)
+        if args.shots:
+            take_shots(m, args.shots, "dark" if args.dark else "light")
     finally:
         try:
             Marionette(PORT).js("Services.startup.quit(Ci.nsIAppStartup.eForceQuit); return 1;")
@@ -158,6 +163,25 @@ def main():
     failed = [r for r in results if not r[1]]
     print(f"\n{len(results) - len(failed)} von {len(results)} Prüfungen OK" + (f", {len(failed)} FEHLER" if failed else ""))
     sys.exit(1 if failed else 0)
+
+
+def take_shots(m, folder, scheme):
+    """Screenshots aller Bereiche (Testprofil, keine echten Daten)."""
+    import base64
+    os.makedirs(folder, exist_ok=True)
+    for name, js in [
+        ("mail", "await toMail();"),
+        ("calendar-week", 'await toCalendar(); w.switchToView("week"); await wait(800);'),
+        ("calendar-month", 'await toCalendar(); w.switchToView("month"); await wait(800);'),
+        ("tasks", 'tm.openTab("tasks", {}); await wait(1500);'),
+        ("addressbook", 'tm.openTab("addressBookTab", {}); await wait(2000);'),
+        ("settings", "w.openPreferencesTab(); await wait(2000);"),
+    ]:
+        m.js("w.resizeTo(1500, 900); " + js + " await wait(600); return 1;")
+        data = m.cmd("WebDriver:TakeScreenshot", {})["value"]
+        path = os.path.join(folder, f"{scheme}-{name}.png")
+        open(path, "wb").write(base64.b64decode(data))
+        print(f"Screenshot {path}", flush=True)
 
 
 def run_checks(m, version, profile, results):
