@@ -7,7 +7,8 @@ denen es früher Rückschritte gab: Listenbreite, Toolbar-Kanten und Kapseln,
 Wochenansicht, Schnellfenster, Emojis, Trennlinien (Ziehen/Doppelklick),
 Status-Symbol in der Kalenderliste und das Fehlerprotokoll.
 
-Aufruf:  python3 tests/halo_test.py [--xpi dist/…xpi] [--keep] [--tb /Pfad/zu/thunderbird]
+Aufruf:  python3 tests/halo_test.py [--xpi dist/…xpi] [--keep] [--dark] [--shots ORDNER] [--tb …]
+         (ohne --xpi wird vorher ./build.sh ausgeführt)
 Ergebnis: eine Zeile je Prüfung (OK/FEHLER), Rückgabewert 0 nur wenn alles OK ist.
 """
 
@@ -111,6 +112,11 @@ def main():
     ap.add_argument("--shots", help="Ordner für Screenshots aller Bereiche")
     args = ap.parse_args()
 
+    if not args.xpi:
+        # ohne Angabe immer den aktuellen Stand bauen (sonst testet man ein altes Paket)
+        built = subprocess.run([os.path.join(ROOT, "build.sh")], capture_output=True, text=True, cwd=ROOT)
+        if built.returncode != 0:
+            sys.exit("build.sh fehlgeschlagen:\n" + built.stderr)
     xpi = args.xpi or max(glob.glob(os.path.join(ROOT, "dist", "halo-spaces-*.xpi")), key=os.path.getmtime, default=None)
     if not xpi or not os.path.exists(xpi):
         sys.exit("Kein Paket gefunden – zuerst ./build.sh")
@@ -339,6 +345,26 @@ def run_checks(m, version, profile, results):
         ok = res["state"] == "open" and res["dialogs"] == 0 and ("14:" in res["line"] or "02:00 PM" in res["line"] or "2:00 PM" in res["line"])
         return ok, f"Fenster {res['state']}, {res['line']}, große Dialoge {res['dialogs']}"
     check("Doppelklick im Kalender öffnet das Schnellfenster", double_click, results)
+
+    def hover_actions():
+        res = m.js('''
+          const { MailServices } = ChromeUtils.importESModule("resource:///modules/MailServices.sys.mjs");
+          try { MailServices.accounts.localFoldersServer; } catch { MailServices.accounts.createLocalMailAccount(); await wait(500); }
+          const root = MailServices.accounts.localFoldersServer.rootFolder;
+          if (!root.containsChildNamed("Inbox")) { root.createSubfolder("Inbox", null); await wait(800); }
+          const inbox = root.getChildNamed("Inbox"); const lf = inbox.QueryInterface(Ci.nsIMsgLocalMailFolder);
+          for (const n of [1, 2]) lf.addMessage(`From - Sat Oct 17 10:00:00 2026\\r\\nFrom: Test ${n} <t${n}@example.invalid>\\r\\nSubject: Halo Karte ${n}\\r\\nDate: Sat, 17 Oct 2026 10:0${n}:00 +0200\\r\\nMessage-ID: <halo-card-${n}@example.invalid>\\r\\n\\r\\nTest\\r\\n`);
+          const a3 = await toMail(); a3.displayFolder(inbox.URI); await wait(1500);
+          const rows = a3.document.querySelectorAll('#threadTree tr[is="thread-card"]');
+          const buttons = rows[0]?.querySelectorAll(".mc-action") || [];
+          rows[0].querySelector(".mc-act-flag").click(); await wait(500);
+          const flagged = a3.gDBView.getMsgHdrAt(0).isFlagged; const selected = a3.gDBView.selection.count;
+          rows[0].querySelector(".mc-act-delete").click(); await wait(1200);
+          const trash = root.getFolderWithFlags(Ci.nsMsgFolderFlags.Trash);
+          return { buttons: buttons.length, flagged, selected, inbox: inbox.getTotalMessages(false), trash: trash?.getTotalMessages(false) };''')
+        ok = res["buttons"] == 3 and res["flagged"] and res["selected"] == 0 and res["inbox"] == 1 and res["trash"] == 1
+        return ok, f"{res}"
+    check("Mailkarte: Aktionen beim Überfahren (Markieren, Löschen)", hover_actions, results)
 
     def errors():
         res = m.js("""

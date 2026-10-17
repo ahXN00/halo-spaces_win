@@ -383,6 +383,59 @@ const CSS = `
 #threadTree tr[is="thread-card"][data-properties~="dummy"] .mc-preview {
   visibility: hidden;
 }
+/* Aktionen beim Überfahren: rechts unten in der Karte */
+#threadTree tr[is="thread-card"] .mc-actions {
+  position: absolute;
+  inset-inline-end: 8px;
+  bottom: 6px;
+  display: flex;
+  gap: 2px;
+  padding: 2px;
+  border-radius: 999px;
+  background: var(--mt-window, Canvas);
+  box-shadow: 0 0 0 0.5px var(--mt-pane-line, rgba(0,0,0,.12)), 0 1px 3px rgba(0, 0, 0, 0.12);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 120ms ease;
+  z-index: 2;
+}
+#threadTree tr[is="thread-card"]:hover .mc-actions {
+  opacity: 1;
+  pointer-events: auto;
+}
+#threadTree tr[is="thread-card"][data-properties~="dummy"] .mc-actions {
+  display: none;
+}
+#threadTree tr[is="thread-card"] .mc-action {
+  appearance: none;
+  width: 26px;
+  height: 26px;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: none;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--mt-text-secondary, GrayText) !important;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+#threadTree tr[is="thread-card"] .mc-action:hover {
+  background: var(--mt-control-hover, rgba(0,0,0,.09));
+  color: var(--mt-text, CanvasText) !important;
+}
+#threadTree tr[is="thread-card"] .mc-action::before {
+  content: "";
+  width: 16px;
+  height: 16px;
+  background-color: currentColor;
+  mask: var(--mi-flag) center / contain no-repeat;
+}
+#threadTree tr[is="thread-card"] .mc-act-archive::before { mask-image: var(--mi-archive); }
+#threadTree tr[is="thread-card"] .mc-act-delete::before { mask-image: var(--mi-trash); }
+#threadTree tr[is="thread-card"][data-properties~="flagged"] .mc-act-flag { color: #FF9500 !important; }
+#threadTree tr[is="thread-card"] .mc-actions[data-trash] .mc-act-delete { display: none; }
 `;
 
 // ---------------------------------------------------------------------------
@@ -511,6 +564,7 @@ function isPublicHttps(url) {
     }
     const host = u.host.toLowerCase();
     return !(host == "localhost" || host.endsWith(".local") || host.endsWith(".localhost") ||
+      /\.(invalid|example|test|onion)$/.test(host) || host.endsWith(".example.com") ||
       host.endsWith(".internal") || host.endsWith(".lan") || host.endsWith(".home") ||
       /^[\d.]+$/.test(host) || host.includes(":") || !host.includes("."));
   } catch {
@@ -1145,7 +1199,7 @@ class AvatarResolver {
         break;
       }
     } catch (e) {
-      log("siteIcon", home, "Fehler", String(e));
+      debugLog("siteIcon", home, "Fehler", String(e));
     }
     candidates.push(`https://www.${org}/favicon.ico`, `https://${org}/favicon.ico`);
 
@@ -1170,7 +1224,7 @@ class AvatarResolver {
           source: "Website",
         };
       } catch (e) {
-        log("siteIcon", url, "Fehler", String(e));
+        debugLog("siteIcon", url, "Fehler", String(e));
       }
     }
     return null;
@@ -1259,6 +1313,7 @@ function squeezeToolbar(doc, fits) {
 // nicht in „Badminton“). Reihenfolge: Spezielles vor Allgemeinem.
 // ---------------------------------------------------------------------------
 const EMOJI_PREF = "extensions.mailcards.calendarEmoji";
+const HOVER_ACTIONS_PREF = "extensions.mailcards.hoverActions";
 const EMOJI_RULES = [
   ["🎂", { stems: ["geburtstag", "birthday", "rodjendan", "rođendan"], words: ["bday"] }],
   ["🎃", { stems: ["halloween"] }],
@@ -5602,7 +5657,7 @@ class CardEnhancer {
       threadPane.densityChange = reg.density;
       delete win.__mailCards;
       style.remove();
-      for (const el of doc.querySelectorAll(".mc-avatar, .mc-preview")) {
+      for (const el of doc.querySelectorAll(".mc-avatar, .mc-preview, .mc-actions")) {
         el.remove();
       }
       threadPane.updateThreadItemSize();
@@ -5844,6 +5899,9 @@ class CardEnhancer {
       preview.className = "mc-preview";
       row.querySelector(".thread-card-dynamic-row")?.after(preview);
     }
+    if (!container.querySelector(":scope > .mc-actions") && Services.prefs.getBoolPref(HOVER_ACTIONS_PREF, true)) {
+      container.append(this.hoverActions(win, row));
+    }
 
     if ((row.dataset.properties || "").split(" ").includes("dummy")) {
       return;
@@ -5852,6 +5910,15 @@ class CardEnhancer {
     const hdr = this.hdrForRow(row);
     if (!hdr) {
       return;
+    }
+
+    const actions = container.querySelector(":scope > .mc-actions");
+    if (actions) {
+      let trash = false;
+      try {
+        trash = !!hdr.folder?.getFlag(Ci.nsMsgFolderFlags.Trash);
+      } catch {}
+      actions.toggleAttribute("data-trash", trash);
     }
 
     if (preview) {
@@ -5863,6 +5930,54 @@ class CardEnhancer {
     }
 
     this.fillAvatar(avatar, hdr);
+  }
+
+  // Aktionen beim Überfahren einer Karte: Markieren, Archivieren, Löschen –
+  // nur für diese Mail, ohne Auswahl oder Ansicht zu ändern
+  hoverActions(win, row) {
+    const doc = win.document;
+    const de = Services.locale.appLocaleAsBCP47.startsWith("de");
+    const box = doc.createElement("div");
+    box.className = "mc-actions";
+    const act = (cls, label, run) => {
+      const b = doc.createElement("button");
+      b.type = "button";
+      b.className = `mc-action ${cls}`;
+      b.title = label;
+      b.setAttribute("aria-label", label);
+      // nicht die Zeile auswählen oder ziehen
+      for (const type of ["mousedown", "pointerdown", "dblclick"]) {
+        b.addEventListener(type, e => e.stopPropagation());
+      }
+      b.addEventListener("click", event => {
+        event.stopPropagation();
+        event.preventDefault();
+        const hdr = this.hdrForRow(row);
+        if (!hdr?.folder) {
+          return;
+        }
+        try {
+          run(hdr);
+        } catch (e) {
+          log("hover action error", cls, e);
+        }
+      });
+      box.append(b);
+    };
+    act("mc-act-flag", de ? "Markieren" : "Flag", hdr => hdr.folder.markMessagesFlagged([hdr], !hdr.isFlagged));
+    act("mc-act-archive", de ? "Archivieren" : "Archive", hdr => {
+      const { MessageArchiver } = ChromeUtils.importESModule("resource:///modules/MessageArchiver.sys.mjs");
+      new MessageArchiver().archiveMessages([hdr]);
+    });
+    act("mc-act-delete", de ? "Löschen" : "Delete", hdr => {
+      // nur in den Papierkorb verschieben – im Papierkorb selbst (dort wäre es
+      // endgültig) ist der Knopf ausgeblendet und tut nichts
+      if (hdr.folder.getFlag(Ci.nsMsgFolderFlags.Trash)) {
+        return;
+      }
+      hdr.folder.deleteMessages([hdr], win.msgWindow, false, false, null, true);
+    });
+    return box;
   }
 
   // Wie Apple Mail: Eine zugeklappte Konversation zeigt Vorschau und Bild der
