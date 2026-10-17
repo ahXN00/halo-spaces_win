@@ -3,7 +3,7 @@
   "name": "halo.spaces",
   "description": "A calm, tidy macOS-style design for Thunderbird – with colourful spaces, sender pictures, message previews and a unified address book.",
   "version": "3.0.95",
-  "author": "sruf79",
+  "author": "halo.spaces",
   "browser_specific_settings": {
     "gecko": {
       "id": "mail-cards@sebastian.local",

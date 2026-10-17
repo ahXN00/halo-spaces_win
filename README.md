@@ -11,7 +11,7 @@ uses the same layout in every space.
 It is one package for Thunderbird 128+: the theme, its own Apple-style icons,
 and an extension for the things CSS alone can't do.
 
-Created by Sebastian Ruf · Released under the Mozilla Public License 2.0
+Released under the Mozilla Public License 2.0
 
 <p align="center">
   <img src="screenshots/mail.png" alt="halo.spaces – mail with Today pane" width="90%">
