@@ -41,14 +41,11 @@ Features
 
 Personal data in the screenshots is blurred.
 
-3.0.96 Release Notes
+3.0.97 Release Notes
 --------
-- Reading view like Apple Mail: the sender picture from the card next to name and subject, plain-text messages in the system font (can be turned off)
-- Compose window and dialogs: aligned header labels, a calmer formatting bar, date and time as one field, round dialog buttons
-- New setting "Logos from sender websites" – off means no outside requests at all
-- Hover actions on mail cards are now off by default (Preferences)
-- French, Spanish and Italian
-- Fixes: folder title of new folders, cut-off "Add-ons and Themes" link, icons on the selected card
+- Message header like Apple Mail: a mailing-list note with Unsubscribe instead of the List-ID line, folder next to the time, Delete/Reply/Reply All/Forward on the divider when you hover over the message
+- Updates are installed right at start (at most every 6 hours; can be turned off in Preferences)
+- Windows/Linux: toolbar buttons hide in time when space runs out
 
 See [Releases](https://github.com/sruf79/halo-spaces/releases) for all versions.
 
