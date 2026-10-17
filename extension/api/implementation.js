@@ -560,6 +560,11 @@ function appleLabels() {
         Inbox: "Inbox", Drafts: "Drafts", SentMail: "Sent", Junk: "Junk", Trash: "Bin", Archive: "Archive", Templates: "Templates" };
 }
 // Posteingang immer zuerst (order 0), Gmails „Wichtig“ direkt danach (1)
+// Breite der Mailliste wie in Apple Mail fest; die Nachricht nimmt den Rest
+// (Thunderbird hält sonst die Nachricht fest und lässt die Liste auf großen
+// Bildschirmen auf über 2000 px wachsen)
+const LIST_WIDTH_PREF = "extensions.mailcards.listWidth";
+const LIST_WIDTH_DEFAULT = 460;
 const FOLDER_ORDER = { Inbox: 0, Drafts: 2, SentMail: 3, Junk: 4, Trash: 5, Archive: 6, Templates: 7 };
 function folderRole(folder) {
   return Object.keys(FOLDER_ORDER).find(k => folder?.getFlag(Ci.nsMsgFolderFlags[k]));
@@ -2276,7 +2281,8 @@ class CardEnhancer {
           syncSidebarWidth();
         } else if (splitter.id == "messagePaneSplitter") {
           event.preventDefault();
-          splitter.width = null;
+          // Mailliste zurück auf ihre Standardbreite (die Nachricht nimmt den Rest)
+          Services.prefs.clearUserPref(LIST_WIDTH_PREF);
           w.setTimeout(() => this.offsetUpdaters?.forEach(fn => fn()), 50);
         } else if (splitter.id == "sharedSplitter") {
           event.preventDefault();
@@ -4433,6 +4439,50 @@ class CardEnhancer {
         delete msgSplitter.__mcClamp;
       });
     }
+    // Mailliste in ihrer gemerkten Breite halten: ändert sich die Fensterbreite
+    // (oder Today-Pane/Ordnerliste), bekommt die Nachricht die Differenz
+    const keepListWidth = () => {
+      if (!msgSplitter || msgSplitter.isCollapsed || win.__mcAnimating || top.__mcSpacesAnimating ||
+          msgSplitter.resizeElement?.id != "messagePane" || !win.document.body.classList.contains("layout-vertical") ||
+          msgSplitter.__mcDragging) {
+        return;
+      }
+      const pane = win.document.getElementById("messagePane");
+      const list = threadPane.getBoundingClientRect();
+      const msg = pane.getBoundingClientRect();
+      if (!list.width || !msg.width) {
+        return;
+      }
+      const want = Services.prefs.getIntPref(LIST_WIDTH_PREF, LIST_WIDTH_DEFAULT);
+      // was die Liste zu breit ist, bekommt die Nachricht dazu (und umgekehrt)
+      const msgWant = Math.round(msg.width + list.width - want);
+      if (msgWant > 0 && Math.abs(msgWant - msg.width) >= 1) {
+        msgSplitter.width = Math.max(msgWant, minMessageWidth());
+      }
+    };
+    // gezogen: neue Listenbreite merken
+    if (msgSplitter && !msgSplitter.__mcListWatch) {
+      msgSplitter.__mcListWatch = true;
+      const onResizing = () => (msgSplitter.__mcDragging = true);
+      const onResized = () => {
+        if (!msgSplitter.__mcDragging) {
+          return;
+        }
+        msgSplitter.__mcDragging = false;
+        const width = Math.round(threadPane.getBoundingClientRect().width);
+        if (width >= 200) {
+          Services.prefs.setIntPref(LIST_WIDTH_PREF, width);
+        }
+      };
+      msgSplitter.addEventListener("splitter-resizing", onResizing);
+      msgSplitter.addEventListener("splitter-resized", onResized);
+      this.restorers.push(() => {
+        msgSplitter.removeEventListener("splitter-resizing", onResizing);
+        msgSplitter.removeEventListener("splitter-resized", onResized);
+        delete msgSplitter.__mcListWatch;
+        delete msgSplitter.__mcDragging;
+      });
+    }
     const enforceMessageWidth = () => {
       if (!msgSplitter || msgSplitter.isCollapsed || win.__mcAnimating || top.__mcSpacesAnimating ||
           msgSplitter.resizeElement?.id != "messagePane") {
@@ -4450,6 +4500,7 @@ class CardEnhancer {
       if (!content || !browser || win.closed || top.__mcSpacesAnimating) {
         return;
       }
+      keepListWidth();
       enforceMessageWidth();
       // nur der Mail-Tab, der gerade vorne ist, richtet die Toolbar aus –
       // sonst überschreibt ein zweiter Mail-Tab im Hintergrund die Kanten
@@ -4469,6 +4520,7 @@ class CardEnhancer {
           const browserLeft = win.browsingContext.embedderElement.getBoundingClientRect().left;
           const diff = browserLeft + threadPane.getBoundingClientRect().right - (this.mcButtonsLeft - 6);
           if (Math.abs(diff) >= 1) {
+            Services.prefs.setIntPref(LIST_WIDTH_PREF, Math.max(200, Math.round(listNow - diff)));
             msgSplitter.width = Math.max(minMessageWidth(), Math.round(pane.getBoundingClientRect().width + diff));
           }
         }
