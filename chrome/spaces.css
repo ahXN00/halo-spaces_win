@@ -3959,11 +3959,11 @@ body:has(> #booksPane.mc-side-anim) {
   padding-inline-end: max(60px, calc(var(--mc-tp-w, 0px) + 12px)) !important;
 }
 
-/* Suchfeld: linke Kante bleibt fest (wie bei ausgeblendeter Today-Pane:
-   333 px + 60 px vom Rand), es wird nur schmaler – bis es nur noch die Lupe
-   ist (40 px). Weiter lässt sich die Today-Pane nicht aufziehen (341 px). */
+/* Suchfeld immer 333 px wie in Apple Mail, direkt links der Today-Pane –
+   es wandert beim Ein-/Ausblenden mit (--mc-tp-w folgt der Animation) und
+   wird nur schmaler, wenn das Fenster zu eng ist (bis zur Lupe, 40 px) */
 :root:is([mc-tab="mail3PaneTab"], [mc-tab="mailMessageTab"], [mc-tab="tasks"]) #unifiedToolbarContent > li[item-id="search-bar"] {
-  flex: 0 50 clamp(40px, calc(381px - var(--mc-tp-w, 0px)), 333px) !important;
+  flex: 0 50 333px !important;
   min-width: 40px !important;
 }
 
