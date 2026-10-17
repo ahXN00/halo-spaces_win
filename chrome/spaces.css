@@ -2335,10 +2335,17 @@ addon-page-header h1,
 /* Terminliste als weiße, abgerundete Karte in der grauen Today-Pane –
    Inhalt weiß, Navigation (Minikalender, Monat) grau */
 #agenda {
-  padding: 4px 10px 12px 6px !important;
+  /* oben wie bisher 0,5 + 4 px bis zur ersten Zeile */
+  padding: 4.5px 10px 0 6px !important;
   margin: 0 8px 4px !important;
   border-radius: 12px !important;
-  border: 0.5px solid var(--mt-sidebar-border) !important;
+  /* unten ein weißer Rand statt Innenabstand: er liegt außerhalb der
+     Scrollfläche, beim Scrollen bleibt der Abstand zum Kartenrand also immer
+     so groß wie oben (Kante bis Text der ersten Zeile, 25 px) */
+  border: none !important;
+  border-bottom: 24.5px solid var(--mt-window) !important;
+  /* feine Linie ringsum (statt Rahmen, der unten jetzt der weiße Rand ist) */
+  box-shadow: 0 0 0 0.5px var(--mt-sidebar-border) !important;
   background: var(--mt-window) !important;
 }
 
