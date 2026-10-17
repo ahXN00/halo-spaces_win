@@ -934,6 +934,27 @@ hr[is="pane-splitter"],
   margin-inline-end: 6px !important;
 }
 
+/* Knöpfe bei Platzmangel ausgeblendet (mc-squeezed): erstes bzw. letztes
+   sichtbares Element einer Kapsel bekommt die runde Kante, und vor einem
+   Knopf ohne sichtbaren Nachbarn steht kein Trennstrich */
+#unifiedToolbarContent > li[item-id="get-messages"][mc-squeezed] + li[item-id="write-message"],
+#unifiedToolbarContent > li[item-id="archive"][mc-squeezed] + li[item-id="delete"] {
+  border-start-start-radius: 999px !important;
+  border-end-start-radius: 999px !important;
+}
+
+#unifiedToolbarContent > li[item-id="get-messages"][mc-squeezed] + li[item-id="write-message"]::before,
+#unifiedToolbarContent > li[item-id="archive"][mc-squeezed] + li[item-id="delete"]::before {
+  display: none !important;
+}
+
+#unifiedToolbarContent > li:is([item-id="reply"], [item-id="reply-all"]):has(+ li[mc-squeezed]:is([item-id="reply-all"], [item-id="forward-inline"])),
+#unifiedToolbarContent > li[item-id="delete"]:has(+ li[item-id="junk"][mc-squeezed]) {
+  border-start-end-radius: 999px !important;
+  border-end-end-radius: 999px !important;
+  margin-inline-end: 6px !important;
+}
+
 /* 69 px wie Apple Mail; in schmalen Fenstern schrumpft der Abstand,
    damit das Suchfeld Platz behält */
 #unifiedToolbarContent > li[item-id="write-message"] {
