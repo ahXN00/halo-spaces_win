@@ -887,6 +887,11 @@ hr[is="pane-splitter"],
   min-width: 0 !important;
 }
 
+/* bei Platzmangel ausgeblendet (die Erweiterung misst) */
+#unifiedToolbarContent > li[mc-squeezed] {
+  display: none !important;
+}
+
 #unifiedToolbarContent > li[item-id="search-bar"] {
   /* Apple Mail: 333 × 38 px – in jedem Bereich gleich breit; nur wenn das
      Fenster selbst zu schmal ist, wird es kleiner */
@@ -2051,6 +2056,10 @@ unified-toolbar {
 #intervalDescription {
   order: 0 !important;
   flex: 1 1 auto !important;
+  min-width: 0 !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
   font-size: 28px !important;
   font-weight: 700 !important;
   letter-spacing: -0.3px !important;
@@ -2168,6 +2177,12 @@ unified-toolbar {
 /* Layout-Optionen gibt es auch im Menü Ansicht und in den Einstellungen */
 #calendarControlBarMenu {
   display: none !important;
+}
+
+/* Suchfeld im Kalender endet links an der Umschaltung (misst die Erweiterung) */
+:root[mc-tab="calendar"] #unifiedToolbarContent > li[item-id="search-bar"] {
+  max-width: min(333px, var(--mc-cal-search-max, 333px)) !important;
+  min-width: 40px !important;
 }
 
 /* Tag/Woche/Mehrere Wochen/Monat oben in der Toolbar-Zeile wie in Apple
@@ -2380,6 +2395,24 @@ calendar-week-view, calendar-day-view {
   justify-content: flex-end !important;
   text-align: end !important;
   padding-inline-end: 8px !important;
+}
+
+/* Ganztägig-Zeile ohne Mindestbreite (Thunderbird: 100 px je Tag) – sonst
+   ragt die Woche bei schmalen Fenstern unter die Aufgabenleiste und der
+   Samstag ist abgeschnitten (ohne Scrollleiste nicht zu erkennen) */
+:is(#day-view, #week-view) .allday-events-list {
+  min-width: 0 !important;
+}
+
+/* Tage teilen sich die Breite wirklich (Thunderbird: 1fr = mindestens der
+   Inhalt) und die Ansicht darf bis zum Tab schrumpfen – sonst schiebt die
+   Woche den Tab breiter als das Fenster */
+:is(#day-view, #week-view) .multiday-grid:not(.multiday-grid-rotated) {
+  grid-template-columns: min-content repeat(var(--multiday-num-days), minmax(0, 1fr)) min-content !important;
+}
+
+:is(#calendarTabPanel, #calendarContent, #calendarDisplayBox, #calendar-view-box, #view-box, #day-view, #week-view, #multiweek-view, #month-view) {
+  min-width: 0 !important;
 }
 
 .day-column-heading {
@@ -5655,7 +5688,14 @@ body:has(> #booksPane.mc-side-anim) {
   /* Titel mittig in der Fläche, links und rechts Platz für den Knopf */
   justify-content: center;
   padding-inline: min(62px, var(--mc-tp-w, 0px));
+  /* rechts nie unter den Fensterknöpfen von Windows/Linux */
+  padding-inline-end: max(min(62px, var(--mc-tp-w, 0px)), calc(var(--mc-caption-w, 0px) + 8px));
   overflow: hidden;
+}
+
+#mcTodayTitle[data-narrow] {
+  font-size: 0;
+  gap: 0;
 }
 
 #mcTodayTitle {

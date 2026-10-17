@@ -1138,7 +1138,10 @@ function toolbarNeed(doc) {
     return 0;
   }
   const win = doc.defaultView;
-  let need = 10 + (parseFloat(win.getComputedStyle(content).paddingInlineEnd) || 0) + 12 + captionWidth(doc);
+  // rechts: Abstand für Today-Pane/-Knopf; die Fensterknöpfe (Windows/Linux)
+  // liegen bei offener Today-Pane in deren Fläche, sonst neben dem Knopf
+  const pad = parseFloat(win.getComputedStyle(content).paddingInlineEnd) || 0;
+  let need = 10 + Math.max(pad, 60 + captionWidth(doc)) + 12;
   let afterFirst = false;
   for (const li of content.children) {
     const id = li.getAttribute("item-id");
@@ -1154,6 +1157,26 @@ function toolbarNeed(doc) {
     need += (id == "search-bar" ? 333 : li.getBoundingClientRect().width) + margins;
   }
   return Math.ceil(need);
+}
+
+// Zu wenig Platz rechts der Mailliste (z. B. 1280 px mit Today-Pane): wie
+// Apple Mail die unwichtigsten Knöpfe ausblenden, statt sie über die Liste
+// und den Seitenleisten-Knopf zu schieben. fits() misst nach jedem Schritt.
+const SQUEEZE = ["junk", "mark-as", "move-to", "forward-inline", "reply-all", "get-messages", "archive"];
+function squeezeToolbar(doc, fits) {
+  const content = doc.getElementById("unifiedToolbarContent");
+  if (!content) {
+    return;
+  }
+  for (const li of content.querySelectorAll(":scope > li[mc-squeezed]")) {
+    li.removeAttribute("mc-squeezed");
+  }
+  for (const id of SQUEEZE) {
+    if (fits()) {
+      break;
+    }
+    content.querySelector(`:scope > li[item-id="${id}"]`)?.setAttribute("mc-squeezed", "");
+  }
 }
 
 // Kanten für die Toolbar-Zeile nur dort setzen, wo sie gebraucht werden:
@@ -1604,8 +1627,16 @@ class CardEnhancer {
       const toggle2 = d.getElementById("viewToggle");
       if (toggle2?.offsetWidth) {
         setVar(toggle2, "--mc-toggle-half", `${Math.ceil(toggle2.offsetWidth / 2)}px`);
+        // Suchfeld im Kalender nie unter der mittigen Umschaltung (Windows:
+        // Fenstertasten und ≡-Menü nehmen rechts Platz weg)
+        const search = d.querySelector('#unifiedToolbarContent > li[item-id="search-bar"]')?.getBoundingClientRect();
+        if (search?.width) {
+          const tr = toggle2.getBoundingClientRect();
+          setBarVar(d, "--mc-cal-search-max", `${Math.max(40, Math.floor(search.right - tr.right - 12))}px`);
+        }
       }
     };
+    this.restorers.push(() => squeezeToolbar(w.document, () => true));
     this.sideEdgeUpdaters ??= new Set();
     this.sideEdgeUpdaters.add(updateSideEdge);
     const sideRO = new w.ResizeObserver(updateSideEdge);
@@ -2670,8 +2701,11 @@ class CardEnhancer {
           return;
         }
         const width = panel && w.TodayPane?.isVisible ? Math.round(panel.getBoundingClientRect().width) : 0;
+        const caption = captionWidth(d);
         setVar(row, "--mc-tp-w", `${width}px`);
-        setVar(row, "--mc-caption-w", `${captionWidth(d)}px`);
+        setVar(row, "--mc-caption-w", `${caption}px`);
+        // neben Knopf und Fensterknöpfen zu wenig Platz: nur die Sonne
+        title.toggleAttribute("data-narrow", width - 62 - Math.max(62, caption + 8) < 110);
       };
       this.todayTopSync = sync;
       const ro = panel ? new w.ResizeObserver(sync) : null;
@@ -4252,6 +4286,10 @@ class CardEnhancer {
       }
       setBarVar(top.document, "--mc-toolbar-offset", `${offset}px`);
       const animating = top.__mcSpacesAnimating || win.__mcAnimating;
+      if (!animating) {
+        const firstSpacer = content.querySelector(':scope > li[item-id="spacer"]');
+        squeezeToolbar(top.document, () => !firstSpacer || firstSpacer.getBoundingClientRect().right >= start + offset - 2);
+      }
       // Suchfeld in jedem Bereich gleich breit (333 px wie Apple Mail): fehlt
       // dafür Platz, wird zuerst der Abstand nach „Verfassen“ kleiner (69 → 12 px)
       const write = content.querySelector(':scope > li[item-id="write-message"]');
