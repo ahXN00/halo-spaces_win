@@ -559,7 +559,8 @@ function appleLabels() {
     : { favourites: "Favourites", allInboxes: "All Inboxes", allSent: "All Sent", onMyMac: "On My Mac",
         Inbox: "Inbox", Drafts: "Drafts", SentMail: "Sent", Junk: "Junk", Trash: "Bin", Archive: "Archive", Templates: "Templates" };
 }
-const FOLDER_ORDER = { Inbox: 1, Drafts: 2, SentMail: 3, Junk: 4, Trash: 5, Archive: 6, Templates: 7 };
+// Posteingang immer zuerst (order 0), Gmails „Wichtig“ direkt danach (1)
+const FOLDER_ORDER = { Inbox: 0, Drafts: 2, SentMail: 3, Junk: 4, Trash: 5, Archive: 6, Templates: 7 };
 function folderRole(folder) {
   return Object.keys(FOLDER_ORDER).find(k => folder?.getFlag(Ci.nsMsgFolderFlags[k]));
 }
@@ -5305,7 +5306,7 @@ class CardEnhancer {
           continue;
         }
         // Gmail wie Apple Mail: „Markiert“ (Starred) und „Notes“ ausblenden,
-        // „Wichtig“ (Important) an den Anfang
+        // „Wichtig“ (Important) gleich unter den Posteingang
         // Gmail an der Ordneradresse erkennen (server.hostName ist hier leer)
         const gmail = /^imap:\/\/[^/]*@?imap\.(gmail|googlemail)\.com\//i.test(li.uri || "");
         const directChild = folder?.parent && (folder.parent.isServer || /^\[(Gmail|Google Mail)\]$/.test(folder.parent.name));
@@ -5315,7 +5316,7 @@ class CardEnhancer {
             continue;
           }
           if (/^(Wichtig|Important)$/i.test(folder.name)) {
-            li.style.order = "0";
+            li.style.order = "1";
             continue;
           }
         }

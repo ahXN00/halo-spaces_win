@@ -48,10 +48,13 @@ CHROME="$PROFILE/chrome"
 if [[ "$1" == "--uninstall" ]]; then
   rm -f "$TARGET"
   [[ -f "$PROFILE/user.js" ]] && sed -i '' -e '/mail.addressDisplayFormat/d' -e '/mail.fixed_width_messages/d' "$PROFILE/user.js"
-  if [[ -f "$CHROME/userChrome.css.vor-mail-cards" ]]; then
-    mv "$CHROME/userChrome.css.vor-mail-cards" "$CHROME/userChrome.css"
-    echo "Frühere userChrome.css wiederhergestellt."
-  fi
+  # Sicherung der früheren userChrome.css zurückholen (heutiger und alter Name)
+  for BACKUP in "$CHROME/userChrome.css.alte-version" "$CHROME/userChrome.css.vor-mail-cards"; do
+    if [[ -f "$BACKUP" && ! -f "$CHROME/userChrome.css" ]]; then
+      mv "$BACKUP" "$CHROME/userChrome.css"
+      echo "Frühere userChrome.css wiederhergestellt."
+    fi
+  done
   echo "Entfernt. Thunderbird neu starten."
   exit 0
 fi
