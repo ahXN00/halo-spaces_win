@@ -6253,4 +6253,17 @@ notification-message:not([type="warning"]) button.notification-button {
 #mcQuickPanel .mc-qc-primary:hover {
   background: color-mix(in srgb, var(--mt-accent) 88%, black) !important;
 }
+
+/* Einstellungen unten links („Add-ons und Themes“): einzeilig wie die
+   Kategorien darüber, bei schmaler Leiste mit „…“ */
+#pref-category-box .sidebar-footer-label {
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  min-width: 0 !important;
+}
+
+#pref-category-box .sidebar-footer-link {
+  min-width: 0 !important;
+}
 /* ==== Ende Bereiche ==== */
