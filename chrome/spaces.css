@@ -888,7 +888,7 @@ calendar-event-box :is(.alarm-icons-box, .item-classification-icon, .item-recurr
 
 /* Eingabezeile oben: neue Aufgabe und Suche als runde Felder */
 #task-addition-box {
-  padding: 6px 14px !important;
+  padding: 4px 12px !important;
   gap: 10px !important;
   background: var(--mt-window) !important;
   border: none !important;
@@ -933,12 +933,23 @@ calendar-event-box :is(.alarm-icons-box, .item-classification-icon, .item-recurr
   width: calc(100% - 16px) !important;
 }
 
-/* Schnelleingabe neuer Aufgaben kompakt wie unsere übrigen Felder */
+/* Schnelleingabe neuer Aufgaben als leise Zeile wie „Neue Erinnerung“ in
+   Apple Erinnerungen – erst beim Schreiben ein dezentes Feld */
 :is(#view-task-edit-field, #unifinder-task-edit-field) {
-  height: 28px !important;
-  padding: 0 10px !important;
-  border-radius: 8px !important;
+  height: 24px !important;
+  padding: 0 6px !important;
+  border-radius: 6px !important;
   font-size: 13px !important;
+  background-color: transparent !important;
+}
+
+:is(#view-task-edit-field, #unifinder-task-edit-field)[mc-hint],
+:is(#view-task-edit-field, #unifinder-task-edit-field)::placeholder {
+  color: var(--mt-text-tertiary) !important;
+}
+
+:is(#view-task-edit-field, #unifinder-task-edit-field):is(:hover, :focus):not([readonly]) {
+  background-color: var(--mt-control) !important;
 }
 
 /* Hinweis statt Eingabe (Kalender ohne Aufgaben bzw. schreibgeschützt):

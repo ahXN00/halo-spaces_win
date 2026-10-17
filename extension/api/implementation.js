@@ -1187,6 +1187,22 @@ function squeezeToolbar(doc, fits) {
   }
 }
 
+// iCloud hängt alten Erinnerungslisten nach dem Update der Erinnerungen-App
+// ein ⚠️ an den Namen – diese Listen werden nicht mehr über CalDAV abgeglichen
+function calendarNote(calendar) {
+  const name = calendar?.name || "";
+  let host = "";
+  try {
+    host = calendar?.uri?.host || "";
+  } catch {}
+  if (!/\u26A0\uFE0F?\s*$/.test(name) || !/(^|\.)icloud\.com$/i.test(host)) {
+    return null;
+  }
+  return Services.locale.appLocaleAsBCP47.startsWith("de")
+    ? "iCloud markiert diese Liste mit ⚠️: Sie wurde in der Erinnerungen-App aktualisiert und wird nicht mehr über CalDAV abgeglichen – neue Erinnerungen erscheinen hier nicht."
+    : "iCloud marks this list with ⚠️: it was upgraded in the Reminders app and no longer syncs over CalDAV – new reminders won't appear here.";
+}
+
 // Kanten für die Toolbar-Zeile nur dort setzen, wo sie gebraucht werden:
 // an der Wurzel ließe jede Änderung alle ~5000 Elemente neu berechnen
 // (25–40 ms pro Bild – die Seitenleisten-Animation ruckelt), an der
@@ -3118,6 +3134,62 @@ class CardEnhancer {
 
     // Kalender und Aufgaben: ein „+“ wie in Apple Kalender – fragt in einem
     // Menü nach Termin oder Aufgabe (der zweite Knopf ist per CSS ausgeblendet)
+    // Tooltip mit Erklärung an Kalendern, die iCloud mit ⚠️ markiert
+    const hookCalendarNotes = () => {
+      const list = w.document.getElementById("calendar-list");
+      if (!list || list.__mcNotes) {
+        return;
+      }
+      list.__mcNotes = true;
+      const { cal } = ChromeUtils.importESModule("resource:///modules/calendar/calUtils.sys.mjs");
+      const annotate = () => {
+        for (const li of list.querySelectorAll("li[calendar-id]")) {
+          const note = calendarNote(cal.manager.getCalendarById(li.getAttribute("calendar-id")));
+          const name = li.querySelector(".calendar-name");
+          if (note && name?.getAttribute("title") != note) {
+            name.setAttribute("title", note);
+          } else if (!note && name?.hasAttribute("title")) {
+            name.removeAttribute("title");
+          }
+        }
+      };
+      const mo = new w.MutationObserver(annotate);
+      mo.observe(list, { childList: true, subtree: true, characterData: true });
+      annotate();
+      this.restorers.push(() => {
+        mo.disconnect();
+        delete list.__mcNotes;
+        for (const name of list.querySelectorAll(".calendar-name[title]")) {
+          name.removeAttribute("title");
+        }
+      });
+    };
+
+    // Thunderbird schreibt „Hier klicken, um eine neue Aufgabe hinzuzufügen“
+    // als Wert ins Feld (nicht als Platzhalter) – markieren, damit er grau
+    // wie ein Platzhalter erscheint
+    const hookTaskHint = () => {
+      for (const id of ["view-task-edit-field", "unifinder-task-edit-field"]) {
+        const field = w.document.getElementById(id);
+        if (!field || field.__mcHint) {
+          continue;
+        }
+        field.__mcHint = true;
+        const sync = () => w.setTimeout(() => field.toggleAttribute("mc-hint", !!field.showsInstructions), 0);
+        for (const type of ["focus", "blur", "input"]) {
+          field.addEventListener(type, sync);
+        }
+        sync();
+        this.restorers.push(() => {
+          for (const type of ["focus", "blur", "input"]) {
+            field.removeEventListener(type, sync);
+          }
+          field.removeAttribute("mc-hint");
+          delete field.__mcHint;
+        });
+      }
+    };
+
     const hookNewButton = () => {
       const d = w.document;
       const bar = d.querySelector("unified-toolbar");
@@ -3332,6 +3404,8 @@ class CardEnhancer {
       hookMonthView();
       hookMultidayZoom();
       hookNewButton();
+      hookCalendarNotes();
+      hookTaskHint();
       hookTitle();
       labelToday();
       hookTodayPaneHeader();
@@ -3876,6 +3950,10 @@ class CardEnhancer {
           item.className = "menuitem-iconic";
           item.setAttribute("label", c.name);
           item.setAttribute("image", dot(c));
+          const note = calendarNote(c);
+          if (note) {
+            item.setAttribute("tooltiptext", note);
+          }
           if (c.id == current) {
             item.setAttribute("mc-current", "true");
           }
