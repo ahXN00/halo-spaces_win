@@ -40,7 +40,11 @@ def keys():
         if "=" in line and not line.lstrip().startswith("#"):
             k, v = line.strip().split("=", 1)
             values[k.strip()] = v.strip().strip('"')
-    return values["ATN_ISSUER"], values["ATN_SECRET"]
+    issuer = values["ATN_ISSUER"]
+    # oft wird nur der Zahlenteil kopiert („12345:67“) – der Store erwartet „user:12345:67“
+    if issuer[:1].isdigit():
+        issuer = "user:" + issuer
+    return issuer, values["ATN_SECRET"]
 
 
 def token(issuer, secret):
