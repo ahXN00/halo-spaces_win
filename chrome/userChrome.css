@@ -6313,4 +6313,54 @@ notification-message:not([type="warning"]) button.notification-button {
   outline: 2px solid var(--mt-accent) !important;
   outline-offset: 1px !important;
 }
+/* Mailkopf: Absenderbild wie in der Mailkarte (mc-hdr-avatar setzt die Erweiterung) */
+/* wie Apple Mail: Bild links, daneben Name, Betreff und Empfänger */
+#messageHeader:has(.mc-hdr-avatar) {
+  position: relative !important;
+  padding-inline-start: 58px !important;
+  min-height: 64px !important;
+}
+
+#messageHeader .recipient-avatar.mc-hdr-avatar {
+  position: absolute !important;
+  inset-inline-start: 12px !important;
+  top: 12px !important;
+  width: 40px !important;
+  height: 40px !important;
+  min-width: 40px !important;
+  margin-inline-end: 4px !important;
+  border-radius: 50% !important;
+  overflow: hidden !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  background: linear-gradient(180deg, #B4CAE4, #8A97C5) !important;
+  color: #fff !important;
+  font: 600 17px var(--mt-font, system-ui) !important;
+  letter-spacing: 0 !important;
+}
+
+#messageHeader .recipient-avatar.mc-hdr-avatar.mc-has-img {
+  background: #fff !important;
+  box-shadow: inset 0 0 0 0.5px rgba(0, 0, 0, 0.12) !important;
+}
+
+#messageHeader .recipient-avatar.mc-hdr-avatar img {
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: cover !important;
+  border-radius: 0 !important;
+}
+
+#messageHeader .recipient-avatar.mc-hdr-avatar.mc-small img {
+  width: 62% !important;
+  height: 62% !important;
+  object-fit: contain !important;
+}
+
+/* Beschriftungen im Mailkopf (To, Cc, …) einheitlich grau */
+#messageHeader .row-heading {
+  color: var(--mt-text-tertiary) !important;
+  font-weight: 400 !important;
+}
 /* ==== Ende Bereiche ==== */

@@ -196,6 +196,7 @@ def take_shots(m, folder, scheme):
     os.makedirs(folder, exist_ok=True)
     for name, js in [
         ("mail", "await toMail();"),
+        ("message", MESSAGE_JS),
         ("calendar-week", 'await toCalendar(); w.switchToView("week"); await wait(800);'),
         ("calendar-month", 'await toCalendar(); w.switchToView("month"); await wait(800);'),
         ("tasks", 'tm.openTab("tasks", {}); await wait(1500);'),
@@ -229,6 +230,21 @@ def take_shots(m, folder, scheme):
         print(f"Screenshot {path}", flush=True)
         m.cmd("WebDriver:ExecuteScript", {"script": "window.close(); return 1;", "args": []})
         m.cmd("WebDriver:SwitchToWindow", {"handle": main})
+
+
+# eine Test-Mail (example.invalid) in Local Folders öffnen – für die Leseansicht
+MESSAGE_JS = r"""
+  const { MailServices } = ChromeUtils.importESModule("resource:///modules/MailServices.sys.mjs");
+  try { MailServices.accounts.localFoldersServer; } catch { MailServices.accounts.createLocalMailAccount(); await wait(500); }
+  const root = MailServices.accounts.localFoldersServer.rootFolder;
+  if (!root.containsChildNamed("Lesen")) { root.createSubfolder("Lesen", null); await wait(800); }
+  const f = root.getChildNamed("Lesen");
+  if (!f.getTotalMessages(false)) {
+    f.QueryInterface(Ci.nsIMsgLocalMailFolder).addMessage(unescape(encodeURIComponent("From - Sat Oct 17 10:00:00 2026\r\nFrom: Anna Beispiel <anna@example.invalid>\r\nTo: Halo Test <halo@example.invalid>\r\nCc: Ben Muster <ben@example.invalid>\r\nSubject: Treffen am Donnerstag\r\nDate: Sat, 17 Oct 2026 09:41:00 +0200\r\nMessage-ID: <halo-read@example.invalid>\r\nContent-Type: text/plain; charset=UTF-8\r\n\r\nHallo,\r\n\r\npasst dir Donnerstag um 10 Uhr? Ich bringe die Unterlagen mit.\r\n\r\nLiebe Grüße\r\nAnna\r\n")));
+    await wait(800);
+  }
+  const a3 = await toMail(); a3.displayFolder(f.URI); await wait(800);
+  a3.threadTree.selectedIndex = 0; await wait(2000);"""
 
 
 # Verfassen-Fenster mit einer reinen Test-Identität (example.invalid, kein Server)
@@ -499,6 +515,20 @@ def run_checks(m, version, profile, results):
           return { found: true, icon: cs(b).color, pill: cs(box).backgroundColor, diff };''')
         return res.get("found") and res["diff"] >= 60, f"{res}"
     check("Ausgewählte Karte: Aktions-Symbole sichtbar", selected_actions, results)
+
+    def reading():
+        res = m.js(MESSAGE_JS + '''
+          const am = a3.messageBrowser.contentWindow; const md = am.document;
+          const box = await until(() => md.querySelector("#fromRecipient0 .recipient-avatar.mc-hdr-avatar"));
+          const body = md.getElementById("messagepane")?.contentDocument;
+          const pre = await until(() => body?.querySelector(".moz-text-plain pre, .moz-text-flowed, div.moz-text-plain"));
+          const font = pre ? body.defaultView.getComputedStyle(pre).fontFamily : "";
+          const title = a3.document.getElementById("threadPaneFolderName")?.textContent || "";
+          const head = [...a3.document.querySelectorAll("#threadPaneHeaderBar *")].map(e => e.textContent).join(" ");
+          return { avatar: box?.textContent.trim(), size: box ? Math.round(box.getBoundingClientRect().width) : 0, font, title, undefinedInHeader: /undefined|null/.test(head) };''')
+        ok = res["avatar"] == "AB" and res["size"] >= 36 and "monospace" not in res["font"].lower() and not res["undefinedInHeader"]
+        return ok, f"{res}"
+    check("Leseansicht: Absenderbild, Systemschrift, Ordnertitel", reading, results)
 
     def birthdays():
         res = m.js('''

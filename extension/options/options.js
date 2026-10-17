@@ -16,6 +16,8 @@ const SECTIONS = de => [
       hint: de ? "fragt nur die Website des Absenders (Favicon, BIMI) – aus: keine Anfragen nach außen" : "asks only the sender’s own website (favicon, BIMI) – off: no outside requests" },
     { key: "macContactPhotos", mac: true, label: de ? "Fotos aus der Kontakte-App" : "Photos from the Contacts app",
       hint: de ? "macOS fragt einmal nach dem Zugriff" : "macOS asks for access once" },
+    { key: "plainTextSystemFont", label: de ? "Textmails in Systemschrift" : "Plain-text messages in system font",
+      hint: de ? "aus: Schreibmaschinenschrift, z. B. für Tabellen aus Leerzeichen" : "off: fixed-width font, e.g. for tables made of spaces" },
     { key: "hideDuplicateContacts", label: de ? "Doppelte Kontakte zusammenführen" : "Merge duplicate contacts",
       hint: de ? "nur in der Anzeige" : "display only" },
   ]],

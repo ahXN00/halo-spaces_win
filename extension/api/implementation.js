@@ -723,12 +723,14 @@ function folderRole(folder) {
 function appleFolderTitle(folder) {
   const L = appleLabels();
   const role = folderRole(folder);
+  // frisch angelegte Ordner haben noch keinen prettyName (null) – dann name
+  const plain = folder.prettyName || folder.localizedName || folder.name;
   if (/^mailbox:\/\/[^/]*smart%20mailboxes\//i.test(folder.URI)) {
     if (role == "Inbox" && !L.native) return L.allInboxes;
     if (role == "SentMail" && !L.native) return L.allSent;
-    return folder.prettyName;
+    return plain;
   }
-  const name = role && !L.native ? L[role] : folder.prettyName;
+  const name = role && !L.native ? L[role] : plain;
   const account = folder.server?.type == "none" && !L.native ? L.onMyMac : folder.server?.prettyName;
   return account ? `${name} – ${account}` : name;
 }
@@ -766,6 +768,8 @@ function cubicBezier(x1, y1, x2, y2) {
 // und eine Zuordnungsliste (E-Mail, Name) im Profilordner „mail-cards-photos“
 // ab. An den Kontakten selbst ändert sich nichts.
 const MAC_PHOTOS_PREF = "extensions.mailcards.macContactPhotos";
+// reine Textmails in der Systemschrift (plaintext.css)
+const PLAIN_TEXT_PREF = "extensions.mailcards.plainTextSystemFont";
 // aus: keine Anfrage an Absender-Websites (Favicon, BIMI, Startseite)
 const SENDER_LOGOS_PREF = "extensions.mailcards.senderLogos";
 const MAC_PHOTOS_SCRIPT = `
@@ -1885,6 +1889,9 @@ class CardEnhancer {
           if (/^about:(3pane|message)/.test(url) && win) {
             win.addEventListener("DOMContentLoaded", () => {
               this.hookMailContext(doc);
+              if (url.startsWith("about:message")) {
+                this.hookHeaderAvatar(doc);
+              }
               // Nachricht im eigenen Fenster: Knöpfe im Mailkopf zeigen
               // – ebenso, wenn die Mail-Toolbar keine Antworten-Knöpfe hat
               // (eigene Toolbar-Anordnung), sonst fehlten sie ganz
@@ -5239,6 +5246,26 @@ class CardEnhancer {
         sss.unregisterSheet(noScroll, sss.USER_SHEET);
       }
     });
+    // Textmails in der Systemschrift – schaltet sofort mit der Einstellung um
+    const plain = Services.io.newURI(`resource://mailcards/plaintext.css?v=${extensionVersion}`);
+    const applyPlain = () => {
+      const on = Services.prefs.getBoolPref(PLAIN_TEXT_PREF, true) && Services.prefs.getBoolPref("extensions.mailcards.bundledTheme", true);
+      const has = sss.sheetRegistered(plain, sss.USER_SHEET);
+      if (on && !has) {
+        sss.loadAndRegisterSheet(plain, sss.USER_SHEET);
+      } else if (!on && has) {
+        sss.unregisterSheet(plain, sss.USER_SHEET);
+      }
+    };
+    const plainObs = { observe: applyPlain };
+    Services.prefs.addObserver(PLAIN_TEXT_PREF, plainObs);
+    applyPlain();
+    this.restorers.push(() => {
+      Services.prefs.removeObserver(PLAIN_TEXT_PREF, plainObs);
+      if (sss.sheetRegistered(plain, sss.USER_SHEET)) {
+        sss.unregisterSheet(plain, sss.USER_SHEET);
+      }
+    });
     // ::part-Regeln gelten nur aus Author-Stylesheets (siehe parts.css)
     if (Services.prefs.getBoolPref("extensions.mailcards.bundledTheme", true)) {
       const parts = Services.io.newURI(`resource://mailcards/parts.css?v=${extensionVersion}`);
@@ -5712,6 +5739,7 @@ class CardEnhancer {
     const mb = win.messageBrowser?.contentDocument;
     if (mb?.readyState == "complete") {
       this.hookMailContext(mb);
+      this.hookHeaderAvatar(mb);
     }
     const threadPane = win.threadPane;
 
@@ -6273,6 +6301,50 @@ class CardEnhancer {
     }
   }
 
+  // Mailkopf: dasselbe Absenderbild wie in der Karte (Logo, Foto oder
+  // Initialen mit Verlauf) statt Thunderbirds einzelnem Buchstaben
+  hookHeaderAvatar(doc) {
+    const win = doc?.defaultView;
+    if (!win || doc.__mcHdrAvatar || !Services.prefs.getBoolPref("extensions.mailcards.bundledTheme", true)) {
+      return;
+    }
+    doc.__mcHdrAvatar = true;
+    const run = () => {
+      const box = doc.querySelector("#fromRecipient0 .recipient-avatar");
+      const hdr = win.gMessage;
+      if (!box || !hdr || box.dataset.mcFor == hdr.messageId) {
+        return;
+      }
+      box.dataset.mcFor = hdr.messageId;
+      box.classList.add("mc-hdr-avatar");
+      try {
+        this.fillAvatar(box, hdr);
+      } catch (e) {
+        log("header avatar error", e);
+      }
+    };
+    let pending = false;
+    const mo = new win.MutationObserver(() => {
+      if (!pending) {
+        pending = true;
+        win.setTimeout(() => {
+          pending = false;
+          run();
+        }, 0);
+      }
+    });
+    mo.observe(doc.getElementById("messageHeader") || doc.documentElement, { childList: true, subtree: true });
+    run();
+    this.restorers.push(() => {
+      mo.disconnect();
+      delete doc.__mcHdrAvatar;
+      for (const box of doc.querySelectorAll(".mc-hdr-avatar")) {
+        box.classList.remove("mc-hdr-avatar", "mc-has-img", "mc-small");
+        delete box.dataset.mcFor;
+      }
+    });
+  }
+
   fillAvatar(avatar, hdr) {
     let name = "";
     let email = "";
@@ -6487,6 +6559,7 @@ const SETTINGS = {
   birthdays: [BDAY_PREF, "bool", true],
   macContactPhotos: [MAC_PHOTOS_PREF, "bool", false],
   senderLogos: [SENDER_LOGOS_PREF, "bool", true],
+  plainTextSystemFont: [PLAIN_TEXT_PREF, "bool", true],
   hideDuplicateContacts: ["extensions.mailcards.hideDuplicateContacts", "bool", true],
   calendarOffline: ["extensions.mailcards.calendarOffline", "bool", false],
   appleIcons: ["extensions.mailcards.appleIcons", "bool", true],
