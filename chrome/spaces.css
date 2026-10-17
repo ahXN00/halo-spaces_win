@@ -4005,9 +4005,11 @@ body:has(> #booksPane.mc-side-anim) {
 }
 
 /* Suchfeld endet vor der Today-Pane; ist sie aus, ist rechts Platz für den
-   Knopf (12 + 40 + 8 px) */
+   Knopf (12 + 40 + 8 px). Unter Windows/Linux stehen ≡-Menü und
+   Fensterknöpfe schon rechts neben der Knopfleiste (--mc-row-tail) und
+   liegen bei offener Today-Pane in deren Fläche */
 :root:is([mc-tab="mail3PaneTab"], [mc-tab="mailMessageTab"], [mc-tab="tasks"]) #unifiedToolbarContent {
-  padding-inline-end: max(60px, calc(var(--mc-tp-w, 0px) + 12px)) !important;
+  padding-inline-end: max(60px, calc(var(--mc-tp-w, 0px) + 12px - var(--mc-row-tail, 0px))) !important;
 }
 
 /* Suchfeld immer 333 px wie in Apple Mail, direkt links der Today-Pane –
@@ -4100,7 +4102,7 @@ body:has(> #booksPane.mc-side-anim) {
   z-index: 3 !important;
   top: 50% !important;
   transform: translateY(-50%) !important;
-  inset-inline-end: max(calc(12px + var(--mc-caption-w, 0px)), calc(var(--mc-tp-w, 0px) - 50px)) !important;
+  inset-inline-end: max(calc(12px + max(var(--mc-caption-w, 0px), var(--mc-row-tail, 0px))), calc(var(--mc-tp-w, 0px) - 50px)) !important;
   margin: 0 !important;
   width: 40px !important;
   height: 38px !important;
