@@ -24,6 +24,10 @@
   box-sizing: border-box;
 }
 
+[hidden] {
+  display: none !important;
+}
+
 html,
 body {
   margin: 0;
@@ -158,4 +162,9 @@ footer a:hover {
   background: var(--control);
   font-size: 12px;
   color: var(--text-secondary);
+}
+
+.capsule .coffee {
+  width: 20px;
+  height: 20px;
 }

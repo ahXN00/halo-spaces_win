@@ -1085,6 +1085,9 @@ function setVar(el, name, value) {
 // Breite der Fensterknöpfe rechts in der Toolbar-Zeile (Windows/Linux:
 // Minimieren, Maximieren, Schließen; auf dem Mac 0)
 function captionWidth(doc) {
+  if (Services.appinfo.OS == "Darwin") {
+    return 0; // auf dem Mac sitzen sie links (Ampel)
+  }
   return Math.round(doc.querySelector("#unifiedToolbarContainer .titlebar-buttonbox-container")?.getBoundingClientRect().width || 0);
 }
 
@@ -1320,6 +1323,17 @@ class CardEnhancer {
           if (url.startsWith("chrome://calendar/content/calendar-summary-dialog.xhtml") && doc.defaultView) {
             const dlg = doc.defaultView;
             dlg.addEventListener("load", () => dlg.setTimeout(() => this.fitSummaryDialog(dlg), 250), { once: true });
+          }
+          // Termin-/Aufgaben-Fenster: Titel und Beschriftungen ohne Doppelpunkt
+          if (url.startsWith("chrome://calendar/content/calendar-event-dialog.xhtml") && doc.defaultView) {
+            const dlg = doc.defaultView;
+            dlg.addEventListener("load", () => dlg.setTimeout(() => this.tidyEventDialog(dlg), 300), { once: true });
+          }
+          // Erinnerungen: Fenster so hoch wie die Einträge (Thunderbird merkt
+          // sich sonst eine feste Größe – bei einem Eintrag viel Leerraum)
+          if (url.startsWith("chrome://calendar/content/calendar-alarm-dialog.xhtml") && doc.defaultView) {
+            const dlg = doc.defaultView;
+            dlg.addEventListener("load", () => dlg.setTimeout(() => this.fitAlarmDialog(dlg), 200), { once: true });
           }
           if (!/^(chrome:\/\/(messenger|calendar|messenger-newsblog)\/|about:(addressbook|preferences|addons|accountsettings|accountsetup|message|3pane))/.test(url)) {
             return;
@@ -1767,6 +1781,24 @@ class CardEnhancer {
       // Labels je Kontakt: aus welchen Adressbüchern er stammt – nur in der
       // vereinigten Ansicht „Alle Adressbücher“
       const Row = cw.customElements.get("ab-card-row");
+      // Kontaktkarten genau so hoch wie die Mailkarten (Thunderbird rechnet
+      // die Liste mit ROW_HEIGHT, das Design übernimmt --mc-card-h)
+      if (Row && !Object.getOwnPropertyDescriptor(Row, "ROW_HEIGHT")?.get) {
+        const self = this;
+        Object.defineProperty(Row, "ROW_HEIGHT", {
+          configurable: true,
+          get: () => self.mcCardHeight || 67,
+          set: () => {},
+        });
+        cw.document.documentElement.style.setProperty("--mc-card-h", `${this.mcCardHeight || 67}px`);
+        try {
+          cw.cardsPane?.cardsList?.reset?.();
+        } catch {}
+        this.restorers.push(() => {
+          delete Row.ROW_HEIGHT;
+          Row.ROW_HEIGHT = 52;
+        });
+      }
       if (Row && !Row.prototype.__mcBooks) {
         const origFill = Row.prototype.fillRow;
         Row.prototype.fillRow = function (...args) {
@@ -2552,6 +2584,7 @@ class CardEnhancer {
     // Bereiche-Knopf unten links) statt des ✕ oben in der Today-Pane
     const hookTodayToggle = () => {
       const d = w.document;
+      const panel = d.getElementById("today-pane-panel");
       const command = d.getElementById("calendar_toggle_todaypane_command");
       if (!command || d.getElementById("mcTodayToggle")) {
         return;
@@ -2572,13 +2605,44 @@ class CardEnhancer {
       updateTip();
       btn.addEventListener("mouseenter", updateTip);
       btn.addEventListener("click", () => this.animateTodayPane(w, command, updateTip));
-      const panel = d.getElementById("today-pane-panel");
-      const mo = panel ? new w.MutationObserver(updateTip) : null;
+      const mo = panel ? new w.MutationObserver(() => {
+        updateTip();
+        this.todayTopSync?.();
+      }) : null;
       mo?.observe(panel, { attributes: true, attributeFilter: ["collapsed", "hidden", "collapsedinmodes"] });
-      d.body.append(btn);
+      // in die Toolbar-Zeile; darüber reicht die Today-Pane bis ganz oben
+      // (#mcTodayTop in ihrer Breite) – wie die Seitenleiste links
+      const row = d.getElementById("unifiedToolbarContainer");
+      const top = d.createElementNS("http://www.w3.org/1999/xhtml", "div");
+      top.id = "mcTodayTop";
+      // Überschrift „Today Pane“ oben in der Toolbar-Zeile, neben dem Knopf
+      const title = d.createElementNS("http://www.w3.org/1999/xhtml", "span");
+      title.id = "mcTodayTitle";
+      title.textContent = Services.locale.appLocaleAsBCP47.startsWith("de") ? "Heute-Leiste" : "Today Pane";
+      top.append(title);
+      row?.prepend(top);
+      (row || d.body).append(btn);
+      // Breite der Today-Pane (0, wenn aus) an die Toolbar-Zeile – Suchfeld,
+      // Fläche und Knopf richten sich danach, auch während der Animation
+      const sync = () => {
+        if (!row) {
+          return;
+        }
+        const width = panel && w.TodayPane?.isVisible ? Math.round(panel.getBoundingClientRect().width) : 0;
+        setVar(row, "--mc-tp-w", `${width}px`);
+        setVar(row, "--mc-caption-w", `${captionWidth(d)}px`);
+      };
+      this.todayTopSync = sync;
+      const ro = panel ? new w.ResizeObserver(sync) : null;
+      ro?.observe(panel);
+      sync();
       this.restorers.push(() => {
         mo?.disconnect();
+        ro?.disconnect();
         btn.remove();
+        top.remove();
+        row?.style.removeProperty("--mc-tp-w");
+        delete this.todayTopSync;
       });
     };
 
@@ -2867,9 +2931,30 @@ class CardEnhancer {
       const locale = Services.locale.appLocaleAsBCP47;
       const wdFmt = new Intl.DateTimeFormat(locale, { weekday: "short" });
       const monthFmt = new Intl.DateTimeFormat(locale, { month: "long" });
-      const title = d.createElementNS("http://www.w3.org/1999/xhtml", "div");
+      const X = "http://www.w3.org/1999/xhtml";
+      const title = d.createElementNS(X, "div");
       title.id = "mcAgendaTitle";
+      // ‹  Monat Jahr  › – blättert monatsweise; die Liste zeigt die Termine
+      // des gezeigten Monats (im aktuellen Monat ab heute)
+      const de = locale.startsWith("de");
+      const mkChevron = (cls, label, dir) => {
+        const b = d.createElementNS(X, "button");
+        b.className = `mc-agenda-nav ${cls}`;
+        b.type = "button";
+        b.title = label;
+        b.setAttribute("aria-label", label);
+        b.addEventListener("click", () => this.shiftAgendaMonth(w, dir));
+        return b;
+      };
+      const label = d.createElementNS(X, "span");
+      label.className = "mc-agenda-month";
+      title.append(
+        mkChevron("mc-prev", de ? "Voriger Monat" : "Previous Month", -1),
+        label,
+        mkChevron("mc-next", de ? "Nächster Monat" : "Next Month", 1)
+      );
       agenda.before(title);
+      this.hookAgendaMonthRange(w);
       const apply = () => {
         const today = new Date();
         const todayKey = `${today.getFullYear()}${String(today.getMonth() + 1).padStart(2, "0")}${String(today.getDate()).padStart(2, "0")}`;
@@ -2886,6 +2971,12 @@ class CardEnhancer {
               header.toggleAttribute("data-mc-today", key.slice(0, 8) == todayKey);
             }
           }
+          // bald beginnend (in den nächsten 3 Stunden): Zusatz „in 2 hr“ zeigen
+          try {
+            const start = li.item?.startDate;
+            const begins = start && !start.isDate ? start.nativeTime / 1000 - Date.now() : Infinity;
+            li.toggleAttribute("data-mc-soon", begins > 0 && begins <= 3 * 3600 * 1000);
+          } catch {}
           // Kalenderfarbe für den Farbblock
           const dot = li.querySelector(".agenda-listitem-calendar");
           const details = li.querySelector(".agenda-listitem-details");
@@ -2897,10 +2988,17 @@ class CardEnhancer {
             li.style.setProperty("--mc-c", color);
           }
         }
-        const date = firstDate || today;
+        // Monat der Liste (Starttag der Today-Pane), sonst des ersten Termins
+        let date = firstDate || today;
+        try {
+          const start = w.TodayPane?.start;
+          if (start) {
+            date = new Date(start.year, start.month, start.day);
+          }
+        } catch {}
         const month = monthFmt.format(date);
-        title.replaceChildren(
-          Object.assign(d.createElementNS("http://www.w3.org/1999/xhtml", "b"), { textContent: month }),
+        label.replaceChildren(
+          Object.assign(d.createElementNS(X, "b"), { textContent: month }),
           d.createTextNode(` ${date.getFullYear()}`)
         );
       };
@@ -2977,17 +3075,29 @@ class CardEnhancer {
         }
         event.preventDefault();
         event.stopPropagation();
+        // im Kalender gleich ein neuer Termin, in den Aufgaben gleich eine
+        // neue Aufgabe (die Auswahl gibt es über das „+“ der Today-Pane)
+        w.goDoCommand(mode == "tasks" ? "calendar_new_todo_command" : "calendar_new_event_command");
+      };
+      bar.addEventListener("click", onClick, true);
+      // dasselbe Popover über einem Knopf unten (Today-Pane): nach oben, mittig
+      this.openNewPopupAbove = anchor => {
         if (popup.state == "open" || popup.state == "showing") {
           popup.hidePopup();
           return;
         }
-        popup.openPopup(li, "after_start", -14, -6); // Rand für den Schatten ausgleichen, Pfeil über der Mitte
+        popup.classList.add("mc-up");
+        const width = 294; // Breite des Popovers samt Rand für den Schatten
+        popup.openPopup(anchor, "before_start", Math.round(anchor.getBoundingClientRect().width / 2 - width / 2), 12);
       };
-      bar.addEventListener("click", onClick, true);
+      const onHidden = () => popup.classList.remove("mc-up");
+      popup.addEventListener("popuphidden", onHidden);
       this.restorers.push(() => {
         bar.removeEventListener("click", onClick, true);
+        popup.removeEventListener("popuphidden", onHidden);
         popup.remove();
         delete bar.__mcNewHooked;
+        delete this.openNewPopupAbove;
       });
     };
 
@@ -3003,12 +3113,27 @@ class CardEnhancer {
       header.dataset.mcTitle = Services.locale.appLocaleAsBCP47.startsWith("de") ? "Heute-Leiste" : "Today Pane";
       const home = button?.parentElement;
       const next = button?.nextSibling;
-      if (button) {
-        header.after(button);
+      // ganz unten in der Today-Pane, unter den Einträgen: ein „+“ wie im
+      // Kalender, das nach Termin oder Aufgabe fragt
+      const panel = d.getElementById("today-pane-panel");
+      const savedCommand = button?.getAttribute("command");
+      const onPlus = event => {
+        event.preventDefault();
+        event.stopPropagation();
+        this.openNewPopupAbove?.(button);
+      };
+      if (button && panel) {
+        panel.append(button);
+        button.removeAttribute("command");
+        button.addEventListener("click", onPlus);
       }
       this.restorers.push(() => {
         delete header.dataset.mcTitle;
         if (button && home) {
+          button.removeEventListener("click", onPlus);
+          if (savedCommand) {
+            button.setAttribute("command", savedCommand);
+          }
           home.insertBefore(button, next);
         }
       });
@@ -3424,6 +3549,74 @@ class CardEnhancer {
     w.requestAnimationFrame(() => w.requestAnimationFrame(step));
   }
 
+  // Terminliste der Today-Pane: vom Starttag bis zum Monatsende (statt einer
+  // festen Anzahl Tage) – passt zum Monat im Titel
+  hookAgendaMonthRange(w) {
+    const agenda = w.TodayPane?.agenda;
+    if (!agenda || agenda.__mcMonthRange) {
+      return;
+    }
+    agenda.__mcMonthRange = true;
+    Object.defineProperty(agenda, "numberOfDays", {
+      configurable: true,
+      get() {
+        try {
+          const start = this.startDate || w.TodayPane.start;
+          const last = new Date(start.year, start.month + 1, 0).getDate();
+          return Math.max(1, last - start.day + 1);
+        } catch {
+          return 14;
+        }
+      },
+    });
+    // Thunderbird zeigt für andere Tage als heute nur diesen einen Tag –
+    // hier immer vom Starttag bis zum Monatsende
+    agenda.update = async function (date) {
+      this.startDate = date.clone();
+      this.startDate.isDate = true;
+      this.endDate = this.startDate.clone();
+      this.endDate.day += this.numberOfDays;
+      this.itemType = Ci.calICalendar.ITEM_FILTER_TYPE_EVENT;
+      if (this.isActive) {
+        await this.refreshItems();
+      } else {
+        await this.ensureInitialized();
+      }
+      this.selectedIndex = 0;
+    };
+    try {
+      w.TodayPane.updatePeriod();
+    } catch {}
+    this.restorers.push(() => {
+      delete agenda.update;
+      Object.defineProperty(agenda, "numberOfDays", {
+        configurable: true,
+        get: () => Services.prefs.getIntPref("calendar.agenda.days", 14),
+      });
+      delete agenda.__mcMonthRange;
+      try {
+        w.TodayPane.updatePeriod();
+      } catch {}
+    });
+  }
+
+  // Monat der Today-Pane wechseln: aktueller Monat ab heute, sonst ab dem 1.
+  shiftAgendaMonth(w, dir) {
+    try {
+      const { cal } = ChromeUtils.importESModule("resource:///modules/calendar/calUtils.sys.mjs");
+      const start = w.TodayPane.start;
+      const target = new Date(start.year, start.month + dir, 1);
+      const now = new Date();
+      const day = target.getFullYear() == now.getFullYear() && target.getMonth() == now.getMonth()
+        ? now : target;
+      const dt = cal.dtz.jsDateToDateTime(new Date(day.getFullYear(), day.getMonth(), day.getDate()), cal.dtz.defaultTimezone);
+      dt.isDate = true;
+      w.TodayPane.setDay(dt);
+    } catch (e) {
+      log("agenda month error", String(e).slice(0, 160));
+    }
+  }
+
   // Today-Pane weich ein-/ausblenden wie die Seitenleisten: die Breite
   // gleitet zwischen 0 und voller Breite, der Inhalt behält seine Breite und
   // wird nur zugedeckt
@@ -3468,6 +3661,7 @@ class CardEnhancer {
       }
       const k = Math.min(1, (now - start) / DURATION);
       setW(full * (showing ? curve(k) : 1 - curve(k)));
+      this.todayTopSync?.();
       if (k < 1) {
         w.requestAnimationFrame(step);
         return;
@@ -3484,6 +3678,7 @@ class CardEnhancer {
         command.doCommand();
       }
       panel.__mcAnimating = false;
+      this.todayTopSync?.();
       onDone?.();
     };
     w.requestAnimationFrame(() => w.requestAnimationFrame(step));
@@ -3829,6 +4024,93 @@ class CardEnhancer {
   // Termin-Details: an den Inhalt anpassen (mindestens 480 px breit, höchstens
   // so groß wie der Bildschirm) und iClouds Platzhalter-Erinnerung ausblenden
   // (Apple legt für Standard-Erinnerungen eine feste vom 1. April 1976 an)
+  tidyEventDialog(dlg, tries = 0) {
+    try {
+      const frame = dlg.document.getElementById("calendar-item-panel-iframe")?.contentDocument;
+      if ((!frame || frame.readyState != "complete" || !frame.querySelector("label")) && tries < 20) {
+        dlg.setTimeout(() => this.tidyEventDialog(dlg, tries + 1), 250);
+        return;
+      }
+      const strip = text => text.replace(/\s*:\s*$/, "").replace(/:\s+$/, "");
+      // Fenstertitel „Neuer Termin:“ → „Neuer Termin“ (auch nach Änderungen)
+      const fixTitle = () => {
+        const t = dlg.document.title;
+        const fixed = t.replace(/:\s*$/, "");
+        if (fixed != t) {
+          dlg.document.title = fixed;
+        }
+      };
+      fixTitle();
+      const titleEl = dlg.document.querySelector("title");
+      if (titleEl) {
+        new dlg.MutationObserver(fixTitle).observe(titleEl, { childList: true, characterData: true, subtree: true });
+      }
+      const idoc = dlg.document.getElementById("calendar-item-panel-iframe")?.contentDocument;
+      if (!idoc) {
+        return;
+      }
+      // Beschriftungen und Reiter ohne Doppelpunkt (Fluent setzt sie neu → beobachten)
+      const fixLabels = () => {
+        for (const el of idoc.querySelectorAll("label, tab")) {
+          const v = el.getAttribute("value");
+          if (v && /:\s*$/.test(v)) {
+            el.setAttribute("value", strip(v));
+          }
+          const l = el.getAttribute("label");
+          if (l && /:\s*$/.test(l)) {
+            el.setAttribute("label", strip(l));
+          }
+          if (!v && !l && el.childElementCount == 0 && /:\s*$/.test(el.textContent)) {
+            el.textContent = strip(el.textContent);
+          }
+        }
+      };
+      fixLabels();
+      new dlg.MutationObserver(() => dlg.setTimeout(fixLabels, 0)).observe(idoc.documentElement, {
+        subtree: true, attributes: true, attributeFilter: ["value", "label"], childList: true, characterData: true,
+      });
+    } catch (e) {
+      log("event dialog tidy error", String(e).slice(0, 120));
+    }
+  }
+
+  fitAlarmDialog(dlg) {
+    try {
+      const doc = dlg.document;
+      const list = doc.getElementById("alarm-richlist");
+      if (!list) {
+        return;
+      }
+      const fit = () => {
+        if (dlg.closed) {
+          return;
+        }
+        const items = [...list.children].filter(i => i.getBoundingClientRect().height);
+        if (!items.length) {
+          return;
+        }
+        // höchstens vier Einträge ohne Scrollen, darüber scrollt die Liste
+        const shown = items.slice(0, 4);
+        const cs = dlg.getComputedStyle(list);
+        let content = (parseFloat(cs.paddingTop) || 0) + (parseFloat(cs.paddingBottom) || 0);
+        for (const item of shown) {
+          const ics = dlg.getComputedStyle(item);
+          content += item.getBoundingClientRect().height + (parseFloat(ics.marginTop) || 0) + (parseFloat(ics.marginBottom) || 0);
+        }
+        const rest = dlg.innerHeight - list.getBoundingClientRect().height;
+        const inner = Math.ceil(rest + content);
+        if (Math.abs(inner - dlg.innerHeight) >= 2) {
+          dlg.resizeTo(dlg.outerWidth, dlg.outerHeight - dlg.innerHeight + inner);
+        }
+      };
+      fit();
+      // Einträge kommen hinzu oder werden erledigt
+      new dlg.MutationObserver(() => dlg.setTimeout(fit, 50)).observe(list, { childList: true });
+    } catch (e) {
+      log("alarm size error", String(e).slice(0, 120));
+    }
+  }
+
   fitSummaryDialog(dlg) {
     try {
       const doc = dlg.document;
@@ -4154,6 +4436,7 @@ class CardEnhancer {
     const density = async function (...args) {
       await reg.density.apply(this, args);
       Card.ROW_HEIGHT = Math.max(Card.ROW_HEIGHT + extra, 52);
+      this.mcCardHeight = Card.ROW_HEIGHT; // Kontaktkarten im Adressbuch gleich hoch
       // Tabellenansicht: 14-px-Schrift (userChrome.css) braucht luftigere Zeilen
       const Row = win.customElements.get("thread-row");
       if (Row) {

@@ -2,7 +2,7 @@
   "manifest_version": 2,
   "name": "halo.spaces",
   "description": "A calm, tidy macOS-style design for Thunderbird – with colourful spaces, sender pictures, message previews and a unified address book.",
-  "version": "3.0.48",
+  "version": "3.0.77",
   "author": "sruf79",
   "browser_specific_settings": {
     "gecko": {

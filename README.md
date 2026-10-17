@@ -70,3 +70,5 @@ Offline-Unterstützung für Kalender über `extensions.mailcards.calendarOffline
 ## Lizenz
 
 Mozilla Public License 2.0 – siehe [LICENSE](LICENSE).
+
+Das Kaffeetassen-Symbol stammt aus [Noto Emoji](https://github.com/googlefonts/noto-emoji) (© Google LLC, Apache License 2.0) – siehe `extension/about/NOTICE.txt`.

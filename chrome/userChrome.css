@@ -1381,16 +1381,17 @@ hr[is="pane-splitter"],
 #mcSpacesToggle {
   position: fixed !important;
   z-index: 3 !important;
-  bottom: 10px !important;
+  bottom: 8px !important;
   inset-inline-start: 12px !important;
-  width: 34px !important;
-  height: 30px !important;
+  /* Kreis wie der Seitenleisten-Knopf oben: 40 × 38 px, grauer Hintergrund */
+  width: 40px !important;
+  height: 38px !important;
   padding: 0 !important;
   margin: 0 !important;
   border: none !important;
   min-width: 0 !important;
   border-radius: 999px !important;
-  background: transparent !important;
+  background-color: var(--mt-control) !important;
   color: color-mix(in srgb, var(--mt-text) 82%, transparent) !important;
   display: flex !important;
   align-items: center !important;
@@ -1399,10 +1400,10 @@ hr[is="pane-splitter"],
 }
 
 /* Bei sichtbarer Leiste sitzt der Knopf mittig unten in der Leiste
-   ((67 − 34) / 2 = 16,5 px), ausgeblendet 12 px vom Fensterrand. Während der
+   ((67 − 40) / 2 = 13,5 px), ausgeblendet 12 px vom Fensterrand. Während der
    Animation gleitet er mit der Leistenbreite (0–67 px) zwischen beiden Plätzen. */
 #spacesToolbar:not([hidden]) ~ #mcSpacesToggle {
-  inset-inline-start: calc(12px + var(--spaces-total-width) * 0.06716) !important;
+  inset-inline-start: calc(9px + var(--spaces-total-width) * 0.06716) !important;
 }
 
 #mcSpacesToggle:hover {
@@ -1410,20 +1411,18 @@ hr[is="pane-splitter"],
   color: var(--mt-text) !important;
 }
 
-/* Thunderbirds ursprüngliches Symbol (Strich mit Pfeil), so groß wie die
-   übrigen Bereiche-Symbole; Pfeil nach rechts bei sichtbarer, nach links bei
-   ausgeblendeter Leiste */
+/* Strich links (dort sitzt die Leiste): Pfeil nach links zum Rand =
+   Leiste ausblenden, Pfeil vom Rand weg nach rechts = wieder einblenden */
 #mcSpacesToggle::before {
   content: "" !important;
-  width: 24px !important;
-  height: 24px !important;
+  width: 20px !important;
+  height: 20px !important;
   background-color: currentColor !important;
-  transform: scaleX(-1) !important;
-  mask: url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 16 16%22%3E%3Cpath fill=%22%23000%22 d=%22M2.5 2a.5.5 0 0 0-.5.5v10a.5.5 0 0 0 .5.5.5.5 0 0 0 .5-.5v-10a.5.5 0 0 0-.5-.5Zm6 1a.5.5 0 0 0-.354.146l-4 4A.5.5 0 0 0 4 7.5a.5.5 0 0 0 .146.354l4 4a.5.5 0 0 0 .708 0 .5.5 0 0 0 0-.708L5.707 8H13.5a.5.5 0 0 0 .5-.5.5.5 0 0 0-.5-.5H5.707l3.147-3.146a.5.5 0 0 0 0-.708A.5.5 0 0 0 8.5 3Z%22/%3E%3C/svg%3E") center / contain no-repeat !important;
+  mask: url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 16 16%22 fill=%22none%22 stroke=%22%23000%22 stroke-width=%221.1%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22%3E%3Cpath d=%22M2.5 2.5v11M13.5 8H5.2M8.6 4.6 5.2 8l3.4 3.4%22/%3E%3C/svg%3E") center / contain no-repeat !important;
 }
 
 #spacesToolbar[hidden] ~ #mcSpacesToggle::before {
-  transform: none !important;
+  mask-image: url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 16 16%22 fill=%22none%22 stroke=%22%23000%22 stroke-width=%221.1%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22%3E%3Cpath d=%22M2.5 2.5v11M5 8h8.3M9.9 4.6 13.3 8l-3.4 3.4%22/%3E%3C/svg%3E") !important;
 }
 
 .spaces-toolbar-button > img,
@@ -2765,8 +2764,28 @@ calendar-event-box :is(.alarm-icons-box, .item-classification-icon, .item-recurr
   outline: none !important;
 }
 
+/* Symbole wie in der Ordnerliste: 22 px in der Akzentfarbe (Ordnerfarben-
+   Logik); „Alle Adressbücher“ = Personen, „Gesammelte Adressen“ = Uhr,
+   sonst ein Adressbuch. Die Kontofarben-Punkte bleiben unverändert. */
 #books .bookRow-icon {
-  display: none !important;
+  display: block !important;
+  flex: none !important;
+  width: 22px !important;
+  height: 22px !important;
+  margin-inline: -2px 6px !important;
+  content: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='1' height='1'/%3E") !important;
+  background-color: var(--mt-accent) !important;
+  mask: var(--mi-addressbook) center / contain no-repeat !important;
+  fill: none !important;
+  stroke: none !important;
+}
+
+#books .bookRow:first-child .bookRow-icon {
+  mask-image: url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22%23000%22 stroke-width=%221.7%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22%3E%3Ccircle cx=%229.5%22 cy=%228.5%22 r=%223.2%22/%3E%3Cpath d=%22M3.8 19c.7-3.2 3-4.8 5.7-4.8s5 1.6 5.7 4.8%22/%3E%3Cpath d=%22M15.6 5.6a3 3 0 0 1 0 5.8M17.6 14.6c1.6.6 2.6 2 3 4.4%22/%3E%3C/svg%3E") !important;
+}
+
+#books .bookRow.noDelete:not(:first-child):last-child .bookRow-icon {
+  mask-image: url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22%23000%22 stroke-width=%221.7%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22%3E%3Ccircle cx=%2212%22 cy=%2212%22 r=%228.5%22/%3E%3Cpath d=%22M12 7.4V12l3.1 2%22/%3E%3C/svg%3E") !important;
 }
 
 #books .bookRow-name {
@@ -2808,7 +2827,10 @@ calendar-event-box :is(.alarm-icons-box, .item-classification-icon, .item-recurr
 }
 
 #cards .card-layout .card-container {
-  min-height: 52px !important;
+  /* so hoch wie die Mailkarten (--mc-card-h setzt die Erweiterung) */
+  min-height: var(--mc-card-h, 52px) !important;
+  height: var(--mc-card-h, 52px) !important;
+  box-sizing: border-box !important;
   padding: 0 10px !important;
   gap: 12px !important;
   border-radius: 10px !important;
@@ -3614,7 +3636,7 @@ addon-page-header h1,
 }
 
 #agenda-toolbar > toolbarbutton,
-#today-pane-panel .sidebar-header > #todaypane-new-event-button {
+#today-pane-panel > #todaypane-new-event-button {
   min-height: 32px !important;
   padding: 0 12px !important;
   border: none !important;
@@ -3625,7 +3647,7 @@ addon-page-header h1,
 }
 
 #agenda-toolbar > toolbarbutton:hover,
-#today-pane-panel .sidebar-header > #todaypane-new-event-button:hover {
+#today-pane-panel > #todaypane-new-event-button:hover {
   background-color: var(--mt-control-hover) !important;
 }
 
@@ -3911,18 +3933,73 @@ addon-page-header h1,
 }
 
 #mcAgendaTitle {
+  /* ‹  Monat Jahr  › mittig, Pfeile außen wie im Minikalender */
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  gap: 6px !important;
   padding: 8px 14px 6px !important;
   font-size: 18px !important;
   font-weight: 400 !important;
   color: var(--mt-text) !important;
 }
 
+#mcAgendaTitle .mc-agenda-month {
+  flex: 1 1 auto !important;
+  min-width: 0 !important;
+  text-align: center !important;
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+}
+
+#mcAgendaTitle .mc-agenda-nav {
+  appearance: none !important;
+  flex: none !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  width: 26px !important;
+  height: 26px !important;
+  min-width: 0 !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  border: none !important;
+  border-radius: 999px !important;
+  background: transparent !important;
+  color: var(--mt-text-secondary) !important;
+}
+
+#mcAgendaTitle .mc-agenda-nav:hover {
+  background: var(--mt-control-hover) !important;
+  color: var(--mt-text) !important;
+}
+
+#mcAgendaTitle .mc-agenda-nav::before {
+  content: "" !important;
+  width: 16px !important;
+  height: 16px !important;
+  background-color: currentColor !important;
+  mask: var(--mi-chevron) center / contain no-repeat !important;
+  transform: rotate(90deg) !important;
+}
+
+#mcAgendaTitle .mc-next::before {
+  transform: rotate(-90deg) !important;
+}
+
 #mcAgendaTitle b {
   font-weight: 700 !important;
 }
 
+/* Terminliste als weiße, abgerundete Karte in der grauen Today-Pane –
+   Inhalt weiß, Navigation (Minikalender, Monat) grau */
 #agenda {
-  padding: 0 10px 12px 6px !important;
+  padding: 4px 10px 12px 6px !important;
+  margin: 0 8px 4px !important;
+  border-radius: 12px !important;
+  border: 0.5px solid var(--mt-sidebar-border) !important;
+  background: var(--mt-window) !important;
 }
 
 /* jede Zeile: links Platz für die Tagesspalte, rechts der Farbblock */
@@ -4202,50 +4279,124 @@ dialog richlistbox {
   background: var(--mt-window) !important;
 }
 
-#calendar-event-dialog-inner :is(input:not([type="checkbox"], [type="radio"]), textarea) {
-  min-height: 28px !important;
-  padding-inline: 8px !important;
-  border: 1px solid var(--mt-pane-line) !important;
-  border-radius: 7px !important;
-  background-color: var(--mt-window) !important;
-  box-shadow: none !important;
-}
-
-#calendar-event-dialog-inner :is(input, textarea):focus {
-  outline: none !important;
-  border-color: var(--mt-accent) !important;
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--mt-accent) 22%, transparent) !important;
-}
-
-#calendar-event-dialog-inner menulist:not([editable]) {
-  min-height: 28px !important;
+/* Felder einheitlich wie im übrigen Design: graue Flächen ohne Rahmen,
+   alle gleich hoch (32 px), blauer Fokusring */
+#calendar-event-dialog-inner :is(input:not([type="checkbox"], [type="radio"]), textarea),
+#calendar-event-dialog-inner menulist {
+  box-sizing: border-box !important;
+  max-width: 100% !important;
+  min-height: 32px !important;
+  padding-inline: 10px !important;
   border: none !important;
-  border-radius: 7px !important;
+  border-radius: 8px !important;
   background-color: var(--mt-control) !important;
   box-shadow: none !important;
+  appearance: none !important;
 }
 
-/* Datum/Uhrzeit: ein abgerundetes Feld, Pfeil ohne eigenen Kasten */
-#calendar-event-dialog-inner menulist[editable] {
-  min-height: 28px !important;
-  border: 1px solid var(--mt-pane-line) !important;
-  border-radius: 7px !important;
+#calendar-event-dialog-inner :is(input, textarea):focus,
+#calendar-event-dialog-inner menulist[editable]:focus-within {
+  outline: none !important;
   background-color: var(--mt-window) !important;
+  box-shadow: 0 0 0 2px var(--mt-accent) !important;
+}
+
+#calendar-event-dialog-inner input:not([type="checkbox"], [type="radio"]) {
+  height: 32px !important;
+}
+
+/* Datum/Uhrzeit: das Eingabefeld liegt im Schatten-DOM der Liste – dort
+   ohne eigenen weißen Kasten und Rahmen (sonst Trennstrich zum Pfeil) */
+:host(menulist[editable]) input {
+  border: none !important;
+  background: transparent !important;
   box-shadow: none !important;
+  outline: none !important;
+}
+
+/* Datum/Uhrzeit: ein Feld, Pfeil ohne eigenen Kasten und ohne Trennstrich */
+#calendar-event-dialog-inner menulist[editable] {
+  padding-inline: 0 !important;
   overflow: hidden !important;
 }
 
 #calendar-event-dialog-inner menulist[editable] input {
-  border: none !important;
-  box-shadow: none !important;
-  min-height: 26px !important;
-}
-
-#calendar-event-dialog-inner menulist[editable] dropmarker,
-#calendar-event-dialog-inner menulist[editable] > .menulist-dropmarker {
+  min-height: 32px !important;
+  padding-inline: 10px 4px !important;
   border: none !important;
   background: transparent !important;
+  box-shadow: none !important;
+}
+
+#calendar-event-dialog-inner menulist[editable] :is(dropmarker, .menulist-dropmarker),
+#calendar-event-dialog-inner menulist[editable]::part(dropmarker) {
+  border: none !important;
+  border-inline-start: none !important;
+  background: transparent !important;
   appearance: none !important;
+  box-shadow: none !important;
+}
+
+/* Zeitkopplung (Dauer beibehalten): schlichtes Kettensymbol statt Klammer */
+#keepduration-button {
+  list-style-image: none !important;
+  width: 26px !important;
+  min-width: 26px !important;
+  padding: 0 !important;
+  margin-inline: 4px 0 !important;
+  border: none !important;
+  border-radius: 999px !important;
+  background: transparent !important;
+  color: var(--mt-text-tertiary) !important;
+  justify-content: center !important;
+}
+
+#keepduration-button .toolbarbutton-icon {
+  display: none !important;
+}
+
+#keepduration-button::before {
+  content: "" !important;
+  width: 16px !important;
+  height: 16px !important;
+  background-color: currentColor !important;
+  mask: url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22%23000%22 stroke-width=%221.8%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22%3E%3Cpath d=%22M10 14a4.5 4.5 0 0 0 6.4 0l3-3a4.5 4.5 0 0 0-6.4-6.4l-1 1%22/%3E%3Cpath d=%22M14 10a4.5 4.5 0 0 0-6.4 0l-3 3a4.5 4.5 0 0 0 6.4 6.4l1-1%22/%3E%3C/svg%3E") center / contain no-repeat !important;
+}
+
+#keepduration-button[keep="true"] {
+  color: var(--mt-accent) !important;
+}
+
+#keepduration-button:hover {
+  background: var(--mt-control-hover) !important;
+}
+
+/* Klammer um Beginn/Ende (Linie oben, Abstand) weg – nur die Kette bleibt,
+   mittig zwischen den beiden Zeilen */
+vbox:has(> #keepduration-button) {
+  justify-content: center !important;
+}
+
+vbox:has(> #keepduration-button) > :not(#keepduration-button) {
+  display: none !important;
+}
+
+/* Trennlinien zwischen den Abschnitten fein und eingerückt */
+#calendar-event-dialog-inner separator.groove {
+  border: none !important;
+  height: 1px !important;
+  background: var(--mt-pane-line) !important;
+  margin-block: 6px !important;
+  opacity: 0.7 !important;
+}
+
+/* Statuszeile unten („Time as: Busy“) dezent */
+.statusbar.chromeclass-status {
+  background: var(--mt-window) !important;
+  border-top: 1px solid var(--mt-pane-line) !important;
+  color: var(--mt-text-tertiary) !important;
+  font-size: 11px !important;
+  padding: 3px 12px !important;
 }
 
 /* Reiter Beschreibung/Anhänge/Teilnehmer als Segment-Kapseln */
@@ -5343,17 +5494,63 @@ body:has(> #booksPane.mc-side-anim) {
 /* ---------- Today-Pane: „Today Pane“ als Titel, „Neuer Termin“ rechts daneben ---------- */
 #today-pane-header {
   font-size: 0 !important;
+  /* auf derselben Höhe wie „Favoriten“ in der Mail */
+  position: relative !important;
+  top: -2px !important;
 }
 
-#today-pane-header::before {
-  content: attr(data-mc-title);
-  font-size: 13px;
-  font-weight: 600;
+/* der Titel steht jetzt oben in der Toolbar-Zeile (#mcTodayTitle) */
+#today-pane-header {
+  display: none !important;
 }
 
-#today-pane-panel .sidebar-header > #todaypane-new-event-button {
-  margin-inline-start: 12px !important;
-  min-height: 28px !important;
+/* keine Pfeile zum Umschalten der Ansicht neben „Neuer Termin“ */
+#today-pane-panel .sidebar-header .today-pane-cycler {
+  display: none !important;
+}
+
+/* die Kopfzeile ist leer (Titel oben, Knopf unten) */
+#today-pane-panel > .sidebar-header {
+  display: none !important;
+}
+
+/* „Neuer Termin“ ganz unten, unter den Einträgen (eigene Zeile, nichts
+   überlappt) */
+#today-pane-panel > #todaypane-new-event-button {
+  flex: none !important;
+  align-self: center !important;
+  margin: 8px 12px 12px !important;
+  /* „+“ wie im Kalender (44 × 38), fragt nach Termin oder Aufgabe */
+  width: 44px !important;
+  min-width: 44px !important;
+  height: 38px !important;
+  min-height: 38px !important;
+  padding: 0 !important;
+  justify-content: center !important;
+}
+
+#today-pane-panel > #todaypane-new-event-button :is(.toolbarbutton-text, .toolbarbutton-icon) {
+  display: none !important;
+}
+
+#today-pane-panel > #todaypane-new-event-button::before {
+  content: "" !important;
+  width: 22px !important;
+  height: 22px !important;
+  background-color: currentColor !important;
+  mask: url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22%23000%22 stroke-width=%221.8%22 stroke-linecap=%22round%22%3E%3Cpath d=%22M12 5v14M5 12h14%22/%3E%3C/svg%3E") center / contain no-repeat !important;
+}
+
+/* Popover nach oben geöffnet: Pfeil unten in der Mitte */
+#mcNewPopup.mc-up .mc-pop {
+  margin: 18px 18px 22px !important;
+}
+
+#mcNewPopup.mc-up .mc-pop::before {
+  top: auto !important;
+  bottom: -7px !important;
+  inset-inline-start: calc(50% - 7px) !important;
+  transform: rotate(225deg) !important;
 }
 
 /* die Leiste darunter ist ohne den Knopf leer */
@@ -5366,15 +5563,16 @@ body:has(> #booksPane.mc-side-anim) {
 #calMinimonth {
   align-self: stretch !important;
   width: auto !important;
-  margin-inline: 14px !important;
+  /* gleicher Abstand zum Rand wie in der Today-Pane (8 + 3 + 11 = 22 px) */
+  margin-inline: 11px !important;
 }
 
-/* Today-Pane: derselbe Minikalender in derselben Größe (Breite übernimmt
-   die Erweiterung vom Kalender), mittig */
+/* Today-Pane: Minikalender über die ganze Breite der Leiste (gleicher Rand
+   wie in der Kalenderleiste) */
 #today-minimonth {
-  align-self: center !important;
-  width: var(--mc-mm-w, 244px) !important;
-  margin-inline: auto !important;
+  align-self: stretch !important;
+  width: auto !important;
+  margin-inline: 14px !important;
 }
 
 :is(#calMinimonth, #today-minimonth) table {
@@ -5403,38 +5601,116 @@ body:has(> #booksPane.mc-side-anim) {
   font-weight: 400 !important;
 }
 
-/* ---------- Today-Pane: Knopf unten rechts statt ✕ oben ----------
-   gespiegeltes Seitenleisten-Symbol (#mcTodayToggle, Erweiterung); nur in
-   Mail und Aufgaben, wo es die Today-Pane gibt */
+/* ---------- Today-Pane: Knopf oben rechts in der Toolbar-Zeile ----------
+   wie in Apples Apps: gespiegeltes Seitenleisten-Symbol rechts neben dem
+   Suchfeld (#mcTodayToggle, Erweiterung) – Gegenstück zum Seitenleisten-
+   Knopf oben links; nur in Mail und Aufgaben, wo es die Today-Pane gibt */
 #today-closer {
   display: none !important;
-}
-
-/* unten ein freier Streifen für den Knopf – die Termine enden auf derselben
-   Höhe wie der Bereiche-Knopf „Einstellungen“ (wie die Bereiche-Leiste mit
-   ihrem Knopf unten links) */
-#today-pane-panel {
-  padding-bottom: 51px !important;
-  box-sizing: border-box !important;
 }
 
 #mcTodayToggle {
   display: none !important;
 }
 
+/* Suchfeld endet vor der Today-Pane; ist sie aus, ist rechts Platz für den
+   Knopf (12 + 40 + 8 px) */
+:root:is([mc-tab="mail3PaneTab"], [mc-tab="mailMessageTab"], [mc-tab="tasks"]) #unifiedToolbarContent {
+  padding-inline-end: max(60px, calc(var(--mc-tp-w, 0px) + 12px)) !important;
+}
+
+/* Suchfeld: linke Kante bleibt fest (wie bei ausgeblendeter Today-Pane:
+   333 px + 60 px vom Rand), es wird nur schmaler – bis es nur noch die Lupe
+   ist (40 px). Weiter lässt sich die Today-Pane nicht aufziehen (341 px). */
+:root:is([mc-tab="mail3PaneTab"], [mc-tab="mailMessageTab"], [mc-tab="tasks"]) #unifiedToolbarContent > li[item-id="search-bar"] {
+  flex: 0 50 clamp(40px, calc(381px - var(--mc-tp-w, 0px)), 333px) !important;
+  min-width: 40px !important;
+}
+
+:root:is([mc-tab="mail3PaneTab"], [mc-tab="mailMessageTab"], [mc-tab="tasks"]) #today-pane-panel {
+  max-width: 341px !important;
+}
+
+/* die Today-Pane reicht bis ganz oben: Fläche in ihrer Farbe und Breite mit
+   feiner Linie links (wie die Seitenleiste links) */
+#mcTodayTop {
+  display: none;
+}
+
+:root:is([mc-tab="mail3PaneTab"], [mc-tab="mailMessageTab"], [mc-tab="tasks"]) #mcTodayTop {
+  display: block;
+  position: absolute;
+  /* hinter den Knöpfen der Toolbar, aber über dem Hintergrund der Zeile */
+  z-index: -1;
+  top: 0;
+  bottom: 0;
+  inset-inline-end: 0;
+  width: var(--mc-tp-w, 0px);
+  background: var(--mt-sidebar);
+  border-inline-start: 1px solid var(--mt-sidebar-border);
+  box-sizing: border-box;
+  pointer-events: none;
+  display: flex;
+  align-items: center;
+  /* Titel mittig in der Fläche, links und rechts Platz für den Knopf */
+  justify-content: center;
+  padding-inline: min(62px, var(--mc-tp-w, 0px));
+  overflow: hidden;
+}
+
+#mcTodayTitle {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--mt-text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Sonne rechts neben dem Titel – „Heute“ */
+#mcTodayTitle::after {
+  content: "";
+  flex: none;
+  width: 20px;
+  height: 20px;
+  background-color: #FF9500;
+  mask: url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22%23000%22 stroke-width=%221.8%22 stroke-linecap=%22round%22%3E%3Ccircle cx=%2212%22 cy=%2212%22 r=%224%22/%3E%3Cpath d=%22M12 2.8v2.2M12 19v2.2M2.8 12h2.2M19 12h2.2M5.5 5.5l1.6 1.6M16.9 16.9l1.6 1.6M5.5 18.5l1.6-1.6M16.9 7.1l1.6-1.6%22/%3E%3C/svg%3E") center / contain no-repeat;
+}
+
+#mcTodayTitle:-moz-window-inactive {
+  color: var(--mt-text-secondary);
+}
+
+:root:not([mc-tab]) #mcTodayTop,
+#unifiedToolbarContainer[style*="--mc-tp-w: 0px"] > #mcTodayTop {
+  border: none;
+}
+
+#unifiedToolbarContainer {
+  isolation: isolate;
+}
+
+/* Knopf oben in der Today-Pane nahe ihrer linken Kante (Spiegelbild des
+   Seitenleisten-Knopfs) – gleitet bei der Animation mit; ist sie aus,
+   steht er rechts am Rand (vor den Fensterknöpfen von Windows/Linux) */
 :root:is([mc-tab="mail3PaneTab"], [mc-tab="mailMessageTab"], [mc-tab="tasks"]) #mcTodayToggle {
-  position: fixed !important;
+  position: absolute !important;
   z-index: 3 !important;
-  bottom: 10px !important;
-  inset-inline-end: 12px !important;
-  width: 34px !important;
-  height: 30px !important;
-  padding: 0 !important;
+  top: 50% !important;
+  transform: translateY(-50%) !important;
+  inset-inline-end: max(calc(12px + var(--mc-caption-w, 0px)), calc(var(--mc-tp-w, 0px) - 50px)) !important;
   margin: 0 !important;
+  width: 40px !important;
+  height: 38px !important;
+  padding: 0 !important;
   border: none !important;
   min-width: 0 !important;
   border-radius: 999px !important;
-  background: transparent !important;
+  background-color: var(--mt-control) !important;
   color: color-mix(in srgb, var(--mt-text) 82%, transparent) !important;
   display: flex !important;
   align-items: center !important;
@@ -5452,8 +5728,9 @@ body:has(> #booksPane.mc-side-anim) {
   width: 22px !important;
   height: 22px !important;
   background-color: currentColor !important;
-  mask: var(--mi-sidebar) center / contain no-repeat !important;
-  transform: scaleX(-1) !important;
+  /* Fenster mit Leiste rechts, darin ein kleines Kalenderraster – so von
+     der linken Seitenleiste (Linien) zu unterscheiden */
+  mask: url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22%23000%22 stroke-width=%221.7%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22%3E%3Crect x=%223%22 y=%225%22 width=%2218%22 height=%2214%22 rx=%222.6%22/%3E%3Cpath d=%22M13.5 5v14%22/%3E%3Cpath d=%22M15.9 8.6h.01M18.4 8.6h.01M15.9 11.6h.01M18.4 11.6h.01M15.9 14.6h.01M18.4 14.6h.01%22 stroke-width=%222.1%22/%3E%3C/svg%3E") center / contain no-repeat !important;
 }
 
 /* Termine in der Today-Pane nie fett – nur Wochentag und Tageszahl bleiben */
@@ -5461,5 +5738,118 @@ body:has(> #booksPane.mc-side-anim) {
 #agenda .agenda-listitem-all-day .agenda-listitem-title,
 #agenda .agenda-listitem .agenda-listitem-time {
   font-weight: 400 !important;
+}
+
+/* ---------- Hinweisleisten (z. B. „Externe Inhalte blockiert“, „Kalender
+   deaktiviert“): Thunderbirds Farben bleiben (Gelb = Warnung), aber runde
+   Ecken und Knöpfe als Kapseln wie im übrigen Design ---------- */
+notification-message {
+  border: none !important;
+  border-radius: 12px !important;
+  box-shadow: none !important;
+  font-size: 13px !important;
+}
+
+/* gewöhnliche Hinweise (keine Warnung/kein Fehler): zarte graue Kapsel */
+notification-message:not([type="warning"], [type="error"], [type="critical"], [type="success"]) {
+  --message-bar-background-color: var(--mt-control) !important;
+  --message-bar-text-color: var(--mt-text) !important;
+}
+
+notification-message button.notification-button {
+  appearance: none !important;
+  min-height: 28px !important;
+  margin-block: 4px !important;
+  padding: 0 14px !important;
+  border: none !important;
+  border-radius: 999px !important;
+  background: rgba(255, 255, 255, 0.72) !important;
+  color: #000 !important;
+  font: inherit !important;
+  font-weight: 500 !important;
+  box-shadow: none !important;
+}
+
+notification-message button.notification-button:hover {
+  background: rgba(255, 255, 255, 0.95) !important;
+}
+
+notification-message:not([type="warning"]) button.notification-button {
+  background: var(--mt-window) !important;
+  color: var(--mt-text) !important;
+}
+
+#mail-notification-top notification-message {
+  margin: 8px 12px 0 !important;
+}
+
+/* keine Mehrtages-Pfeile (⇕ ↓ ↑) neben den Terminen – wie in Apple Kalender */
+#agenda .agenda-listitem-overlap {
+  display: none !important;
+}
+
+/* ---------- Today-Pane: jeder Termin gleich aufgebaut ----------
+   links der Titel (immer vollständig, notfalls mehrzeilig), rechts eine
+   feste Spalte: oben die Uhrzeit – bei laufenden Terminen „now“ in Rot –,
+   darunter bei bald beginnenden (≤ 3 Std., data-mc-soon) „in 2 hr“ klein in
+   Rot. Keine Pillen, nichts verschiebt sich. */
+#agenda .agenda-listitem .agenda-listitem-details-inner {
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) auto !important;
+  grid-template-rows: auto auto !important;
+  column-gap: 10px !important;
+  row-gap: 0 !important;
+  align-items: start !important;
+  width: 100% !important;
+}
+
+#agenda .agenda-listitem .agenda-listitem-title {
+  grid-column: 1 !important;
+  grid-row: 1 / span 2 !important;
+  white-space: normal !important;
+  overflow: visible !important;
+  text-overflow: clip !important;
+  overflow-wrap: anywhere !important;
+  -webkit-line-clamp: none !important;
+  display: block !important;
+}
+
+#agenda .agenda-listitem .agenda-listitem-time {
+  grid-column: 2 !important;
+  grid-row: 1 !important;
+  order: 0 !important;
+  margin: 0 !important;
+  text-align: end !important;
+  line-height: inherit !important;
+}
+
+#agenda .agenda-listitem .agenda-listitem-relative {
+  grid-column: 2 !important;
+  grid-row: 2 !important;
+  justify-self: end !important;
+  padding: 0 !important;
+  border-radius: 0 !important;
+  background: none !important;
+  color: #FF3B30 !important;
+  font-size: 10px !important;
+  font-weight: 500 !important;
+  line-height: 1.3 !important;
+}
+
+/* nur laufende und bald beginnende Termine bekommen den Zusatz */
+#agenda .agenda-listitem:not(.agenda-listitem-now, [data-mc-soon]) .agenda-listitem-relative {
+  display: none !important;
+}
+
+/* läuft gerade: „now“ statt der Uhrzeit, oben rechts */
+#agenda .agenda-listitem.agenda-listitem-now .agenda-listitem-time {
+  display: none !important;
+}
+
+#agenda .agenda-listitem.agenda-listitem-now .agenda-listitem-relative {
+  grid-row: 1 !important;
+  font-size: 11px !important;
+  font-weight: 600 !important;
+  line-height: inherit !important;
 }
 /* ==== Ende Bereiche ==== */
