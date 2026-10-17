@@ -6457,7 +6457,7 @@ class CardEnhancer {
       preview.className = "mc-preview";
       row.querySelector(".thread-card-dynamic-row")?.after(preview);
     }
-    if (!container.querySelector(":scope > .mc-actions") && Services.prefs.getBoolPref(HOVER_ACTIONS_PREF, true)) {
+    if (!container.querySelector(":scope > .mc-actions") && Services.prefs.getBoolPref(HOVER_ACTIONS_PREF, false)) {
       container.append(this.hoverActions(win, row));
     }
 
@@ -6955,7 +6955,8 @@ class CardEnhancer {
 // Einstellungen der Optionsseite: Schlüssel → Pref (Typ), nur diese sind erlaubt
 const SETTINGS = {
   previewLines: [PREVIEW_PREF, "int", 1],
-  hoverActions: [HOVER_ACTIONS_PREF, "bool", true],
+  // standardmäßig aus (auf Wunsch: ruhigere Karten); in den Einstellungen einschaltbar
+  hoverActions: [HOVER_ACTIONS_PREF, "bool", false],
   calendarEmoji: [EMOJI_PREF, "bool", true],
   emojiCustom: [EMOJI_CUSTOM_PREF, "string", ""],
   birthdays: [BDAY_PREF, "bool", true],

@@ -323,6 +323,8 @@ def run_checks(m, version, profile, results):
     m.js("""
       for (const x of [...Services.wm.getEnumerator(null)]) if (!x.location.href.includes("messenger.xhtml")) x.close();
       w.moveTo(0, 0); w.resizeTo(1500, 900); await wait(500);
+      // Aktionen beim Überfahren sind standardmäßig aus – für die Prüfungen einschalten
+      Services.prefs.setBoolPref("extensions.mailcards.hoverActions", true);
       if (!testCalendar()) { const c = cal.manager.createCalendar("storage", Services.io.newURI("moz-storage-calendar://")); c.name = "Halo Test"; c.setProperty("color", "#FF9500"); cal.manager.registerCalendar(c); }
       return 1;""")
 

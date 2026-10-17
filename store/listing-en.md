@@ -9,7 +9,7 @@ A calm, tidy macOS-style design for Thunderbird: colourful spaces, message cards
 <b>Mail</b>
 <ul>
 <li>Message cards with a two-line preview and sender pictures: from your address book, macOS Contacts (optional), the sender's BIMI logo or website icon, otherwise initials</li>
-<li>Flag, archive and delete right on the card when you hover over it</li>
+<li>Optional: flag, archive and delete right on the card when you hover over it (Preferences)</li>
 <li>Unified inboxes, Inbox always first, the search field top right</li>
 </ul>
 

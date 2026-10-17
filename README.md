@@ -44,7 +44,7 @@ Personal data in the screenshots is blurred.
 3.0.95 Release Notes
 --------
 - Quick event window: type naturally, e.g. "tomorrow 12:30 for 90 min". A double-click in the calendar opens it too
-- Mail cards: flag, archive and delete on hover
+- Mail cards: optional flag, archive and delete on hover (off by default, see Preferences)
 - Birthdays from your address books as their own calendar
 - A settings page (Add-ons and Themes → halo.spaces → Preferences)
 - Visible keyboard focus on halo.spaces controls
