@@ -37,8 +37,10 @@ if [[ -z "$SKIP_TESTS" ]]; then
   OLD=(${OLD:#tests/shots/$VERSION})
   PREV=${OLD[-1]}
   rm -rf "$SHOTS"
+  CMP=()
+  [[ -n "$PREV" ]] && CMP=(--compare "$PREV")
   for MODE in "" --dark; do
-    python3 tests/halo_test.py --xpi "$XPI" $MODE --shots "$SHOTS" ${PREV:+--compare "$PREV"} \
+    python3 tests/halo_test.py --xpi "$XPI" $MODE --shots "$SHOTS" "${CMP[@]}" \
       || { echo "Tests fehlgeschlagen – kein Release (SKIP_TESTS=1 überspringt)"; exit 1; }
   done
   # die nächste Thunderbird-Version: Fehler dort sind eine Warnung, kein Abbruch

@@ -515,8 +515,13 @@ def run_checks(m, version, profile, results):
           const inbox = root.getChildNamed("Inbox"); const lf = inbox.QueryInterface(Ci.nsIMsgLocalMailFolder);
           for (const n of [1, 2]) lf.addMessage(`From - Sat Oct 17 10:00:00 2026\\r\\nFrom: Test ${n} <t${n}@example.invalid>\\r\\nSubject: Halo Karte ${n}\\r\\nDate: Sat, 17 Oct 2026 10:0${n}:00 +0200\\r\\nMessage-ID: <halo-card-${n}@example.invalid>\\r\\n\\r\\nTest\\r\\n`);
           const a3 = await toMail(); a3.displayFolder(inbox.URI);
-          await until(() => a3.document.querySelectorAll('#threadTree tr[is="thread-card"] .mc-act-flag').length >= 2);
+          await until(() => a3.document.querySelectorAll('#threadTree tr[is="thread-card"] .mc-act-flag').length >= 2, 15000);
           const rows = a3.document.querySelectorAll('#threadTree tr[is="thread-card"]');
+          if (!rows[0]?.querySelector(".mc-act-flag")) {
+            return { diag: true, rows: rows.length, tableRows: a3.document.querySelectorAll('#threadTree tr[is="thread-row"]').length,
+                     pref: Services.prefs.getBoolPref("extensions.mailcards.hoverActions", false), msgs: inbox.getTotalMessages(false),
+                     folder: a3.gFolder?.URI == inbox.URI, view: Services.prefs.getIntPref("mail.threadpane.listview", -1) };
+          }
           const buttons = rows[0]?.querySelectorAll(".mc-action") || [];
           rows[0].querySelector(".mc-act-flag").click(); await wait(500);
           const flagged = a3.gDBView.getMsgHdrAt(0).isFlagged; const selected = a3.gDBView.selection.count;
