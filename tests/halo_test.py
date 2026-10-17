@@ -366,6 +366,25 @@ def run_checks(m, version, profile, results):
         return ok, f"{res}"
     check("Mailkarte: Aktionen beim Überfahren (Markieren, Löschen)", hover_actions, results)
 
+    def birthdays():
+        res = m.js('''
+          const { MailServices } = ChromeUtils.importESModule("resource:///modules/MailServices.sys.mjs");
+          const { VCardUtils } = ChromeUtils.importESModule("resource:///modules/VCardUtils.sys.mjs");
+          const book = MailServices.ab.getDirectory("jsaddrbook://abook.sqlite");
+          const card = VCardUtils.vCardToAbCard("BEGIN:VCARD\\r\\nVERSION:4.0\\r\\nFN:Halo Testkontakt\\r\\nBDAY:1990-03-15\\r\\nEND:VCARD\\r\\n");
+          book.addCard(card);
+          // der Kalender wird 3 s nach der Änderung neu gefüllt
+          let c = null;
+          for (let i = 0; i < 30 && !c; i++) { await wait(500); c = cal.manager.getCalendarById(Services.prefs.getStringPref("extensions.mailcards.birthdayCalendarId", "")); }
+          if (!c) return { calendar: false };
+          await wait(800);
+          const all = await c.getItemsAsArray(Ci.calICalendar.ITEM_FILTER_ALL_ITEMS, 0, null, null);
+          const it = all.find(i => /Halo Testkontakt/.test(i.title));
+          return { calendar: true, name: c.name, readOnly: c.readOnly, title: it?.title, yearly: it?.recurrenceInfo?.getRecurrenceItems()[0]?.type, allDay: it?.startDate.isDate };''')
+        ok = res.get("calendar") and res.get("readOnly") and res.get("yearly") == "YEARLY" and res.get("allDay") and "Halo Testkontakt" in (res.get("title") or "")
+        return ok, f"{res}"
+    check("Geburtstage aus dem Adressbuch als Kalender", birthdays, results)
+
     def errors():
         res = m.js("""
           const p = PathUtils.join(PathUtils.profileDir, "mail-cards-debug.log");

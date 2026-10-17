@@ -1314,6 +1314,8 @@ function squeezeToolbar(doc, fits) {
 // ---------------------------------------------------------------------------
 const EMOJI_PREF = "extensions.mailcards.calendarEmoji";
 const HOVER_ACTIONS_PREF = "extensions.mailcards.hoverActions";
+const BDAY_PREF = "extensions.mailcards.birthdays";
+const BDAY_CAL_PREF = "extensions.mailcards.birthdayCalendarId";
 const EMOJI_RULES = [
   ["🎂", { stems: ["geburtstag", "birthday", "rodjendan", "rođendan"], words: ["bday"] }],
   ["🎃", { stems: ["halloween"] }],
@@ -1727,6 +1729,7 @@ class CardEnhancer {
     // nach dem Start, wenn der Kalender-Manager bereit ist
     const offlineTimer = setTimeout(() => enableCalendarOffline(), 8000);
     this.restorers.push(() => clearTimeout(offlineTimer));
+    this.hookBirthdays();
     // Fotos aus der macOS-Kontakte-App: kurz nach dem Start und dann stündlich
     MacPhotos.load();
     this.registerIconVars();
@@ -5930,6 +5933,144 @@ class CardEnhancer {
     }
 
     this.fillAvatar(avatar, hdr);
+  }
+
+  // Geburtstage aus dem Adressbuch als eigener Kalender wie bei Apple:
+  // nur im Speicher und schreibgeschützt, bei jedem Start und bei Änderungen
+  // an Kontakten neu gefüllt; synchronisiert nirgendwohin. Beim Abschalten,
+  // Deaktivieren oder Deinstallieren wird er wieder entfernt.
+  hookBirthdays() {
+    let timer = null;
+    const schedule = (ms = 3000) => {
+      clearTimeout(timer);
+      timer = setTimeout(() => this.syncBirthdays().catch(e => log("birthdays error", e)), ms);
+    };
+    schedule(9000);
+    const topics = ["addrbook-contact-created", "addrbook-contact-updated", "addrbook-contact-deleted", "addrbook-directory-created", "addrbook-directory-deleted"];
+    const obs = { observe: () => schedule() };
+    for (const topic of topics) {
+      Services.obs.addObserver(obs, topic);
+    }
+    const prefObs = { observe: () => schedule(200) };
+    Services.prefs.addObserver(BDAY_PREF, prefObs);
+    // Deaktivieren/Deinstallieren: Kalender entfernen (beim Beenden oder
+    // Update bleibt er, sonst bekäme er jedes Mal eine neue Kennung)
+    const { AddonManager } = ChromeUtils.importESModule("resource://gre/modules/AddonManager.sys.mjs");
+    const addonListener = {
+      onDisabling: addon => addon.id == "mail-cards@sebastian.local" && this.removeBirthdayCalendar(),
+      onUninstalling: addon => addon.id == "mail-cards@sebastian.local" && this.removeBirthdayCalendar(),
+    };
+    AddonManager.addAddonListener(addonListener);
+    this.restorers.push(() => {
+      clearTimeout(timer);
+      for (const topic of topics) {
+        Services.obs.removeObserver(obs, topic);
+      }
+      Services.prefs.removeObserver(BDAY_PREF, prefObs);
+      AddonManager.removeAddonListener(addonListener);
+    });
+  }
+
+  removeBirthdayCalendar() {
+    try {
+      const { cal } = ChromeUtils.importESModule("resource:///modules/calendar/calUtils.sys.mjs");
+      const calendar = cal.manager.getCalendarById(Services.prefs.getStringPref(BDAY_CAL_PREF, ""));
+      if (calendar) {
+        cal.manager.unregisterCalendar(calendar);
+      }
+    } catch (e) {
+      log("birthdays remove error", e);
+    }
+    Services.prefs.clearUserPref(BDAY_CAL_PREF);
+  }
+
+  async syncBirthdays() {
+    const { cal } = ChromeUtils.importESModule("resource:///modules/calendar/calUtils.sys.mjs");
+    const { CalEvent } = ChromeUtils.importESModule("resource:///modules/CalEvent.sys.mjs");
+    const { CalRecurrenceInfo } = ChromeUtils.importESModule("resource:///modules/CalRecurrenceInfo.sys.mjs");
+    if (!Services.prefs.getBoolPref(BDAY_PREF, true)) {
+      this.removeBirthdayCalendar();
+      return;
+    }
+    const de = Services.locale.appLocaleAsBCP47.startsWith("de");
+    // Geburtstage einsammeln (lokale Adressbücher; doppelte Kontakte einmal)
+    const found = new Map();
+    for (const dir of MailServices.ab.directories) {
+      if (dir.isRemote) {
+        continue; // LDAP o. Ä. – nicht komplett durchgehen
+      }
+      let cards = [];
+      try {
+        cards = dir.childCards;
+      } catch {
+        continue;
+      }
+      for (const card of cards) {
+        if (card.isMailList) {
+          continue;
+        }
+        let value = "";
+        try {
+          value = String(card.vCardProperties?.getFirstValue("bday") || "");
+        } catch {}
+        const m = value.match(/^(?:(\d{4})|--)-?(\d{2})-?(\d{2})/);
+        if (!m) {
+          continue;
+        }
+        const name = (card.displayName || `${card.firstName || ""} ${card.lastName || ""}`).trim() || card.primaryEmail;
+        if (!name) {
+          continue;
+        }
+        const key = `${name.toLocaleLowerCase()}|${m[2]}${m[3]}`;
+        if (!found.has(key) || (!found.get(key).year && m[1])) {
+          found.set(key, { name, year: m[1] ? Number(m[1]) : null, month: Number(m[2]), day: Number(m[3]) });
+        }
+      }
+    }
+    let calendar = cal.manager.getCalendarById(Services.prefs.getStringPref(BDAY_CAL_PREF, ""));
+    if (!found.size && !calendar) {
+      return; // keine Geburtstage – keinen leeren Kalender anlegen
+    }
+    if (!calendar) {
+      calendar = cal.manager.createCalendar("memory", Services.io.newURI("moz-memory-calendar://"));
+      calendar.name = de ? "Geburtstage" : "Birthdays";
+      calendar.setProperty("color", "#FF2D55");
+      calendar.setProperty("suppressAlarms", true);
+      cal.manager.registerCalendar(calendar);
+      Services.prefs.setStringPref(BDAY_CAL_PREF, calendar.id);
+    }
+    calendar.readOnly = false;
+    try {
+      for (const item of await calendar.getItemsAsArray(Ci.calICalendar.ITEM_FILTER_ALL_ITEMS, 0, null, null)) {
+        await calendar.deleteItem(item);
+      }
+      for (const b of found.values()) {
+        const e = new CalEvent();
+        e.id = `halo-bday-${b.month}-${b.day}-${b.name}`;
+        e.title = de ? `${b.name} hat Geburtstag` : `${b.name}’s Birthday`;
+        const start = cal.createDateTime();
+        start.resetTo(b.year || 2000, b.month - 1, b.day, 0, 0, 0, cal.dtz.floating);
+        start.isDate = true;
+        const end = start.clone();
+        end.day += 1;
+        e.startDate = start;
+        e.endDate = end;
+        e.setProperty("TRANSP", "TRANSPARENT");
+        const info = new CalRecurrenceInfo(e);
+        const rule = cal.createRecurrenceRule();
+        rule.type = "YEARLY";
+        rule.interval = 1;
+        info.appendRecurrenceItem(rule);
+        e.recurrenceInfo = info;
+        if (b.year) {
+          e.setProperty("DESCRIPTION", de ? `Geboren ${b.year}` : `Born ${b.year}`);
+        }
+        await calendar.addItem(e);
+      }
+    } finally {
+      calendar.readOnly = true;
+    }
+    log("birthdays", { count: found.size });
   }
 
   // Aktionen beim Überfahren einer Karte: Markieren, Archivieren, Löschen –
