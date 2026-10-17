@@ -12,6 +12,8 @@ const SECTIONS = de => [
       hint: de ? "Markieren, Archivieren, Löschen" : "Flag, archive, delete" },
     { key: "listWidth", type: "number", label: de ? "Breite der Mailliste" : "Message list width",
       hint: de ? "Pixel; Doppelklick auf die Trennlinie setzt sie zurück" : "pixels; double-click the divider to reset", reset: true },
+    { key: "senderLogos", label: de ? "Logos von Absender-Websites" : "Logos from sender websites",
+      hint: de ? "fragt nur die Website des Absenders (Favicon, BIMI) – aus: keine Anfragen nach außen" : "asks only the sender’s own website (favicon, BIMI) – off: no outside requests" },
     { key: "macContactPhotos", mac: true, label: de ? "Fotos aus der Kontakte-App" : "Photos from the Contacts app",
       hint: de ? "macOS fragt einmal nach dem Zugriff" : "macOS asks for access once" },
     { key: "hideDuplicateContacts", label: de ? "Doppelte Kontakte zusammenführen" : "Merge duplicate contacts",

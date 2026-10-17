@@ -766,6 +766,8 @@ function cubicBezier(x1, y1, x2, y2) {
 // und eine Zuordnungsliste (E-Mail, Name) im Profilordner „mail-cards-photos“
 // ab. An den Kontakten selbst ändert sich nichts.
 const MAC_PHOTOS_PREF = "extensions.mailcards.macContactPhotos";
+// aus: keine Anfrage an Absender-Websites (Favicon, BIMI, Startseite)
+const SENDER_LOGOS_PREF = "extensions.mailcards.senderLogos";
 const MAC_PHOTOS_SCRIPT = `
 ObjC.import('Contacts');
 ObjC.import('Foundation');
@@ -1174,6 +1176,9 @@ class AvatarResolver {
   }
 
   async domainLogo(domain, org) {
+    if (!Services.prefs.getBoolPref(SENDER_LOGOS_PREF, true)) {
+      return null;
+    }
     await this.cache.loaded;
     const key = org;
     const cached = this.cache.get(key);
@@ -6468,6 +6473,7 @@ const SETTINGS = {
   emojiCustom: [EMOJI_CUSTOM_PREF, "string", ""],
   birthdays: [BDAY_PREF, "bool", true],
   macContactPhotos: [MAC_PHOTOS_PREF, "bool", false],
+  senderLogos: [SENDER_LOGOS_PREF, "bool", true],
   hideDuplicateContacts: ["extensions.mailcards.hideDuplicateContacts", "bool", true],
   calendarOffline: ["extensions.mailcards.calendarOffline", "bool", false],
   appleIcons: ["extensions.mailcards.appleIcons", "bool", true],

@@ -14,4 +14,20 @@ mkdir -p dist
 OUT="dist/halo-spaces-$VERSION.xpi"
 rm -f "$OUT"
 (cd extension && zip -qr "../$OUT" . -x '.*' -x '*/.*')
+
+# Variante für addons.thunderbird.net: ohne update_url – dort kommen Updates
+# vom Store selbst (die GitHub-Variante behält ihre eigene Update-Adresse)
+STORE="dist/halo-spaces-$VERSION-atn.xpi"
+TMP=$(mktemp -d)
+cp -R extension/ "$TMP/ext"
+python3 - "$TMP/ext/manifest.json" <<'PY'
+import json, sys
+p = sys.argv[1]
+m = json.load(open(p))
+m["browser_specific_settings"]["gecko"].pop("update_url", None)
+json.dump(m, open(p, "w"), indent=2, ensure_ascii=False)
+PY
+rm -f "$STORE"
+(cd "$TMP/ext" && zip -qr "$ROOT/$STORE" . -x '.*' -x '*/.*')
+rm -r "$TMP/ext" && rmdir "$TMP"
 echo "$OUT"

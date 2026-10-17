@@ -38,7 +38,14 @@ git -c http.postBuffer=157286400 push -q
 URL="https://github.com/$GITHUB_REPO/releases/download/v$VERSION/$(basename "$XPI")"
 for i in {1..10}; do
   REMOTE=$(curl -sfL "$URL?check=$RANDOM" | shasum -a 256 | cut -d' ' -f1) || true
-  [[ "$REMOTE" == "$LOCAL" ]] && { echo "Veröffentlicht – Hash geprüft (${LOCAL[1,16]}…)"; exit 0; }
+  if [[ "$REMOTE" == "$LOCAL" ]]; then
+    echo "Veröffentlicht – Hash geprüft (${LOCAL[1,16]}…)"
+    # zusätzlich auf addons.thunderbird.net, sobald die Schlüssel eingerichtet sind
+    if [[ -f "$HOME/.config/halo-spaces/atn.env" && -z "$SKIP_ATN" ]]; then
+      python3 store/atn_upload.py "$VERSION" || echo "WARNUNG: Hochladen auf addons.thunderbird.net fehlgeschlagen (SKIP_ATN=1 überspringt)"
+    fi
+    exit 0
+  fi
   sleep 3
 done
 echo "WARNUNG: Download hat nicht den erwarteten Hash ($REMOTE statt $LOCAL)"
