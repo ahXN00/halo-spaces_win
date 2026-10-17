@@ -303,6 +303,26 @@ def run_checks(m, version, profile, results):
         return dragged > before and reset == 206, f"{before} → gezogen {dragged} → Doppelklick {reset} (soll 206)"
     check("Ordnerleiste: Ziehen und Doppelklick", splitter, results)
 
+    def double_click():
+        x, y = m.js('''
+          for (const x of [...Services.wm.getEnumerator(null)]) if (!x.location.href.includes("messenger.xhtml")) x.close();
+          await toCalendar(); w.switchToView("week"); await wait(1200);
+          const col = [...d.querySelectorAll("#week-view calendar-event-column")].filter(c => c.getBoundingClientRect().width)[1];
+          const lbl = [...d.querySelectorAll("#week-view .multiday-timebar-time")].find(l => /^\s*(14[:.]00|0?2:00\s*PM)\s*$/i.test(l.textContent));
+          lbl.scrollIntoView({ block: "center" }); await wait(500);
+          const r = col.getBoundingClientRect(); return [Math.round(r.left + r.width / 2), Math.round(lbl.getBoundingClientRect().top + 8)];''')
+        time.sleep(1.2)
+        m.pointer([{"type": "pointerMove", "x": x, "y": y, "origin": "viewport"}, {"type": "pointerDown", "button": 0}, {"type": "pointerUp", "button": 0},
+                   {"type": "pause", "duration": 80}, {"type": "pointerDown", "button": 0}, {"type": "pointerUp", "button": 0}])
+        time.sleep(1.5)
+        res = m.js('''const p = d.getElementById("mcQuickPanel");
+          const r = { state: p?.state, line: p?.querySelector(".mc-qc-line1").textContent,
+            dialogs: [...Services.wm.getEnumerator(null)].filter(x => /calendar-event-dialog/.test(x.location.href)).length };
+          p?.hidePopup(); return r;''')
+        ok = res["state"] == "open" and res["dialogs"] == 0 and ("14:" in res["line"] or "02:00 PM" in res["line"] or "2:00 PM" in res["line"])
+        return ok, f"Fenster {res['state']}, {res['line']}, große Dialoge {res['dialogs']}"
+    check("Doppelklick im Kalender öffnet das Schnellfenster", double_click, results)
+
     def errors():
         res = m.js("""
           const p = PathUtils.join(PathUtils.profileDir, "mail-cards-debug.log");

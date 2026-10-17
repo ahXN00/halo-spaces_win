@@ -3333,6 +3333,64 @@ class CardEnhancer {
       }
     };
 
+    // Doppelklick auf freie Zeit (Woche/Tag), die Ganztägig-Zeile oder einen
+    // Tag im Monat: unser Schnellfenster an der Mausposition statt Thunderbirds
+    // großem Dialog. Ziehen über einen Zeitraum legt weiter direkt an.
+    const hookCalendarDoubleClick = () => {
+      const ctrl = w.calendarViewController;
+      const box = w.document.getElementById("view-box");
+      if (!ctrl || !box || ctrl.__mcQuick) {
+        return;
+      }
+      ctrl.__mcQuick = true;
+      const { cal } = ChromeUtils.importESModule("resource:///modules/calendar/calUtils.sys.mjs");
+      let lastClick = null;
+      const onDbl = event => {
+        lastClick = { x: event.screenX, y: event.screenY, time: Date.now() };
+      };
+      box.addEventListener("dblclick", onDbl, true);
+      const orig = ctrl.createNewEvent;
+      const self = this;
+      ctrl.createNewEvent = function (calendar, startTime, endTime, forceAllday) {
+        const fromDoubleClick = lastClick && Date.now() - lastClick.time < 1000;
+        // gezogener Zeitraum oder Aufruf ohne Doppelklick (Menü, Tastatur): wie bisher
+        if (!fromDoubleClick || (startTime && endTime && !startTime.isDate && !endTime.isDate)) {
+          return orig.call(this, calendar, startTime, endTime, forceAllday);
+        }
+        const at = lastClick;
+        lastClick = null;
+        try {
+          let start = null;
+          let allDay = !!forceAllday;
+          if (startTime) {
+            start = cal.dtz.dateTimeToJsDate(startTime.isDate ? startTime : startTime.getInTimezone(cal.dtz.defaultTimezone));
+            allDay ||= startTime.isDate;
+          } else {
+            // Monat: der angeklickte Tag, wie bei Apple ein ganztägiger Termin
+            const day = w.currentView?.()?.selectedDay;
+            if (day) {
+              start = new Date(day.year, day.month, day.day);
+              allDay = true;
+            }
+          }
+          if (start && startTime && !startTime.isDate) {
+            // auf die Viertelstunde abrunden
+            start.setMinutes(Math.floor(start.getMinutes() / 15) * 15, 0, 0);
+          }
+          self.openQuickCreate(w, "event", null, { start, allDay, at, calendar });
+        } catch (e) {
+          log("quick double-click error", e);
+          return orig.call(this, calendar, startTime, endTime, forceAllday);
+        }
+        return undefined;
+      };
+      this.restorers.push(() => {
+        ctrl.createNewEvent = orig;
+        box.removeEventListener("dblclick", onDbl, true);
+        delete ctrl.__mcQuick;
+      });
+    };
+
     // Tooltip mit Erklärung an Kalendern, die iCloud mit ⚠️ markiert
     const hookCalendarNotes = () => {
       const list = w.document.getElementById("calendar-list");
@@ -3607,6 +3665,7 @@ class CardEnhancer {
       hookNewButton();
       hookCalendarNotes();
       hookCalendarEmoji();
+      hookCalendarDoubleClick();
       hookTaskHint();
       hookTitle();
       labelToday();
@@ -3934,7 +3993,8 @@ class CardEnhancer {
   // Thunderbirds großes Fenster mit allen Eingaben. Gespeichert wird über
   // Thunderbirds eigene Transaktion (damit „Rückgängig“ funktioniert).
   // ---------------------------------------------------------------------------
-  openQuickCreate(w, mode = "event", anchor = null) {
+  // preset (Doppelklick im Kalender): { start: Date, allDay, at: {x, y} (Bildschirm), calendar }
+  openQuickCreate(w, mode = "event", anchor = null, preset = null) {
     const d = w.document;
     const X = "http://www.w3.org/1999/xhtml";
     const locale = Services.locale.appLocaleAsBCP47;
@@ -4320,8 +4380,17 @@ class CardEnhancer {
         day = new Date(ts.year, ts.month, ts.day, now.getHours(), now.getMinutes());
       }
     } catch {}
-    const start = new Date(day.getFullYear(), day.getMonth(), day.getDate(), now.getHours() + 1, 0);
+    let start = new Date(day.getFullYear(), day.getMonth(), day.getDate(), now.getHours() + 1, 0);
+    if (preset?.start) {
+      start = preset.allDay
+        ? new Date(preset.start.getFullYear(), preset.start.getMonth(), preset.start.getDate(), now.getHours() + 1, 0)
+        : new Date(preset.start);
+    }
     const end = new Date(start.getTime() + 3600 * 1000);
+    if (preset?.allDay) {
+      f.allDay.checked = true;
+      root.toggleAttribute("data-allday", true);
+    }
     f.startDate.value = dateValue(start);
     f.startTime.value = timeValue(start);
     f.endDate.value = dateValue(end);
@@ -4330,7 +4399,15 @@ class CardEnhancer {
     f.dueTime.value = timeValue(start);
     panel.__mcSetLastStart(start);
     panel.__mcSetMode(mode);
-    if (anchor) {
+    // Kalender, in den doppelgeklickt wurde (sonst der ausgewählte)
+    if (preset?.calendar?.id && [...f.calendar.options].some(o => o.value == preset.calendar.id)) {
+      f.calendar.value = preset.calendar.id;
+      f.calendar.dispatchEvent(new w.Event("change", { bubbles: true }));
+    }
+    if (preset?.at) {
+      // an der Mausposition, etwas nach rechts unten versetzt
+      panel.openPopupAtScreen(preset.at.x + 8, preset.at.y + 8, false);
+    } else if (anchor) {
       const r = anchor.getBoundingClientRect();
       const below = r.top < w.innerHeight / 2;
       panel.openPopup(anchor, below ? "after_start" : "before_start", Math.round(r.width / 2 - 190), below ? 4 : -4);
