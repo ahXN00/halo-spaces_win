@@ -41,13 +41,14 @@ Features
 
 Personal data in the screenshots is blurred.
 
-3.0.95 Release Notes
+3.0.96 Release Notes
 --------
-- Quick event window: type naturally, e.g. "tomorrow 12:30 for 90 min". A double-click in the calendar opens it too
-- Mail cards: optional flag, archive and delete on hover (off by default, see Preferences)
-- Birthdays from your address books as their own calendar
-- A settings page (Add-ons and Themes → halo.spaces → Preferences)
-- Visible keyboard focus on halo.spaces controls
+- Reading view like Apple Mail: the sender picture from the card next to name and subject, plain-text messages in the system font (can be turned off)
+- Compose window and dialogs: aligned header labels, a calmer formatting bar, date and time as one field, round dialog buttons
+- New setting "Logos from sender websites" – off means no outside requests at all
+- Hover actions on mail cards are now off by default (Preferences)
+- French, Spanish and Italian
+- Fixes: folder title of new folders, cut-off "Add-ons and Themes" link, icons on the selected card
 
 See [Releases](https://github.com/sruf79/halo-spaces/releases) for all versions.
 
