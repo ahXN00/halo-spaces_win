@@ -202,6 +202,7 @@ def take_shots(m, folder, scheme):
         ("tasks", 'tm.openTab("tasks", {}); await wait(1500);'),
         ("addressbook", 'tm.openTab("addressBookTab", {}); await wait(2000);'),
         ("settings", "w.openPreferencesTab(); await wait(2000);"),
+        ("addon-settings", f'w.openAddonsMgr("addons://detail/" + encodeURIComponent("{ADDON_ID}") + "/preferences"); await wait(3000);'),
     ]:
         m.js("w.resizeTo(1500, 900); " + js + " await wait(600); return 1;")
         data = m.cmd("WebDriver:TakeScreenshot", {})["value"]

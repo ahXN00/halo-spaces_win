@@ -4,41 +4,45 @@
 
 const api = browser.mailCards;
 
-const SECTIONS = de => [
-  [de ? "Mail" : "Mail", [
-    { key: "previewLines", type: "select", label: de ? "Vorschauzeilen in der Mailliste" : "Preview lines in the message list",
-      hint: de ? "gilt nach einem Neustart" : "takes effect after a restart", options: [0, 1, 2, 3, 4] },
-    { key: "hoverActions", label: de ? "Aktionen beim Überfahren einer Mail" : "Actions when hovering a message",
-      hint: de ? "Markieren, Archivieren, Löschen" : "Flag, archive, delete" },
-    { key: "listWidth", type: "number", label: de ? "Breite der Mailliste" : "Message list width",
-      hint: de ? "Pixel; Doppelklick auf die Trennlinie setzt sie zurück" : "pixels; double-click the divider to reset", reset: true },
-    { key: "senderLogos", label: de ? "Logos von Absender-Websites" : "Logos from sender websites",
-      hint: de ? "fragt nur die Website des Absenders (Favicon, BIMI) – aus: keine Anfragen nach außen" : "asks only the sender’s own website (favicon, BIMI) – off: no outside requests" },
-    { key: "macContactPhotos", mac: true, label: de ? "Fotos aus der Kontakte-App" : "Photos from the Contacts app",
-      hint: de ? "macOS fragt einmal nach dem Zugriff" : "macOS asks for access once" },
-    { key: "plainTextSystemFont", label: de ? "Textmails in Systemschrift" : "Plain-text messages in system font",
-      hint: de ? "aus: Schreibmaschinenschrift, z. B. für Tabellen aus Leerzeichen" : "off: fixed-width font, e.g. for tables made of spaces" },
-    { key: "hideDuplicateContacts", label: de ? "Doppelte Kontakte zusammenführen" : "Merge duplicate contacts",
-      hint: de ? "nur in der Anzeige" : "display only" },
+// Texte aus der zentralen Tabelle der Erweiterung (getTranslations)
+let TABLE = {};
+const t = english => TABLE[english] ?? english;
+
+const SECTIONS = () => [
+  [t("Mail"), [
+    { key: "previewLines", type: "select", label: t("Preview lines in the message list"),
+      hint: t("takes effect after a restart"), options: [0, 1, 2, 3, 4] },
+    { key: "hoverActions", label: t("Actions when hovering a message"),
+      hint: t("Flag, archive, delete") },
+    { key: "listWidth", type: "number", label: t("Message list width"),
+      hint: t("pixels; double-click the divider to reset"), reset: true },
+    { key: "senderLogos", label: t("Logos from sender websites"),
+      hint: t("asks only the sender’s own website (favicon, BIMI) – off: no outside requests") },
+    { key: "macContactPhotos", mac: true, label: t("Photos from the Contacts app"),
+      hint: t("macOS asks for access once") },
+    { key: "plainTextSystemFont", label: t("Plain-text messages in system font"),
+      hint: t("off: fixed-width font, e.g. for tables made of spaces") },
+    { key: "hideDuplicateContacts", label: t("Merge duplicate contacts"),
+      hint: t("display only") },
   ]],
-  [de ? "Kalender" : "Calendar", [
-    { key: "calendarEmoji", label: de ? "Emojis vor Termintiteln" : "Emojis before event titles",
-      hint: de ? "🎂 Geburtstag, 🏋️ Training, 🦷 Zahnarzt …" : "🎂 birthday, 🏋️ training, 🦷 dentist …" },
-    { key: "emojiCustom", type: "textarea", label: de ? "Eigene Stichwörter" : "Own keywords",
-      hint: de ? "je Zeile „Stichwort = Emoji“, z. B. „Hellas Kagran = ⚽“ – haben Vorrang" : "one per line, “keyword = emoji”, e.g. “Book club = 📖” – take precedence",
-      placeholder: de ? "Hellas Kagran = ⚽\nChor = 🎶" : "Book club = 📖\nChoir = 🎶" },
-    { key: "birthdays", label: de ? "Geburtstage aus dem Adressbuch" : "Birthdays from the address book",
-      hint: de ? "eigener, schreibgeschützter Kalender" : "separate read-only calendar" },
-    { key: "calendarOffline", label: de ? "Offline-Kopie für Online-Kalender" : "Offline copy for online calendars",
-      hint: de ? "schnelleres Laden; legt die Kalender einmal neu an" : "faster loading; re-creates the calendars once" },
+  [t("Calendar"), [
+    { key: "calendarEmoji", label: t("Emojis before event titles"),
+      hint: t("🎂 birthday, 🏋️ training, 🦷 dentist …") },
+    { key: "emojiCustom", type: "textarea", label: t("Own keywords"),
+      hint: t("one per line, “keyword = emoji”, e.g. “Book club = 📖” – take precedence"),
+      placeholder: t("Book club = 📖\nChoir = 🎶") },
+    { key: "birthdays", label: t("Birthdays from the address book"),
+      hint: t("separate read-only calendar") },
+    { key: "calendarOffline", label: t("Offline copy for online calendars"),
+      hint: t("faster loading; re-creates the calendars once") },
   ]],
-  [de ? "Darstellung" : "Appearance", [
-    { key: "bundledTheme", label: de ? "Design von halo.spaces" : "halo.spaces design", hint: de ? "gilt nach einem Neustart" : "takes effect after a restart" },
-    { key: "appleIcons", label: de ? "Eigene Symbole" : "Own icons", hint: de ? "gilt nach einem Neustart" : "takes effect after a restart" },
+  [t("Appearance"), [
+    { key: "bundledTheme", label: t("halo.spaces design"), hint: t("takes effect after a restart") },
+    { key: "appleIcons", label: t("Own icons"), hint: t("takes effect after a restart") },
   ]],
-  [de ? "Fehlersuche" : "Troubleshooting", [
-    { key: "debug", label: de ? "Ausführliches Protokoll" : "Detailed log",
-      hint: de ? "mail-cards-debug.log im Profil, auch mit Absenderadressen" : "mail-cards-debug.log in the profile, includes sender addresses" },
+  [t("Troubleshooting"), [
+    { key: "debug", label: t("Detailed log"),
+      hint: t("mail-cards-debug.log in the profile, includes sender addresses") },
   ]],
 ];
 
@@ -53,8 +57,8 @@ function el(tag, props = {}, ...kids) {
   return node;
 }
 
-function savedBadge(de) {
-  return el("span", { class: "saved", textContent: de ? "gesichert" : "saved" });
+function savedBadge() {
+  return el("span", { class: "saved", textContent: t("saved") });
 }
 
 function flash(badge) {
@@ -64,17 +68,18 @@ function flash(badge) {
 
 async function render() {
   const settings = await api.getSettings();
-  const de = settings.german;
-  document.documentElement.lang = de ? "de" : "en";
-  document.title = de ? "halo.spaces – Einstellungen" : "halo.spaces – Settings";
+  const { lang, table } = await api.getTranslations();
+  TABLE = table;
+  document.documentElement.lang = lang;
+  document.title = t("halo.spaces – Settings");
   const main = document.getElementById("settings");
   main.replaceChildren();
-  for (const [title, rows] of SECTIONS(de)) {
+  for (const [title, rows] of SECTIONS()) {
     const section = el("section");
     for (const row of rows) {
       if (row.mac && !settings.mac) continue;
       const id = `s-${row.key}`;
-      const badge = savedBadge(de);
+      const badge = savedBadge();
       const text = el("label", { class: "text", htmlFor: id }, row.label, badge, el("span", { class: "hint", textContent: row.hint || "" }));
       const save = async value => {
         await api.setSetting(row.key, value);
@@ -91,7 +96,7 @@ async function render() {
         input.addEventListener("change", () => save(Number(input.value)));
         control.append(input);
         if (row.reset) {
-          const reset = el("button", { type: "button", textContent: de ? "Standard" : "Default" });
+          const reset = el("button", { type: "button", textContent: t("Default") });
           reset.style.marginInlineStart = "6px";
           reset.addEventListener("click", async () => {
             await save(null);
