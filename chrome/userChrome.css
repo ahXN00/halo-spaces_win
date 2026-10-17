@@ -484,6 +484,30 @@ hr[is="pane-splitter"],
   fill: var(--mt-accent-text) !important;
 }
 
+/* Aktionen beim Überfahren auf der ausgewählten Karte: sonst weiße Symbole
+   in der weißen Kapsel – hier durchscheinend auf der Akzentfarbe */
+#threadTree tr[is="thread-card"]:is(.selected, [aria-selected="true"]) .mc-actions {
+  background: color-mix(in srgb, var(--mt-accent-text) 20%, var(--mt-accent)) !important;
+  box-shadow: 0 0 0 0.5px color-mix(in srgb, var(--mt-accent-text) 35%, transparent) !important;
+}
+
+#threadTree tr[is="thread-card"]:is(.selected, [aria-selected="true"]) .mc-actions .mc-action {
+  color: var(--mt-accent-text) !important;
+}
+
+#threadTree tr[is="thread-card"]:is(.selected, [aria-selected="true"]) .mc-actions .mc-action:hover {
+  background: color-mix(in srgb, var(--mt-accent-text) 22%, transparent) !important;
+}
+
+/* ohne Fokus ist die Auswahl grau – dort normale Kapsel, dunkle Symbole */
+#threadTree:not(:focus-within) tr[is="thread-card"]:is(.selected, [aria-selected="true"]) .mc-actions {
+  background: var(--mt-window, Canvas) !important;
+}
+
+#threadTree:not(:focus-within) tr[is="thread-card"]:is(.selected, [aria-selected="true"]) .mc-actions .mc-action {
+  color: var(--mt-text-secondary) !important;
+}
+
 /* Tabellenansicht: dieselbe Schriftgröße wie in der Kartenansicht
    (sonst erbt sie Thunderbirds kleinere Grundschrift) */
 #threadTree tr[is="thread-row"],
@@ -3608,6 +3632,36 @@ addon-page-header h1,
 
 #FormatToolbar .formatting-button {
   border-radius: 8px !important;
+  /* Thunderbirds Symbole sind sehr kräftig – grau wie die übrigen Symbole */
+  color: var(--mt-text-secondary) !important;
+  fill: var(--mt-text-secondary) !important;
+  -moz-context-properties: fill, stroke !important;
+  border: none !important;
+  background-color: transparent !important;
+}
+
+#FormatToolbar .formatting-button:not([disabled]):hover,
+#FormatToolbar .formatting-button[checked="true"] {
+  color: var(--mt-text) !important;
+  fill: var(--mt-text) !important;
+  background-color: var(--mt-control-hover) !important;
+}
+
+/* Kopfzeilen: Beschriftungen bündig in einer Spalte (Thunderbird gibt dem
+   Absender-Feld und den Empfänger-Zeilen unterschiedlich breite Kästen) */
+#MsgHeadersToolbar :is(#identityLabel-box, #subjectLabel-box, .address-label-container) {
+  box-sizing: border-box !important;
+  /* px statt em: die Kästen haben verschiedene Schriftgrößen */
+  width: 92px !important;
+  min-width: 92px !important;
+  max-width: 92px !important;
+  padding-inline: 0 !important;
+  justify-content: flex-end !important;
+}
+
+/* Trennlinien über die ganze Breite */
+#MsgHeadersToolbar > * {
+  margin-inline-end: 0 !important;
 }
 
 #headersSplitter {
@@ -4261,20 +4315,10 @@ dialog {
   --button-pressed-shadow: none !important;
 }
 
-dialog::part(dialog-button),
 dialog {
   --mc-dlg: 1;
 }
-
-dialog::part(dialog-button) {
-  min-height: 30px !important;
-  min-width: 84px !important;
-  padding-inline: 16px !important;
-  border: none !important;
-  border-radius: 999px !important;
-  box-shadow: none !important;
-  font-weight: 500 !important;
-}
+/* Dialog-Knöpfe liegen im Schatten-DOM: extension/parts.css */
 
 /* Eingabefelder und Auswahllisten in Dialogen */
 dialog :is(input:not([type="checkbox"], [type="radio"], [type="color"], [type="range"]), textarea),
@@ -4400,8 +4444,8 @@ dialog richlistbox {
   box-shadow: none !important;
 }
 
-#calendar-event-dialog-inner menulist[editable] :is(dropmarker, .menulist-dropmarker),
-#calendar-event-dialog-inner menulist[editable]::part(dropmarker) {
+/* (Teil im Schatten-DOM: extension/parts.css) */
+#calendar-event-dialog-inner menulist[editable] :is(dropmarker, .menulist-dropmarker) {
   border: none !important;
   border-inline-start: none !important;
   background: transparent !important;
@@ -5450,13 +5494,7 @@ body:has(> #booksPane.mc-side-anim) {
   font-family: var(--mt-font) !important;
 }
 
-#mcNewPopup::part(content) {
-  appearance: none !important;
-  background: transparent !important;
-  border: none !important;
-  box-shadow: none !important;
-  padding: 0 !important;
-}
+/* Inhalt des Popups (Schatten-DOM): extension/parts.css */
 
 #mcNewPopup .mc-pop {
   --mc-pop-bg: #fbfbfc;

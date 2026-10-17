@@ -1,0 +1,42 @@
+/* halo.spaces – Regeln für Teile im Schatten-DOM (::part).
+   Thunderbird wendet ::part nur aus Author-Stylesheets an, nicht aus dem
+   User-Stylesheet des Designs (theme.css). Deshalb dieses eigene Stylesheet,
+   global als Author-Sheet registriert. Die Farben (--mt-*) kommen aus theme.css. */
+
+/* Termin-/Aufgaben-Dialog: Datum und Uhrzeit als ein graues Feld – das
+   Textfeld ohne eigenen weißen Kasten und Rahmen (sonst Strich vor dem Pfeil) */
+:is(datetimepicker, datepicker, timepicker) menulist[editable]::part(text-input) {
+  margin: 0 !important;
+  border: none !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  outline: none !important;
+  color: inherit !important;
+}
+
+:is(datetimepicker, datepicker, timepicker) menulist[editable]::part(dropmarker) {
+  border: none !important;
+  background: transparent !important;
+  appearance: none !important;
+  box-shadow: none !important;
+}
+
+/* Dialog-Knöpfe rund wie im übrigen Design */
+dialog::part(dialog-button) {
+  min-height: 30px !important;
+  min-width: 84px !important;
+  padding-inline: 16px !important;
+  border: none !important;
+  border-radius: 999px !important;
+  box-shadow: none !important;
+  font-weight: 500 !important;
+}
+
+/* „Neu“-Menü: das Popup selbst unsichtbar, die Karte zeichnet .mc-pop */
+#mcNewPopup::part(content) {
+  appearance: none !important;
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+}

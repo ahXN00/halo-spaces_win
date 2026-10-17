@@ -73,6 +73,8 @@ class Marionette:
 PRELUDE = r"""
 const w = Services.wm.getMostRecentWindow("mail:3pane"); const d = w.document;
 const wait = ms => new Promise(r => w.setTimeout(r, ms));
+// wartet, bis fn() etwas liefert (statt fester Wartezeiten – bei hoher Last zuverlässiger)
+const until = async (fn, ms = 6000) => { for (let t = 0; t < ms; t += 100) { const v = fn(); if (v) return v; await wait(100); } return fn(); };
 const tm = d.getElementById("tabmail");
 const { cal } = ChromeUtils.importESModule("resource:///modules/calendar/calUtils.sys.mjs");
 const toMail = async () => { tm.switchToTab(0); await wait(900); return tm.currentAbout3Pane; };
@@ -139,6 +141,10 @@ def main():
             "datareporting.policy.dataSubmissionPolicyBypassNotification": True,
             "toolkit.telemetry.reportingpolicy.firstRun": False,
             "calendar.timezone.useSystemTimezone": True,
+            # Zeitgeber im Hintergrund nicht drosseln
+            "widget.windows.window_occlusion_tracking.enabled": False,
+            "dom.timeout.enable_budget_timer_throttling": False,
+            "dom.min_background_timeout_value": 4,
             # das macOS-Adressbuch (echte Kontakte) nicht einbinden
             "ldap_2.servers.osx.position": 0,
             **({"ui.systemUsesDarkTheme": 1} if args.dark else {}),
@@ -201,6 +207,47 @@ def take_shots(m, folder, scheme):
         path = os.path.join(folder, f"{scheme}-{name}.png")
         open(path, "wb").write(base64.b64decode(data))
         print(f"Screenshot {path}", flush=True)
+    # eigene Fenster: Verfassen und Termin-Dialog
+    for name, js in [
+        ("compose", COMPOSE_JS),
+        ("event-dialog", 'await toCalendar(); w.switchToView("week"); w.createEventWithDialog(null, null, null, "Halo Dialog"); await wait(2500); return 1;'),
+        ("calendar-properties", 'w.openDialog("chrome://calendar/content/calendar-properties-dialog.xhtml", "_blank", "centerscreen,chrome,titlebar,resizable", { calendar: testCalendar() }); await wait(2000); return 1;'),
+    ]:
+        handles = lambda: (lambda r: r["value"] if isinstance(r, dict) else r)(m.cmd("WebDriver:GetWindowHandles"))
+        main = (lambda r: r["value"] if isinstance(r, dict) else r)(m.cmd("WebDriver:GetWindowHandle"))
+        before = set(handles())
+        m.js(js)
+        new = [h for h in handles() if h not in before]
+        if not new:
+            print(f"Screenshot {name}: kein Fenster", flush=True)
+            continue
+        m.cmd("WebDriver:SwitchToWindow", {"handle": new[0]})
+        m.cmd("WebDriver:ExecuteScript", {"script": "window.resizeTo(900, 700); return new Promise(r => setTimeout(r, 800));", "args": []})
+        data = m.cmd("WebDriver:TakeScreenshot", {})["value"]
+        path = os.path.join(folder, f"{scheme}-{name}.png")
+        open(path, "wb").write(base64.b64decode(data))
+        print(f"Screenshot {path}", flush=True)
+        m.cmd("WebDriver:ExecuteScript", {"script": "window.close(); return 1;", "args": []})
+        m.cmd("WebDriver:SwitchToWindow", {"handle": main})
+
+
+# Verfassen-Fenster mit einer reinen Test-Identität (example.invalid, kein Server)
+COMPOSE_JS = r"""
+  const { MailServices } = ChromeUtils.importESModule("resource:///modules/MailServices.sys.mjs");
+  try { MailServices.accounts.localFoldersServer; } catch { MailServices.accounts.createLocalMailAccount(); await wait(500); }
+  const acc = MailServices.accounts.findAccountForServer(MailServices.accounts.localFoldersServer);
+  if (!acc.identities.length) {
+    const id = MailServices.accounts.createIdentity();
+    id.fullName = "Halo Test"; id.email = "halo@example.invalid";
+    acc.addIdentity(id);
+  }
+  const params = Cc["@mozilla.org/messengercompose/composeparams;1"].createInstance(Ci.nsIMsgComposeParams);
+  const fields = Cc["@mozilla.org/messengercompose/composefields;1"].createInstance(Ci.nsIMsgCompFields);
+  fields.to = "Anna Beispiel <anna@example.invalid>"; fields.subject = "Halo Entwurf";
+  fields.body = "<p>Hallo Anna,</p><p>das ist ein Testentwurf.</p>";
+  params.composeFields = fields; params.identity = acc.identities[0]; params.format = Ci.nsIMsgCompFormat.HTML;
+  MailServices.compose.OpenComposeWindowWithParams(null, params);
+  await wait(3000); return 1;"""
 
 
 def compare_shots(m, before, after):
@@ -357,14 +404,15 @@ def run_checks(m, version, profile, results):
           const e = new CalEvent(); e.title = "Geburtstag Testperson";
           const s = cal.dtz.now(); s.hour = 9; s.minute = 0; const en = s.clone(); en.hour = 10;
           e.startDate = s; e.endDate = en; await testCalendar().addItem(e);
-          await toCalendar(); w.switchToView("week"); await wait(1500);
-          const label = [...d.querySelectorAll("#view-box .event-name-label")].find(l => /Geburtstag Testperson/.test(l.textContent));
+          await toCalendar(); w.switchToView("week");
+          const label = await until(() => [...d.querySelectorAll("#view-box .event-name-label")].find(l => /Geburtstag Testperson/.test(l.textContent) && l.hasAttribute("data-mc-emoji")));
           const builtin = label?.getAttribute("data-mc-emoji") || null;
           // eigenes Stichwort aus den Einstellungen wirkt sofort und hat Vorrang
           Services.prefs.setStringPref("extensions.mailcards.emojiCustom", "Testperson = ⚽");
-          await wait(600);
+          await until(() => label?.getAttribute("data-mc-emoji") == "⚽", 3000);
           const custom = label?.getAttribute("data-mc-emoji") || null;
-          Services.prefs.clearUserPref("extensions.mailcards.emojiCustom"); await wait(400);
+          Services.prefs.clearUserPref("extensions.mailcards.emojiCustom");
+          await until(() => label?.getAttribute("data-mc-emoji") == "🎂", 3000);
           return [builtin, custom, label?.getAttribute("data-mc-emoji") || null];""")
         return res == ["🎂", "⚽", "🎂"], f"eingebaut {res[0]}, eigenes Stichwort {res[1]}, wieder {res[2]}"
     check("Emoji vor Termintitel", emoji, results)
@@ -407,12 +455,12 @@ def run_checks(m, version, profile, results):
         time.sleep(1.2)
         m.pointer([{"type": "pointerMove", "x": x, "y": y, "origin": "viewport"}, {"type": "pointerDown", "button": 0}, {"type": "pointerUp", "button": 0},
                    {"type": "pause", "duration": 80}, {"type": "pointerDown", "button": 0}, {"type": "pointerUp", "button": 0}])
-        time.sleep(1.5)
-        res = m.js('''const p = d.getElementById("mcQuickPanel");
+        res = m.js('''const p = await until(() => { const q = d.getElementById("mcQuickPanel"); return q?.state == "open" && q; }) || d.getElementById("mcQuickPanel");
           const r = { state: p?.state, line: p?.querySelector(".mc-qc-line1").textContent,
             dialogs: [...Services.wm.getEnumerator(null)].filter(x => /calendar-event-dialog/.test(x.location.href)).length };
           p?.hidePopup(); return r;''')
-        ok = res["state"] == "open" and res["dialogs"] == 0 and ("14:" in res["line"] or "02:00 PM" in res["line"] or "2:00 PM" in res["line"])
+        # „showing“ = geht gerade auf (in einem verdeckten Fenster bleibt die Animation dort stehen)
+        ok = res["state"] in ("open", "showing") and res["dialogs"] == 0 and ("14:" in res["line"] or "02:00 PM" in res["line"] or "2:00 PM" in res["line"])
         return ok, f"Fenster {res['state']}, {res['line']}, große Dialoge {res['dialogs']}"
     check("Doppelklick im Kalender öffnet das Schnellfenster", double_click, results)
 
@@ -424,7 +472,8 @@ def run_checks(m, version, profile, results):
           if (!root.containsChildNamed("Inbox")) { root.createSubfolder("Inbox", null); await wait(800); }
           const inbox = root.getChildNamed("Inbox"); const lf = inbox.QueryInterface(Ci.nsIMsgLocalMailFolder);
           for (const n of [1, 2]) lf.addMessage(`From - Sat Oct 17 10:00:00 2026\\r\\nFrom: Test ${n} <t${n}@example.invalid>\\r\\nSubject: Halo Karte ${n}\\r\\nDate: Sat, 17 Oct 2026 10:0${n}:00 +0200\\r\\nMessage-ID: <halo-card-${n}@example.invalid>\\r\\n\\r\\nTest\\r\\n`);
-          const a3 = await toMail(); a3.displayFolder(inbox.URI); await wait(1500);
+          const a3 = await toMail(); a3.displayFolder(inbox.URI);
+          await until(() => a3.document.querySelectorAll('#threadTree tr[is="thread-card"] .mc-act-flag').length >= 2);
           const rows = a3.document.querySelectorAll('#threadTree tr[is="thread-card"]');
           const buttons = rows[0]?.querySelectorAll(".mc-action") || [];
           rows[0].querySelector(".mc-act-flag").click(); await wait(500);
@@ -435,6 +484,21 @@ def run_checks(m, version, profile, results):
         ok = res["buttons"] == 3 and res["flagged"] and res["selected"] == 0 and res["inbox"] == 1 and res["trash"] == 1
         return ok, f"{res}"
     check("Mailkarte: Aktionen beim Überfahren (Markieren, Löschen)", hover_actions, results)
+
+    def selected_actions():
+        res = m.js('''
+          const a3 = await toMail(); a3.threadTree.selectedIndex = 0; a3.threadTree.focus();
+          await until(() => a3.document.querySelector('#threadTree tr[is="thread-card"][aria-selected="true"] .mc-action, #threadTree tr[is="thread-card"].selected .mc-action'));
+          const row = a3.document.querySelector('#threadTree tr[is="thread-card"].selected, #threadTree tr[is="thread-card"][aria-selected="true"]');
+          const b = row?.querySelector(".mc-action"); const box = row?.querySelector(".mc-actions");
+          if (!b) return { found: false };
+          // rgb(255, 255, 255) und color(srgb 1 1 1) auf dieselbe Skala 0–255
+          const rgb = c => { const v = (c.match(/[\\d.]+/g) || []).slice(0, 3).map(Number); return c.startsWith("color(") ? v.map(x => x * 255) : v; };
+          const cs = a3.getComputedStyle; const fg = rgb(cs(b).color), bg = rgb(cs(box).backgroundColor);
+          const diff = Math.max(...fg.map((v, i) => Math.abs(v - bg[i])));
+          return { found: true, icon: cs(b).color, pill: cs(box).backgroundColor, diff };''')
+        return res.get("found") and res["diff"] >= 60, f"{res}"
+    check("Ausgewählte Karte: Aktions-Symbole sichtbar", selected_actions, results)
 
     def birthdays():
         res = m.js('''

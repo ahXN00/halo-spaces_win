@@ -3610,7 +3610,8 @@ class CardEnhancer {
         const mo = new w.MutationObserver(() => {
           if (!pending) {
             pending = true;
-            w.requestAnimationFrame(run);
+            // Zeitgeber statt requestAnimationFrame: läuft auch, wenn das Fenster verdeckt ist
+            w.setTimeout(run, 16);
           }
         });
         mo.observe(root, { childList: true, subtree: true, characterData: true });
@@ -5238,6 +5239,18 @@ class CardEnhancer {
         sss.unregisterSheet(noScroll, sss.USER_SHEET);
       }
     });
+    // ::part-Regeln gelten nur aus Author-Stylesheets (siehe parts.css)
+    if (Services.prefs.getBoolPref("extensions.mailcards.bundledTheme", true)) {
+      const parts = Services.io.newURI(`resource://mailcards/parts.css?v=${extensionVersion}`);
+      if (!sss.sheetRegistered(parts, sss.AUTHOR_SHEET)) {
+        sss.loadAndRegisterSheet(parts, sss.AUTHOR_SHEET);
+      }
+      this.restorers.push(() => {
+        if (sss.sheetRegistered(parts, sss.AUTHOR_SHEET)) {
+          sss.unregisterSheet(parts, sss.AUTHOR_SHEET);
+        }
+      });
+    }
     if (!Services.prefs.getBoolPref("extensions.mailcards.appleIcons", true)) {
       return;
     }
