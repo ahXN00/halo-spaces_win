@@ -875,9 +875,10 @@ hr[is="pane-splitter"],
 /* erster sichtbarer Abstandhalter – davor können ausgeblendete Knöpfe
    anderer Bereiche liegen, daher nicht :first-child */
 #unifiedToolbarContent > li[item-id="spacer"]:not(li[item-id="spacer"] ~ li) {
-  /* schrumpft, wenn das Fenster für alle Knöpfe zu schmal ist – sonst
-     würde das Suchfeld rechts aus dem Fenster geschoben */
-  flex: 0 1 var(--mc-toolbar-offset, 0px) !important;
+  /* schrumpft erst, wenn das Suchfeld schon ganz klein ist (Gewicht fast 0
+     gegenüber 50 beim Suchfeld) – sonst rücken die Knöpfe über die Kante der
+     Mailliste und die Trennlinie in der Toolbar-Zeile bricht */
+  flex: 0 0.001 var(--mc-toolbar-offset, 0px) !important;
   min-width: 0 !important;
   max-width: none !important;
 }

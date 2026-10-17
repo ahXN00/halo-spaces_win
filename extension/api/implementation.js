@@ -4425,7 +4425,11 @@ class CardEnhancer {
       const animating = top.__mcSpacesAnimating || win.__mcAnimating;
       if (!animating) {
         const firstSpacer = content.querySelector(':scope > li[item-id="spacer"]');
-        squeezeToolbar(top.document, () => !firstSpacer || firstSpacer.getBoundingClientRect().right >= start + offset - 2);
+        // passt, wenn die Knöpfe an der Listenkante beginnen und das Suchfeld
+        // noch mindestens 160 px breit ist (sonst lieber Knöpfe ausblenden)
+        const search = content.querySelector(':scope > li[item-id="search-bar"]');
+        squeezeToolbar(top.document, () => (!firstSpacer || firstSpacer.getBoundingClientRect().right >= start + offset - 2) &&
+          (!search || search.getBoundingClientRect().width >= 159));
       }
       // Suchfeld in jedem Bereich gleich breit (333 px wie Apple Mail): fehlt
       // dafür Platz, wird zuerst der Abstand nach „Verfassen“ kleiner (69 → 12 px)
