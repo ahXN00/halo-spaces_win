@@ -391,6 +391,21 @@ def run_checks(m, version, profile, results):
         return ok, f"{res}"
     check("Geburtstage aus dem Adressbuch als Kalender", birthdays, results)
 
+    def keyboard():
+        res = m.js('''
+          await toMail(); await wait(300);
+          const ring = el => { el.focus({ focusVisible: true }); const cs = getComputedStyle(el); const r = cs.outlineStyle != "none" && parseFloat(cs.outlineWidth) >= 2; el.blur(); return r; };
+          const own = ["mcSpacesToggle", "mcTodayToggle"].map(id => d.getElementById(id)).filter(Boolean);
+          const unlabeled = own.filter(b => !b.getAttribute("aria-label")).map(b => b.id);
+          const rings = own.filter(b => !ring(b)).map(b => b.id);
+          const a3 = d.getElementById("tabmail").currentAbout3Pane;
+          const acts = [...(a3?.document.querySelectorAll(".mc-action") || [])];
+          return { own: own.length, unlabeled, noRing: rings, actions: acts.length, tabbable: acts.filter(b => b.tabIndex >= 0).length,
+                   actionsLabeled: acts.every(b => b.getAttribute("aria-label")) };''')
+        ok = res["own"] == 2 and not res["unlabeled"] and not res["noRing"] and res["tabbable"] == 0 and res["actionsLabeled"]
+        return ok, f"{res}"
+    check("Tastatur: Fokusring und Beschriftung eigener Knöpfe", keyboard, results)
+
     def errors():
         res = m.js("""
           const p = PathUtils.join(PathUtils.profileDir, "mail-cards-debug.log");

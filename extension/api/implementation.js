@@ -2444,7 +2444,6 @@ class CardEnhancer {
       const menu = cw.document.getElementById("sortContext");
       // Abschnittstitel, damit klar ist, dass „Anzeigename“ eine Auswahl ist
       if (menu && !menu.querySelector(".mc-caption")) {
-        const de = Services.locale.appLocaleAsBCP47.startsWith("de");
         const caption = (label, before) => {
           if (!before) {
             return;
@@ -2460,7 +2459,6 @@ class CardEnhancer {
         caption(tr("View"), menu.querySelector('menuitem[value="addrbook"]'));
       }
       if (menu && !cw.document.getElementById("mcHideDuplicates")) {
-        const de = Services.locale.appLocaleAsBCP47.startsWith("de");
         const sep = cw.document.createXULElement("menuseparator");
         const item = cw.document.createXULElement("menuitem");
         item.id = "mcHideDuplicates";
@@ -2930,7 +2928,6 @@ class CardEnhancer {
       if (!popup || d.getElementById("mcHaloSpaces")) {
         return;
       }
-      const de = Services.locale.appLocaleAsBCP47.startsWith("de");
       const sep = d.createXULElement("menuseparator");
       sep.id = "mcCheckUpdatesSeparator";
       const item = d.createXULElement("menuitem");
@@ -3079,7 +3076,6 @@ class CardEnhancer {
       // Tooltip je nach Zustand: „Hide Sidebar“ bzw. „Show Sidebar“
       const oldTooltip = button.getAttribute("tooltiptext");
       const updateTip = () => {
-        const de = Services.locale.appLocaleAsBCP47.startsWith("de");
         const tab = w.document.getElementById("tabmail")?.currentTabInfo;
         let text;
         if (tab?.mode?.name == "mail3PaneTab") {
@@ -3125,7 +3121,6 @@ class CardEnhancer {
       btn.type = "button";
       // Tooltip je nach Zustand: „Hide Spaces“ bzw. „Show Spaces“
       const updateTip = () => {
-        const de = Services.locale.appLocaleAsBCP47.startsWith("de");
         const label = w.gSpacesToolbar.isHidden
           ? (tr("Show Spaces"))
           : (tr("Hide Spaces"));
@@ -3152,7 +3147,6 @@ class CardEnhancer {
       btn.id = "mcTodayToggle";
       btn.type = "button";
       const updateTip = () => {
-        const de = Services.locale.appLocaleAsBCP47.startsWith("de");
         const shown = !!w.TodayPane?.isVisible;
         const label = shown
           ? (tr("Hide Today Pane"))
@@ -3230,7 +3224,6 @@ class CardEnhancer {
       const count = el("div", "mc-lh-count");
       text.append(title, count);
       const tools = el("div", "mc-lh-tools");
-      const de = Services.locale.appLocaleAsBCP47.startsWith("de");
       const filter = el("button", "mc-lh-filter");
       filter.title = tr("Quick Filter");
       const more = el("button", "mc-lh-more");
@@ -3267,7 +3260,6 @@ class CardEnhancer {
         return;
       }
       mv.__mcMore = true;
-      const de = Services.locale.appLocaleAsBCP47.startsWith("de");
       // Höhe der Monatstabelle in Pixeln: sichtbare Höhe × Zoom (eine
       // Prozentangabe greift in der scrollbaren Ansicht nicht mehr)
       const applyHeight = () => {
@@ -3498,7 +3490,6 @@ class CardEnhancer {
       title.id = "mcAgendaTitle";
       // ‹  Monat Jahr  › – blättert monatsweise; die Liste zeigt die Termine
       // des gezeigten Monats (im aktuellen Monat ab heute)
-      const de = locale.startsWith("de");
       const mkChevron = (cls, label, dir) => {
         const b = d.createElementNS(X, "button");
         b.className = `mc-agenda-nav ${cls}`;
@@ -3757,7 +3748,6 @@ class CardEnhancer {
         return;
       }
       bar.__mcNewHooked = true;
-      const de = Services.locale.appLocaleAsBCP47.startsWith("de");
       // Popover wie in Apple Kalender: zwei runde Symbole mit Beschriftung
       const popup = d.createXULElement("panel");
       popup.id = "mcNewPopup";
@@ -4164,7 +4154,6 @@ class CardEnhancer {
       const folder = ab.gFolder;
       title.textContent = folder ? appleFolderTitle(folder) : ab.document.title || "";
       const n = folder?.getTotalMessages(false) || ab.gDBView?.numMsgsInView || 0;
-      const de = Services.locale.appLocaleAsBCP47.startsWith("de");
       count.textContent = folder || ab.gDBView
         ? tr(n == 1 ? "{n} message" : "{n} messages", { n: n.toLocaleString(Services.locale.appLocaleAsBCP47) })
         : "";
@@ -5433,7 +5422,6 @@ class CardEnhancer {
 
   // Feedback: neue Mail an die Feedback-Adresse, mit Versionen zum Nachvollziehen
   async sendFeedback() {
-    const de = Services.locale.appLocaleAsBCP47.startsWith("de");
     let version = extensionVersion;
     try {
       const { AddonManager } = ChromeUtils.importESModule("resource://gre/modules/AddonManager.sys.mjs");
@@ -6111,7 +6099,6 @@ class CardEnhancer {
       this.removeBirthdayCalendar();
       return;
     }
-    const de = Services.locale.appLocaleAsBCP47.startsWith("de");
     // Geburtstage einsammeln (lokale Adressbücher; doppelte Kontakte einmal)
     const found = new Map();
     for (const dir of MailServices.ab.directories) {
@@ -6196,12 +6183,13 @@ class CardEnhancer {
   // nur für diese Mail, ohne Auswahl oder Ansicht zu ändern
   hoverActions(win, row) {
     const doc = win.document;
-    const de = Services.locale.appLocaleAsBCP47.startsWith("de");
     const box = doc.createElement("div");
     box.className = "mc-actions";
     const act = (cls, label, run) => {
       const b = doc.createElement("button");
       b.type = "button";
+      // nur für die Maus – sonst müsste man pro Karte durch drei Knöpfe tabben
+      b.tabIndex = -1;
       b.className = `mc-action ${cls}`;
       b.title = label;
       b.setAttribute("aria-label", label);

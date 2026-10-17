@@ -4564,3 +4564,17 @@ notification-message:not([type="warning"]) button.notification-button {
   font-family: "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif !important;
   font-weight: 400 !important;
 }
+
+/* ---------------------------------------------------------------------------
+   Tastaturfokus: sichtbarer Ring in Akzentfarbe – auch dort, wo das Theme
+   den Standardring oben entfernt (nur bei Tastaturbedienung, :focus-visible)
+   --------------------------------------------------------------------------- */
+:is(#mcSpacesToggle, #mcTodayToggle, #mcAgendaTitle .mc-agenda-nav,
+    calendar-month-day-box > .mc-more, #mcNewPopup .mc-pop-item,
+    #editContactForm .add-property-button, .im-placeholder-screen button,
+    #appMenu-uiDensity-controls > .subviewbutton):focus-visible,
+#mcQuickPanel :is(button, select, .mc-qc-summary, .mc-qc-calsel, .mc-qc-link):focus-visible,
+:is(#calMinimonth, #today-minimonth) td.minimonth-day:focus-visible {
+  outline: 2px solid var(--mt-accent) !important;
+  outline-offset: 1px !important;
+}
