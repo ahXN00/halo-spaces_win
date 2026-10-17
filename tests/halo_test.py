@@ -264,6 +264,23 @@ def run_checks(m, version, profile, results):
         return ok, f"nach IME-Enter {res['afterIme']}, nach Enter {res['created']} Termin, Fenster {res['closed']}"
     check("Schnellfenster: legt an, IME-Enter nicht", quick_window, results)
 
+    def natural():
+        res = m.js('''
+          await toCalendar();
+          const li = [...d.querySelectorAll('#unifiedToolbarContent li[item-id="new-event"]')].find(l => l.getBoundingClientRect().width);
+          li.querySelector("button").click(); await wait(900);
+          const p = d.getElementById("mcQuickPanel"); const t = p.querySelector(".mc-qc-title");
+          p.querySelector(".mc-qc-calsel").value = testCalendar().id; p.querySelector(".mc-qc-calsel").dispatchEvent(new w.Event("change"));
+          t.value = "Halo NL Essen morgen 12:30 für 90 min"; t.dispatchEvent(new w.Event("input", { bubbles: true })); await wait(300);
+          p.querySelector(".mc-qc-primary").click(); await wait(1200);
+          const it = (await items("Halo NL Essen"))[0];
+          if (!it) return null;
+          const s = cal.dtz.dateTimeToJsDate(it.startDate), e = cal.dtz.dateTimeToJsDate(it.endDate), tm2 = new Date(); tm2.setDate(tm2.getDate() + 1);
+          return { tomorrow: s.getDate() == tm2.getDate(), start: s.getHours() * 60 + s.getMinutes(), minutes: (e - s) / 60000 };''')
+        ok = bool(res) and res["tomorrow"] and res["start"] == 750 and res["minutes"] == 90
+        return ok, f"{res}"
+    check("Schnellfenster: natürliche Eingabe („morgen 12:30 für 90 min“)", natural, results)
+
     def emoji():
         res = m.js("""
           const { CalEvent } = ChromeUtils.importESModule("resource:///modules/CalEvent.sys.mjs");

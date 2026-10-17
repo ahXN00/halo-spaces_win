@@ -1336,6 +1336,132 @@ function emojiFor(title) {
   return found;
 }
 
+// ---------------------------------------------------------------------------
+// Schnellfenster: natürliche Eingabe wie bei Fantastical – „Lunch mit Anna
+// morgen 12 Uhr“ → Titel „Lunch mit Anna“, morgen 12:00–13:00. Erkennt
+// Deutsch und Englisch: heute/morgen/übermorgen, Wochentage, 17.10.(2026),
+// 17. Oktober, Uhrzeiten (12 Uhr, 12:30, 9am), Zeiträume (10–11 Uhr,
+// von 10 bis 12), Dauer (für 2 Stunden) und „ganztägig“.
+// ---------------------------------------------------------------------------
+const NL_MONTHS = {
+  jan: 0, januar: 0, jänner: 0, january: 0, feb: 1, februar: 1, february: 1, mär: 2, märz: 2, mar: 2, march: 2,
+  apr: 3, april: 3, mai: 4, may: 4, jun: 5, juni: 5, june: 5, jul: 6, juli: 6, july: 6, aug: 7, august: 7,
+  sep: 8, sept: 8, september: 8, okt: 9, oktober: 9, oct: 9, october: 9, nov: 10, november: 10, dez: 11, dezember: 11, dec: 11, december: 11,
+};
+const NL_WEEKDAYS = {
+  sonntag: 0, sunday: 0, so: 0, sun: 0, montag: 1, monday: 1, mo: 1, mon: 1, dienstag: 2, tuesday: 2, di: 2, tue: 2,
+  mittwoch: 3, wednesday: 3, mi: 3, wed: 3, donnerstag: 4, thursday: 4, do: 4, thu: 4,
+  freitag: 5, friday: 5, fr: 5, fri: 5, samstag: 6, saturday: 6, sa: 6, sat: 6,
+};
+function parseNatural(text, now = new Date()) {
+  let rest = ` ${text} `;
+  const take = re => {
+    const m = rest.match(re);
+    if (m) {
+      rest = rest.slice(0, m.index) + " " + rest.slice(m.index + m[0].length);
+    }
+    return m;
+  };
+  const B = "(?<![\\p{L}\\p{N}])"; // Wortanfang
+  const E = "(?![\\p{L}\\p{N}])"; // Wortende
+  let day = null;
+  let allDay = false;
+  // ganztägig
+  if (take(new RegExp(`${B}(ganztägig|ganztags|den ganzen tag|all[ -]?day)${E}`, "iu"))) {
+    allDay = true;
+  }
+  // relative Tage
+  let m = take(new RegExp(`${B}(übermorgen|day after tomorrow)${E}`, "iu"));
+  if (m) {
+    day = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 2);
+  } else if ((m = take(new RegExp(`${B}(heute|today|morgen|tomorrow)${E}`, "iu")))) {
+    const plus = /^(morgen|tomorrow)$/i.test(m[1]) ? 1 : 0;
+    day = new Date(now.getFullYear(), now.getMonth(), now.getDate() + plus);
+  }
+  // Datum 17.10.(2026) / 17/10
+  if (!day && (m = take(new RegExp(`${B}(?:am\\s+|on\\s+)?(\\d{1,2})\\.(\\d{1,2})\\.(\\d{2,4})?${E}`, "iu")))) {
+    let y = m[3] ? Number(m[3]) : now.getFullYear();
+    if (y < 100) {
+      y += 2000;
+    }
+    day = new Date(y, Number(m[2]) - 1, Number(m[1]));
+    if (!m[3] && day < new Date(now.getFullYear(), now.getMonth(), now.getDate())) {
+      day.setFullYear(y + 1); // ohne Jahr: nächstes Vorkommen
+    }
+  }
+  // 17. Oktober / Oct 17 / October 17th
+  const monthNames = Object.keys(NL_MONTHS).sort((a, b) => b.length - a.length).join("|");
+  if (!day && (m = take(new RegExp(`${B}(?:am\\s+|on\\s+)?(\\d{1,2})\\.?\\s*(${monthNames})\\.?(?:\\s+(\\d{4}))?${E}`, "iu")))) {
+    day = new Date(m[3] ? Number(m[3]) : now.getFullYear(), NL_MONTHS[m[2].toLowerCase()], Number(m[1]));
+  } else if (!day && (m = take(new RegExp(`${B}(${monthNames})\\.?\\s+(\\d{1,2})(?:st|nd|rd|th)?(?:,?\\s+(\\d{4}))?${E}`, "iu")))) {
+    day = new Date(m[3] ? Number(m[3]) : now.getFullYear(), NL_MONTHS[m[1].toLowerCase()], Number(m[2]));
+  }
+  if (day && !/\d{4}/.test(m?.[0] || "") && day < new Date(now.getFullYear(), now.getMonth(), now.getDate()) && !/heute|today/i.test(m?.[0] || "")) {
+    day.setFullYear(day.getFullYear() + 1);
+  }
+  // Wochentag (nächstes Vorkommen; „nächsten Montag“ = in der nächsten Woche)
+  const dayNames = Object.keys(NL_WEEKDAYS).filter(k => k.length > 3).join("|");
+  if (!day && (m = take(new RegExp(`${B}(?:(am|on|nächsten|nächste[rn]?|next)\\s+)?(${dayNames})${E}`, "iu")))) {
+    const target = NL_WEEKDAYS[m[2].toLowerCase()];
+    let diff = (target - now.getDay() + 7) % 7;
+    if (diff == 0 || /^(nächst|next)/i.test(m[1] || "")) {
+      diff += diff == 0 ? 7 : 0;
+    }
+    day = new Date(now.getFullYear(), now.getMonth(), now.getDate() + diff);
+  }
+  // Uhrzeit: Zeitraum oder Einzelzeit
+  const T = "(\\d{1,2})(?:[:.](\\d{2}))?\\s*(am|pm|a\\.m\\.|p\\.m\\.)?";
+  const toMinutes = (h, min, ap) => {
+    let hh = Number(h);
+    if (ap && /p/i.test(ap) && hh < 12) hh += 12;
+    if (ap && /a/i.test(ap) && hh == 12) hh = 0;
+    return hh * 60 + Number(min || 0);
+  };
+  let startMin = null;
+  let endMin = null;
+  m = take(new RegExp(`${B}(?:von\\s+|from\\s+|um\\s+|at\\s+)?${T}\\s*(?:-|–|bis|to|until)\\s*${T}\\s*(?:uhr|h)?${E}`, "iu"));
+  if (m) {
+    startMin = toMinutes(m[1], m[2], m[3] || m[6]);
+    endMin = toMinutes(m[4], m[5], m[6]);
+  } else if ((m = take(new RegExp(`${B}(?:um\\s+|at\\s+)?(\\d{1,2})(?:[:.](\\d{2}))?\\s*(?:uhr|h)${E}`, "iu")))) {
+    startMin = toMinutes(m[1], m[2]);
+  } else if ((m = take(new RegExp(`${B}(?:um\\s+|at\\s+)?(\\d{1,2})(?:[:.](\\d{2}))?\\s*(am|pm)${E}`, "iu")))) {
+    startMin = toMinutes(m[1], m[2], m[3]);
+  } else if ((m = take(new RegExp(`${B}(?:um|at)\\s+(\\d{1,2})(?:[:.](\\d{2}))?${E}`, "iu")))) {
+    startMin = toMinutes(m[1], m[2]);
+  } else if ((m = take(new RegExp(`${B}(\\d{1,2})[:](\\d{2})${E}`, "iu")))) {
+    startMin = toMinutes(m[1], m[2]);
+  }
+  if (startMin != null && (startMin >= 24 * 60 || (endMin != null && endMin >= 24 * 60))) {
+    return { title: text.trim() }; // keine gültige Uhrzeit – nichts erkannt
+  }
+  // Dauer
+  let duration = null;
+  if ((m = take(new RegExp(`${B}(?:für|for)\\s+(\\d+(?:[.,]5)?)\\s*(stunden?|std\\.?|hours?|hrs?|h|minuten|min\\.?|minutes?|mins?)${E}`, "iu")))) {
+    const n = Number(m[1].replace(",", "."));
+    duration = /^m/i.test(m[2]) ? n : n * 60;
+  }
+  if (day == null && startMin == null && !allDay) {
+    return { title: text.trim() };
+  }
+  // Füllwörter am Rand entfernen („am“, „um“, „on“, „at“)
+  const title = rest.replace(new RegExp(`${B}(am|um|on|at|von|from)\\s*$`, "iu"), "")
+    .replace(/\s+/g, " ").replace(/\s+([,.;:!?])/g, "$1").replace(/^[\s,–-]+|[\s,–-]+$/g, "").trim();
+  const base = day || new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const result = { title: title || text.trim(), allDay: allDay || (startMin == null && !!day) };
+  if (!result.allDay && startMin != null) {
+    result.start = new Date(base.getFullYear(), base.getMonth(), base.getDate(), Math.floor(startMin / 60), startMin % 60);
+    const end = endMin != null ? endMin : startMin + (duration ?? 60);
+    result.end = new Date(base.getFullYear(), base.getMonth(), base.getDate(), Math.floor(end / 60), end % 60);
+    if (result.end <= result.start) {
+      result.end = new Date(result.start.getTime() + 3600 * 1000);
+    }
+  } else {
+    result.start = base;
+  }
+  return result;
+}
+
 // iCloud hängt alten Erinnerungslisten nach dem Update der Erinnerungen-App
 // ein ⚠️ an den Namen – diese Listen werden nicht mehr über CalDAV abgeglichen
 function calendarNote(calendar) {
@@ -4179,6 +4305,7 @@ class CardEnhancer {
         f.title.placeholder = m == "task" ? t("Neue Aufgabe", "New Task") : t("Neuer Termin", "New Event");
         fillCalendars();
         updateSummary();
+        panel.__mcApplyNatural?.();
       };
       panel.__mcSetMode = setMode;
       panel.__mcUpdate = updateSummary;
@@ -4219,6 +4346,47 @@ class CardEnhancer {
         updateSummary();
       });
       f.calendar.addEventListener("change", updateColor);
+
+      // Natürliche Eingabe: Datum/Uhrzeit aus dem Titel übernehmen, solange
+      // sie nicht von Hand geändert wurden; der Titel wird ohne sie angelegt
+      for (const input of [f.allDay, f.startDate, f.startTime, f.endDate, f.endTime, f.hasDue, f.dueDate, f.dueTime]) {
+        input.addEventListener("change", event => {
+          if (event.isTrusted) {
+            panel.__mcManualTime = true;
+          }
+        });
+      }
+      const applyNatural = () => {
+        if (panel.__mcManualTime) {
+          return;
+        }
+        const r = parseNatural(f.title.value);
+        const def = panel.__mcDefaults;
+        panel.__mcParsed = r.start ? r : null;
+        const start = r.start || def.start;
+        const end = r.end || (r.allDay ? start : new Date(start.getTime() + 3600 * 1000));
+        const allDay = r.start ? !!r.allDay : def.allDay;
+        if (state.mode == "task") {
+          f.hasDue.checked = !!r.start || def.hasDue;
+          root.toggleAttribute("data-due", f.hasDue.checked);
+          f.dueDate.value = dateValue(start);
+          if (!r.allDay) {
+            f.dueTime.value = timeValue(start);
+          }
+        } else {
+          f.allDay.checked = allDay;
+          root.toggleAttribute("data-allday", allDay);
+          f.startDate.value = dateValue(start);
+          f.startTime.value = timeValue(r.start && !r.allDay ? start : def.start);
+          f.endDate.value = dateValue(allDay ? start : end);
+          f.endTime.value = timeValue(r.start && !r.allDay ? end : def.end);
+          panel.__mcSetLastStart(parse(f.startDate.value, f.startTime.value));
+        }
+        updateSummary();
+      };
+      panel.__mcApplyNatural = applyNatural;
+      f.title.addEventListener("input", applyNatural);
+
       // Eigenes Menü statt der Auswahlliste von macOS: dort gibt es keine
       // Farben pro Eintrag – hier steht vor jedem Kalender sein Farbpunkt
       const dot = c => `data:image/svg+xml,${encodeURIComponent(
@@ -4270,7 +4438,7 @@ class CardEnhancer {
         let item;
         if (state.mode == "task") {
           item = new CalTodo();
-          item.title = f.title.value.trim() || t("Neue Aufgabe", "New Task");
+          item.title = (panel.__mcParsed?.title || f.title.value).trim() || t("Neue Aufgabe", "New Task");
           if (f.hasDue.checked) {
             const due = parse(f.dueDate.value, f.dueTime.value);
             if (due) {
@@ -4279,7 +4447,7 @@ class CardEnhancer {
           }
         } else {
           item = new CalEvent();
-          item.title = f.title.value.trim() || t("Neuer Termin", "New Event");
+          item.title = (panel.__mcParsed?.title || f.title.value).trim() || t("Neuer Termin", "New Event");
           let s = parse(f.startDate.value, f.allDay.checked ? "00:00" : f.startTime.value) || new Date();
           let e = parse(f.endDate.value, f.allDay.checked ? "00:00" : f.endTime.value);
           if (f.allDay.checked) {
@@ -4398,6 +4566,10 @@ class CardEnhancer {
     f.dueDate.value = dateValue(start);
     f.dueTime.value = timeValue(start);
     panel.__mcSetLastStart(start);
+    // Ausgangswerte für die natürliche Eingabe (zurück, wenn „morgen“ wieder gelöscht wird)
+    panel.__mcDefaults = { start, end, allDay: !!preset?.allDay, hasDue: false };
+    panel.__mcParsed = null;
+    panel.__mcManualTime = false;
     panel.__mcSetMode(mode);
     // Kalender, in den doppelgeklickt wurde (sonst der ausgewählte)
     if (preset?.calendar?.id && [...f.calendar.options].some(o => o.value == preset.calendar.id)) {
