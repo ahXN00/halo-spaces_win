@@ -4,7 +4,8 @@ halo.spaces is a design add-on (theme + icons + behaviour). It uses one Experime
 
 - applies the bundled stylesheet (extension/theme.css) to Thunderbird windows as a user sheet; small global sheets via nsIStyleSheetService: noscroll.css, icon-vars.css, plaintext.css (user sheets) and parts.css (author sheet, only ::part rules – ::part does not apply from user sheets)
 - reshapes the message list into cards (avatar, preview) and optional hover actions (off by default): flag/archive/delete via folder.markMessagesFlagged / MessageArchiver / folder.deleteMessages, on the hovered message only
-- message header: sender picture, folder name next to the date; for mailing lists a note with an "Unsubscribe" button that only on click opens the List-Unsubscribe https link in the default browser (or a prefilled compose window for mailto – never sent automatically)
+- message header: sender picture, folder name next to the date; for mailing lists a note with an "Unsubscribe" button that only on click opens the List-Unsubscribe https link via openLinkExternally (or a prefilled compose window for mailto – never sent automatically)
+- messages in the system font: plaintext.css, body font only inside message documents (@-moz-document url-prefix imap:/mailbox:/news:), without !important so a message's own fonts win
 - spaces toggle, Today pane toggle, an agenda card and a quick event/task window (creates events only through the calendar API when the user confirms)
 - a read-only "Birthdays" memory calendar built from address book cards (bday)
 - sender logos: DNS TXT lookup for BIMI (resource:///modules/DNS.sys.mjs) and HTTPS fetches to the sender's own domain only; can be turned off in the add-on's preferences; reserved TLDs and non-public hosts are blocked (isPublicHttps)
@@ -12,7 +13,7 @@ halo.spaces is a design add-on (theme + icons + behaviour). It uses one Experime
 
 Everything is removed again on disable/uninstall (restorers in implementation.js, onShutdown).
 
-No code is minified, obfuscated or loaded remotely. No eval/new Function. innerHTML is used once, for a static, built-in SVG icon string (replaced by DOMParser in the next version).
+No code is minified, obfuscated or loaded remotely. No eval/new Function, no innerHTML (the one built-in SVG icon is parsed with DOMParser).
 
 Build instructions (source code upload):
 1. Requirements: macOS or Linux with zsh, python3 (3.9+) and zip – no other tools, no npm.
