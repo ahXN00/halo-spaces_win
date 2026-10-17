@@ -888,7 +888,7 @@ calendar-event-box :is(.alarm-icons-box, .item-classification-icon, .item-recurr
 
 /* Eingabezeile oben: neue Aufgabe und Suche als runde Felder */
 #task-addition-box {
-  padding: 10px 14px !important;
+  padding: 6px 14px !important;
   gap: 10px !important;
   background: var(--mt-window) !important;
   border: none !important;
@@ -931,6 +931,25 @@ calendar-event-box :is(.alarm-icons-box, .item-classification-icon, .item-recurr
 #unifinder-task-edit-field {
   margin: 8px !important;
   width: calc(100% - 16px) !important;
+}
+
+/* Schnelleingabe neuer Aufgaben kompakt wie unsere übrigen Felder */
+:is(#view-task-edit-field, #unifinder-task-edit-field) {
+  height: 28px !important;
+  padding: 0 10px !important;
+  border-radius: 8px !important;
+  font-size: 13px !important;
+}
+
+/* Hinweis statt Eingabe (Kalender ohne Aufgaben bzw. schreibgeschützt):
+   Thunderbird schreibt ihn als Wert ins Feld – nur eine leise Textzeile */
+:is(#view-task-edit-field, #unifinder-task-edit-field):is([readonly], [aria-disabled="true"]) {
+  height: 22px !important;
+  padding: 0 4px !important;
+  background-color: transparent !important;
+  color: var(--mt-text-tertiary) !important;
+  font-size: 12px !important;
+  cursor: default !important;
 }
 
 #task-addition-box .input-container {
@@ -4451,6 +4470,17 @@ notification-message:not([type="warning"]) button.notification-button {
   color: var(--mt-text) !important;
   font: inherit !important;
   outline: none !important;
+}
+
+/* Kalendermenü: Farbpunkt vor dem Namen, gewählter Kalender fett */
+#mcQuickCalMenu menuitem[mc-current] {
+  font-weight: 600 !important;
+}
+
+#mcQuickCalMenu menuitem .menu-iconic-icon {
+  width: 12px !important;
+  height: 12px !important;
+  margin-inline-end: 8px !important;
 }
 
 #mcQuickPanel .mc-qc-footer {

@@ -3862,6 +3862,44 @@ class CardEnhancer {
         updateSummary();
       });
       f.calendar.addEventListener("change", updateColor);
+      // Eigenes Menü statt der Auswahlliste von macOS: dort gibt es keine
+      // Farben pro Eintrag – hier steht vor jedem Kalender sein Farbpunkt
+      const dot = c => `data:image/svg+xml,${encodeURIComponent(
+        `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16"><circle cx="8" cy="8" r="6" fill="${color(c)}"/></svg>`)}`;
+      const calMenu = d.createXULElement("menupopup");
+      calMenu.id = "mcQuickCalMenu";
+      panel.append(calMenu);
+      const openCalMenu = () => {
+        const current = f.calendar.value;
+        calMenu.replaceChildren(...calendars().map(c => {
+          const item = d.createXULElement("menuitem");
+          item.className = "menuitem-iconic";
+          item.setAttribute("label", c.name);
+          item.setAttribute("image", dot(c));
+          if (c.id == current) {
+            item.setAttribute("mc-current", "true");
+          }
+          item.addEventListener("command", () => {
+            f.calendar.value = c.id;
+            f.calendar.dispatchEvent(new w.Event("change", { bubbles: true }));
+          });
+          return item;
+        }));
+        calMenu.style.minWidth = `${Math.round(f.calCard.getBoundingClientRect().width)}px`;
+        calMenu.openPopup(f.calCard, "after_start", 0, 2);
+      };
+      f.calendar.addEventListener("mousedown", event => {
+        if (event.button == 0) {
+          event.preventDefault();
+          openCalMenu();
+        }
+      });
+      f.calendar.addEventListener("keydown", event => {
+        if ([" ", "Enter", "ArrowDown", "ArrowUp"].includes(event.key)) {
+          event.preventDefault();
+          openCalMenu();
+        }
+      });
 
       const buildItem = () => {
         const calendar = selectedCalendar();
