@@ -26,6 +26,103 @@ var { setTimeout, clearTimeout, setInterval, clearInterval } = ChromeUtils.impor
   "resource://gre/modules/Timer.sys.mjs"
 );
 
+// ---------------------------------------------------------------------------
+// Texte der Oberfläche an einem Ort: Englisch ist der Schlüssel, darunter die
+// Übersetzungen. Weitere Sprachen: eine Tabelle wie DE ergänzen und in
+// TRANSLATIONS eintragen.
+// ---------------------------------------------------------------------------
+const DE = {
+  "Install version {v}": "Version {v} installieren",
+  "+{n} more": "+{n} weitere",
+  "{n} message": "{n} E-Mail",
+  "{n} messages": "{n} E-Mails",
+  "{n} contact": "{n} Kontakt",
+  "{n} contacts": "{n} Kontakte",
+  "{name}’s Birthday": "{name} hat Geburtstag",
+  "Born {year}": "Geboren {year}",
+  "Hi,": "Hallo,",
+  "1 day before": "1 Tag vorher",
+  "1 hour before": "1 Stunde vorher",
+  "15 minutes before": "15 Minuten vorher",
+  "30 minutes before": "30 Minuten vorher",
+  "5 minutes before": "5 Minuten vorher",
+  "Add": "Hinzufügen",
+  "Add Alert or Repeat": "Hinweis oder Wiederholung hinzufügen",
+  "Add Due Date or Alert": "Fälligkeit oder Hinweis hinzufügen",
+  "Add Invitees…": "Teilnehmer hinzufügen …",
+  "Add Location": "Ort hinzufügen",
+  "Add Notes or URL": "Notizen oder URL hinzufügen",
+  "Alert": "Hinweis",
+  "All Day": "Ganztägig",
+  "all-day": "ganztägig",
+  "Appearance": "Erscheinungsbild",
+  "Archive": "Archivieren",
+  "At time of event": "Zum Termin",
+  "Automatic (like macOS)": "Automatisch (wie macOS)",
+  "Birthdays": "Geburtstage",
+  "Busy": "Beschäftigt",
+  "Cancel": "Abbrechen",
+  "Checking for updates …": "Suche nach Updates …",
+  "Dark": "Dunkel",
+  "Delete": "Löschen",
+  "Due": "Fällig",
+  "Emojis in Calendar: on": "Emojis im Kalender: an",
+  "en": "de",
+  "Ends": "Ende",
+  "Event": "Termin",
+  "Every Day": "Täglich",
+  "Every Month": "Monatlich",
+  "Every Week": "Wöchentlich",
+  "Every Year": "Jährlich",
+  "Flag": "Markieren",
+  "Free": "Frei",
+  "halo.spaces is up to date": "halo.spaces ist aktuell",
+  "Hide Sidebar": "Seitenleiste ausblenden",
+  "Hide Spaces": "Bereiche ausblenden",
+  "Hide Today Pane": "Heute-Leiste ausblenden",
+  "Installation failed": "Installation fehlgeschlagen",
+  "Installed – active in a moment": "Installiert – wird gleich aktiv",
+  "Installing …": "Wird installiert …",
+  "Light": "Hell",
+  "Light, dark or follow macOS": "Hell, dunkel oder wie macOS",
+  "Merge Duplicate Contacts": "Doppelte Kontakte zusammenführen",
+  "Message List Display Options": "Darstellung der Liste",
+  "More Options…": "Mehr Optionen …",
+  "Never": "Nie",
+  "New Event": "Neuer Termin",
+  "New Task": "Neue Aufgabe",
+  "Next Month": "Nächster Monat",
+  "No calendar for tasks": "Kein Kalender für Aufgaben",
+  "No connection – try again": "Keine Verbindung – erneut versuchen",
+  "No Due Date": "Kein Fälligkeitsdatum",
+  "No writable calendar": "Kein beschreibbarer Kalender",
+  "None": "Keine",
+  "none – allow access in System Settings": "keine – Zugriff in den Systemeinstellungen erlauben",
+  "Photos from Contacts: on": "Fotos aus Kontakte: an",
+  "Previous Month": "Voriger Monat",
+  "Quick Filter": "Schnellfilter",
+  "Reading contacts …": "Kontakte werden gelesen …",
+  "Repeat": "Wiederholen",
+  "Show As": "Anzeigen als",
+  "Show Emojis in Calendar": "Emojis im Kalender zeigen",
+  "Show Names As": "Namen anzeigen als",
+  "Show Sidebar": "Seitenleiste einblenden",
+  "Show Spaces": "Bereiche einblenden",
+  "Show Today Pane": "Heute-Leiste einblenden",
+  "Sort": "Sortieren",
+  "Starts": "Beginn",
+  "Task": "Aufgabe",
+  "Use photos from Contacts": "Fotos aus Kontakte verwenden",
+  "View": "Ansicht",
+};
+const TRANSLATIONS = { de: DE };
+// tr("+{n} more", { n: 3 }) – Platzhalter in geschweiften Klammern
+function tr(english, vars = null) {
+  const lang = Services.locale.appLocaleAsBCP47.split("-")[0];
+  const text = TRANSLATIONS[lang]?.[english] ?? english;
+  return vars ? text.replace(/\{(\w+)\}/g, (all, key) => (key in vars ? String(vars[key]) : all)) : text;
+}
+
 const STYLE_ID = "mail-cards-style";
 const TOOLBAR_PREF = "extensions.mailcards.toolbarApplied";
 const PREVIEW_PREF = "extensions.mailcards.previewLines";
@@ -221,24 +318,22 @@ function hookAppearanceChoice(cw) {
     existing.hidden = colorGroup.hidden;
     return;
   }
-  const de = Services.locale.appLocaleAsBCP47.startsWith("de");
-  const t = (a, b) => (de ? a : b);
   const X = "http://www.w3.org/1999/xhtml";
   const group = doc.createElementNS(X, "fieldset");
   group.id = "mcAppearanceGroup";
   group.setAttribute("data-category", "paneAppearance");
   group.hidden = colorGroup.hidden;
   const legend = doc.createElementNS(X, "legend");
-  legend.textContent = t("Erscheinungsbild", "Appearance");
+  legend.textContent = tr("Appearance");
   const row = doc.createXULElement("hbox");
   row.setAttribute("align", "center");
   const label = doc.createXULElement("label");
-  label.setAttribute("value", t("Hell, dunkel oder wie macOS", "Light, dark or follow macOS"));
+  label.setAttribute("value", tr("Light, dark or follow macOS"));
   label.setAttribute("flex", "1");
   const list = doc.createXULElement("menulist");
   list.id = "mcAppearance";
   const popup = doc.createXULElement("menupopup");
-  for (const [value, text] of [["auto", t("Automatisch (wie macOS)", "Automatic (like macOS)")], ["light", t("Hell", "Light")], ["dark", t("Dunkel", "Dark")]]) {
+  for (const [value, text] of [["auto", tr("Automatic (like macOS)")], ["light", tr("Light")], ["dark", tr("Dark")]]) {
     const item = doc.createXULElement("menuitem");
     item.setAttribute("value", value);
     item.setAttribute("label", text);
@@ -2360,9 +2455,9 @@ class CardEnhancer {
           before.before(c);
           this.restorers.push(() => c.remove());
         };
-        caption(de ? "Namen anzeigen als" : "Show Names As", menu.querySelector('menuitem[name="format"]'));
-        caption(de ? "Sortieren" : "Sort", menu.querySelector('menuitem[name="sort"]'));
-        caption(de ? "Ansicht" : "View", menu.querySelector('menuitem[value="addrbook"]'));
+        caption(tr("Show Names As"), menu.querySelector('menuitem[name="format"]'));
+        caption(tr("Sort"), menu.querySelector('menuitem[name="sort"]'));
+        caption(tr("View"), menu.querySelector('menuitem[value="addrbook"]'));
       }
       if (menu && !cw.document.getElementById("mcHideDuplicates")) {
         const de = Services.locale.appLocaleAsBCP47.startsWith("de");
@@ -2370,7 +2465,7 @@ class CardEnhancer {
         const item = cw.document.createXULElement("menuitem");
         item.id = "mcHideDuplicates";
         item.setAttribute("type", "checkbox");
-        item.setAttribute("label", de ? "Doppelte Kontakte zusammenführen" : "Merge Duplicate Contacts");
+        item.setAttribute("label", tr("Merge Duplicate Contacts"));
         if (Services.prefs.getBoolPref(DEDUPE_PREF, true)) {
           item.setAttribute("checked", "true");
         }
@@ -2990,12 +3085,12 @@ class CardEnhancer {
         if (tab?.mode?.name == "mail3PaneTab") {
           const collapsed = tab.chromeBrowser?.contentWindow?.paneLayout?.folderPaneSplitter?.isCollapsed;
           text = collapsed
-            ? (de ? "Seitenleiste einblenden" : "Show Sidebar")
-            : (de ? "Seitenleiste ausblenden" : "Hide Sidebar");
+            ? (tr("Show Sidebar"))
+            : (tr("Hide Sidebar"));
         } else {
           text = this.sideHidden?.()
-            ? (de ? "Seitenleiste einblenden" : "Show Sidebar")
-            : (de ? "Seitenleiste ausblenden" : "Hide Sidebar");
+            ? (tr("Show Sidebar"))
+            : (tr("Hide Sidebar"));
         }
         button.setAttribute("tooltiptext", text);
       };
@@ -3032,8 +3127,8 @@ class CardEnhancer {
       const updateTip = () => {
         const de = Services.locale.appLocaleAsBCP47.startsWith("de");
         const label = w.gSpacesToolbar.isHidden
-          ? (de ? "Bereiche einblenden" : "Show Spaces")
-          : (de ? "Bereiche ausblenden" : "Hide Spaces");
+          ? (tr("Show Spaces"))
+          : (tr("Hide Spaces"));
         btn.title = label;
         btn.setAttribute("aria-label", label);
       };
@@ -3060,8 +3155,8 @@ class CardEnhancer {
         const de = Services.locale.appLocaleAsBCP47.startsWith("de");
         const shown = !!w.TodayPane?.isVisible;
         const label = shown
-          ? (de ? "Heute-Leiste ausblenden" : "Hide Today Pane")
-          : (de ? "Heute-Leiste einblenden" : "Show Today Pane");
+          ? (tr("Hide Today Pane"))
+          : (tr("Show Today Pane"));
         btn.title = label;
         btn.setAttribute("aria-label", label);
         btn.toggleAttribute("data-shown", shown);
@@ -3137,9 +3232,9 @@ class CardEnhancer {
       const tools = el("div", "mc-lh-tools");
       const de = Services.locale.appLocaleAsBCP47.startsWith("de");
       const filter = el("button", "mc-lh-filter");
-      filter.title = de ? "Schnellfilter" : "Quick Filter";
+      filter.title = tr("Quick Filter");
       const more = el("button", "mc-lh-more");
-      more.title = de ? "Darstellung der Liste" : "Message List Display Options";
+      more.title = tr("Message List Display Options");
       tools.append(filter, more);
       box.append(text, tools);
       const ab = () => d.getElementById("tabmail")?.currentAbout3Pane;
@@ -3240,7 +3335,7 @@ class CardEnhancer {
             box.appendChild(more);
           }
           box.setAttribute("mc-has-more", "true");
-          more.textContent = de ? `+${hidden} weitere` : `+${hidden} more`;
+          more.textContent = tr("+{n} more", { n: hidden });
         }
       };
       // nur messen, wenn der Kalender vorne ist – sonst liefe das bei jeder
@@ -3416,9 +3511,9 @@ class CardEnhancer {
       const label = d.createElementNS(X, "span");
       label.className = "mc-agenda-month";
       title.append(
-        mkChevron("mc-prev", de ? "Voriger Monat" : "Previous Month", -1),
+        mkChevron("mc-prev", tr("Previous Month"), -1),
         label,
-        mkChevron("mc-next", de ? "Nächster Monat" : "Next Month", 1)
+        mkChevron("mc-next", tr("Next Month"), 1)
       );
       agenda.before(title);
       this.hookAgendaMonthRange(w);
@@ -3678,8 +3773,8 @@ class CardEnhancer {
         task: '<circle cx="6" cy="7.5" r="2.4"/><path d="M4.9 7.5l0.8 0.8 1.4-1.6"/><circle cx="6" cy="16.5" r="2.4"/><path d="M11 7.5h9M11 16.5h9"/>',
       };
       for (const [id, label, icon, command] of [
-        ["mcNewEvent", de ? "Neuer Termin" : "New Event", "event", "calendar_new_event_command"],
-        ["mcNewTask", de ? "Neue Aufgabe" : "New Task", "task", "calendar_new_todo_command"],
+        ["mcNewEvent", tr("New Event"), "event", "calendar_new_event_command"],
+        ["mcNewTask", tr("New Task"), "task", "calendar_new_todo_command"],
       ]) {
         const btn = d.createElementNS(NS, "button");
         btn.id = id;
@@ -4071,7 +4166,7 @@ class CardEnhancer {
       const n = folder?.getTotalMessages(false) || ab.gDBView?.numMsgsInView || 0;
       const de = Services.locale.appLocaleAsBCP47.startsWith("de");
       count.textContent = folder || ab.gDBView
-        ? `${n.toLocaleString(Services.locale.appLocaleAsBCP47)} ${de ? (n == 1 ? "E-Mail" : "E-Mails") : (n == 1 ? "message" : "messages")}`
+        ? tr(n == 1 ? "{n} message" : "{n} messages", { n: n.toLocaleString(Services.locale.appLocaleAsBCP47) })
         : "";
     } catch (e) {
       log("list header error", e);
@@ -4108,8 +4203,7 @@ class CardEnhancer {
       const name = row?.querySelector(".bookRow-name, .listRow-name, span")?.textContent || row?.textContent || "";
       title.textContent = name.trim();
       const n = list.view?.rowCount ?? 0;
-      const de = Services.locale.appLocaleAsBCP47.startsWith("de");
-      count.textContent = `${n.toLocaleString(Services.locale.appLocaleAsBCP47)} ${de ? (n == 1 ? "Kontakt" : "Kontakte") : (n == 1 ? "contact" : "contacts")}`;
+      count.textContent = tr(n == 1 ? "{n} contact" : "{n} contacts", { n: n.toLocaleString(Services.locale.appLocaleAsBCP47) });
     } catch (e) {
       log("ab header error", e);
     }
@@ -4204,8 +4298,6 @@ class CardEnhancer {
     const d = w.document;
     const X = "http://www.w3.org/1999/xhtml";
     const locale = Services.locale.appLocaleAsBCP47;
-    const de = locale.startsWith("de");
-    const t = (a, b) => (de ? a : b);
     let cal, CalEvent, CalTodo, CalAlarm, CalRecurrenceInfo;
     try {
       ({ cal } = ChromeUtils.importESModule("resource:///modules/calendar/calUtils.sys.mjs"));
@@ -4256,8 +4348,8 @@ class CardEnhancer {
       panel.id = "mcQuickPanel";
       panel.setAttribute("type", "arrow");
       const f = {};
-      f.segEvent = el("button", { type: "button", "data-mode": "event" }, t("Termin", "Event"));
-      f.segTask = el("button", { type: "button", "data-mode": "task" }, t("Aufgabe", "Task"));
+      f.segEvent = el("button", { type: "button", "data-mode": "event" }, tr("Event"));
+      f.segTask = el("button", { type: "button", "data-mode": "task" }, tr("Task"));
       f.title = el("input", { class: "mc-qc-title", type: "text" });
       f.line1 = el("div", { class: "mc-qc-line1" });
       f.line2 = el("div", { class: "mc-qc-line2" });
@@ -4272,35 +4364,35 @@ class CardEnhancer {
       f.dueTime = el("input", { type: "time" });
       const options = (pairs) => pairs.map(([v, label]) => el("option", { value: v }, label));
       f.repeat = el("select", {}, ...options([
-        ["", t("Nie", "Never")], ["DAILY", t("Täglich", "Every Day")], ["WEEKLY", t("Wöchentlich", "Every Week")],
-        ["MONTHLY", t("Monatlich", "Every Month")], ["YEARLY", t("Jährlich", "Every Year")],
+        ["", tr("Never")], ["DAILY", tr("Every Day")], ["WEEKLY", tr("Every Week")],
+        ["MONTHLY", tr("Every Month")], ["YEARLY", tr("Every Year")],
       ]));
       f.alert = el("select", {}, ...options([
-        ["", t("Keine", "None")], ["PT0M", t("Zum Termin", "At time of event")], ["PT5M", t("5 Minuten vorher", "5 minutes before")],
-        ["PT15M", t("15 Minuten vorher", "15 minutes before")], ["PT30M", t("30 Minuten vorher", "30 minutes before")],
-        ["PT1H", t("1 Stunde vorher", "1 hour before")], ["P1D", t("1 Tag vorher", "1 day before")],
+        ["", tr("None")], ["PT0M", tr("At time of event")], ["PT5M", tr("5 minutes before")],
+        ["PT15M", tr("15 minutes before")], ["PT30M", tr("30 minutes before")],
+        ["PT1H", tr("1 hour before")], ["P1D", tr("1 day before")],
       ]));
-      f.showAs = el("select", {}, ...options([["OPAQUE", t("Beschäftigt", "Busy")], ["TRANSPARENT", t("Frei", "Free")]]));
+      f.showAs = el("select", {}, ...options([["OPAQUE", tr("Busy")], ["TRANSPARENT", tr("Free")]]));
       const row = (label, cls, ...ctrls) => el("div", { class: `mc-qc-row ${cls || ""}` }, el("label", {}, label), el("div", { class: "mc-qc-ctrl" }, ...ctrls));
       f.details = el("div", { class: "mc-qc-details" },
-        row(t("Ganztägig", "All Day"), "mc-ev", f.allDay),
-        row(t("Beginn", "Starts"), "mc-ev", f.startDate, f.startTime),
-        row(t("Ende", "Ends"), "mc-ev", f.endDate, f.endTime),
-        row(t("Fällig", "Due"), "mc-td", f.hasDue, f.dueDate, f.dueTime),
-        row(t("Wiederholen", "Repeat"), "mc-ev", f.repeat),
-        row(t("Hinweis", "Alert"), "", f.alert),
-        row(t("Anzeigen als", "Show As"), "mc-ev", f.showAs),
+        row(tr("All Day"), "mc-ev", f.allDay),
+        row(tr("Starts"), "mc-ev", f.startDate, f.startTime),
+        row(tr("Ends"), "mc-ev", f.endDate, f.endTime),
+        row(tr("Due"), "mc-td", f.hasDue, f.dueDate, f.dueTime),
+        row(tr("Repeat"), "mc-ev", f.repeat),
+        row(tr("Alert"), "", f.alert),
+        row(tr("Show As"), "mc-ev", f.showAs),
       );
       f.time = el("div", { class: "mc-qc-time mc-qc-card" }, f.summary, f.details);
       f.main = el("div", { class: "mc-qc-main" }, el("div", { class: "mc-qc-card mc-qc-titlecard" }, f.title), f.time);
-      f.location = el("input", { class: "mc-qc-card mc-qc-field mc-ev-only", type: "text", placeholder: t("Ort hinzufügen", "Add Location") });
-      f.invitees = el("button", { type: "button", class: "mc-qc-card mc-qc-field mc-qc-placeholder mc-ev-only" }, t("Teilnehmer hinzufügen …", "Add Invitees…"));
+      f.location = el("input", { class: "mc-qc-card mc-qc-field mc-ev-only", type: "text", placeholder: tr("Add Location") });
+      f.invitees = el("button", { type: "button", class: "mc-qc-card mc-qc-field mc-qc-placeholder mc-ev-only" }, tr("Add Invitees…"));
       f.calendar = el("select", { class: "mc-qc-calsel" });
       f.calCard = el("div", { class: "mc-qc-card mc-qc-field mc-qc-calcard" }, f.calendar);
-      f.notes = el("textarea", { class: "mc-qc-card mc-qc-field", rows: "2", placeholder: t("Notizen oder URL hinzufügen", "Add Notes or URL") });
-      f.more = el("button", { type: "button", class: "mc-qc-link" }, t("Mehr Optionen …", "More Options…"));
-      f.cancel = el("button", { type: "button", class: "mc-qc-btn" }, t("Abbrechen", "Cancel"));
-      f.add = el("button", { type: "button", class: "mc-qc-btn mc-qc-primary" }, t("Hinzufügen", "Add"));
+      f.notes = el("textarea", { class: "mc-qc-card mc-qc-field", rows: "2", placeholder: tr("Add Notes or URL") });
+      f.more = el("button", { type: "button", class: "mc-qc-link" }, tr("More Options…"));
+      f.cancel = el("button", { type: "button", class: "mc-qc-btn" }, tr("Cancel"));
+      f.add = el("button", { type: "button", class: "mc-qc-btn mc-qc-primary" }, tr("Add"));
       const root = el("div", { class: "mc-qc" },
         el("div", { class: "mc-qc-seg" }, f.segEvent, f.segTask),
         f.main, f.location, f.invitees, f.calCard, f.notes,
@@ -4338,7 +4430,7 @@ class CardEnhancer {
         // kein passender Kalender (z. B. keiner kann Aufgaben): sagen statt still nichts tun
         if (!list.length) {
           f.calendar.replaceChildren(el("option", { value: "" },
-            state.mode == "task" ? t("Kein Kalender für Aufgaben", "No calendar for tasks") : t("Kein beschreibbarer Kalender", "No writable calendar")));
+            state.mode == "task" ? tr("No calendar for tasks") : tr("No writable calendar")));
         }
         f.add.disabled = !list.length;
         f.more.disabled = !list.length;
@@ -4349,8 +4441,8 @@ class CardEnhancer {
       const updateSummary = () => {
         if (state.mode == "task") {
           const due = f.hasDue.checked ? parse(f.dueDate.value, f.dueTime.value) : null;
-          f.line1.textContent = due ? `${t("Fällig", "Due")} ${fmtDate.format(due)} ${fmtTime.format(due)}` : t("Kein Fälligkeitsdatum", "No Due Date");
-          f.line2.textContent = f.alert.value ? chosen(f.alert) : t("Fälligkeit oder Hinweis hinzufügen", "Add Due Date or Alert");
+          f.line1.textContent = due ? `${tr("Due")} ${fmtDate.format(due)} ${fmtTime.format(due)}` : tr("No Due Date");
+          f.line2.textContent = f.alert.value ? chosen(f.alert) : tr("Add Due Date or Alert");
           return;
         }
         const s = parse(f.startDate.value, f.startTime.value);
@@ -4359,7 +4451,7 @@ class CardEnhancer {
           f.line1.textContent = "";
         } else if (f.allDay.checked) {
           const sameDay = !e || f.startDate.value == f.endDate.value;
-          f.line1.textContent = sameDay ? `${fmtDate.format(s)}  ${t("ganztägig", "all-day")}` : `${fmtDate.format(s)} – ${fmtDate.format(e)}`;
+          f.line1.textContent = sameDay ? `${fmtDate.format(s)}  ${tr("all-day")}` : `${fmtDate.format(s)} – ${fmtDate.format(e)}`;
         } else {
           const sameDay = e && f.startDate.value == f.endDate.value;
           f.line1.textContent = sameDay
@@ -4367,12 +4459,12 @@ class CardEnhancer {
             : `${fmtDate.format(s)} ${fmtTime.format(s)} – ${e ? `${fmtDate.format(e)} ${fmtTime.format(e)}` : ""}`;
         }
         const set = [f.repeat, f.alert].filter(x => x.value).map(chosen);
-        f.line2.textContent = set.length ? set.join(" · ") : t("Hinweis oder Wiederholung hinzufügen", "Add Alert or Repeat");
+        f.line2.textContent = set.length ? set.join(" · ") : tr("Add Alert or Repeat");
       };
       // gewählte Wiederholung/Erinnerung als Text („Wöchentlich · 15 Minuten vorher“)
       function chosen(select) {
         const label = select.selectedOptions[0]?.textContent || "";
-        return select == f.alert ? `${t("Hinweis", "Alert")}: ${label}` : label;
+        return select == f.alert ? `${tr("Alert")}: ${label}` : label;
       }
       for (const input of [f.repeat, f.alert]) {
         input.addEventListener("change", () => updateSummary());
@@ -4382,7 +4474,7 @@ class CardEnhancer {
         root.dataset.mode = m;
         f.segEvent.toggleAttribute("selected", m == "event");
         f.segTask.toggleAttribute("selected", m == "task");
-        f.title.placeholder = m == "task" ? t("Neue Aufgabe", "New Task") : t("Neuer Termin", "New Event");
+        f.title.placeholder = m == "task" ? tr("New Task") : tr("New Event");
         fillCalendars();
         updateSummary();
         panel.__mcApplyNatural?.();
@@ -4518,7 +4610,7 @@ class CardEnhancer {
         let item;
         if (state.mode == "task") {
           item = new CalTodo();
-          item.title = (panel.__mcParsed?.title || f.title.value).trim() || t("Neue Aufgabe", "New Task");
+          item.title = (panel.__mcParsed?.title || f.title.value).trim() || tr("New Task");
           if (f.hasDue.checked) {
             const due = parse(f.dueDate.value, f.dueTime.value);
             if (due) {
@@ -4527,7 +4619,7 @@ class CardEnhancer {
           }
         } else {
           item = new CalEvent();
-          item.title = (panel.__mcParsed?.title || f.title.value).trim() || t("Neuer Termin", "New Event");
+          item.title = (panel.__mcParsed?.title || f.title.value).trim() || tr("New Event");
           let s = parse(f.startDate.value, f.allDay.checked ? "00:00" : f.startTime.value) || new Date();
           let e = parse(f.endDate.value, f.allDay.checked ? "00:00" : f.endTime.value);
           if (f.allDay.checked) {
@@ -5351,7 +5443,7 @@ class CardEnhancer {
     const os = Services.appinfo.OS == "Darwin" ? `macOS (Darwin ${osVersion})`
       : Services.appinfo.OS == "WINNT" ? `Windows (${osVersion})` : `${Services.appinfo.OS} (${osVersion})`;
     const subject = `halo.spaces ${version} – Feedback`;
-    const body = (de ? "Hallo,\n\n\n\n—\n" : "Hi,\n\n\n\n—\n") +
+    const body = `${tr("Hi,")}\n\n\n\n—\n` +
       `halo.spaces ${version} · Thunderbird ${Services.appinfo.version} · ${os}`;
     const params = Cc["@mozilla.org/messengercompose/composeparams;1"].createInstance(Ci.nsIMsgComposeParams);
     const fields = Cc["@mozilla.org/messengercompose/composefields;1"].createInstance(Ci.nsIMsgCompFields);
@@ -5451,7 +5543,7 @@ class CardEnhancer {
     const de = api.german;
     const t = (deText, enText) => (de ? deText : enText);
     const $ = id => doc.getElementById(id);
-    doc.documentElement.lang = de ? "de" : "en";
+    doc.documentElement.lang = tr("en");
     for (const el of doc.querySelectorAll("[data-de]")) {
       el.textContent = de ? el.dataset.de : el.dataset.en;
     }
@@ -5474,12 +5566,12 @@ class CardEnhancer {
     button.addEventListener("click", async () => {
       if (install) {
         button.disabled = true;
-        label.textContent = t("Wird installiert …", "Installing …");
+        label.textContent = tr("Installing …");
         try {
           await install();
-          label.textContent = t("Installiert – wird gleich aktiv", "Installed – active in a moment");
+          label.textContent = tr("Installed – active in a moment");
         } catch {
-          label.textContent = t("Installation fehlgeschlagen", "Installation failed");
+          label.textContent = tr("Installation failed");
           button.disabled = false;
         }
         button.classList.remove("available");
@@ -5487,18 +5579,18 @@ class CardEnhancer {
         return;
       }
       button.disabled = true;
-      label.textContent = t("Suche nach Updates …", "Checking for updates …");
+      label.textContent = tr("Checking for updates …");
       status.textContent = "";
       const result = await api.checkUpdate();
       button.disabled = false;
       if (result.available) {
         install = result.install;
         button.classList.add("available");
-        label.textContent = t(`Version ${result.version} installieren`, `Install version ${result.version}`);
+        label.textContent = tr("Install version {v}", { v: result.version });
       } else if (result.error) {
-        label.textContent = t("Keine Verbindung – erneut versuchen", "No connection – try again");
+        label.textContent = tr("No connection – try again");
       } else {
-        label.textContent = t("halo.spaces ist aktuell", "halo.spaces is up to date");
+        label.textContent = tr("halo.spaces is up to date");
         status.textContent = "✓";
       }
     });
@@ -5514,8 +5606,8 @@ class CardEnhancer {
       const pStatus = $("photos-status");
       const show = on => {
         pLabel.textContent = on
-          ? t("Fotos aus Kontakte: an", "Photos from Contacts: on")
-          : t("Fotos aus Kontakte verwenden", "Use photos from Contacts");
+          ? tr("Photos from Contacts: on")
+          : tr("Use photos from Contacts");
         pStatus.textContent = on ? "✓" : "";
         photos.dataset.on = on ? "1" : "";
       };
@@ -5525,7 +5617,7 @@ class CardEnhancer {
         const on = !photos.dataset.on;
         photos.disabled = true;
         if (on) {
-          pLabel.textContent = t("Kontakte werden gelesen …", "Reading contacts …");
+          pLabel.textContent = tr("Reading contacts …");
           pStatus.textContent = "";
         }
         try {
@@ -5534,7 +5626,7 @@ class CardEnhancer {
           if (on) {
             pStatus.textContent = count
               ? `✓ ${count}`
-              : t("keine – Zugriff in den Systemeinstellungen erlauben", "none – allow access in System Settings");
+              : tr("none – allow access in System Settings");
           }
         } catch {
           show(false);
@@ -5548,7 +5640,7 @@ class CardEnhancer {
       const eLabel = emoji.querySelector(".label");
       const eStatus = $("emoji-status");
       const showEmoji = on => {
-        eLabel.textContent = on ? t("Emojis im Kalender: an", "Emojis in Calendar: on") : t("Emojis im Kalender zeigen", "Show Emojis in Calendar");
+        eLabel.textContent = on ? tr("Emojis in Calendar: on") : tr("Show Emojis in Calendar");
         eStatus.textContent = on ? "🎂" : "";
       };
       showEmoji(api.emojiEnabled());
@@ -6060,7 +6152,7 @@ class CardEnhancer {
     }
     if (!calendar) {
       calendar = cal.manager.createCalendar("memory", Services.io.newURI("moz-memory-calendar://"));
-      calendar.name = de ? "Geburtstage" : "Birthdays";
+      calendar.name = tr("Birthdays");
       calendar.setProperty("color", "#FF2D55");
       calendar.setProperty("suppressAlarms", true);
       cal.manager.registerCalendar(calendar);
@@ -6074,7 +6166,7 @@ class CardEnhancer {
       for (const b of found.values()) {
         const e = new CalEvent();
         e.id = `halo-bday-${b.month}-${b.day}-${b.name}`;
-        e.title = de ? `${b.name} hat Geburtstag` : `${b.name}’s Birthday`;
+        e.title = tr("{name}’s Birthday", { name: b.name });
         const start = cal.createDateTime();
         start.resetTo(b.year || 2000, b.month - 1, b.day, 0, 0, 0, cal.dtz.floating);
         start.isDate = true;
@@ -6090,7 +6182,7 @@ class CardEnhancer {
         info.appendRecurrenceItem(rule);
         e.recurrenceInfo = info;
         if (b.year) {
-          e.setProperty("DESCRIPTION", de ? `Geboren ${b.year}` : `Born ${b.year}`);
+          e.setProperty("DESCRIPTION", tr("Born {year}", { year: b.year }));
         }
         await calendar.addItem(e);
       }
@@ -6132,12 +6224,12 @@ class CardEnhancer {
       });
       box.append(b);
     };
-    act("mc-act-flag", de ? "Markieren" : "Flag", hdr => hdr.folder.markMessagesFlagged([hdr], !hdr.isFlagged));
-    act("mc-act-archive", de ? "Archivieren" : "Archive", hdr => {
+    act("mc-act-flag", tr("Flag"), hdr => hdr.folder.markMessagesFlagged([hdr], !hdr.isFlagged));
+    act("mc-act-archive", tr("Archive"), hdr => {
       const { MessageArchiver } = ChromeUtils.importESModule("resource:///modules/MessageArchiver.sys.mjs");
       new MessageArchiver().archiveMessages([hdr]);
     });
-    act("mc-act-delete", de ? "Löschen" : "Delete", hdr => {
+    act("mc-act-delete", tr("Delete"), hdr => {
       // nur in den Papierkorb verschieben – im Papierkorb selbst (dort wäre es
       // endgültig) ist der Knopf ausgeblendet und tut nichts
       if (hdr.folder.getFlag(Ci.nsMsgFolderFlags.Trash)) {
