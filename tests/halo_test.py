@@ -110,6 +110,8 @@ def main():
     ap.add_argument("--keep", action="store_true", help="Testprofil nicht löschen")
     ap.add_argument("--dark", action="store_true", help="im Dunkelmodus starten")
     ap.add_argument("--shots", help="Ordner für Screenshots aller Bereiche")
+    ap.add_argument("--eval", help="nur dieses JavaScript ausführen (Chrome-Kontext, mit den Hilfen aus PRELUDE) und das Ergebnis ausgeben – zum Untersuchen")
+    ap.add_argument("--compare", help="Ordner mit früheren Screenshots: zeigt, wo sich etwas verändert hat (braucht --shots)")
     args = ap.parse_args()
 
     if not args.xpi:
@@ -144,16 +146,23 @@ def main():
 
     print(f"halo.spaces {version} · Paket {os.path.basename(xpi)} · Profil {profile}", flush=True)
     proc = subprocess.Popen([args.tb, "-profile", profile, "-no-remote", "-marionette", "-remote-allow-system-access"],
-                            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                            # ab Thunderbird 159 zusätzlich als Umgebungsvariable nötig
+                            env={**os.environ, "MOZ_REMOTE_ALLOW_SYSTEM_ACCESS": "1"})
     results = []
     try:
         if not wait_port(PORT):
             sys.exit("Thunderbird hat Marionette nicht geöffnet")
         time.sleep(8)  # Erweiterung und Fenster fertig aufbauen lassen
         m = Marionette(PORT)
+        if args.eval:
+            print(json.dumps(m.js(args.eval), indent=1, ensure_ascii=False))
+            return
         run_checks(m, version, profile, results)
         if args.shots:
             take_shots(m, args.shots, "dark" if args.dark else "light")
+            if args.compare:
+                compare_shots(m, args.compare, args.shots)
     finally:
         try:
             Marionette(PORT).js("Services.startup.quit(Ci.nsIAppStartup.eForceQuit); return 1;")
@@ -188,6 +197,57 @@ def take_shots(m, folder, scheme):
         path = os.path.join(folder, f"{scheme}-{name}.png")
         open(path, "wb").write(base64.b64decode(data))
         print(f"Screenshot {path}", flush=True)
+
+
+def compare_shots(m, before, after):
+    """Vergleicht Screenshots Pixel für Pixel (in Thunderbird selbst, ohne Bildbibliothek).
+
+    Nur zur Information, kein Fehlschlag: Tagesdatum, Uhrzeit und „in 18 min“
+    ändern sich von selbst. Für jede Abweichung entsteht ein Bild …-diff.png,
+    in dem die geänderten Stellen rot markiert sind.
+    """
+    import base64
+    print("\nVergleich mit", before, flush=True)
+    for path in sorted(glob.glob(os.path.join(after, "*.png"))):
+        name = os.path.basename(path)
+        if name.endswith("-diff.png"):
+            continue
+        old = os.path.join(before, name)
+        if not os.path.exists(old):
+            print(f"  neu       {name}", flush=True)
+            continue
+        res = m.js(f"""
+          const load = async p => createImageBitmap(new w.Blob([await IOUtils.read(p)], {{ type: "image/png" }}));
+          const [a, b] = [await load({json.dumps(os.path.abspath(old))}), await load({json.dumps(os.path.abspath(path))})];
+          if (a.width != b.width || a.height != b.height) return {{ size: [a.width, a.height, b.width, b.height] }};
+          const pixels = img => {{ const c = d.createElementNS("http://www.w3.org/1999/xhtml", "canvas"); c.width = img.width; c.height = img.height;
+                                  const x = c.getContext("2d"); x.drawImage(img, 0, 0); return [c, x, x.getImageData(0, 0, c.width, c.height)]; }};
+          const [, , pa] = pixels(a); const [cb, xb, pb] = pixels(b);
+          const A = pa.data, B = pb.data, out = pb;
+          let changed = 0, l = 1e9, t = 1e9, r = -1, bo = -1;
+          for (let i = 0; i < A.length; i += 4) {{
+            const diff = Math.max(Math.abs(A[i] - B[i]), Math.abs(A[i + 1] - B[i + 1]), Math.abs(A[i + 2] - B[i + 2]));
+            if (diff > 40) {{
+              changed++; const p = i / 4, px = p % b.width, py = (p - px) / b.width;
+              l = Math.min(l, px); r = Math.max(r, px); t = Math.min(t, py); bo = Math.max(bo, py);
+              out.data[i] = 255; out.data[i + 1] = 0; out.data[i + 2] = 0;
+            }} else {{
+              // unverändert: blass, damit die roten Stellen auffallen
+              for (const k of [0, 1, 2]) out.data[i + k] = 255 - (255 - B[i + k]) * 0.25;
+            }}
+          }}
+          if (!changed) return {{ changed: 0 }};
+          xb.putImageData(out, 0, 0);
+          return {{ changed: changed / (b.width * b.height), box: [l, t, r, bo], png: cb.toDataURL("image/png") }};""")
+        if "size" in res:
+            print(f"  Größe     {name}: {res['size'][0]}×{res['size'][1]} → {res['size'][2]}×{res['size'][3]}", flush=True)
+        elif not res["changed"]:
+            print(f"  gleich    {name}", flush=True)
+        else:
+            diff = path[:-4] + "-diff.png"
+            open(diff, "wb").write(base64.b64decode(res["png"].split(",", 1)[1]))
+            l, t, r, b = res["box"]
+            print(f"  geändert  {name}: {res['changed'] * 100:.2f} % der Fläche, Bereich x {l}–{r}, y {t}–{b} → {os.path.basename(diff)}", flush=True)
 
 
 def run_checks(m, version, profile, results):

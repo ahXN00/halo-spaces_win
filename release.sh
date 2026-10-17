@@ -29,8 +29,22 @@ XPI=$(./build.sh)
 HASH=$(shasum -a 256 "$XPI" | cut -d' ' -f1)
 
 # vorher automatisch testen (frisches Testprofil) – bei Fehlern kein Release
+# Screenshots hell und dunkel landen in tests/shots/<version> und werden mit
+# denen des letzten Release verglichen (rote Markierungen in …-diff.png)
 if [[ -z "$SKIP_TESTS" ]]; then
-  python3 tests/halo_test.py --xpi "$XPI" || { echo "Tests fehlgeschlagen – kein Release (SKIP_TESTS=1 überspringt)"; exit 1; }
+  SHOTS="tests/shots/$VERSION"
+  OLD=(tests/shots/*(N/n))             # numerisch sortiert, letzter = neueste Version
+  OLD=(${OLD:#tests/shots/$VERSION})
+  PREV=${OLD[-1]}
+  rm -rf "$SHOTS"
+  for MODE in "" --dark; do
+    python3 tests/halo_test.py --xpi "$XPI" $MODE --shots "$SHOTS" ${PREV:+--compare "$PREV"} \
+      || { echo "Tests fehlgeschlagen – kein Release (SKIP_TESTS=1 überspringt)"; exit 1; }
+  done
+  # die nächste Thunderbird-Version: Fehler dort sind eine Warnung, kein Abbruch
+  if [[ "$OSTYPE" == darwin* && -z "$SKIP_BETA" ]]; then
+    tests/beta.sh --xpi "$XPI" || echo "WARNUNG: Tests mit Thunderbird Beta fehlgeschlagen (SKIP_BETA=1 überspringt)"
+  fi
 fi
 ID=$(python3 -c "import json; print(json.load(open('extension/manifest.json'))['browser_specific_settings']['gecko']['id'])")
 MIN=$(python3 -c "import json; print(json.load(open('extension/manifest.json'))['browser_specific_settings']['gecko'].get('strict_min_version','128.0'))")

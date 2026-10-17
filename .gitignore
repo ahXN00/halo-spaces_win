@@ -11,3 +11,5 @@ reddit/
 vorher-nachher/
 vorschau-bereiche-farben.png
 logo-ideen.png
+# Screenshots aus release.sh (nur Testprofil, bleiben lokal)
+tests/shots/

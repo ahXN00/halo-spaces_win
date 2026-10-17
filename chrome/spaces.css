@@ -4554,6 +4554,8 @@ notification-message:not([type="warning"]) button.notification-button {
 
 #pref-category-box .sidebar-footer-link {
   min-width: 0 !important;
+  /* Thunderbirds 6px Außenabstand weg: bündig mit den Kategorien, Text passt */
+  margin-inline: 0 !important;
 }
 
 /* Emoji vor dem Termintitel (data-mc-emoji setzt die Erweiterung) */
