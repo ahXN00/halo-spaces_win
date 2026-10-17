@@ -470,11 +470,13 @@ function sandboxFetch() {
 // ausgelöst werden
 function isPublicHttps(url) {
   try {
-    const u = new URL(url);
-    if (u.protocol != "https:") {
+    // nsIURI statt URL: URL gibt es im Experiment-Kontext nicht (new URL
+    // warf, damit galt jede Adresse als gesperrt und es kamen keine Logos)
+    const u = Services.io.newURI(url);
+    if (u.scheme != "https") {
       return false;
     }
-    const host = u.hostname.toLowerCase();
+    const host = u.host.toLowerCase();
     return !(host == "localhost" || host.endsWith(".local") || host.endsWith(".localhost") ||
       host.endsWith(".internal") || host.endsWith(".lan") || host.endsWith(".home") ||
       /^[\d.]+$/.test(host) || host.includes(":") || !host.includes("."));
@@ -482,6 +484,9 @@ function isPublicHttps(url) {
     return false;
   }
 }
+
+// Zeitüberschreitungen zählen: dann kein „kein Logo“ merken (nur langsames Netz)
+let fetchTimeouts = 0;
 
 async function fetchWithTimeout(win, url, opts = {}) {
   if (!isPublicHttps(url)) {
@@ -492,10 +497,14 @@ async function fetchWithTimeout(win, url, opts = {}) {
     redirect: "follow",
     ...opts,
   });
-  const timeout = new Promise((_, reject) =>
-    setTimeout(() => reject(new Error("timeout")), FETCH_TIMEOUT)
-  );
-  return Promise.race([request, timeout]);
+  let timer;
+  const timeout = new Promise((_, reject) => {
+    timer = setTimeout(() => {
+      fetchTimeouts++;
+      reject(new Error("timeout"));
+    }, FETCH_TIMEOUT);
+  });
+  return Promise.race([request, timeout]).finally(() => clearTimeout(timer));
 }
 
 // Zeitkurve wie CSS cubic-bezier(x1, y1, x2, y2)
@@ -714,6 +723,10 @@ class LogoCache {
     if (!e) {
       return undefined;
     }
+    // „kein Logo“ aus älteren Versionen verwerfen: bis 3.0.82 scheiterte jeder Abruf
+    if (!e.src && e.v !== 2) {
+      return undefined;
+    }
     const ttl = e.src ? HIT_TTL : MISS_TTL;
     return Date.now() - e.t < ttl ? e : undefined;
   }
@@ -757,12 +770,12 @@ class AvatarResolver {
     return this.byEmail.get(email);
   }
 
-  resolve(email) {
+  resolve(email, hint = {}) {
     if (this.byEmail.has(email)) {
       return Promise.resolve(this.byEmail.get(email));
     }
     if (!this.pending.has(email)) {
-      const p = this._resolve(email)
+      const p = this._resolve(email, hint)
         .catch(e => {
           log("avatar error", email, e);
           return null;
@@ -777,7 +790,7 @@ class AvatarResolver {
     return this.pending.get(email);
   }
 
-  async _resolve(email) {
+  async _resolve(email, hint = {}) {
     const fromAb = await this.fromAddressBook(email);
     if (fromAb) {
       log("avatar", email, "Adressbuch");
@@ -792,8 +805,28 @@ class AvatarResolver {
       log("avatar", email, "Initialen (Freemail)");
       return null;
     }
-    const logo = await this.domainLogo(domain, org);
-    log("avatar", email, logo ? `Logo ${org} (${logo.source || "Speicher"})` : "Initialen (kein Logo)");
+    let logo = await this.domainLogo(domain, org);
+    let used = org;
+    // Versand über fremde Dienste (z. B. brave.discoursemail.com): Die Marke
+    // steckt dann oft nur in der Message-ID (…@community.brave.app). Nur
+    // nutzen, wenn ihr Name auch im Absender vorkommt – sonst kämen Logos von
+    // Versanddiensten wie Amazon SES oder Mailchimp.
+    const idHost = ((hint.messageId || "").split("@")[1] || "").replace(/[>\s]/g, "").toLowerCase();
+    if (!logo && idHost && idHost.includes(".")) {
+      // von der Basisdomain aufwärts: community.brave.app → brave.app
+      // (brave.app steht selbst in der Liste der Domain-Endungen)
+      const sender = `${hint.name || ""} ${domain}`.toLowerCase();
+      const labels = orgDomain(idHost).split(".");
+      for (let i = 0; !logo && labels.length - i >= 2; i++) {
+        const d = labels.slice(i).join(".");
+        const brand = labels[i];
+        if (d != org && brand.length >= 3 && sender.includes(brand) && !FREEMAIL.has(d)) {
+          logo = await this.domainLogo(d, d);
+          used = d;
+        }
+      }
+    }
+    log("avatar", email, logo ? `Logo ${used} (${logo.source || "Speicher"})` : "Initialen (kein Logo)");
     return logo;
   }
 
@@ -949,6 +982,7 @@ class AvatarResolver {
           return null;
         }
         let found = null;
+        const timeoutsBefore = fetchTimeouts;
         for (const d of new Set([domain, org])) {
           found = await this.bimi(win, d);
           if (found) {
@@ -961,7 +995,9 @@ class AvatarResolver {
         if (found) {
           found = { src: await this.normalize(found.src), small: false, n: 2, source: found.source };
         }
-        this.cache.set(key, found || { src: null });
+        if (found || fetchTimeouts == timeoutsBefore) {
+          this.cache.set(key, found || { src: null, v: 2 });
+        }
         return found;
       })().finally(() => this.domainPending.delete(key));
       this.domainPending.set(key, p);
@@ -1012,8 +1048,8 @@ class AvatarResolver {
       `https://www.${org}/apple-touch-icon.png`,
     ];
     // Icons aus dem <head> der Startseite (apple-touch-icon bevorzugt)
-    try {
-      const res = await fetchWithTimeout(win, `https://www.${org}/`, {
+    for (const home of [`https://www.${org}/`, `https://${org}/`]) try {
+      const res = await fetchWithTimeout(win, home, {
         headers: { Accept: "text/html" },
       });
       if (res.ok) {
@@ -1036,13 +1072,16 @@ class AvatarResolver {
             score += 500;
           }
           try {
-            scored.push({ url: new URL(href, base).href, score });
+            scored.push({ url: Services.io.newURI(base).resolve(href), score });
           } catch {}
         }
         scored.sort((a, b) => b.score - a.score);
         candidates.unshift(...scored.slice(0, 3).map(s => s.url));
+        break;
       }
-    } catch {}
+    } catch (e) {
+      log("siteIcon", home, "Fehler", String(e));
+    }
     candidates.push(`https://www.${org}/favicon.ico`, `https://${org}/favicon.ico`);
 
     for (const url of new Set(candidates)) {
@@ -1065,7 +1104,9 @@ class AvatarResolver {
           small,
           source: "Website",
         };
-      } catch {}
+      } catch (e) {
+        log("siteIcon", url, "Fehler", String(e));
+      }
     }
     return null;
   }
@@ -3061,7 +3102,7 @@ class CardEnhancer {
         btn.append(circle, text);
         btn.addEventListener("click", () => {
           popup.hidePopup();
-          w.goDoCommand(command);
+          this.openQuickCreate(w, command == "calendar_new_todo_command" ? "task" : "event", this.lastNewAnchor);
         });
         box.append(btn);
       }
@@ -3077,7 +3118,7 @@ class CardEnhancer {
         event.stopPropagation();
         // im Kalender gleich ein neuer Termin, in den Aufgaben gleich eine
         // neue Aufgabe (die Auswahl gibt es über das „+“ der Today-Pane)
-        w.goDoCommand(mode == "tasks" ? "calendar_new_todo_command" : "calendar_new_event_command");
+        this.openQuickCreate(w, mode == "tasks" ? "task" : "event", li);
       };
       bar.addEventListener("click", onClick, true);
       // dasselbe Popover über einem Knopf unten (Today-Pane): nach oben, mittig
@@ -3087,6 +3128,7 @@ class CardEnhancer {
           return;
         }
         popup.classList.add("mc-up");
+        this.lastNewAnchor = anchor;
         const width = 294; // Breite des Popovers samt Rand für den Schatten
         popup.openPopup(anchor, "before_start", Math.round(anchor.getBoundingClientRect().width / 2 - width / 2), 12);
       };
@@ -3549,6 +3591,359 @@ class CardEnhancer {
     w.requestAnimationFrame(() => w.requestAnimationFrame(step));
   }
 
+  // ---------------------------------------------------------------------------
+  // Schnellfenster „Neuer Termin / Neue Aufgabe“ wie in Apple Kalender: ein
+  // Popover am „+“ mit den wichtigsten Feldern; „Mehr Optionen …“ öffnet
+  // Thunderbirds großes Fenster mit allen Eingaben. Gespeichert wird über
+  // Thunderbirds eigene Transaktion (damit „Rückgängig“ funktioniert).
+  // ---------------------------------------------------------------------------
+  openQuickCreate(w, mode = "event", anchor = null) {
+    const d = w.document;
+    const X = "http://www.w3.org/1999/xhtml";
+    const locale = Services.locale.appLocaleAsBCP47;
+    const de = locale.startsWith("de");
+    const t = (a, b) => (de ? a : b);
+    let cal, CalEvent, CalTodo, CalAlarm, CalRecurrenceInfo;
+    try {
+      ({ cal } = ChromeUtils.importESModule("resource:///modules/calendar/calUtils.sys.mjs"));
+      ({ CalEvent } = ChromeUtils.importESModule("resource:///modules/CalEvent.sys.mjs"));
+      ({ CalTodo } = ChromeUtils.importESModule("resource:///modules/CalTodo.sys.mjs"));
+      ({ CalAlarm } = ChromeUtils.importESModule("resource:///modules/CalAlarm.sys.mjs"));
+      ({ CalRecurrenceInfo } = ChromeUtils.importESModule("resource:///modules/CalRecurrenceInfo.sys.mjs"));
+    } catch (e) {
+      log("quick create import error", String(e).slice(0, 160));
+      w.goDoCommand(mode == "task" ? "calendar_new_todo_command" : "calendar_new_event_command");
+      return;
+    }
+    const el = (tag, props = {}, ...kids) => {
+      const node = d.createElementNS(X, tag);
+      for (const [k, v] of Object.entries(props)) {
+        if (k == "class") {
+          node.className = v;
+        } else if (k in node && typeof v != "string") {
+          node[k] = v;
+        } else {
+          node.setAttribute(k, v);
+        }
+      }
+      node.append(...kids);
+      return node;
+    };
+    const pad = n => String(n).padStart(2, "0");
+    const dateValue = dt => `${dt.getFullYear()}-${pad(dt.getMonth() + 1)}-${pad(dt.getDate())}`;
+    const timeValue = dt => `${pad(dt.getHours())}:${pad(dt.getMinutes())}`;
+    const parse = (dateStr, timeStr) => {
+      const [y, m, day] = (dateStr || "").split("-").map(Number);
+      const [hh, mm] = (timeStr || "00:00").split(":").map(Number);
+      return y ? new Date(y, m - 1, day, hh || 0, mm || 0) : null;
+    };
+    const fmtDate = new Intl.DateTimeFormat(locale, { day: "2-digit", month: "2-digit", year: "numeric" });
+    const fmtTime = new Intl.DateTimeFormat(locale, { hour: "2-digit", minute: "2-digit" });
+    const toCal = (js, dateOnly) => {
+      const dt = cal.dtz.jsDateToDateTime(js, cal.dtz.defaultTimezone);
+      if (dateOnly) {
+        dt.isDate = true;
+      }
+      return dt;
+    };
+
+    let panel = d.getElementById("mcQuickPanel");
+    if (!panel) {
+      panel = d.createXULElement("panel");
+      panel.id = "mcQuickPanel";
+      panel.setAttribute("type", "arrow");
+      const f = {};
+      f.segEvent = el("button", { type: "button", "data-mode": "event" }, t("Termin", "Event"));
+      f.segTask = el("button", { type: "button", "data-mode": "task" }, t("Aufgabe", "Task"));
+      f.title = el("input", { class: "mc-qc-title", type: "text" });
+      f.line1 = el("div", { class: "mc-qc-line1" });
+      f.line2 = el("div", { class: "mc-qc-line2" });
+      f.summary = el("div", { class: "mc-qc-summary", tabindex: "0" }, f.line1, f.line2);
+      f.allDay = el("input", { type: "checkbox" });
+      f.startDate = el("input", { type: "date" });
+      f.startTime = el("input", { type: "time" });
+      f.endDate = el("input", { type: "date" });
+      f.endTime = el("input", { type: "time" });
+      f.hasDue = el("input", { type: "checkbox" });
+      f.dueDate = el("input", { type: "date" });
+      f.dueTime = el("input", { type: "time" });
+      const options = (pairs) => pairs.map(([v, label]) => el("option", { value: v }, label));
+      f.repeat = el("select", {}, ...options([
+        ["", t("Nie", "Never")], ["DAILY", t("Täglich", "Every Day")], ["WEEKLY", t("Wöchentlich", "Every Week")],
+        ["MONTHLY", t("Monatlich", "Every Month")], ["YEARLY", t("Jährlich", "Every Year")],
+      ]));
+      f.alert = el("select", {}, ...options([
+        ["", t("Keine", "None")], ["PT0M", t("Zum Termin", "At time of event")], ["PT5M", t("5 Minuten vorher", "5 minutes before")],
+        ["PT15M", t("15 Minuten vorher", "15 minutes before")], ["PT30M", t("30 Minuten vorher", "30 minutes before")],
+        ["PT1H", t("1 Stunde vorher", "1 hour before")], ["P1D", t("1 Tag vorher", "1 day before")],
+      ]));
+      f.showAs = el("select", {}, ...options([["OPAQUE", t("Beschäftigt", "Busy")], ["TRANSPARENT", t("Frei", "Free")]]));
+      const row = (label, cls, ...ctrls) => el("div", { class: `mc-qc-row ${cls || ""}` }, el("label", {}, label), el("div", { class: "mc-qc-ctrl" }, ...ctrls));
+      f.details = el("div", { class: "mc-qc-details" },
+        row(t("Ganztägig", "All Day"), "mc-ev", f.allDay),
+        row(t("Beginn", "Starts"), "mc-ev", f.startDate, f.startTime),
+        row(t("Ende", "Ends"), "mc-ev", f.endDate, f.endTime),
+        row(t("Fällig", "Due"), "mc-td", f.hasDue, f.dueDate, f.dueTime),
+        row(t("Wiederholen", "Repeat"), "mc-ev", f.repeat),
+        row(t("Hinweis", "Alert"), "", f.alert),
+        row(t("Anzeigen als", "Show As"), "mc-ev", f.showAs),
+      );
+      f.time = el("div", { class: "mc-qc-time mc-qc-card" }, f.summary, f.details);
+      f.main = el("div", { class: "mc-qc-main" }, el("div", { class: "mc-qc-card mc-qc-titlecard" }, f.title), f.time);
+      f.location = el("input", { class: "mc-qc-card mc-qc-field mc-ev-only", type: "text", placeholder: t("Ort hinzufügen", "Add Location") });
+      f.invitees = el("button", { type: "button", class: "mc-qc-card mc-qc-field mc-qc-placeholder mc-ev-only" }, t("Teilnehmer hinzufügen …", "Add Invitees…"));
+      f.calendar = el("select", { class: "mc-qc-calsel" });
+      f.calCard = el("div", { class: "mc-qc-card mc-qc-field mc-qc-calcard" }, f.calendar);
+      f.notes = el("textarea", { class: "mc-qc-card mc-qc-field", rows: "2", placeholder: t("Notizen oder URL hinzufügen", "Add Notes or URL") });
+      f.more = el("button", { type: "button", class: "mc-qc-link" }, t("Mehr Optionen …", "More Options…"));
+      f.cancel = el("button", { type: "button", class: "mc-qc-btn" }, t("Abbrechen", "Cancel"));
+      f.add = el("button", { type: "button", class: "mc-qc-btn mc-qc-primary" }, t("Hinzufügen", "Add"));
+      const root = el("div", { class: "mc-qc" },
+        el("div", { class: "mc-qc-seg" }, f.segEvent, f.segTask),
+        f.main, f.location, f.invitees, f.calCard, f.notes,
+        el("div", { class: "mc-qc-footer" }, f.more, el("span", { class: "mc-qc-spacer" }), f.cancel, f.add),
+      );
+      panel.append(root);
+      (d.getElementById("mainPopupSet") || d.documentElement).append(panel);
+      panel.__mc = f;
+      this.restorers.push(() => panel.remove());
+
+      // --- Verhalten ---
+      const state = { mode: "event" };
+      panel.__mcState = state;
+      const calendars = () => cal.manager.getCalendars().filter(c =>
+        !c.readOnly && !c.getProperty("disabled") &&
+        (state.mode == "task" ? c.getProperty("capabilities.tasks.supported") !== false
+          : c.getProperty("capabilities.events.supported") !== false));
+      const color = c => c?.getProperty("color") || "#8E8E93";
+      const fillCalendars = () => {
+        const list = calendars();
+        const current = f.calendar.value;
+        f.calendar.replaceChildren(...list.map(c => el("option", { value: c.id }, c.name)));
+        let def = null;
+        try {
+          def = w.getSelectedCalendar?.();
+        } catch {}
+        f.calendar.value = list.some(c => c.id == current) ? current : (list.some(c => c.id == def?.id) ? def.id : list[0]?.id || "");
+        updateColor();
+      };
+      const selectedCalendar = () => cal.manager.getCalendarById(f.calendar.value);
+      const updateColor = () => root.style.setProperty("--mc-qc-color", color(selectedCalendar()));
+      const updateSummary = () => {
+        if (state.mode == "task") {
+          const due = f.hasDue.checked ? parse(f.dueDate.value, f.dueTime.value) : null;
+          f.line1.textContent = due ? `${t("Fällig", "Due")} ${fmtDate.format(due)} ${fmtTime.format(due)}` : t("Kein Fälligkeitsdatum", "No Due Date");
+          f.line2.textContent = f.alert.value ? chosen(f.alert) : t("Fälligkeit oder Hinweis hinzufügen", "Add Due Date or Alert");
+          return;
+        }
+        const s = parse(f.startDate.value, f.startTime.value);
+        const e = parse(f.endDate.value, f.endTime.value);
+        if (!s) {
+          f.line1.textContent = "";
+        } else if (f.allDay.checked) {
+          const sameDay = !e || f.startDate.value == f.endDate.value;
+          f.line1.textContent = sameDay ? `${fmtDate.format(s)}  ${t("ganztägig", "all-day")}` : `${fmtDate.format(s)} – ${fmtDate.format(e)}`;
+        } else {
+          const sameDay = e && f.startDate.value == f.endDate.value;
+          f.line1.textContent = sameDay
+            ? `${fmtDate.format(s)}  ${fmtTime.format(s)} – ${fmtTime.format(e)}`
+            : `${fmtDate.format(s)} ${fmtTime.format(s)} – ${e ? `${fmtDate.format(e)} ${fmtTime.format(e)}` : ""}`;
+        }
+        const set = [f.repeat, f.alert].filter(x => x.value).map(chosen);
+        f.line2.textContent = set.length ? set.join(" · ") : t("Hinweis oder Wiederholung hinzufügen", "Add Alert or Repeat");
+      };
+      // gewählte Wiederholung/Erinnerung als Text („Wöchentlich · 15 Minuten vorher“)
+      function chosen(select) {
+        const label = select.selectedOptions[0]?.textContent || "";
+        return select == f.alert ? `${t("Hinweis", "Alert")}: ${label}` : label;
+      }
+      for (const input of [f.repeat, f.alert]) {
+        input.addEventListener("change", () => updateSummary());
+      }
+      const setMode = m => {
+        state.mode = m;
+        root.dataset.mode = m;
+        f.segEvent.toggleAttribute("selected", m == "event");
+        f.segTask.toggleAttribute("selected", m == "task");
+        f.title.placeholder = m == "task" ? t("Neue Aufgabe", "New Task") : t("Neuer Termin", "New Event");
+        fillCalendars();
+        updateSummary();
+      };
+      panel.__mcSetMode = setMode;
+      panel.__mcUpdate = updateSummary;
+      panel.__mcFillCalendars = fillCalendars;
+      f.segEvent.addEventListener("click", () => setMode("event"));
+      f.segTask.addEventListener("click", () => setMode("task"));
+      const expand = () => {
+        root.toggleAttribute("data-expanded", true);
+      };
+      f.summary.addEventListener("click", expand);
+      f.summary.addEventListener("keydown", e => (e.key == "Enter" || e.key == " ") && expand());
+      f.allDay.addEventListener("change", () => {
+        root.toggleAttribute("data-allday", f.allDay.checked);
+        updateSummary();
+      });
+      // Beginn verschoben → Ende mitschieben (gleiche Dauer)
+      let lastStart = null;
+      const onStart = () => {
+        const s = parse(f.startDate.value, f.startTime.value);
+        const e = parse(f.endDate.value, f.endTime.value);
+        if (s && e && lastStart) {
+          const moved = new Date(e.getTime() + (s - lastStart));
+          f.endDate.value = dateValue(moved);
+          f.endTime.value = timeValue(moved);
+        }
+        lastStart = s;
+        updateSummary();
+      };
+      panel.__mcSetLastStart = v => (lastStart = v);
+      for (const input of [f.startDate, f.startTime]) {
+        input.addEventListener("change", onStart);
+      }
+      for (const input of [f.endDate, f.endTime, f.dueDate, f.dueTime]) {
+        input.addEventListener("change", updateSummary);
+      }
+      f.hasDue.addEventListener("change", () => {
+        root.toggleAttribute("data-due", f.hasDue.checked);
+        updateSummary();
+      });
+      f.calendar.addEventListener("change", updateColor);
+
+      const buildItem = () => {
+        const calendar = selectedCalendar();
+        let item;
+        if (state.mode == "task") {
+          item = new CalTodo();
+          item.title = f.title.value.trim() || t("Neue Aufgabe", "New Task");
+          if (f.hasDue.checked) {
+            const due = parse(f.dueDate.value, f.dueTime.value);
+            if (due) {
+              item.dueDate = toCal(due, false);
+            }
+          }
+        } else {
+          item = new CalEvent();
+          item.title = f.title.value.trim() || t("Neuer Termin", "New Event");
+          let s = parse(f.startDate.value, f.allDay.checked ? "00:00" : f.startTime.value) || new Date();
+          let e = parse(f.endDate.value, f.allDay.checked ? "00:00" : f.endTime.value);
+          if (f.allDay.checked) {
+            e = new Date((e || s).getFullYear(), (e || s).getMonth(), (e || s).getDate() + 1);
+          } else if (!e || e <= s) {
+            e = new Date(s.getTime() + 3600 * 1000);
+          }
+          item.startDate = toCal(s, f.allDay.checked);
+          item.endDate = toCal(e, f.allDay.checked);
+          const loc = f.location.value.trim();
+          if (loc) {
+            item.setProperty("LOCATION", loc);
+          }
+          item.setProperty("TRANSP", f.showAs.value);
+          if (f.repeat.value) {
+            const info = new CalRecurrenceInfo(item);
+            const rule = cal.createRecurrenceRule();
+            rule.type = f.repeat.value;
+            rule.interval = 1;
+            info.appendRecurrenceItem(rule);
+            item.recurrenceInfo = info;
+          }
+        }
+        const notes = f.notes.value.trim();
+        if (notes) {
+          item.setProperty("DESCRIPTION", notes);
+        }
+        if (f.alert.value && (state.mode == "event" || item.dueDate)) {
+          const alarm = new CalAlarm();
+          alarm.related = state.mode == "task" ? Ci.calIAlarm.ALARM_RELATED_END : Ci.calIAlarm.ALARM_RELATED_START;
+          const offset = cal.createDuration(f.alert.value);
+          offset.isNegative = f.alert.value != "PT0M";
+          alarm.offset = offset;
+          alarm.action = "DISPLAY";
+          item.addAlarm(alarm);
+        }
+        item.calendar = calendar;
+        return { item, calendar };
+      };
+      const add = async () => {
+        const { item, calendar } = buildItem();
+        if (!calendar) {
+          return;
+        }
+        panel.hidePopup();
+        try {
+          await w.doTransaction("add", item, calendar, null, null);
+        } catch (e) {
+          log("quick create add error", String(e).slice(0, 160));
+        }
+      };
+      const more = () => {
+        const { item, calendar } = buildItem();
+        panel.hidePopup();
+        try {
+          if (state.mode == "task") {
+            w.createTodoWithDialog(calendar, null, null, item);
+          } else {
+            w.createEventWithDialog(calendar, null, null, null, item);
+          }
+        } catch (e) {
+          log("quick create dialog error", String(e).slice(0, 160));
+        }
+      };
+      f.add.addEventListener("click", add);
+      f.more.addEventListener("click", more);
+      f.invitees.addEventListener("click", more);
+      f.cancel.addEventListener("click", () => panel.hidePopup());
+      root.addEventListener("keydown", e => {
+        if (e.key == "Enter" && e.target.localName == "input" && e.target.type == "text") {
+          e.preventDefault();
+          add();
+        }
+      });
+    }
+
+    // --- Vorbelegen und öffnen ---
+    const f = panel.__mc;
+    const root = panel.firstElementChild;
+    root.removeAttribute("data-expanded");
+    root.removeAttribute("data-allday");
+    root.removeAttribute("data-due");
+    f.title.value = "";
+    f.location.value = "";
+    f.notes.value = "";
+    f.allDay.checked = false;
+    f.hasDue.checked = false;
+    f.repeat.value = "";
+    f.alert.value = "";
+    f.showAs.value = "OPAQUE";
+    // Tag: in der Today-Pane der dort gewählte Tag, sonst heute; Beginn zur
+    // nächsten vollen Stunde, eine Stunde lang
+    const now = new Date();
+    let day = now;
+    try {
+      const ts = w.TodayPane?.start;
+      if (anchor?.id == "todaypane-new-event-button" && ts) {
+        day = new Date(ts.year, ts.month, ts.day, now.getHours(), now.getMinutes());
+      }
+    } catch {}
+    const start = new Date(day.getFullYear(), day.getMonth(), day.getDate(), now.getHours() + 1, 0);
+    const end = new Date(start.getTime() + 3600 * 1000);
+    f.startDate.value = dateValue(start);
+    f.startTime.value = timeValue(start);
+    f.endDate.value = dateValue(end);
+    f.endTime.value = timeValue(end);
+    f.dueDate.value = dateValue(start);
+    f.dueTime.value = timeValue(start);
+    panel.__mcSetLastStart(start);
+    panel.__mcSetMode(mode);
+    if (anchor) {
+      const r = anchor.getBoundingClientRect();
+      const below = r.top < w.innerHeight / 2;
+      panel.openPopup(anchor, below ? "after_start" : "before_start", Math.round(r.width / 2 - 190), below ? 4 : -4);
+    } else {
+      panel.openPopup(null, "", Math.round(w.innerWidth / 2 - 190), 80, false, false);
+    }
+    w.setTimeout(() => f.title.focus(), 50);
+  }
+
   // Terminliste der Today-Pane: vom Starttag bis zum Monatsende (statt einer
   // festen Anzahl Tage) – passt zum Monat im Titel
   hookAgendaMonthRange(w) {
@@ -3961,10 +4356,21 @@ class CardEnhancer {
       ThemeSheet.applyTree(win);
     }
     this.restorers.push(() => ThemeSheet.removeAll());
+    const sss = Cc["@mozilla.org/content/style-sheet-service;1"].getService(Ci.nsIStyleSheetService);
+    // Scrollleisten überall ausblenden – global, damit auch Nachrichtentexte
+    // und Dialoge ohne eigenes Design-Stylesheet erfasst sind
+    const noScroll = Services.io.newURI(`resource://mailcards/noscroll.css?v=${extensionVersion}`);
+    if (!sss.sheetRegistered(noScroll, sss.USER_SHEET)) {
+      sss.loadAndRegisterSheet(noScroll, sss.USER_SHEET);
+    }
+    this.restorers.push(() => {
+      if (sss.sheetRegistered(noScroll, sss.USER_SHEET)) {
+        sss.unregisterSheet(noScroll, sss.USER_SHEET);
+      }
+    });
     if (!Services.prefs.getBoolPref("extensions.mailcards.appleIcons", true)) {
       return;
     }
-    const sss = Cc["@mozilla.org/content/style-sheet-service;1"].getService(Ci.nsIStyleSheetService);
     const uri = Services.io.newURI(`resource://mailcards/icon-vars.css?v=${extensionVersion}`);
     if (!sss.sheetRegistered(uri, sss.USER_SHEET)) {
       sss.loadAndRegisterSheet(uri, sss.USER_SHEET);
@@ -4810,7 +5216,7 @@ class CardEnhancer {
         return;
       }
     } catch {}
-    this.avatars.resolve(email).then(show);
+    this.avatars.resolve(email, { name, messageId: hdr.messageId }).then(show);
   }
 
   requestPreview(win, hdr) {

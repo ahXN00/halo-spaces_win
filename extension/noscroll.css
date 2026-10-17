@@ -1,0 +1,9 @@
+/* Keine Scrollleisten in Thunderbird – wie bei macOS mit „Scrollleisten:
+   beim Scrollen“, nur konsequent: Fenster, Listen, Today-Pane, Dialoge und
+   Nachrichtentexte. Scrollen geht weiter mit Mausrad, Trackpad und Tastatur. */
+*,
+*::before,
+*::after,
+:root {
+  scrollbar-width: none !important;
+}
