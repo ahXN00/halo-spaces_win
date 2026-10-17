@@ -377,11 +377,6 @@ def run_checks(m, version, profile, results):
           w.resizeTo(1500, 900); await wait(800); return out;""")
         ok = all(r["line"] and r["buttonsRightOfList"] and r["search"] >= 159 for r in res)
         detail = " · ".join(f"{r['width']}px: Linie {'✓' if r['line'] else '✗'}, Knöpfe {'✓' if r['buttonsRightOfList'] else '✗'}, Suche {r['search']}" for r in res)
-        if not ok and sys.platform != "darwin":
-            # bekannt: unter Linux/Windows (breitere Schrift) greift das Ausblenden
-            # der Toolbar-Knöpfe noch nicht ganz – Hinweis statt Fehler
-            print(f"WARNUNG  Toolbar unter {sys.platform}: {detail}", flush=True)
-            return True, "unter " + sys.platform + " nur als Warnung (siehe oben)"
         return ok, detail
     check("Toolbar: Trennlinie, Knopfkante, Suchfeld", toolbar_edges, results)
 

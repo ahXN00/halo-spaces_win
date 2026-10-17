@@ -1774,6 +1774,21 @@ function captionWidth(doc) {
   return Math.round(doc.querySelector("#unifiedToolbarContainer .titlebar-buttonbox-container")?.getBoundingClientRect().width || 0);
 }
 
+// Platz rechts neben der Knopfleiste in der Toolbar-Zeile (Windows/Linux:
+// ≡-Menü und Fensterknöpfe stehen dort neben #unifiedToolbarContent und
+// nehmen ihm Breite weg; auf dem Mac 0)
+function rowTail(doc) {
+  if (Services.appinfo.OS == "Darwin") {
+    return 0;
+  }
+  const row = doc.getElementById("unifiedToolbarContainer")?.getBoundingClientRect();
+  const content = doc.getElementById("unifiedToolbarContent")?.getBoundingClientRect();
+  if (!row?.width || !content?.width) {
+    return 0;
+  }
+  return Math.max(0, Math.round(row.right - content.right));
+}
+
 // minimal: nur die Knöpfe, die bei Platzmangel nicht weichen (SQUEEZE), und
 // das Suchfeld in seiner kleinsten sinnvollen Breite – für Ziehgrenzen
 function toolbarNeed(doc, minimal = false) {
@@ -1782,10 +1797,11 @@ function toolbarNeed(doc, minimal = false) {
     return 0;
   }
   const win = doc.defaultView;
-  // rechts: Abstand für Today-Pane/-Knopf; die Fensterknöpfe (Windows/Linux)
-  // liegen bei offener Today-Pane in deren Fläche, sonst neben dem Knopf
+  // rechts: Abstand für Today-Pane/-Knopf und was unter Windows/Linux neben
+  // der Knopfleiste steht (≡-Menü, Fensterknöpfe – das Padding ist darum
+  // kleiner, siehe --mc-row-tail)
   const pad = parseFloat(win.getComputedStyle(content).paddingInlineEnd) || 0;
-  let need = 10 + Math.max(pad, 60 + captionWidth(doc)) + 12;
+  let need = 10 + Math.max(pad, 60) + rowTail(doc) + 12;
   let afterFirst = false;
   for (const li of content.children) {
     const id = li.getAttribute("item-id");
@@ -3616,6 +3632,7 @@ class CardEnhancer {
         const caption = captionWidth(d);
         setVar(row, "--mc-tp-w", `${width}px`);
         setVar(row, "--mc-caption-w", `${caption}px`);
+        setVar(row, "--mc-row-tail", `${rowTail(d)}px`);
         // neben Knopf und Fensterknöpfen zu wenig Platz: nur die Sonne
         title.toggleAttribute("data-narrow", width - 62 - Math.max(62, caption + 8) < 110);
       };
@@ -5540,6 +5557,7 @@ class CardEnhancer {
         offset = Math.max(offset, Math.round(tb.right - start + 12));
       }
       setBarVar(top.document, "--mc-toolbar-offset", `${offset}px`);
+      setVar(top.document.getElementById("unifiedToolbarContainer"), "--mc-row-tail", `${rowTail(top.document)}px`);
       const animating = top.__mcSpacesAnimating || win.__mcAnimating;
       if (!animating) {
         const firstSpacer = content.querySelector(':scope > li[item-id="spacer"]');
