@@ -111,6 +111,7 @@ def main():
     ap.add_argument("--dark", action="store_true", help="im Dunkelmodus starten")
     ap.add_argument("--shots", help="Ordner für Screenshots aller Bereiche")
     ap.add_argument("--eval", help="nur dieses JavaScript ausführen (Chrome-Kontext, mit den Hilfen aus PRELUDE) und das Ergebnis ausgeben – zum Untersuchen")
+    ap.add_argument("--perf", action="store_true", help="nur die Geschwindigkeit messen (5000 Mails, mit und ohne halo.spaces)")
     ap.add_argument("--compare", help="Ordner mit früheren Screenshots: zeigt, wo sich etwas verändert hat (braucht --shots)")
     args = ap.parse_args()
 
@@ -155,7 +156,10 @@ def main():
             sys.exit("Thunderbird hat Marionette nicht geöffnet")
         time.sleep(8)  # Erweiterung und Fenster fertig aufbauen lassen
         m = Marionette(PORT)
+        if args.perf:
+            args.eval = open(os.path.join(ROOT, "tests", "perf.js")).read()
         if args.eval:
+            m.cmd("WebDriver:SetTimeouts", {"script": 600000})
             print(json.dumps(m.js(args.eval), indent=1, ensure_ascii=False))
             return
         run_checks(m, version, profile, results)
