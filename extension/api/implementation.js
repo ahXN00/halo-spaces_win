@@ -88,7 +88,7 @@ function accountColor(name) {
 }
 // Farbpunkt vor Konto- und Adressbuchnamen (Ordnerliste, Adressbuchliste):
 // --mc-acc an der Zeile, gezeichnet von userChrome.css
-function colorAccountRows(doc) {
+function colorAccountRows(doc, restorers = null) {
   const names = new Set();
   try {
     for (const server of MailServices.accounts.allServers) {
@@ -114,18 +114,35 @@ function colorAccountRows(doc) {
   if (!doc.__mcAccRows) {
     doc.__mcAccRows = true;
     const target = doc.getElementById("folderTree") || doc.getElementById("books");
+    let mo = null;
     if (target) {
       let pending = false;
-      new doc.defaultView.MutationObserver(() => {
+      mo = new doc.defaultView.MutationObserver(() => {
         if (!pending) {
           pending = true;
           doc.defaultView.setTimeout(() => { pending = false; paint(); }, 50);
         }
-      }).observe(target, { childList: true, subtree: true });
+      });
+      mo.observe(target, { childList: true, subtree: true });
     }
     const obs = { observe: () => paint() };
     Services.obs.addObserver(obs, "server-color-changed");
-    doc.defaultView.addEventListener("unload", () => Services.obs.removeObserver(obs, "server-color-changed"), { once: true });
+    let removed = false;
+    const cleanup = () => {
+      mo?.disconnect();
+      if (!removed) {
+        removed = true;
+        try {
+          Services.obs.removeObserver(obs, "server-color-changed");
+        } catch {}
+      }
+    };
+    doc.defaultView.addEventListener("unload", cleanup, { once: true });
+    // beim Abschalten/Update: sonst malt die alte Fassung weiter
+    restorers?.push(() => {
+      cleanup();
+      delete doc.__mcAccRows;
+    });
   }
 }
 
@@ -143,7 +160,7 @@ function isVeryDark(color) {
 // geladen sind – bis dahin bleibt die Zeile leer. Den zuletzt gezeigten Text
 // merken und sofort zeigen; Thunderbird ersetzt ihn mit dem aktuellen Wert.
 const CARD_COUNT_PREF = "extensions.mailcards.cardCountText";
-function cacheCardCount(doc) {
+function cacheCardCount(doc, restorers = null) {
   const el = doc?.getElementById("cardCount");
   if (!el || el.__mcCached) {
     return;
@@ -161,7 +178,12 @@ function cacheCardCount(doc) {
     }
   };
   remember();
-  new doc.defaultView.MutationObserver(remember).observe(el, { childList: true, characterData: true, subtree: true });
+  const mo = new doc.defaultView.MutationObserver(remember);
+  mo.observe(el, { childList: true, characterData: true, subtree: true });
+  restorers?.push(() => {
+    mo.disconnect();
+    delete el.__mcCached;
+  });
 }
 
 // Einstellungen → Appearance: „Erscheinungsbild“ Automatisch / Hell / Dunkel.
@@ -370,6 +392,14 @@ const CSS = `
 const LOG_PATH = PathUtils.join(PathUtils.profileDir, "mail-cards-debug.log");
 let logChain = Promise.resolve();
 let logged = 0;
+// Ausführliche Einträge (z. B. Absenderadressen beim Bild-Auflösen) nur mit
+// extensions.mailcards.debug = true – Fehler werden immer protokolliert
+function debugLog(...parts) {
+  if (Services.prefs.getBoolPref("extensions.mailcards.debug", false)) {
+    log(...parts);
+  }
+}
+
 function log(...parts) {
   if (++logged > 2000) {
     return;
@@ -378,7 +408,10 @@ function log(...parts) {
     new Date().toISOString() +
     " " +
     parts
-      .map(p => (p instanceof Error ? `${p.name}: ${p.message} @ ${p.stack?.split("\n")[0]}` : typeof p == "string" ? p : JSON.stringify(p)))
+      // Fehler aus anderen Bereichen sind kein „instanceof Error“ – an message erkennen
+      .map(p => (p && typeof p == "object" && typeof p.message == "string"
+        ? `${p.name || "Error"}: ${p.message}${p.stack ? ` @ ${String(p.stack).split("\n")[0]}` : ""}`
+        : typeof p == "string" ? p : JSON.stringify(p)))
       .join(" ") +
     "\n";
   logChain = logChain
@@ -504,7 +537,12 @@ async function fetchWithTimeout(win, url, opts = {}) {
       reject(new Error("timeout"));
     }, FETCH_TIMEOUT);
   });
-  return Promise.race([request, timeout]).finally(() => clearTimeout(timer));
+  const res = await Promise.race([request, timeout]).finally(() => clearTimeout(timer));
+  // Umleitungen folgt fetch selbst – das Ziel muss ebenfalls öffentlich sein
+  if (res.url && !isPublicHttps(res.url)) {
+    throw new Error("blocked redirect");
+  }
+  return res;
 }
 
 // Zeitkurve wie CSS cubic-bezier(x1, y1, x2, y2)
@@ -619,6 +657,9 @@ const MacPhotos = {
   },
 
   async load() {
+    if (Services.prefs.prefHasUserValue(MAC_PHOTOS_PREF) && !Services.prefs.getBoolPref(MAC_PHOTOS_PREF)) {
+      return; // ausgeschaltet
+    }
     try {
       const list = await IOUtils.readJSON(PathUtils.join(this.folder(), "index.json"));
       this.byEmail.clear();
@@ -716,6 +757,17 @@ class LogoCache {
     } catch {
       this.entries = {};
     }
+    // Abgelaufenes entfernen – sonst wächst die Datei mit jedem Absender
+    let dropped = 0;
+    for (const [domain, e] of Object.entries(this.entries)) {
+      if (!e || !e.t || Date.now() - e.t > (e.src ? HIT_TTL : MISS_TTL) || (!e.src && e.v !== 2)) {
+        delete this.entries[domain];
+        dropped++;
+      }
+    }
+    if (dropped) {
+      this.scheduleSave();
+    }
   }
 
   get(domain) {
@@ -793,7 +845,7 @@ class AvatarResolver {
   async _resolve(email, hint = {}) {
     const fromAb = await this.fromAddressBook(email);
     if (fromAb) {
-      log("avatar", email, "Adressbuch");
+      debugLog("avatar", email, "Adressbuch");
       return { src: await this.normalize(fromAb), small: false };
     }
     const domain = email.split("@")[1];
@@ -802,7 +854,7 @@ class AvatarResolver {
     }
     const org = orgDomain(domain);
     if (FREEMAIL.has(org) || FREEMAIL.has(domain)) {
-      log("avatar", email, "Initialen (Freemail)");
+      debugLog("avatar", email, "Initialen (Freemail)");
       return null;
     }
     let logo = await this.domainLogo(domain, org);
@@ -826,7 +878,7 @@ class AvatarResolver {
         }
       }
     }
-    log("avatar", email, logo ? `Logo ${used} (${logo.source || "Speicher"})` : "Initialen (kein Logo)");
+    debugLog("avatar", email, logo ? `Logo ${used} (${logo.source || "Speicher"})` : "Initialen (kein Logo)");
     return logo;
   }
 
@@ -951,8 +1003,15 @@ class AvatarResolver {
     }
     try {
       const res = await fetchWithTimeout(win, url);
+      const type = (res.headers.get("content-type") || "").split(";")[0].trim();
+      // Anmeldeseiten (iCloud: 401 mit HTML) sind kein Foto – dann Initialen
+      if (!res.ok || !type.startsWith("image/")) {
+        return null;
+      }
       const buf = new Uint8Array(await res.arrayBuffer());
-      const type = res.headers.get("content-type") || "image/jpeg";
+      if (buf.length < 100 || buf.length > 2 * 1024 * 1024) {
+        return null;
+      }
       return `data:${type};base64,${bytesToBase64(win, buf)}`;
     } catch {
       return null;
@@ -1385,16 +1444,18 @@ class CardEnhancer {
     // macOS gemacht ist und dort noch erprobt wird
     const NOTE_PREF = "extensions.mailcards.platformNoteShown";
     if (Services.appinfo.OS != "Darwin" && !Services.prefs.getBoolPref(NOTE_PREF, false)) {
-      setTimeout(() => {
+      const noteTimer = setTimeout(() => {
         const w = Services.wm.getMostRecentWindow("mail:3pane");
         if (w) {
           Services.prefs.setBoolPref(NOTE_PREF, true);
           this.openHaloWindow(w, { platformNote: true });
         }
       }, 6000);
+      this.restorers.push(() => clearTimeout(noteTimer));
     }
     // nach dem Start, wenn der Kalender-Manager bereit ist
-    setTimeout(() => enableCalendarOffline(), 8000);
+    const offlineTimer = setTimeout(() => enableCalendarOffline(), 8000);
+    this.restorers.push(() => clearTimeout(offlineTimer));
     // Fotos aus der macOS-Kontakte-App: kurz nach dem Start und dann stündlich
     MacPhotos.load();
     this.registerIconVars();
@@ -2061,8 +2122,8 @@ class CardEnhancer {
           }
           try {
             hookDedupe(cw);
-            colorAccountRows(cw.document);
-            cacheCardCount(cw.document);
+            colorAccountRows(cw.document, this.restorers);
+            cacheCardCount(cw.document, this.restorers);
           } catch (e) {
             log("dedupe error", e);
           }
@@ -3132,8 +3193,6 @@ class CardEnhancer {
       });
     };
 
-    // Kalender und Aufgaben: ein „+“ wie in Apple Kalender – fragt in einem
-    // Menü nach Termin oder Aufgabe (der zweite Knopf ist per CSS ausgeblendet)
     // Tooltip mit Erklärung an Kalendern, die iCloud mit ⚠️ markiert
     const hookCalendarNotes = () => {
       const list = w.document.getElementById("calendar-list");
@@ -3190,6 +3249,8 @@ class CardEnhancer {
       }
     };
 
+    // Kalender und Aufgaben: ein „+“ wie in Apple Kalender – öffnet gleich das
+    // Schnellfenster (der zweite Knopf ist per CSS ausgeblendet)
     const hookNewButton = () => {
       const d = w.document;
       const bar = d.querySelector("unified-toolbar");
@@ -3438,8 +3499,7 @@ class CardEnhancer {
       monitorName: "mail-cards",
       onTabOpened: () => w.setTimeout(scan, 300),
       onTabSwitched: () => {
-        markTab();
-        scan();
+        scan(); // ruft markTab() selbst auf
         w.setTimeout(hookEscape, 800); // Inhalt des neuen Tabs ist evtl. erst jetzt geladen
       },
       onTabTitleChanged() {},
@@ -3625,9 +3685,17 @@ class CardEnhancer {
     if (!cw.__mcHeaderHook) {
       cw.__mcHeaderHook = true;
       const update = () => cw.setTimeout(() => this.updateAbHeader(box, cw), 0);
+      const search = cw.cardsPane.searchInput;
       books.addEventListener("select", update);
-      cw.cardsPane.searchInput?.addEventListener("autocomplete", update);
-      new cw.MutationObserver(update).observe(list, { childList: true, subtree: true });
+      search?.addEventListener("autocomplete", update);
+      const mo = new cw.MutationObserver(update);
+      mo.observe(list, { childList: true, subtree: true });
+      this.restorers.push(() => {
+        books.removeEventListener("select", update);
+        search?.removeEventListener("autocomplete", update);
+        mo.disconnect();
+        delete cw.__mcHeaderHook;
+      });
     }
     try {
       const row = books.getRowAtIndex?.(books.selectedIndex) || books.selectedRow;
@@ -3839,8 +3907,15 @@ class CardEnhancer {
       // --- Verhalten ---
       const state = { mode: "event" };
       panel.__mcState = state;
+      const writable = c => {
+        try {
+          return cal.acl.isCalendarWritable(c) && cal.acl.userCanAddItemsToCalendar(c);
+        } catch {
+          return !c.readOnly;
+        }
+      };
       const calendars = () => cal.manager.getCalendars().filter(c =>
-        !c.readOnly && !c.getProperty("disabled") &&
+        writable(c) && !c.getProperty("disabled") &&
         (state.mode == "task" ? c.getProperty("capabilities.tasks.supported") !== false
           : c.getProperty("capabilities.events.supported") !== false));
       const color = c => c?.getProperty("color") || "#8E8E93";
@@ -4063,7 +4138,7 @@ class CardEnhancer {
       f.invitees.addEventListener("click", more);
       f.cancel.addEventListener("click", () => panel.hidePopup());
       root.addEventListener("keydown", e => {
-        if (e.key == "Enter" && e.target.localName == "input" && e.target.type == "text") {
+        if (e.key == "Enter" && !e.isComposing && e.target.localName == "input" && e.target.type == "text") {
           e.preventDefault();
           add();
         }
@@ -4137,6 +4212,10 @@ class CardEnhancer {
     // Thunderbird zeigt für andere Tage als heute nur diesen einen Tag –
     // hier immer vom Starttag bis zum Monatsende
     agenda.update = async function (date) {
+      date ||= this.startDate || w.TodayPane.start;
+      if (!date) {
+        return;
+      }
       this.startDate = date.clone();
       this.startDate.isDate = true;
       this.endDate = this.startDate.clone();
@@ -4742,10 +4821,12 @@ class CardEnhancer {
       const { AddonManager } = ChromeUtils.importESModule("resource://gre/modules/AddonManager.sys.mjs");
       version = (await AddonManager.getAddonByID("mail-cards@sebastian.local"))?.version || version;
     } catch {}
-    const mac = Services.sysinfo.getProperty("version");
+    const osVersion = Services.sysinfo.getProperty("version");
+    const os = Services.appinfo.OS == "Darwin" ? `macOS (Darwin ${osVersion})`
+      : Services.appinfo.OS == "WINNT" ? `Windows (${osVersion})` : `${Services.appinfo.OS} (${osVersion})`;
     const subject = `halo.spaces ${version} – Feedback`;
     const body = (de ? "Hallo,\n\n\n\n—\n" : "Hi,\n\n\n\n—\n") +
-      `halo.spaces ${version} · Thunderbird ${Services.appinfo.version} · macOS (Darwin ${mac})`;
+      `halo.spaces ${version} · Thunderbird ${Services.appinfo.version} · ${os}`;
     const params = Cc["@mozilla.org/messengercompose/composeparams;1"].createInstance(Ci.nsIMsgComposeParams);
     const fields = Cc["@mozilla.org/messengercompose/composefields;1"].createInstance(Ci.nsIMsgCompFields);
     fields.to = FEEDBACK_ADDRESS;
@@ -4801,6 +4882,11 @@ class CardEnhancer {
       setPhotos: async on => {
         Services.prefs.setBoolPref(MAC_PHOTOS_PREF, on);
         if (!on) {
+          // sofort keine Fotos mehr zeigen (nicht erst nach dem Neustart)
+          MacPhotos.byEmail.clear();
+          MacPhotos.byName.clear();
+          MacPhotos.version++;
+          MacPhotos.listeners.forEach(fn => fn());
           return 0;
         }
         await MacPhotos.sync();
@@ -4975,7 +5061,7 @@ class CardEnhancer {
     this.windows.add(win);
     const doc = win.document;
     this.hookMailContext(doc);
-    colorAccountRows(doc);
+    colorAccountRows(doc, this.restorers);
     const mb = win.messageBrowser?.contentDocument;
     if (mb?.readyState == "complete") {
       this.hookMailContext(mb);
