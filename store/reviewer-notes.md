@@ -20,4 +20,4 @@ Build instructions (source code upload):
 3. Result: dist/halo-spaces-<version>-atn.xpi is the submitted package (dist/halo-spaces-<version>.xpi is the self-hosted GitHub variant).
 The only generated file is extension/theme.css: chrome/merge_spaces.py inserts chrome/spaces.css into chrome/userChrome.css, which build.sh copies to extension/theme.css. For the store package build.sh removes update_url from the manifest and adds strict_max_version from store/max-version.
 
-Test: install, choose "System theme – auto" under Themes, restart Thunderbird once. An automated test runs in a fresh temporary profile: python3 tests/halo_test.py
+Test: install (no restart needed; Thunderbird's default theme "System theme – auto"). An automated test runs in a fresh temporary profile: python3 tests/halo_test.py

@@ -157,6 +157,8 @@ const DE = {
   "Close": "Schließen",
   "Install updates at start": "Updates beim Start installieren",
   "checks at most every 6 hours; active after a restart": "prüft höchstens alle 6 Stunden; aktiv nach einem Neustart",
+  "Messages in system font": "Mails in Systemschrift",
+  "like Apple Mail; messages with their own font keep it – off: Thunderbird’s fonts": "wie Apple Mail; Mails mit eigener Schrift behalten sie – aus: Thunderbirds Schriften",
 };
 const FR = {
   "Install version {v}": "Installer la version {v}",
@@ -285,6 +287,8 @@ const FR = {
   "Updates": "Mises à jour",
   "Install updates at start": "Installer les mises à jour au démarrage",
   "checks at most every 6 hours; active after a restart": "vérifie au plus toutes les 6 heures ; actif après un redémarrage",
+  "Messages in system font": "Messages dans la police système",
+  "like Apple Mail; messages with their own font keep it – off: Thunderbird’s fonts": "comme Apple Mail ; les messages avec leur propre police la gardent – désactivé : polices de Thunderbird",
 };
 const ES = {
   "Install version {v}": "Instalar la versión {v}",
@@ -413,6 +417,8 @@ const ES = {
   "Updates": "Actualizaciones",
   "Install updates at start": "Instalar actualizaciones al iniciar",
   "checks at most every 6 hours; active after a restart": "comprueba como máximo cada 6 horas; activo tras reiniciar",
+  "Messages in system font": "Mensajes en la fuente del sistema",
+  "like Apple Mail; messages with their own font keep it – off: Thunderbird’s fonts": "como Apple Mail; los mensajes con su propia fuente la conservan – desactivado: fuentes de Thunderbird",
 };
 const IT = {
   "Install version {v}": "Installa la versione {v}",
@@ -541,6 +547,8 @@ const IT = {
   "Updates": "Aggiornamenti",
   "Install updates at start": "Installa gli aggiornamenti all’avvio",
   "checks at most every 6 hours; active after a restart": "controlla al massimo ogni 6 ore; attivo dopo un riavvio",
+  "Messages in system font": "Messaggi nel font di sistema",
+  "like Apple Mail; messages with their own font keep it – off: Thunderbird’s fonts": "come Apple Mail; i messaggi con un proprio font lo mantengono – disattivato: font di Thunderbird",
 };
 const TRANSLATIONS = { de: DE, fr: FR, es: ES, it: IT };
 // tr("+{n} more", { n: 3 }) – Platzhalter in geschweiften Klammern
@@ -6902,10 +6910,16 @@ class CardEnhancer {
       unsub.addEventListener("click", () => {
         try {
           if (web) {
-            // im Standardbrowser öffnen – der Absender bestätigt dort
-            Cc["@mozilla.org/uriloader/external-protocol-service;1"]
-              .getService(Ci.nsIExternalProtocolService)
-              .loadURI(Services.io.newURI(web));
+            // im Standardbrowser öffnen – der Absender bestätigt dort. Wie ein
+            // Klick auf einen Link in der Mail (loadURI braucht seit Thunderbird
+            // 140 einen Principal und schlug ohne ihn fehl)
+            if (typeof win.openLinkExternally == "function") {
+              win.openLinkExternally(web);
+            } else {
+              Cc["@mozilla.org/uriloader/external-protocol-service;1"]
+                .getService(Ci.nsIExternalProtocolService)
+                .loadURI(Services.io.newURI(web), Services.scriptSecurityManager.getSystemPrincipal());
+            }
           } else {
             // Abmelde-Mail nur vorbereiten – gesendet wird erst durch den Nutzer
             MailServices.compose.OpenComposeWindowWithURI(null, Services.io.newURI(mail));
@@ -7034,7 +7048,13 @@ class CardEnhancer {
           afterQuick();
         }
       } catch (e) {
-        log("quick preview error", e);
+        // bekannt und harmlos: Größe im Ordner stimmt nicht mit der Mail überein –
+        // dann fehlt nur der Vorschautext
+        if (e?.result == 0x80550023) {
+          debugLog("quick preview skipped (unexpected size)");
+        } else {
+          log("quick preview error", e);
+        }
         afterQuick();
       }
     }

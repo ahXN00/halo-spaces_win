@@ -1,9 +1,21 @@
-/* halo.spaces – reine Textmails in der Systemschrift statt Schreibmaschinenschrift
-   (wie Apple Mail). Gilt nur für Thunderbirds Klassen von Mailtexten.
-   Abschalten: Einstellungen → „Textmails in Systemschrift“. */
+/* halo.spaces – Mails in der Systemschrift wie Apple Mail (Mac: SF Pro,
+   Windows: Segoe UI, Linux: die Schrift der Oberfläche).
+   Abschalten: Einstellungen → „Mails in Systemschrift“. */
+
+/* reine Textmails: statt Schreibmaschinenschrift */
 :is(.moz-text-plain, .moz-text-flowed) :is(pre, div),
 div:is(.moz-text-plain, .moz-text-flowed) {
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif !important;
   font-size: 14px !important;
   line-height: 1.45 !important;
+}
+
+/* HTML-Mails: nur wo die Mail keine eigene Schrift festlegt (ohne
+   !important – die Schrift der Mail hat Vorrang). Nur in Nachrichten,
+   nicht auf Webseiten in Thunderbird. */
+@-moz-document url-prefix("imap:"), url-prefix("mailbox:"), url-prefix("news:"),
+               url-prefix("nntp:"), url-prefix("ews:"), url-prefix("owl:") {
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+  }
 }

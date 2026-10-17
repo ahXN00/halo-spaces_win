@@ -36,7 +36,7 @@ A calm, tidy macOS-style design for Thunderbird: colourful spaces, message cards
 <li>Settings page: Add-ons and Themes → halo.spaces → Preferences</li>
 </ul>
 
-<b>Setup:</b> after installing, choose <i>System theme – auto</i> under Themes and restart Thunderbird once.
+<b>Theme:</b> halo.spaces brings its own colours and is made for Thunderbird's default theme, <i>System theme – auto</i>. If you use a different theme, switch back to it under Add-ons and Themes → Themes – other themes paint their own colours over the design.
 
 Made for macOS. Windows and Linux work, but window buttons and some spacing differ there.
 

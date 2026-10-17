@@ -208,6 +208,10 @@ def take_shots(m, folder, scheme):
     for name, js in [
         ("mail", "await toMail();"),
         ("message", MESSAGE_JS),
+        ("message-remote", """const { MailServices } = ChromeUtils.importESModule("resource:///modules/MailServices.sys.mjs"); await toMail(); const f = MailServices.accounts.localFoldersServer.rootFolder.getChildNamed("Schrift");
+          const a3 = tm.currentAbout3Pane; a3.displayFolder(f.URI); await wait(800);
+          for (let i = 0; i < a3.gDBView.rowCount; i++) if (a3.gDBView.getMsgHdrAt(i).subject == "Schrift 1") a3.threadTree.selectedIndex = i;
+          await wait(3500);"""),
         ("mail-1280", "w.resizeTo(1280, 900); await wait(1200); await toMail();"),
         ("calendar-week", 'await toCalendar(); w.switchToView("week"); await wait(800);'),
         ("calendar-month", 'await toCalendar(); w.switchToView("month"); await wait(800);'),
@@ -221,14 +225,6 @@ def take_shots(m, folder, scheme):
         path = os.path.join(folder, f"{scheme}-{name}.png")
         open(path, "wb").write(base64.b64decode(data))
         print(f"Screenshot {path}", flush=True)
-        if name == "message":
-            # Maus über die Mail: die Knopfleiste auf der Trennlinie erscheint
-            x, y = m.js("""const b = tm.currentAbout3Pane.messageBrowser.getBoundingClientRect(); return [Math.round(b.left + b.width / 2), Math.round(b.top + 300)];""")
-            m.pointer([{"type": "pointerMove", "x": x, "y": y, "origin": "viewport"}, {"type": "pause", "duration": 400}])
-            data = m.cmd("WebDriver:TakeScreenshot", {})["value"]
-            path = os.path.join(folder, f"{scheme}-message-hover.png")
-            open(path, "wb").write(base64.b64decode(data))
-            print(f"Screenshot {path}", flush=True)
     # eigene Fenster: Verfassen und Termin-Dialog
     for name, js in [
         ("compose", COMPOSE_JS),
@@ -528,6 +524,8 @@ def run_checks(m, version, profile, results):
           rows[0].querySelector(".mc-act-delete").click(); await wait(1200);
           const trash = root.getFolderWithFlags(Ci.nsMsgFolderFlags.Trash);
           return { buttons: buttons.length, flagged, selected, inbox: inbox.getTotalMessages(false), trash: trash?.getTotalMessages(false) };''')
+        if res.get("diag"):
+            return False, f"keine Knöpfe auf der Karte – Diagnose {res}"
         ok = res["buttons"] == 3 and res["flagged"] and res["selected"] == 0 and res["inbox"] == 1 and res["trash"] == 1
         return ok, f"{res}"
     check("Mailkarte: Aktionen beim Überfahren (Markieren, Löschen)", hover_actions, results)
@@ -565,6 +563,50 @@ def run_checks(m, version, profile, results):
               and not res["listIdRow"] and res["banner"] and res["unsub"] and "Lesen" in (res["folder"] or "") and res["date"])
         return ok, f"{res}"
     check("Leseansicht wie Apple: Absenderbild, Ordner, Verteiler-Hinweis statt List-ID", reading, results)
+
+    def unsubscribe():
+        res = m.js(MESSAGE_JS + '''
+          const am = a3.messageBrowser.contentWindow; const md = am.document;
+          const btn = await until(() => md.querySelector("#mcListBanner .mc-lb-unsub"));
+          // nicht wirklich den Browser öffnen: Aufruf abfangen
+          const orig = am.openLinkExternally; let opened = null;
+          am.openLinkExternally = url => { opened = String(url); };
+          btn?.click(); await wait(300);
+          am.openLinkExternally = orig;
+          const log = await IOUtils.readUTF8(PathUtils.join(PathUtils.profileDir, "mail-cards-debug.log")).catch(() => "");
+          return { button: !!btn, opened, error: /unsubscribe error/.test(log) };''')
+        return res["button"] and res["opened"] == "https://example.invalid/abmelden?id=1" and not res["error"], f"{res}"
+    check("Verteiler-Hinweis: Abmelden öffnet den Link", unsubscribe, results)
+
+    def html_font():
+        res = m.js(r"""
+          const { MailServices } = ChromeUtils.importESModule("resource:///modules/MailServices.sys.mjs");
+          try { MailServices.accounts.localFoldersServer; } catch { MailServices.accounts.createLocalMailAccount(); await wait(500); }
+          const root = MailServices.accounts.localFoldersServer.rootFolder;
+          if (!root.containsChildNamed("Schrift")) { root.createSubfolder("Schrift", null); await wait(800); }
+          const f = root.getChildNamed("Schrift"); const lf = f.QueryInterface(Ci.nsIMsgLocalMailFolder);
+          const mail = (n, body) => `From - Sat Oct 17 10:00:00 2026\r\nFrom: Halo <h@example.invalid>\r\nSubject: Schrift ${n}\r\nDate: Sat, 17 Oct 2026 10:0${n}:00 +0200\r\nMessage-ID: <halo-font-${n}@example.invalid>\r\nMIME-Version: 1.0\r\nContent-Type: text/html; charset=UTF-8\r\n\r\n${body}\r\n\r\n`;
+          if (!f.getTotalMessages(false)) {
+            lf.addMessage(mail(1, "<html><body><p id='t'>Ohne eigene Schrift</p><img src='https://example.invalid/bild.png' width='1' height='1'></body></html>"));
+            lf.addMessage(mail(2, "<html><body style='font-family: Georgia, serif'><p id='t'>Mit eigener Schrift</p></body></html>"));
+            await wait(800);
+          }
+          const a3 = await toMail(); a3.displayFolder(f.URI); await wait(800);
+          const out = {};
+          for (const i of [0, 1]) {
+            a3.threadTree.selectedIndex = i; await wait(1500);
+            const md = a3.messageBrowser.contentDocument;
+            const body = await until(() => md.getElementById("messagepane")?.contentDocument?.getElementById("t"));
+            const subj = a3.gDBView.getMsgHdrAt(i).subject;
+            out[subj] = body ? body.ownerDocument.defaultView.getComputedStyle(body).fontFamily : null;
+            out.pill = md.getElementById("header-view-toolbox")?.getBoundingClientRect().width || 0;
+            out.dates = [...md.querySelectorAll("#dateLabel, #dateLabelSubject")].filter(e => e.getBoundingClientRect().width).length;
+          }
+          return out;""")
+        own, plain = res.get("Schrift 2") or "", res.get("Schrift 1") or ""
+        ok = "apple-system" in plain and own.startswith("Georgia") and not res["pill"] and res["dates"] == 1
+        return ok, f"{res}"
+    check("Mails in Systemschrift, eigene Schrift bleibt, keine Kapsel im Kopf", html_font, results)
 
     def birthdays():
         res = m.js('''

@@ -66,10 +66,10 @@ Setup Instructions
 2. In Thunderbird open **Add-ons and Themes** → gear icon →
    **Install Add-on From File…** and choose the file.
 
-3. Under **Themes**, select **System theme – auto**.
-   *Do not* select Light, Dark or a theme from the add-on store.
+3. Under **Themes**, keep or select **System theme – auto** (Thunderbird's default).
+   Light, Dark or themes from the add-on store paint their own colours over the design.
 
-4. Restart Thunderbird once.
+No restart is needed – the design is active right away.
 
 Updates arrive automatically (Thunderbird checks every 24 hours). To check
 right away: **Help → halo.spaces… → Check for Updates**.

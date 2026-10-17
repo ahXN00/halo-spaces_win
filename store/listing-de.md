@@ -36,7 +36,7 @@ Ein ruhiges, aufgeräumtes Design im Stil von macOS für Thunderbird: farbige Be
 <li>Einstellungsseite: Add-ons und Themes → halo.spaces → Einstellungen</li>
 </ul>
 
-<b>Einrichtung:</b> nach der Installation unter Themes <i>Systemthema – automatisch</i> wählen und Thunderbird einmal neu starten.
+<b>Theme:</b> halo.spaces bringt eigene Farben mit und ist für Thunderbirds Standard-Theme <i>Systemthema – automatisch</i> gemacht. Wer ein anderes Theme nutzt, stellt es unter Add-ons und Themes → Themes zurück – andere Themes legen ihre eigenen Farben über das Design.
 
 Gemacht für macOS. Windows und Linux funktionieren, dort sehen Fensterknöpfe und einige Abstände anders aus.
 
