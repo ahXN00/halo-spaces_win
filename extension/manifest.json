@@ -36,5 +36,9 @@
   "homepage_url": "https://github.com/sruf79/halo-spaces",
   "icons": {
     "64": "about/icon.svg"
+  },
+  "options_ui": {
+    "page": "options/options.html",
+    "open_in_tab": false
   }
 }

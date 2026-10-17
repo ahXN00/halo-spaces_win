@@ -295,8 +295,14 @@ def run_checks(m, version, profile, results):
           e.startDate = s; e.endDate = en; await testCalendar().addItem(e);
           await toCalendar(); w.switchToView("week"); await wait(1500);
           const label = [...d.querySelectorAll("#view-box .event-name-label")].find(l => /Geburtstag Testperson/.test(l.textContent));
-          return label?.getAttribute("data-mc-emoji") || null;""")
-        return res == "🎂", f"Emoji: {res}"
+          const builtin = label?.getAttribute("data-mc-emoji") || null;
+          // eigenes Stichwort aus den Einstellungen wirkt sofort und hat Vorrang
+          Services.prefs.setStringPref("extensions.mailcards.emojiCustom", "Testperson = ⚽");
+          await wait(600);
+          const custom = label?.getAttribute("data-mc-emoji") || null;
+          Services.prefs.clearUserPref("extensions.mailcards.emojiCustom"); await wait(400);
+          return [builtin, custom, label?.getAttribute("data-mc-emoji") || null];""")
+        return res == ["🎂", "⚽", "🎂"], f"eingebaut {res[0]}, eigenes Stichwort {res[1]}, wieder {res[2]}"
     check("Emoji vor Termintitel", emoji, results)
 
     def readstatus():

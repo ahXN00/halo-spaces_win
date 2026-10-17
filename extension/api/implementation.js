@@ -1369,7 +1369,26 @@ const EMOJI_RULES = [
   word: words.length ? new RegExp(`(?<![\\p{L}\\p{N}])(?:${words.join("|")})(?![\\p{L}\\p{N}])`, "iu") : null,
 }));
 const HAS_EMOJI = /\p{Extended_Pictographic}/u;
+const EMOJI_CUSTOM_PREF = "extensions.mailcards.emojiCustom";
 const emojiCache = new Map();
+// eigene Stichwörter aus den Einstellungen: je Zeile „Stichwort = Emoji“
+let customEmoji = null;
+function customEmojiRules() {
+  if (!customEmoji) {
+    customEmoji = [];
+    for (const line of Services.prefs.getStringPref(EMOJI_CUSTOM_PREF, "").split(/\r?\n/)) {
+      const m = line.match(/^\s*(.+?)\s*[=:]\s*(\S+)\s*$/u);
+      if (m && HAS_EMOJI.test(m[2])) {
+        customEmoji.push({ stem: m[1].toLocaleLowerCase(), emoji: m[2] });
+      }
+    }
+  }
+  return customEmoji;
+}
+function resetEmojiRules() {
+  customEmoji = null;
+  emojiCache.clear();
+}
 function emojiFor(title) {
   const text = String(title || "").trim();
   if (!text || HAS_EMOJI.test(text)) {
@@ -1379,8 +1398,9 @@ function emojiFor(title) {
     return emojiCache.get(text);
   }
   const lower = text.toLocaleLowerCase();
-  let found = "";
-  for (const rule of EMOJI_RULES) {
+  // eigene Stichwörter zuerst
+  let found = customEmojiRules().find(r => lower.includes(r.stem))?.emoji || "";
+  for (const rule of found ? [] : EMOJI_RULES) {
     if (rule.stems.some(st => lower.includes(st)) || rule.word?.test(text)) {
       found = rule.emoji;
       break;
@@ -3503,12 +3523,14 @@ class CardEnhancer {
           }
         });
         mo.observe(root, { childList: true, subtree: true, characterData: true });
-        const prefObs = { observe: () => annotateEmoji(root) };
+        const prefObs = { observe: () => { resetEmojiRules(); annotateEmoji(root); } };
         Services.prefs.addObserver(EMOJI_PREF, prefObs);
+        Services.prefs.addObserver(EMOJI_CUSTOM_PREF, prefObs);
         run();
         this.restorers.push(() => {
           mo.disconnect();
           Services.prefs.removeObserver(EMOJI_PREF, prefObs);
+          Services.prefs.removeObserver(EMOJI_CUSTOM_PREF, prefObs);
           for (const label of root.querySelectorAll("[data-mc-emoji]")) {
             label.removeAttribute("data-mc-emoji");
           }
@@ -5382,6 +5404,7 @@ class CardEnhancer {
       platformNote,
       photosEnabled: () => MacPhotos.enabled(),
       emojiEnabled: () => Services.prefs.getBoolPref(EMOJI_PREF, true),
+      openSettings: () => w.openAddonsMgr?.(`addons://detail/${encodeURIComponent("mail-cards@sebastian.local")}/preferences`),
       setEmoji: on => Services.prefs.setBoolPref(EMOJI_PREF, on),
       // Fotos aus der Kontakte-App: einschalten und gleich abgleichen
       // (macOS fragt dabei einmal nach dem Zugriff auf die Kontakte)
@@ -5405,7 +5428,7 @@ class CardEnhancer {
       },
     };
     const hw = w.openDialog("resource://mailcards/about/halo.html", "halo-spaces",
-      `chrome,dialog=yes,centerscreen,resizable=no,width=360,height=${(api.mac ? 386 : 338) + (platformNote ? 64 : 0)}`);
+      `chrome,dialog=yes,centerscreen,resizable=no,width=360,height=${(api.mac ? 432 : 384) + (platformNote ? 64 : 0)}`);
     // erst lädt das Fenster about:blank, dann unsere Seite – darauf warten
     let tries = 0;
     const wire = () => {
@@ -5535,6 +5558,10 @@ class CardEnhancer {
         showEmoji(on);
       });
     }
+    $("settings")?.addEventListener("click", () => {
+      api.openSettings();
+      hw.close();
+    });
     $("feedback").addEventListener("click", feedback);
     $("mail").addEventListener("click", feedback);
     $("donate").addEventListener("click", () => api.donate());
@@ -6353,6 +6380,27 @@ class CardEnhancer {
 // WebExtension-Experiment
 // ---------------------------------------------------------------------------
 
+// Einstellungen der Optionsseite: Schlüssel → Pref (Typ), nur diese sind erlaubt
+const SETTINGS = {
+  previewLines: [PREVIEW_PREF, "int", 1],
+  hoverActions: [HOVER_ACTIONS_PREF, "bool", true],
+  calendarEmoji: [EMOJI_PREF, "bool", true],
+  emojiCustom: [EMOJI_CUSTOM_PREF, "string", ""],
+  birthdays: [BDAY_PREF, "bool", true],
+  macContactPhotos: [MAC_PHOTOS_PREF, "bool", false],
+  hideDuplicateContacts: ["extensions.mailcards.hideDuplicateContacts", "bool", true],
+  calendarOffline: ["extensions.mailcards.calendarOffline", "bool", false],
+  appleIcons: ["extensions.mailcards.appleIcons", "bool", true],
+  bundledTheme: ["extensions.mailcards.bundledTheme", "bool", true],
+  listWidth: [LIST_WIDTH_PREF, "int", LIST_WIDTH_DEFAULT],
+  debug: ["extensions.mailcards.debug", "bool", false],
+};
+function readSetting([pref, type, def]) {
+  if (type == "bool") return Services.prefs.getBoolPref(pref, def);
+  if (type == "int") return Services.prefs.getIntPref(pref, def);
+  return Services.prefs.getStringPref(pref, def);
+}
+
 var enhancer = null;
 var extensionRoot = null; // rootURI der Erweiterung, für resource://mailcards/
 var extensionVersion = ""; // hängt an den Stylesheet-Adressen, damit ein Update sofort greift
@@ -6361,6 +6409,43 @@ this.mailCards = class extends ExtensionCommon.ExtensionAPI {
   getAPI(context) {
     return {
       mailCards: {
+        async getSettings() {
+          const out = { mac: Services.appinfo.OS == "Darwin", german: Services.locale.appLocaleAsBCP47.startsWith("de") };
+          for (const [key, spec] of Object.entries(SETTINGS)) {
+            out[key] = readSetting(spec);
+          }
+          return out;
+        },
+        async setSetting(key, value) {
+          const spec = SETTINGS[key];
+          if (!spec) {
+            throw new Error(`unknown setting ${key}`);
+          }
+          const [pref, type, def] = spec;
+          if (value === null || value === def) {
+            Services.prefs.clearUserPref(pref); // Standard: nichts im Profil speichern
+          } else if (type == "bool") {
+            Services.prefs.setBoolPref(pref, !!value);
+          } else if (type == "int") {
+            const n = Math.round(Number(value));
+            if (!Number.isFinite(n)) throw new Error("not a number");
+            Services.prefs.setIntPref(pref, key == "previewLines" ? Math.max(0, Math.min(4, n)) : Math.max(200, Math.min(1200, n)));
+          } else {
+            Services.prefs.setStringPref(pref, String(value).slice(0, 10000));
+          }
+          if (key == "macContactPhotos") {
+            if (value) {
+              MacPhotos.sync();
+            } else {
+              // sofort keine Fotos mehr zeigen
+              MacPhotos.byEmail.clear();
+              MacPhotos.byName.clear();
+              MacPhotos.version++;
+              MacPhotos.listeners.forEach(fn => fn());
+            }
+          }
+          return readSetting(spec);
+        },
         async start(options) {
           extensionRoot ||= context.extension.rootURI;
           extensionVersion ||= context.extension.version;
