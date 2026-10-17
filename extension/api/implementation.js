@@ -155,6 +155,8 @@ const DE = {
   "This message is from a mailing list.": "Diese Nachricht stammt von einem Verteiler.",
   "Unsubscribe": "Abmelden",
   "Close": "Schließen",
+  "Install updates at start": "Updates beim Start installieren",
+  "checks at most every 6 hours; active after a restart": "prüft höchstens alle 6 Stunden; aktiv nach einem Neustart",
 };
 const FR = {
   "Install version {v}": "Installer la version {v}",
@@ -280,6 +282,9 @@ const FR = {
   "This message is from a mailing list.": "Ce message provient d’une liste de diffusion.",
   "Unsubscribe": "Se désabonner",
   "Close": "Fermer",
+  "Updates": "Mises à jour",
+  "Install updates at start": "Installer les mises à jour au démarrage",
+  "checks at most every 6 hours; active after a restart": "vérifie au plus toutes les 6 heures ; actif après un redémarrage",
 };
 const ES = {
   "Install version {v}": "Instalar la versión {v}",
@@ -405,6 +410,9 @@ const ES = {
   "This message is from a mailing list.": "Este mensaje procede de una lista de correo.",
   "Unsubscribe": "Darse de baja",
   "Close": "Cerrar",
+  "Updates": "Actualizaciones",
+  "Install updates at start": "Instalar actualizaciones al iniciar",
+  "checks at most every 6 hours; active after a restart": "comprueba como máximo cada 6 horas; activo tras reiniciar",
 };
 const IT = {
   "Install version {v}": "Installa la versione {v}",
@@ -530,6 +538,9 @@ const IT = {
   "This message is from a mailing list.": "Questo messaggio proviene da una mailing list.",
   "Unsubscribe": "Annulla iscrizione",
   "Close": "Chiudi",
+  "Updates": "Aggiornamenti",
+  "Install updates at start": "Installa gli aggiornamenti all’avvio",
+  "checks at most every 6 hours; active after a restart": "controlla al massimo ogni 6 ore; attivo dopo un riavvio",
 };
 const TRANSLATIONS = { de: DE, fr: FR, es: ES, it: IT };
 // tr("+{n} more", { n: 3 }) – Platzhalter in geschweiften Klammern
@@ -1187,6 +1198,9 @@ function cubicBezier(x1, y1, x2, y2) {
 // und eine Zuordnungsliste (E-Mail, Name) im Profilordner „mail-cards-photos“
 // ab. An den Kontakten selbst ändert sich nichts.
 const MAC_PHOTOS_PREF = "extensions.mailcards.macContactPhotos";
+// Updates beim Start suchen und installieren (höchstens alle 6 Stunden)
+const AUTO_UPDATE_PREF = "extensions.mailcards.autoUpdate";
+const AUTO_UPDATE_LAST_PREF = "extensions.mailcards.autoUpdateLast";
 // reine Textmails in der Systemschrift (plaintext.css)
 const PLAIN_TEXT_PREF = "extensions.mailcards.plainTextSystemFont";
 // aus: keine Anfrage an Absender-Websites (Favicon, BIMI, Startseite)
@@ -2288,6 +2302,9 @@ class CardEnhancer {
     // nach dem Start, wenn der Kalender-Manager bereit ist
     const offlineTimer = setTimeout(() => enableCalendarOffline(), 8000);
     this.restorers.push(() => clearTimeout(offlineTimer));
+    // Update gleich beim Start statt erst bei Thunderbirds täglicher Prüfung
+    const updateTimer = setTimeout(() => this.autoUpdate(), 20000);
+    this.restorers.push(() => clearTimeout(updateTimer));
     this.hookBirthdays();
     // Fotos aus der macOS-Kontakte-App: kurz nach dem Start und dann stündlich
     MacPhotos.load();
@@ -5926,6 +5943,41 @@ class CardEnhancer {
     MailServices.compose.OpenComposeWindowWithParams(null, params);
   }
 
+  // Beim Start nach einem Update suchen und es gleich installieren – höchstens
+  // alle 6 Stunden, und nur wenn automatische Updates erlaubt sind (eigener
+  // Schalter, Thunderbirds Einstellung und die des Add-ons im Add-ons-Manager)
+  async autoUpdate() {
+    try {
+      if (!Services.prefs.getBoolPref(AUTO_UPDATE_PREF, true)) {
+        return;
+      }
+      const now = Math.floor(Date.now() / 1000);
+      const last = Services.prefs.getIntPref(AUTO_UPDATE_LAST_PREF, 0);
+      if (last && now - last < 6 * 3600 && now >= last) {
+        return;
+      }
+      const { AddonManager } = ChromeUtils.importESModule("resource://gre/modules/AddonManager.sys.mjs");
+      const addon = await AddonManager.getAddonByID("mail-cards@sebastian.local");
+      if (!addon || !AddonManager.updateEnabled) {
+        return;
+      }
+      const mode = addon.applyBackgroundUpdates;
+      const allowed = mode == AddonManager.AUTOUPDATE_ENABLE ||
+        (mode == AddonManager.AUTOUPDATE_DEFAULT && AddonManager.autoUpdateDefault);
+      if (!allowed) {
+        return;
+      }
+      Services.prefs.setIntPref(AUTO_UPDATE_LAST_PREF, now);
+      const result = await this.findUpdate();
+      if (result.available) {
+        log("auto update", extensionVersion, "→", result.version);
+        await result.install();
+      }
+    } catch (e) {
+      log("auto update error", e);
+    }
+  }
+
   // Update auf Wunsch: dieselbe Prüfung wie Thunderbirds tägliche, nur sofort.
   // Ergebnis: { available, version, install() } | { error } | {} (aktuell)
   async findUpdate() {
@@ -7086,6 +7138,7 @@ const SETTINGS = {
   macContactPhotos: [MAC_PHOTOS_PREF, "bool", false],
   senderLogos: [SENDER_LOGOS_PREF, "bool", true],
   plainTextSystemFont: [PLAIN_TEXT_PREF, "bool", true],
+  autoUpdate: [AUTO_UPDATE_PREF, "bool", true],
   hideDuplicateContacts: ["extensions.mailcards.hideDuplicateContacts", "bool", true],
   calendarOffline: ["extensions.mailcards.calendarOffline", "bool", false],
   appleIcons: ["extensions.mailcards.appleIcons", "bool", true],

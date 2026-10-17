@@ -40,6 +40,9 @@ const SECTIONS = () => [
     { key: "bundledTheme", label: t("halo.spaces design"), hint: t("takes effect after a restart") },
     { key: "appleIcons", label: t("Own icons"), hint: t("takes effect after a restart") },
   ]],
+  [t("Updates"), [
+    { key: "autoUpdate", label: t("Install updates at start"), hint: t("checks at most every 6 hours; active after a restart") },
+  ]],
   [t("Troubleshooting"), [
     { key: "debug", label: t("Detailed log"),
       hint: t("mail-cards-debug.log in the profile, includes sender addresses") },

@@ -131,7 +131,8 @@ def main():
         built = subprocess.run([os.path.join(ROOT, "build.sh")], capture_output=True, text=True, cwd=ROOT)
         if built.returncode != 0:
             sys.exit("build.sh fehlgeschlagen:\n" + built.stderr)
-    xpi = args.xpi or max(glob.glob(os.path.join(ROOT, "dist", "halo-spaces-*.xpi")), key=os.path.getmtime, default=None)
+    xpi = args.xpi or max((x for x in glob.glob(os.path.join(ROOT, "dist", "halo-spaces-*.xpi")) if not x.endswith("-atn.xpi")),
+                           key=os.path.getmtime, default=None)  # nicht die Store-Variante (ohne update_url)
     if not xpi or not os.path.exists(xpi):
         sys.exit("Kein Paket gefunden – zuerst ./build.sh")
     version = json.load(open(os.path.join(ROOT, "extension", "manifest.json")))["version"]
@@ -342,6 +343,8 @@ def run_checks(m, version, profile, results):
     m.js("""
       for (const x of [...Services.wm.getEnumerator(null)]) if (!x.location.href.includes("messenger.xhtml")) x.close();
       w.moveTo(0, 0); w.resizeTo(1500, 900); await wait(500);
+      // Marionette sperrt Add-on-Updates – für die Prüfung „Updates beim Start“ erlauben
+      Services.prefs.setBoolPref("extensions.update.enabled", true);
       // Aktionen beim Überfahren sind standardmäßig aus – für die Prüfungen einschalten
       Services.prefs.setBoolPref("extensions.mailcards.hoverActions", true);
       if (!testCalendar()) { const c = cal.manager.createCalendar("storage", Services.io.newURI("moz-storage-calendar://")); c.name = "Halo Test"; c.setProperty("color", "#FF9500"); cal.manager.registerCalendar(c); }
@@ -591,6 +594,13 @@ def run_checks(m, version, profile, results):
         ok = res["own"] == 2 and not res["unlabeled"] and not res["noRing"] and res["tabbable"] == 0 and res["actionsLabeled"]
         return ok, f"{res}"
     check("Tastatur: Fokusring und Beschriftung eigener Knöpfe", keyboard, results)
+
+    def auto_update():
+        res = m.js('''
+          const last = await until(() => Services.prefs.getIntPref("extensions.mailcards.autoUpdateLast", 0), 25000);
+          return { last, ageSec: last ? Math.round(Date.now() / 1000 - last) : null };''')
+        return bool(res["last"]) and res["ageSec"] < 600, f"Update-Prüfung beim Start gelaufen: {res}"
+    check("Updates: Prüfung beim Start", auto_update, results)
 
     def errors():
         res = m.js("""
