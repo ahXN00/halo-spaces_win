@@ -41,11 +41,13 @@ Features
 
 Personal data in the screenshots is blurred.
 
-3.0.97 Release Notes
+3.0.98 Release Notes
 --------
-- Message header like Apple Mail: a mailing-list note with Unsubscribe instead of the List-ID line, folder next to the time, Delete/Reply/Reply All/Forward on the divider when you hover over the message
-- Updates are installed right at start (at most every 6 hours; can be turned off in Preferences)
-- Windows/Linux: toolbar buttons hide in time when space runs out
+- Messages in the system font like Apple Mail (Mac: SF Pro, Windows: Segoe UI, Linux: your desktop font) – messages with their own font keep it
+- Unsubscribe in the mailing-list note works again
+- Notes above the message (remote content, junk …) are now calm and grey; the scam warning stays yellow
+- No more action bar in the message header; no duplicate date
+- No restart needed after installing
 
 See [Releases](https://github.com/sruf79/halo-spaces/releases) for all versions.
 
