@@ -152,6 +152,9 @@ const DE = {
   "Say Thanks": "Danke sagen",
   "Feedback or ideas?": "Feedback oder Ideen?",
   "halo.spaces is made for macOS – on Windows and Linux it is still being tested. If something looks odd, we'd love a quick note!": "halo.spaces ist für macOS gemacht – unter Windows und Linux wird es gerade erst erprobt. Wenn etwas komisch aussieht, freuen wir uns über eine kurze Rückmeldung!",
+  "This message is from a mailing list.": "Diese Nachricht stammt von einem Verteiler.",
+  "Unsubscribe": "Abmelden",
+  "Close": "Schließen",
 };
 const FR = {
   "Install version {v}": "Installer la version {v}",
@@ -274,6 +277,9 @@ const FR = {
   "Feedback or ideas?": "Un avis ou des idées ?",
   "halo.spaces is made for macOS – on Windows and Linux it is still being tested. If something looks odd, we'd love a quick note!": "halo.spaces est conçu pour macOS – sous Windows et Linux, il est encore en test. Si quelque chose semble bizarre, un petit mot nous ferait plaisir !",
   "Mail": "Mail",
+  "This message is from a mailing list.": "Ce message provient d’une liste de diffusion.",
+  "Unsubscribe": "Se désabonner",
+  "Close": "Fermer",
 };
 const ES = {
   "Install version {v}": "Instalar la versión {v}",
@@ -396,6 +402,9 @@ const ES = {
   "Feedback or ideas?": "¿Comentarios o ideas?",
   "halo.spaces is made for macOS – on Windows and Linux it is still being tested. If something looks odd, we'd love a quick note!": "halo.spaces está hecho para macOS – en Windows y Linux aún se está probando. Si algo se ve raro, ¡nos encantaría que nos avisaras!",
   "Mail": "Correo",
+  "This message is from a mailing list.": "Este mensaje procede de una lista de correo.",
+  "Unsubscribe": "Darse de baja",
+  "Close": "Cerrar",
 };
 const IT = {
   "Install version {v}": "Installa la versione {v}",
@@ -518,6 +527,9 @@ const IT = {
   "Feedback or ideas?": "Feedback o idee?",
   "halo.spaces is made for macOS – on Windows and Linux it is still being tested. If something looks odd, we'd love a quick note!": "halo.spaces è fatto per macOS – su Windows e Linux è ancora in prova. Se qualcosa sembra strano, ci farebbe piacere un messaggio!",
   "Mail": "Posta",
+  "This message is from a mailing list.": "Questo messaggio proviene da una mailing list.",
+  "Unsubscribe": "Annulla iscrizione",
+  "Close": "Chiudi",
 };
 const TRANSLATIONS = { de: DE, fr: FR, es: ES, it: IT };
 // tr("+{n} more", { n: 3 }) – Platzhalter in geschweiften Klammern
@@ -6721,6 +6733,7 @@ class CardEnhancer {
       box.classList.add("mc-hdr-avatar");
       try {
         this.fillAvatar(box, hdr);
+        this.decorateHeader(doc, hdr);
       } catch (e) {
         log("header avatar error", e);
       }
@@ -6740,11 +6753,103 @@ class CardEnhancer {
     this.restorers.push(() => {
       mo.disconnect();
       delete doc.__mcHdrAvatar;
+      // Datum zurück an seinen Platz, eigene Elemente entfernen
+      const meta = doc.getElementById("mcHdrMeta");
+      const date = doc.getElementById("dateLabel");
+      if (meta && date && doc.__mcDateHome) {
+        doc.__mcDateHome.parent.insertBefore(date, doc.__mcDateHome.next?.parentNode == doc.__mcDateHome.parent ? doc.__mcDateHome.next : null);
+      }
+      meta?.remove();
+      doc.getElementById("mcListBanner")?.remove();
       for (const box of doc.querySelectorAll(".mc-hdr-avatar")) {
         box.classList.remove("mc-hdr-avatar", "mc-has-img", "mc-small");
         delete box.dataset.mcFor;
       }
     });
+  }
+
+  // Mailkopf wie Apple Mail: oben rechts Ordner und Uhrzeit, darüber bei
+  // Verteilern ein Hinweis mit „Abmelden“ (statt List-ID-Zeile)
+  decorateHeader(doc, hdr) {
+    const win = doc.defaultView;
+    const X = "http://www.w3.org/1999/xhtml";
+    const header = doc.getElementById("messageHeader");
+    const date = doc.getElementById("dateLabel");
+    if (!header || !date) {
+      return;
+    }
+    let meta = doc.getElementById("mcHdrMeta");
+    if (!meta) {
+      meta = doc.createElementNS(X, "div");
+      meta.id = "mcHdrMeta";
+      const folder = doc.createElementNS(X, "span");
+      folder.className = "mc-hdr-folder";
+      doc.__mcDateHome = { parent: date.parentNode, next: date.nextSibling };
+      meta.append(folder, date);
+      header.append(meta);
+    }
+    const folderEl = meta.querySelector(".mc-hdr-folder");
+    let title = "";
+    try {
+      title = hdr.folder ? appleFolderTitle(hdr.folder) : "";
+    } catch {}
+    folderEl.textContent = title;
+    folderEl.hidden = !title;
+
+    // Hinweis bei Verteilern (List-ID/List-Unsubscribe), nicht im Spam-Ordner
+    doc.getElementById("mcListBanner")?.remove();
+    const data = win.currentHeaderData || {};
+    const isList = !!(data["list-id"] || data["list-unsubscribe"]);
+    let junk = false;
+    try {
+      junk = !!hdr.folder?.getFlag(Ci.nsMsgFolderFlags.Junk);
+    } catch {}
+    if (!isList || junk) {
+      return;
+    }
+    const links = (data["list-unsubscribe"]?.headerValue || "").match(/<[^>]+>/g)?.map(l => l.slice(1, -1).trim()) || [];
+    const web = links.find(l => /^https:\/\//i.test(l));
+    const mail = links.find(l => /^mailto:/i.test(l));
+    const banner = doc.createElementNS(X, "div");
+    banner.id = "mcListBanner";
+    const icon = doc.createElementNS(X, "span");
+    icon.className = "mc-lb-icon";
+    const text = doc.createElementNS(X, "span");
+    text.className = "mc-lb-text";
+    text.textContent = tr("This message is from a mailing list.");
+    banner.append(icon, text);
+    if (web || mail) {
+      const unsub = doc.createElementNS(X, "button");
+      unsub.className = "mc-lb-unsub";
+      unsub.type = "button";
+      unsub.textContent = tr("Unsubscribe");
+      unsub.title = web || mail.replace(/^mailto:/i, "");
+      unsub.addEventListener("click", () => {
+        try {
+          if (web) {
+            // im Standardbrowser öffnen – der Absender bestätigt dort
+            Cc["@mozilla.org/uriloader/external-protocol-service;1"]
+              .getService(Ci.nsIExternalProtocolService)
+              .loadURI(Services.io.newURI(web));
+          } else {
+            // Abmelde-Mail nur vorbereiten – gesendet wird erst durch den Nutzer
+            MailServices.compose.OpenComposeWindowWithURI(null, Services.io.newURI(mail));
+          }
+        } catch (e) {
+          log("unsubscribe error", e);
+        }
+      });
+      banner.append(unsub);
+    }
+    const close = doc.createElementNS(X, "button");
+    close.className = "mc-lb-close";
+    close.type = "button";
+    close.title = tr("Close");
+    close.setAttribute("aria-label", tr("Close"));
+    close.addEventListener("click", () => banner.remove());
+    banner.append(close);
+    const view = doc.getElementById("msgHeaderView");
+    (view || header).before(banner);
   }
 
   fillAvatar(avatar, hdr) {

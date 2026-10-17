@@ -4639,8 +4639,204 @@ notification-message:not([type="warning"]) button.notification-button {
   object-fit: contain !important;
 }
 
-/* Beschriftungen im Mailkopf (To, Cc, …) einheitlich grau */
+/* Empfänger wie Apple: „To“ in Textfarbe, die Namen daneben grau */
 #messageHeader .row-heading {
-  color: var(--mt-text-tertiary) !important;
+  color: var(--mt-text) !important;
   font-weight: 400 !important;
+}
+
+#messageHeader :is(#expandedtoBox, #expandedccBox, #expandedbccBox, #expandedreply-toBox) :is(.recipient-single-line, .recipient-multi-line-name, .recipient-multi-line-address) {
+  color: var(--mt-text-secondary) !important;
+}
+
+/* Verteiler-Zeilen (List-ID usw.) zeigt Apple nicht – stattdessen der
+   Hinweis mit „Abmelden“ darüber (#mcListBanner, setzt die Erweiterung) */
+#messageHeader :is(#expandedlist-id, #expandedlist-help, #expandedlist-unsubscribe, #expandedlist-subscribe,
+                   #expandedlist-post, #expandedlist-owner, #expandedlist-archive, #expandedarchived-at) {
+  display: none !important;
+}
+
+/* oben rechts: Ordner und Uhrzeit (#mcHdrMeta, setzt die Erweiterung) */
+#mcHdrMeta {
+  position: absolute !important;
+  top: 14px !important;
+  inset-inline-end: 20px !important;
+  display: flex !important;
+  align-items: center !important;
+  gap: 14px !important;
+  font-size: 12px !important;
+  color: var(--mt-text-tertiary) !important;
+}
+
+:root[mc-standalone] #mcHdrMeta {
+  top: 58px !important;
+}
+
+#mcHdrMeta #dateLabel {
+  position: static !important;
+  font-size: 12px !important;
+}
+
+#mcHdrMeta .mc-hdr-folder {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 5px !important;
+  max-width: 240px !important;
+  overflow: hidden !important;
+  white-space: nowrap !important;
+  text-overflow: ellipsis !important;
+}
+
+#mcHdrMeta .mc-hdr-folder[hidden] {
+  display: none !important;
+}
+
+#mcHdrMeta .mc-hdr-folder::before {
+  content: "" !important;
+  flex: none !important;
+  width: 14px !important;
+  height: 14px !important;
+  background-color: currentColor !important;
+  mask: var(--mi-folder) center / contain no-repeat !important;
+}
+
+/* Name und Betreff laufen nicht unter Ordner und Uhrzeit */
+#messageHeader:has(#mcHdrMeta) #headerSenderToolbarContainer {
+  padding-inline-end: 260px !important;
+}
+
+/* Löschen | Antworten, Allen antworten, Weiterleiten als Kapsel auf der
+   Trennlinie unter dem Kopf – erscheint beim Überfahren der Nachricht */
+:root:not([mc-standalone]) #messageHeader #header-view-toolbox {
+  display: flex !important;
+  position: absolute !important;
+  left: 50% !important;
+  bottom: 0 !important;
+  transform: translate(-50%, 50%) !important;
+  z-index: 3 !important;
+  padding: 1px 6px !important;
+  border-radius: 999px !important;
+  /* leicht abgesetzt – auch im Dunkelmodus sichtbar */
+  background: color-mix(in srgb, var(--mt-text) 4%, var(--mt-window)) !important;
+  box-shadow: 0 0 0 0.5px color-mix(in srgb, var(--mt-text) 22%, transparent), 0 1px 4px rgba(0, 0, 0, 0.14) !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+  transition: opacity 120ms ease !important;
+}
+
+:root:not([mc-standalone]):hover #messageHeader #header-view-toolbox,
+:root:not([mc-standalone]) #messageHeader #header-view-toolbox:focus-within {
+  opacity: 1 !important;
+  pointer-events: auto !important;
+}
+
+:root:not([mc-standalone]) #messageHeader #header-view-toolbar > :is(#hdrArchiveButton, #hdrJunkButton, #otherActionsButton, #starMessageButton) {
+  display: none !important;
+}
+
+:root:not([mc-standalone]) #messageHeader #header-view-toolbar > #hdrTrashButton {
+  order: -1 !important;
+  margin-inline-end: 6px !important;
+  border-inline-end: 1px solid var(--mt-pane-line) !important;
+  border-radius: 0 !important;
+}
+
+/* Platz unter dem Kopf für die Kapsel, damit sie keine Zeile verdeckt */
+:root:not([mc-standalone]) #messageHeader:has(#header-view-toolbox) {
+  padding-bottom: 18px !important;
+}
+
+/* in der Kapsel schlichte Symbole wie bei Apple, ohne Menüpfeil */
+:root:not([mc-standalone]) #messageHeader #header-view-toolbar,
+:root:not([mc-standalone]) #messageHeader #header-view-toolbar > toolbaritem {
+  background: transparent !important;
+  box-shadow: none !important;
+  border: none !important;
+  padding: 0 !important;
+  margin: 0 !important;
+}
+
+:root:not([mc-standalone]) #messageHeader #header-view-toolbar :is(toolbarbutton, .toolbarbutton-menubutton-button) {
+  background: transparent !important;
+  box-shadow: none !important;
+  min-width: 32px !important;
+  min-height: 28px !important;
+  padding: 4px 7px !important;
+}
+
+:root:not([mc-standalone]) #messageHeader #header-view-toolbar toolbarbutton:not([disabled]):hover {
+  background: var(--mt-control-hover) !important;
+  border-radius: 999px !important;
+}
+
+:root:not([mc-standalone]) #messageHeader #header-view-toolbar :is(.toolbarbutton-menubutton-dropmarker, dropmarker) {
+  display: none !important;
+}
+
+/* Absendername etwas größer, wie bei Apple */
+#expandedfromBox :is(.recipient-multi-line-name, .recipient-single-line) {
+  font-size: 15px !important;
+}
+
+/* Hinweis bei Verteilern wie Apple Mail */
+#mcListBanner {
+  display: flex !important;
+  align-items: center !important;
+  gap: 10px !important;
+  margin: 10px 12px 2px !important;
+  padding: 7px 8px 7px 14px !important;
+  border-radius: 12px !important;
+  background: var(--mt-control) !important;
+  color: var(--mt-text) !important;
+  font: 600 12.5px var(--mt-font, system-ui) !important;
+}
+
+#mcListBanner .mc-lb-icon {
+  flex: none !important;
+  width: 18px !important;
+  height: 18px !important;
+  background-color: var(--mt-accent) !important;
+  mask: var(--mi-envelope) center / contain no-repeat !important;
+}
+
+#mcListBanner .mc-lb-text {
+  flex: 1 !important;
+  min-width: 0 !important;
+}
+
+#mcListBanner :is(.mc-lb-unsub, .mc-lb-close) {
+  appearance: none !important;
+  border: none !important;
+  margin: 0 !important;
+  font: inherit !important;
+  cursor: default !important;
+}
+
+#mcListBanner .mc-lb-unsub {
+  min-height: 26px !important;
+  padding: 0 12px !important;
+  border-radius: 999px !important;
+  background: color-mix(in srgb, var(--mt-accent) 14%, transparent) !important;
+  color: var(--mt-accent) !important;
+}
+
+#mcListBanner .mc-lb-unsub:hover {
+  background: color-mix(in srgb, var(--mt-accent) 22%, transparent) !important;
+}
+
+#mcListBanner .mc-lb-close {
+  flex: none !important;
+  min-width: 0 !important;
+  max-width: 26px !important;
+  padding: 0 !important;
+  width: 26px !important;
+  height: 26px !important;
+  border-radius: 50% !important;
+  background: var(--mt-control-hover) !important;
+  color: var(--mt-text-secondary) !important;
+}
+
+#mcListBanner .mc-lb-close::before {
+  content: "✕" !important;
+  font-size: 11px !important;
 }
