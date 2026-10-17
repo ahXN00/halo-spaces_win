@@ -110,8 +110,10 @@ Development
 | `extension/` | the extension (manifest, `api/implementation.js`) |
 
 ```bash
-./build.sh            # → dist/halo-spaces-<version>.xpi (includes theme.css)
-./release.sh 3.1.0    # version, update URL, updates.json – publishes nothing
+./build.sh                       # → dist/halo-spaces-<version>.xpi (includes theme.css)
+python3 tests/halo_test.py       # automated checks in a fresh, temporary profile
+./release.sh 3.1.0               # version, update URL, runs the tests, writes updates.json
+./publish.sh 3.1.0 notes.md      # uploads exactly that package and verifies the hash
 ```
 
 ---------------------------------------------------------------

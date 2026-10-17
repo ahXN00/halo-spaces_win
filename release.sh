@@ -2,7 +2,7 @@
 # Bereitet eine neue Version für GitHub vor – veröffentlicht selbst nichts.
 #   ./release.sh 2.11.0
 # Braucht repo.conf mit:  GITHUB_REPO="besitzer/repo"
-# Danach die ausgegebenen Befehle (git push, gh release create) ausführen.
+# Danach ./publish.sh <version> <notes.md> – lädt genau dieses Paket hoch.
 set -e
 ROOT="${0:A:h}"
 cd "$ROOT"
@@ -27,6 +27,11 @@ PY
 
 XPI=$(./build.sh)
 HASH=$(shasum -a 256 "$XPI" | cut -d' ' -f1)
+
+# vorher automatisch testen (frisches Testprofil) – bei Fehlern kein Release
+if [[ -z "$SKIP_TESTS" ]]; then
+  python3 tests/halo_test.py --xpi "$XPI" || { echo "Tests fehlgeschlagen – kein Release (SKIP_TESTS=1 überspringt)"; exit 1; }
+fi
 ID=$(python3 -c "import json; print(json.load(open('extension/manifest.json'))['browser_specific_settings']['gecko']['id'])")
 MIN=$(python3 -c "import json; print(json.load(open('extension/manifest.json'))['browser_specific_settings']['gecko'].get('strict_min_version','128.0'))")
 
@@ -50,6 +55,5 @@ PY
 
 echo "Fertig: $XPI"
 echo
-echo "Zum Veröffentlichen:"
-echo "  git add -A && git commit -m \"Version $VERSION\" && git push"
-echo "  gh release create v$VERSION \"$XPI\" --repo $GITHUB_REPO --title \"$VERSION\" --notes \"…\""
+echo "Zum Veröffentlichen (ohne neu zu bauen, prüft danach den Hash):"
+echo "  ./publish.sh $VERSION notes.md"
