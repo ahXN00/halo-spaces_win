@@ -6937,6 +6937,13 @@ class CardEnhancer {
     } catch {}
     folderEl.textContent = title;
     folderEl.hidden = !title;
+    // genau so viel Platz rechts reservieren, wie Ordner und Uhrzeit brauchen
+    const measure = () => header.style.setProperty("--mc-meta-w", `${Math.ceil(meta.getBoundingClientRect().width)}px`);
+    measure();
+    if (!meta.__mcResize) {
+      meta.__mcResize = new win.ResizeObserver(measure);
+      meta.__mcResize.observe(meta);
+    }
 
     // Hinweis bei Verteilern (List-ID/List-Unsubscribe), nicht im Spam-Ordner
     doc.getElementById("mcListBanner")?.remove();

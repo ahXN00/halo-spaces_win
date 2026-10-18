@@ -4688,7 +4688,9 @@ notification-message:not([type="warning"]) button.notification-button {
   display: inline-flex !important;
   align-items: center !important;
   gap: 5px !important;
-  max-width: 240px !important;
+  /* vw = Breite des Mailbereichs: lange Ordnernamen werden gekürzt, damit
+     der Absendername genug Platz behält */
+  max-width: min(240px, 30vw) !important;
   overflow: hidden !important;
   white-space: nowrap !important;
   text-overflow: ellipsis !important;
@@ -4709,12 +4711,28 @@ notification-message:not([type="warning"]) button.notification-button {
 
 /* Name und Betreff laufen nicht unter Ordner und Uhrzeit */
 #messageHeader:has(#mcHdrMeta) #headerSenderToolbarContainer {
-  padding-inline-end: 260px !important;
+  /* Breite von Ordner + Uhrzeit misst die Erweiterung (--mc-meta-w) */
+  padding-inline-end: calc(var(--mc-meta-w, 260px) + 16px) !important;
 }
 
-/* Absendername etwas größer, wie bei Apple */
+/* Mailbereich nicht schmaler als 480 px ziehen lassen – darunter passt der
+   Kopf (Bild, Name, Ordner, Uhrzeit) nicht mehr sauber */
+#messagePane {
+  min-width: 480px !important;
+}
+
+/* Absendername etwas größer, wie bei Apple – einzeilig, notfalls mit „…“ */
 #expandedfromBox :is(.recipient-multi-line-name, .recipient-single-line) {
   font-size: 15px !important;
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  min-width: 0 !important;
+}
+
+#expandedfromBox :is(.header-recipient, .recipients-list, .recipient-multi-line) {
+  min-width: 0 !important;
+  overflow: hidden !important;
 }
 
 /* Hinweis bei Verteilern wie Apple Mail */

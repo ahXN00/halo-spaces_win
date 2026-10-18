@@ -515,7 +515,12 @@ def run_checks(m, version, profile, results):
           const rows = a3.document.querySelectorAll('#threadTree tr[is="thread-card"]');
           if (!rows[0]?.querySelector(".mc-act-flag")) {
             return { diag: true, rows: rows.length, avatars: a3.document.querySelectorAll('#threadTree tr[is="thread-card"] .mc-avatar').length,
-                     patched: !!a3.document.__mcPatched, tableRows: a3.document.querySelectorAll('#threadTree tr[is="thread-row"]').length,
+                     patched: !!a3.document.__mcPatched,
+                     protoOurs: String(a3.customElements.get("thread-card")?.prototype.fillRow).includes("decorate"),
+                     rowOwn: rows[0] ? Object.prototype.hasOwnProperty.call(rows[0], "fillRow") : null,
+                     rowIsCard: rows[0] instanceof a3.customElements.get("thread-card"),
+                     container: !!rows[0]?.querySelector(".card-container"),
+                     sameDoc: rows[0]?.ownerDocument == a3.document, tableRows: a3.document.querySelectorAll('#threadTree tr[is="thread-row"]').length,
                      pref: Services.prefs.getBoolPref("extensions.mailcards.hoverActions", false), msgs: inbox.getTotalMessages(false),
                      folder: a3.gFolder?.URI == inbox.URI, view: Services.prefs.getIntPref("mail.threadpane.listview", -1) };
           }
