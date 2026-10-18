@@ -691,6 +691,9 @@ def run_checks(m, version, profile, results):
           return out;''')
         if res.get("skipped"):
             return True, "Today-Pane zu – übersprungen"
+        if res.get("visibility") == "hidden" and all(res[p]["steps"] <= 1 for p in ("aus", "ein")):
+            # macOS pausiert Bildschritte in verdeckten Fenstern – kein Fehler der Animation
+            return True, "Testfenster verdeckt – übersprungen"
         # flüssig: viele Zwischenschritte, kein Sprung über die halbe Breite
         ok = all(res[p]["steps"] >= 6 and res[p]["maxJump"] < res["start"] / 2 for p in ("aus", "ein")) and res["end"] == res["start"]
         return ok, f"{res}"
