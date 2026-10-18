@@ -2488,8 +2488,16 @@ class CardEnhancer {
       }
       return null;
     };
+    let later = null;
     const update = () => {
       try {
+        // während einer Seitenleisten-Animation nicht rechnen: das Setzen am
+        // Fenster würde jedes Bild das ganze Fenster neu gestalten (Ruckeln)
+        if (d.getElementById("today-pane-panel")?.__mcAnimating || w.__mcSpacesAnimating) {
+          w.clearTimeout(later);
+          later = w.setTimeout(update, 350);
+          return;
+        }
         const el = flexElement();
         if (el !== observed) {
           observed && ro.unobserve(observed);
@@ -2503,7 +2511,11 @@ class CardEnhancer {
         const min = parseFloat(el.ownerDocument.defaultView.getComputedStyle(el).minWidth) || 0;
         const slack = Math.max(0, el.getBoundingClientRect().width - min);
         // nie unter 800 px (dann wäre schon die Toolbar zu eng)
-        root.style.minWidth = `${Math.max(800, Math.round(w.innerWidth - slack))}px`;
+        const value = Math.max(800, Math.round(w.innerWidth - slack));
+        // nur bei echter Änderung schreiben (jedes Setzen gestaltet das Fenster neu)
+        if (Math.abs((parseFloat(root.style.minWidth) || 0) - value) >= 2) {
+          root.style.minWidth = `${value}px`;
+        }
       } catch (e) {
         log("min window width error", e);
       }
@@ -3802,7 +3814,12 @@ class CardEnhancer {
       // Verlauf am Kartenboden nur, solange unten noch Termine verborgen sind
       const agenda = d.getElementById("agenda");
       if (agenda) {
-        const fade = () => agenda.toggleAttribute("data-mc-more", agenda.scrollTop + agenda.clientHeight < agenda.scrollHeight - 2);
+        const fade = () => {
+          if (panel?.__mcAnimating) {
+            return; // nach der Animation misst sync() ohnehin neu
+          }
+          agenda.toggleAttribute("data-mc-more", agenda.scrollTop + agenda.clientHeight < agenda.scrollHeight - 2);
+        };
         const fadeRo = new w.ResizeObserver(fade);
         const fadeMo = new w.MutationObserver(fade);
         agenda.addEventListener("scroll", fade, { passive: true });
@@ -3818,13 +3835,24 @@ class CardEnhancer {
       }
       // Breite der Today-Pane (0, wenn aus) an die Toolbar-Zeile – Suchfeld,
       // Fläche und Knopf richten sich danach, auch während der Animation
-      const sync = () => {
+      // während der Animation übergibt sie die Breite (animWidth) – dann nur
+      // diese setzen, ohne Fensterknöpfe/Titel neu zu vermessen (das kostet
+      // pro Bild zwei Layout-Durchläufe und ließ die Animation ruckeln)
+      const sync = animWidth => {
         if (!row) {
           return;
+        }
+        if (typeof animWidth == "number") {
+          setVar(row, "--mc-tp-w", `${Math.round(animWidth)}px`);
+          return;
+        }
+        if (panel?.__mcAnimating) {
+          return; // Größen-Beobachter während der Animation: nichts vermessen
         }
         const width = panel && w.TodayPane?.isVisible ? Math.round(panel.getBoundingClientRect().width) : 0;
         const caption = captionWidth(d);
         setVar(row, "--mc-tp-w", `${width}px`);
+        setVar(row, "--mc-tp-room", `${width}px`);
         row.toggleAttribute("data-mc-tp-open", width > 0);
         setVar(row, "--mc-caption-w", `${caption}px`);
         setVar(row, "--mc-row-tail", `${rowTail(d)}px`);
@@ -5505,6 +5533,12 @@ class CardEnhancer {
       return;
     }
     panel.__mcAnimating = true;
+    panel.setAttribute("data-mc-anim", "true"); // Mindestbreite (CSS) solange aussetzen
+    // Platz für die Today-Pane in der Toolbar beim Einblenden gleich am Anfang
+    // (beim Ausblenden erst am Ende, über todayTopSync) – nicht mittendrin
+    if (showing) {
+      d.getElementById("unifiedToolbarContainer")?.style.setProperty("--mc-tp-room", `${Math.round(full)}px`);
+    }
     const DURATION = 250;
     const curve = cubicBezier(0.25, 0.1, 0.25, 1);
     const PROPS = ["overflow", "min-width", "width", "max-width"];
@@ -5526,8 +5560,9 @@ class CardEnhancer {
         start = now;
       }
       const k = Math.min(1, (now - start) / DURATION);
-      setW(full * (showing ? curve(k) : 1 - curve(k)));
-      this.todayTopSync?.();
+      const value = full * (showing ? curve(k) : 1 - curve(k));
+      setW(value);
+      this.todayTopSync?.(value);
       if (k < 1) {
         w.requestAnimationFrame(step);
         return;
@@ -5544,7 +5579,15 @@ class CardEnhancer {
         command.doCommand();
       }
       panel.__mcAnimating = false;
+      panel.removeAttribute("data-mc-anim");
       this.todayTopSync?.();
+      // Toolbar einmal neu anordnen (während der Animation ausgesetzt)
+      for (const f of this.offsetUpdaters || []) {
+        try {
+          f();
+        } catch {}
+      }
+      d.getElementById("agenda")?.dispatchEvent(new w.Event("scroll"));
       onDone?.();
     };
     w.requestAnimationFrame(() => w.requestAnimationFrame(step));
@@ -5770,7 +5813,10 @@ class CardEnhancer {
       }
       setBarVar(top.document, "--mc-toolbar-offset", `${offset}px`);
       setVar(top.document.getElementById("unifiedToolbarContainer"), "--mc-row-tail", `${rowTail(top.document)}px`);
-      const animating = top.__mcSpacesAnimating || win.__mcAnimating;
+      // auch während die Today-Pane ein-/ausgleitet: sonst blendet das
+      // Nachmessen mitten in der Animation Knöpfe um (ein 45-ms-Hänger)
+      const animating = top.__mcSpacesAnimating || win.__mcAnimating ||
+        top.document.getElementById("today-pane-panel")?.__mcAnimating;
       if (!animating) {
         const firstSpacer = content.querySelector(':scope > li[item-id="spacer"]');
         // passt, wenn die Knöpfe an der Listenkante beginnen und das Suchfeld

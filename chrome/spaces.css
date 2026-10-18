@@ -4027,7 +4027,10 @@ body:has(> #booksPane.mc-side-anim) {
    Fensterknöpfe schon rechts neben der Knopfleiste (--mc-row-tail) und
    liegen bei offener Today-Pane in deren Fläche */
 :root:is([mc-tab="mail3PaneTab"], [mc-tab="mailMessageTab"], [mc-tab="tasks"]) #unifiedToolbarContent {
-  padding-inline-end: max(60px, calc(var(--mc-tp-w, 0px) + 12px - var(--mc-row-tail, 0px))) !important;
+  /* --mc-tp-room statt --mc-tp-w: ändert sich nur am Anfang/Ende der
+     Ein-/Ausblend-Animation – sonst berechnet Thunderbirds Toolbar mitten in
+     der Bewegung ihre Anordnung neu (ein sichtbarer Hänger) */
+  padding-inline-end: max(60px, calc(var(--mc-tp-room, var(--mc-tp-w, 0px)) + 12px - var(--mc-row-tail, 0px))) !important;
 }
 
 /* Suchfeld immer 333 px wie in Apple Mail, direkt links der Today-Pane –
@@ -4888,7 +4891,8 @@ notification-message:not([type="warning"]) button.notification-button {
 #calendar-task-details-container { min-width: 360px !important; }
 #preferencesContainer { min-width: 560px !important; }
 #conversationsBox { min-width: 420px !important; }
-#today-pane-panel { min-width: 240px !important; }
+/* nicht während der Ein-/Ausblend-Animation (data-mc-anim), sonst springt sie */
+#today-pane-panel:not([data-mc-anim]) { min-width: 240px !important; }
 
 @media (min-resolution: 2dppx) {
   :root {

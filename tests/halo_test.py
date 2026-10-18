@@ -649,6 +649,30 @@ def run_checks(m, version, profile, results):
         return ok, f"{res}"
     check("Mindestbreiten: Fenster wird nicht schmaler als die Bereiche", min_widths, results)
 
+    def today_animation():
+        res = m.js('''
+          await toMail(); await wait(1500);
+          const panel = d.getElementById("today-pane-panel"); const btn = d.getElementById("mcTodayToggle");
+          const record = async () => { const ws = [], ts = []; const t0 = performance.now(); while (performance.now() - t0 < 600) { ws.push(Math.round(panel.getBoundingClientRect().width)); ts.push(performance.now()); await new Promise(r => w.requestAnimationFrame(r)); } return { ws, ts }; };
+          const out = { start: Math.round(panel.getBoundingClientRect().width) };
+          if (!out.start) return { skipped: true };
+          for (const phase of ["aus", "ein"]) {
+            btn.click(); const { ws, ts } = await record(); await wait(300);
+            // nur Bilder, in denen sich die Breite ändert (die Animation selbst)
+            const moving = ws.map((v, i) => i > 0 && v != ws[i - 1]);
+            const dts = ts.slice(1).map((t, i) => t - ts[i]).filter((_, i) => moving[i + 1]);
+            const jumps = ws.slice(1).map((v, i) => Math.abs(v - ws[i]));
+            out[phase] = { steps: moving.filter(Boolean).length + 1, maxJump: Math.max(...jumps), maxFrameMs: Math.round(Math.max(...dts)), medianFrameMs: Math.round(dts.sort((a, b) => a - b)[dts.length >> 1] || 0) };
+          }
+          out.end = Math.round(panel.getBoundingClientRect().width);
+          return out;''')
+        if res.get("skipped"):
+            return True, "Today-Pane zu – übersprungen"
+        # flüssig: viele Zwischenschritte, kein Sprung über die halbe Breite
+        ok = all(res[p]["steps"] >= 6 and res[p]["maxJump"] < res["start"] / 2 for p in ("aus", "ein")) and res["end"] == res["start"]
+        return ok, f"{res}"
+    check("Today-Pane: Ein-/Ausblenden flüssig (kein Sprung)", today_animation, results)
+
     def birthdays():
         res = m.js('''
           const { MailServices } = ChromeUtils.importESModule("resource:///modules/MailServices.sys.mjs");
