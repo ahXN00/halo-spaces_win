@@ -7066,16 +7066,33 @@ class CardEnhancer {
       }
     };
     let pending = false;
+    // Empfänger wie Apple Mail: nur der Name, die Adresse als Tooltip beim
+    // Überfahren (ohne Namen bleibt die Adresse stehen)
+    const shorten = () => {
+      for (const li of doc.querySelectorAll("#messageHeader li.header-recipient")) {
+        const email = li.emailAddress || "";
+        const name = (li.displayName || "").trim();
+        if (email && li.title != email) {
+          li.title = email;
+        }
+        const single = li.querySelector(".recipient-single-line");
+        if (single && name && single.textContent != name) {
+          single.textContent = name;
+        }
+      }
+    };
     const mo = new win.MutationObserver(() => {
       if (!pending) {
         pending = true;
         win.setTimeout(() => {
           pending = false;
           run();
+          shorten();
         }, 0);
       }
     });
     mo.observe(doc.getElementById("messageHeader") || doc.documentElement, { childList: true, subtree: true });
+    shorten();
     run();
     this.hookNotificationLayout(doc);
     this.restorers.push(() => {

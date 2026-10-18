@@ -6667,4 +6667,17 @@ notification-message:not([type="warning"]) button.notification-button {
 #darkReaderToggle {
   display: none !important;
 }
+
+/* Empfänger beim Überfahren: dezent grau hinterlegt, Schrift bleibt lesbar
+   (Thunderbird färbt sonst kräftig blau mit grauer Schrift) */
+#messageHeader .header-recipient:is(:hover, :focus-visible, [aria-expanded="true"]) {
+  background: var(--mt-control-hover) !important;
+  color: var(--mt-text) !important;
+  border-radius: 6px !important;
+  outline: none !important;
+}
+
+#messageHeader .header-recipient:is(:hover, :focus-visible, [aria-expanded="true"]) :is(.recipient-single-line, .recipient-multi-line-name, .recipient-multi-line-address) {
+  color: var(--mt-text) !important;
+}
 /* ==== Ende Bereiche ==== */
