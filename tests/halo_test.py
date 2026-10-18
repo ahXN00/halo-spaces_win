@@ -514,7 +514,7 @@ def run_checks(m, version, profile, results):
           await until(() => a3.document.querySelectorAll('#threadTree tr[is="thread-card"] .mc-act-flag').length >= 2, 15000);
           const rows = a3.document.querySelectorAll('#threadTree tr[is="thread-card"]');
           if (!rows[0]?.querySelector(".mc-act-flag")) {
-            return { diag: true, rows: rows.length, avatars: a3.document.querySelectorAll('#threadTree tr[is="thread-card"] .mc-avatar').length,
+            return { diag: true, visibility: a3.document.visibilityState, topVisibility: d.visibilityState, rows: rows.length, avatars: a3.document.querySelectorAll('#threadTree tr[is="thread-card"] .mc-avatar').length,
                      patched: !!a3.document.__mcPatched,
                      protoOurs: String(a3.customElements.get("thread-card")?.prototype.fillRow).includes("decorate"),
                      rowOwn: rows[0] ? Object.prototype.hasOwnProperty.call(rows[0], "fillRow") : null,
@@ -595,11 +595,13 @@ def run_checks(m, version, profile, results):
           if (!f.getTotalMessages(false)) {
             lf.addMessage(mail(1, "<html><body><p id='t'>Ohne eigene Schrift</p><img src='https://example.invalid/bild.png' width='1' height='1'></body></html>"));
             lf.addMessage(mail(2, "<html><body style='font-family: Georgia, serif'><p id='t'>Mit eigener Schrift</p></body></html>"));
+            lf.addMessage(mail(3, "<html><body><p id='t'>Bild</p><img id='bild' src='https://example.invalid/logo.png' alt='Icono 1' width='48' height='40'><img id='pixel' src='https://example.invalid/p.gif' alt='' width='1' height='1'></body></html>"));
             await wait(800);
           }
           const a3 = await toMail(); a3.displayFolder(f.URI); await wait(800);
           const out = {};
-          for (const i of [0, 1]) {
+          for (let i = 0; i < a3.gDBView.rowCount; i++) {
+            if (!/Schrift [12]$/.test(a3.gDBView.getMsgHdrAt(i).subject)) continue;
             a3.threadTree.selectedIndex = i; await wait(1500);
             const md = a3.messageBrowser.contentDocument;
             const body = await until(() => md.getElementById("messagepane")?.contentDocument?.getElementById("t"));
@@ -631,6 +633,22 @@ def run_checks(m, version, profile, results):
         return res.get("bar") and res.get("styled") and res.get("sameRow") and yellow, f"{res}"
     check("Hinweis über der Mail: Knopf neben dem Text, Farbe unverändert", remote_bar, results)
 
+    def blocked_image():
+        res = m.js(r"""
+          const { MailServices } = ChromeUtils.importESModule("resource:///modules/MailServices.sys.mjs");
+          const f = MailServices.accounts.localFoldersServer.rootFolder.getChildNamed("Schrift");
+          const a3 = await toMail(); a3.displayFolder(f.URI); await wait(800);
+          for (let i = 0; i < a3.gDBView.rowCount; i++) if (a3.gDBView.getMsgHdrAt(i).subject == "Schrift 3") a3.threadTree.selectedIndex = i;
+          const md = a3.messageBrowser.contentDocument;
+          const img = await until(() => md.getElementById("messagepane")?.contentDocument?.getElementById("bild"));
+          await wait(800);
+          const px = img.ownerDocument.getElementById("pixel");
+          const cs = img.ownerDocument.defaultView.getComputedStyle(img), r = img.getBoundingClientRect(), pr = px.getBoundingClientRect();
+          return { placeholder: cs.backgroundImage.includes("svg"), textHidden: cs.color == "rgba(0, 0, 0, 0)" || parseFloat(cs.fontSize) == 0, size: [Math.round(r.width), Math.round(r.height)], pixel: [Math.round(pr.width), Math.round(pr.height)] };""")
+        ok = res["placeholder"] and res["textHidden"] and res["size"] == [48, 40] and max(res["pixel"]) <= 1
+        return ok, f"{res}"
+    check("Blockierte Bilder: Platzhalter statt Ersatztext, Zählpixel unsichtbar", blocked_image, results)
+
     def min_widths():
         res = m.js('''
           const out = {};
@@ -654,8 +672,12 @@ def run_checks(m, version, profile, results):
           await toMail(); await wait(1500);
           const panel = d.getElementById("today-pane-panel"); const btn = d.getElementById("mcTodayToggle");
           const record = async () => { const ws = [], ts = []; const t0 = performance.now(); while (performance.now() - t0 < 600) { ws.push(Math.round(panel.getBoundingClientRect().width)); ts.push(performance.now()); await new Promise(r => w.requestAnimationFrame(r)); } return { ws, ts }; };
-          const out = { start: Math.round(panel.getBoundingClientRect().width) };
+          const out = { start: Math.round(panel.getBoundingClientRect().width), animating: !!panel.__mcAnimating, tpVisible: w.TodayPane?.isVisible, tab: d.documentElement.getAttribute("mc-tab"), popups: [...d.querySelectorAll("panel, menupopup")].filter(p => p.state == "open").map(p => p.id) };
           if (!out.start) return { skipped: true };
+          const errs = []; const onErr = e => errs.push(String(e.message || e.error).slice(0, 200)); w.addEventListener("error", onErr);
+          const cons = []; const listener = { observe: m => { if (m instanceof Ci.nsIScriptError && /implementation\.js/.test(m.sourceName)) cons.push(m.errorMessage.slice(0, 200) + " @" + m.lineNumber); } };
+          Services.console.registerListener(listener);
+          out.errs = errs; out.cons = cons; out.visibility = d.visibilityState;
           for (const phase of ["aus", "ein"]) {
             btn.click(); const { ws, ts } = await record(); await wait(300);
             // nur Bilder, in denen sich die Breite ändert (die Animation selbst)
@@ -665,6 +687,7 @@ def run_checks(m, version, profile, results):
             out[phase] = { steps: moving.filter(Boolean).length + 1, maxJump: Math.max(...jumps), maxFrameMs: Math.round(Math.max(...dts)), medianFrameMs: Math.round(dts.sort((a, b) => a - b)[dts.length >> 1] || 0) };
           }
           out.end = Math.round(panel.getBoundingClientRect().width);
+          w.removeEventListener("error", onErr); Services.console.unregisterListener(listener);
           return out;''')
         if res.get("skipped"):
             return True, "Today-Pane zu – übersprungen"
