@@ -833,6 +833,13 @@ const CSS = `
 #threadTree tr[is="thread-card"] .card-container {
   grid-template-columns: 16px 46px minmax(0, 1fr) !important;
 }
+/* optisch gleiche Abstände oben/unten wie bei Apple: oben zählt das Auge ab
+   der Oberkante der Großbuchstaben, unten bis zur Grundlinie der Vorschau –
+   der Inhalt sitzt daher 1 px höher als rechnerisch mittig */
+#threadTree tr[is="thread-card"] .card-container > :is(.thread-card-column, .mc-avatar) {
+  position: relative;
+  top: -1px;
+}
 #threadTree tr[is="thread-card"] .mc-avatar {
   width: 36px;
   height: 36px;
