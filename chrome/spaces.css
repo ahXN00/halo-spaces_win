@@ -4128,9 +4128,30 @@ body:has(> #booksPane.mc-side-anim) {
   width: 22px !important;
   height: 22px !important;
   background-color: currentColor !important;
-  /* Fenster mit Leiste rechts, darin ein kleines Kalenderraster – so von
-     der linken Seitenleiste (Linien) zu unterscheiden */
-  mask: url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22%23000%22 stroke-width=%221.7%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22%3E%3Crect x=%223%22 y=%225%22 width=%2218%22 height=%2214%22 rx=%222.6%22/%3E%3Cpath d=%22M13.5 5v14%22/%3E%3Cpath d=%22M15.9 8.6h.01M18.4 8.6h.01M15.9 11.6h.01M18.4 11.6h.01M15.9 14.6h.01M18.4 14.6h.01%22 stroke-width=%222.1%22/%3E%3C/svg%3E") center / contain no-repeat !important;
+  /* Kalenderblatt mit zwei Ringen und Kopfleiste – die Tageszahl darin
+     setzt die Erweiterung (.mc-today-day), wie beim Kalender-Symbol der
+     Statusleiste, aber im Strich unserer übrigen Symbole */
+  mask: url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22%23000%22 stroke-width=%221.7%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22%3E%3Crect x=%223%22 y=%224.5%22 width=%2218%22 height=%2216.5%22 rx=%222.8%22/%3E%3Cpath d=%22M3 9.2h18M8 2.8v3.2M16 2.8v3.2%22/%3E%3C/svg%3E") center / contain no-repeat !important;
+}
+
+#mcTodayToggle {
+  position: relative !important;
+}
+
+#mcTodayToggle .mc-today-day {
+  position: absolute !important;
+  left: 0 !important;
+  right: 0 !important;
+  /* unteres Feld des Kalenderblatts (unter der Kopfleiste) */
+  top: calc(50% - 11px + 9.6px) !important;
+  height: 10.5px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  font: 700 8.5px/1 var(--mt-font, system-ui) !important;
+  letter-spacing: -0.2px !important;
+  font-variant-numeric: tabular-nums !important;
+  pointer-events: none !important;
 }
 
 /* Termine in der Today-Pane nie fett – nur Wochentag und Tageszahl bleiben */

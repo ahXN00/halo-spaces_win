@@ -3711,6 +3711,27 @@ class CardEnhancer {
       const btn = d.createElementNS("http://www.w3.org/1999/xhtml", "button");
       btn.id = "mcTodayToggle";
       btn.type = "button";
+      // Tageszahl im Kalender-Symbol: übernommen von Thunderbirds Knopf in der
+      // Statusleiste (dessen Kalender-Code aktualisiert sie um Mitternacht);
+      // fehlt der, selbst aus dem heutigen Datum
+      const day = d.createElementNS("http://www.w3.org/1999/xhtml", "span");
+      day.className = "mc-today-day";
+      day.setAttribute("aria-hidden", "true");
+      btn.append(day);
+      const source = () => d.querySelector("#calendar-status-todaypane-button .toolbarbutton-day-text");
+      const setDay = () => {
+        const tb = source();
+        day.textContent = tb?.value || tb?.textContent || String(new Date().getDate());
+      };
+      setDay();
+      const tbDay = source();
+      const dayMo = tbDay ? new w.MutationObserver(setDay) : null;
+      dayMo?.observe(tbDay, { attributes: true, childList: true, characterData: true, subtree: true });
+      const dayTimer = tbDay ? null : w.setInterval(setDay, 60 * 1000);
+      this.restorers.push(() => {
+        dayMo?.disconnect();
+        dayTimer && w.clearInterval(dayTimer);
+      });
       const updateTip = () => {
         const shown = !!w.TodayPane?.isVisible;
         const label = shown
