@@ -6543,4 +6543,17 @@ notification-message:not([type="warning"]) button.notification-button {
   content: "✕" !important;
   font-size: 11px !important;
 }
+
+/* ---------- Mindestbreiten in allen Spaces: kein Bereich wird so schmal,
+   dass Texte überlappen. Die Erweiterung setzt passend dazu die kleinste
+   Fensterbreite (Summe der Mindestbreiten des offenen Space). ---------- */
+#booksPane { min-width: 160px !important; }
+#cardsPane { min-width: 280px !important; }
+#detailsPane { min-width: 420px !important; }
+#calendarDisplayBox { min-width: 560px !important; }
+#calendar-task-tree { min-width: 360px !important; }
+#calendar-task-details-container { min-width: 360px !important; }
+#preferencesContainer { min-width: 560px !important; }
+#conversationsBox { min-width: 420px !important; }
+#today-pane-panel { min-width: 240px !important; }
 /* ==== Ende Bereiche ==== */

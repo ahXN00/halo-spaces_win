@@ -2411,11 +2411,70 @@ class CardEnhancer {
     });
   }
 
+  // Kleinste Fensterbreite je Space: beim Verkleinern schrumpft nur ein
+  // Bereich mit (die Mail, die Kalenderansicht, der Einstellungsinhalt …),
+  // alle anderen behalten ihre Breite. Also darf das Fenster nur so schmal
+  // werden, bis dieser Bereich seine Mindestbreite (CSS) erreicht – dann
+  // überlappt nichts und nichts wird abgeschnitten.
+  hookMinWindowWidth(w) {
+    const d = w.document;
+    const root = d.documentElement;
+    const tabmail = d.getElementById("tabmail");
+    const FLEX = ["messagePane", "detailsPane", "preferencesContainer", "calendarDisplayBox", "conversationsBox"];
+    let observed = null;
+    const ro = new w.ResizeObserver(() => update());
+    const flexElement = () => {
+      const tab = tabmail?.currentTabInfo;
+      const docs = [tab?.chromeBrowser?.contentDocument, tab?.browser?.contentDocument, d].filter(Boolean);
+      for (const doc of docs) {
+        for (const id of FLEX) {
+          const el = doc.getElementById(id);
+          if (el && el.getBoundingClientRect().width > 0) {
+            return el;
+          }
+        }
+      }
+      return null;
+    };
+    const update = () => {
+      try {
+        const el = flexElement();
+        if (el !== observed) {
+          observed && ro.unobserve(observed);
+          el && ro.observe(el);
+          observed = el;
+        }
+        if (!el) {
+          root.style.removeProperty("min-width");
+          return;
+        }
+        const min = parseFloat(el.ownerDocument.defaultView.getComputedStyle(el).minWidth) || 0;
+        const slack = Math.max(0, el.getBoundingClientRect().width - min);
+        // nie unter 800 px (dann wäre schon die Toolbar zu eng)
+        root.style.minWidth = `${Math.max(800, Math.round(w.innerWidth - slack))}px`;
+      } catch (e) {
+        log("min window width error", e);
+      }
+    };
+    const onTab = () => w.setTimeout(update, 300);
+    tabmail?.tabContainer?.addEventListener("TabSelect", onTab);
+    w.addEventListener("resize", update);
+    const timer = w.setTimeout(update, 2000);
+    this.restorers.push(() => {
+      ro.disconnect();
+      w.clearTimeout(timer);
+      tabmail?.tabContainer?.removeEventListener("TabSelect", onTab);
+      w.removeEventListener("resize", update);
+      root.style.removeProperty("min-width");
+    });
+  }
+
   watchMainWindow(w) {
     if (this.mainWindows.has(w)) {
       return;
     }
     this.mainWindows.add(w);
+    this.hookMinWindowWidth(w);
     log("main window", { tabs: w.document.getElementById("tabmail")?.tabInfo?.length ?? null });
     // Attribut „mc-mail“ am Hauptfenster, solange ein Mail-Tab vorne ist –
     // userChrome.css färbt Toolbar- und Tab-Leiste nur dann wie Apple Mail.

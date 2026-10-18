@@ -631,6 +631,24 @@ def run_checks(m, version, profile, results):
         return res.get("bar") and res.get("styled") and res.get("sameRow") and yellow, f"{res}"
     check("Hinweis über der Mail: Knopf neben dem Text, Farbe unverändert", remote_bar, results)
 
+    def min_widths():
+        res = m.js('''
+          const out = {};
+          const probe = async (name, open, getEl) => {
+            await open(); w.resizeTo(1500, 900); await wait(1500);
+            w.resizeTo(600, 900); await wait(1500);
+            const el = getEl(); const r = el?.getBoundingClientRect();
+            out[name] = { window: w.outerWidth, pane: r ? Math.round(r.width) : null, min: el ? parseFloat(el.ownerDocument.defaultView.getComputedStyle(el).minWidth) : null };
+          };
+          await probe("mail", () => toMail(), () => tm.currentAbout3Pane.document.getElementById("messagePane"));
+          await probe("calendar", () => toCalendar(), () => d.getElementById("calendarDisplayBox"));
+          await probe("settings", async () => { w.openPreferencesTab(); await wait(2000); }, () => tm.currentTabInfo.browser.contentDocument.getElementById("preferencesContainer"));
+          w.resizeTo(1500, 900); await wait(800); await toMail();
+          return out;''')
+        ok = all(v["pane"] is not None and v["pane"] >= v["min"] - 1 and v["window"] > 600 for v in res.values())
+        return ok, f"{res}"
+    check("Mindestbreiten: Fenster wird nicht schmaler als die Bereiche", min_widths, results)
+
     def birthdays():
         res = m.js('''
           const { MailServices } = ChromeUtils.importESModule("resource:///modules/MailServices.sys.mjs");
