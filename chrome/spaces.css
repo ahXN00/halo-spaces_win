@@ -523,7 +523,7 @@ calendar-month-view calendar-day-label,
 calendar-multiweek-view calendar-day-label {
   background: var(--mt-window) !important;
   border: none !important;
-  border-bottom: 1px solid var(--mt-pane-line) !important;
+  border-bottom: var(--mt-hairline) solid var(--mt-pane-line) !important;
   font-size: 15px !important;
   font-weight: 400 !important;
   color: var(--mt-text) !important;
@@ -541,8 +541,8 @@ calendar-day-label .calendar-day-label-name {
 calendar-month-day-box {
   background: var(--mt-window) !important;
   border: none !important;
-  border-inline-end: 1px solid var(--mt-pane-line) !important;
-  border-bottom: 1px solid var(--mt-pane-line) !important;
+  border-inline-end: var(--mt-hairline) solid var(--mt-pane-line) !important;
+  border-bottom: var(--mt-hairline) solid var(--mt-pane-line) !important;
   box-shadow: none !important;
 }
 
@@ -722,7 +722,7 @@ calendar-week-view, calendar-day-view {
 .day-column-heading {
   background: var(--mt-window) !important;
   border: none !important;
-  border-bottom: 1px solid var(--mt-pane-line) !important;
+  border-bottom: var(--mt-hairline) solid var(--mt-pane-line) !important;
   font-size: 13px !important;
   font-weight: 400 !important;
   color: var(--mt-text) !important;
@@ -889,7 +889,7 @@ calendar-event-box :is(.alarm-icons-box, .item-classification-icon, .item-recurr
   gap: 10px !important;
   background: var(--mt-window) !important;
   border: none !important;
-  border-bottom: 1px solid var(--mt-pane-line) !important;
+  border-bottom: var(--mt-hairline) solid var(--mt-pane-line) !important;
   align-items: center !important;
 }
 
@@ -970,7 +970,7 @@ calendar-event-box :is(.alarm-icons-box, .item-classification-icon, .item-recurr
 .calendar-task-tree > treecols {
   background: var(--mt-window) !important;
   border: none !important;
-  border-bottom: 1px solid var(--mt-pane-line) !important;
+  border-bottom: var(--mt-hairline) solid var(--mt-pane-line) !important;
 }
 
 .calendar-task-tree > treecols > treecol {
@@ -989,7 +989,7 @@ calendar-event-box :is(.alarm-icons-box, .item-classification-icon, .item-recurr
   height: 40px !important;
   min-height: 40px !important;
   border: none !important;
-  border-bottom: 1px solid var(--mt-pane-line) !important;
+  border-bottom: var(--mt-hairline) solid var(--mt-pane-line) !important;
   background-color: transparent !important;
 }
 
@@ -1172,7 +1172,7 @@ calendar-event-box :is(.alarm-icons-box, .item-classification-icon, .item-recurr
 /* Kontaktliste */
 #cardsPane {
   background: var(--mt-window) !important;
-  border-inline-end: 1px solid var(--mt-pane-line) !important;
+  border-inline-end: var(--mt-hairline) solid var(--mt-pane-line) !important;
 }
 
 #cardsPaneHeader {
@@ -1460,7 +1460,7 @@ search-bar {
 #chat-view-toolbox {
   background: var(--mt-window) !important;
   border: none !important;
-  border-bottom: 1px solid var(--mt-pane-line) !important;
+  border-bottom: var(--mt-hairline) solid var(--mt-pane-line) !important;
 }
 
 #chat-toolbar {
@@ -1700,7 +1700,7 @@ search-bar {
 }
 
 #paneDeck :is(input[type="text"], input[type="number"], input[type="url"], input:not([type]), textarea, search-textbox) {
-  border: 1px solid var(--mt-pane-line) !important;
+  border: var(--mt-hairline) solid var(--mt-pane-line) !important;
   border-radius: 7px !important;
   background-color: var(--mt-window) !important;
   box-shadow: none !important;
@@ -1788,7 +1788,7 @@ addon-page-header h1,
   min-height: 52px !important;
   padding: 8px 12px !important;
   gap: 6px !important;
-  border-bottom: 1px solid var(--mt-pane-line) !important;
+  border-bottom: var(--mt-hairline) solid var(--mt-pane-line) !important;
   align-items: center !important;
 }
 
@@ -1827,7 +1827,7 @@ addon-page-header h1,
 
 #composeToolbar2 > toolbarbutton .toolbarbutton-menubutton-dropmarker {
   border: none !important;
-  border-inline-start: 1px solid var(--mt-pane-line) !important;
+  border-inline-start: var(--mt-hairline) solid var(--mt-pane-line) !important;
   background-color: transparent !important;
 }
 
@@ -1860,7 +1860,7 @@ addon-page-header h1,
 }
 
 #MsgHeadersToolbar > :is(#top-gradient-box, #recipientsContainer, #subject-box) {
-  border-bottom: 1px solid var(--mt-pane-line) !important;
+  border-bottom: var(--mt-hairline) solid var(--mt-pane-line) !important;
   min-height: 40px !important;
   align-items: center !important;
 }
@@ -1900,7 +1900,7 @@ addon-page-header h1,
 #FormatToolbox {
   background: var(--mt-window) !important;
   border: none !important;
-  border-bottom: 1px solid var(--mt-pane-line) !important;
+  border-bottom: var(--mt-hairline) solid var(--mt-pane-line) !important;
 }
 
 #FormatToolbar menulist {
@@ -2221,7 +2221,7 @@ addon-page-header h1,
 #editContactForm :is(input:not([type="checkbox"], [type="radio"]), textarea) {
   min-height: 34px !important;
   padding: 0 10px !important;
-  border: 1px solid var(--mt-pane-line) !important;
+  border: var(--mt-hairline) solid var(--mt-pane-line) !important;
   border-radius: 8px !important;
   background-color: var(--mt-window) !important;
   color: var(--mt-text) !important;
@@ -2275,7 +2275,7 @@ addon-page-header h1,
 
 /* Fußzeile: Abbrechen / Sichern als Kapseln */
 #detailsFooter {
-  border-top: 1px solid var(--mt-pane-line) !important;
+  border-top: var(--mt-hairline) solid var(--mt-pane-line) !important;
   background: var(--mt-window) !important;
 }
 
@@ -2606,7 +2606,7 @@ dialog :is(input:not([type="checkbox"], [type="radio"], [type="color"], [type="r
 dialog search-textbox {
   min-height: 28px !important;
   padding-inline: 8px !important;
-  border: 1px solid var(--mt-pane-line) !important;
+  border: var(--mt-hairline) solid var(--mt-pane-line) !important;
   border-radius: 7px !important;
   background-color: var(--mt-window) !important;
   box-shadow: none !important;
@@ -2627,7 +2627,7 @@ dialog menulist {
 }
 
 dialog richlistbox {
-  border: 1px solid var(--mt-pane-line) !important;
+  border: var(--mt-hairline) solid var(--mt-pane-line) !important;
   border-radius: 8px !important;
 }
 
@@ -2641,7 +2641,7 @@ dialog richlistbox {
 #event-toolbar {
   padding: 8px 12px !important;
   gap: 6px !important;
-  border-bottom: 1px solid var(--mt-pane-line) !important;
+  border-bottom: var(--mt-hairline) solid var(--mt-pane-line) !important;
 }
 
 #event-toolbar > toolbarbutton {
@@ -2790,7 +2790,7 @@ vbox:has(> #keepduration-button) > :not(#keepduration-button) {
 /* Statuszeile unten („Time as: Busy“) dezent */
 .statusbar.chromeclass-status {
   background: var(--mt-window) !important;
-  border-top: 1px solid var(--mt-pane-line) !important;
+  border-top: var(--mt-hairline) solid var(--mt-pane-line) !important;
   color: var(--mt-text-tertiary) !important;
   font-size: 11px !important;
   padding: 3px 12px !important;
@@ -2835,13 +2835,13 @@ vbox:has(> #keepduration-button) > :not(#keepduration-button) {
 }
 
 #item-description {
-  border: 1px solid var(--mt-pane-line) !important;
+  border: var(--mt-hairline) solid var(--mt-pane-line) !important;
   border-radius: 8px !important;
 }
 
 #status-bar.statusbar {
   background: var(--mt-window) !important;
-  border-top: 1px solid var(--mt-pane-line) !important;
+  border-top: var(--mt-hairline) solid var(--mt-pane-line) !important;
   color: var(--mt-text-tertiary) !important;
 }
 
@@ -4810,3 +4810,18 @@ notification-message:not([type="warning"]) button.notification-button {
 #preferencesContainer { min-width: 560px !important; }
 #conversationsBox { min-width: 420px !important; }
 #today-pane-panel { min-width: 240px !important; }
+
+@media (min-resolution: 2dppx) {
+  :root {
+    --mt-hairline: 0.5px;
+  }
+}
+
+/* „now“ / „in 2 hr“ in der Today-Pane: im Dunkelmodus das hellere Apple-Rot
+   (Kontrast erhöhen, #FF6961) – #FF3B30 erreicht auf der dunklen Karte nur
+   3,9 : 1, #FF6961 5,0 : 1 (WCAG AA für kleine Schrift: 4,5 : 1) */
+@media (prefers-color-scheme: dark) {
+  #agenda .agenda-listitem .agenda-listitem-relative {
+    color: #FF6961 !important;
+  }
+}

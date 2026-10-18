@@ -159,6 +159,7 @@ const DE = {
   "checks at most every 6 hours; active after a restart": "prüft höchstens alle 6 Stunden; aktiv nach einem Neustart",
   "Messages in system font": "Mails in Systemschrift",
   "like Apple Mail; messages with their own font keep it – off: Thunderbird’s fonts": "wie Apple Mail; Mails mit eigener Schrift behalten sie – aus: Thunderbirds Schriften",
+  "Yesterday": "Gestern",
 };
 const FR = {
   "Install version {v}": "Installer la version {v}",
@@ -289,6 +290,7 @@ const FR = {
   "checks at most every 6 hours; active after a restart": "vérifie au plus toutes les 6 heures ; actif après un redémarrage",
   "Messages in system font": "Messages dans la police système",
   "like Apple Mail; messages with their own font keep it – off: Thunderbird’s fonts": "comme Apple Mail ; les messages avec leur propre police la gardent – désactivé : polices de Thunderbird",
+  "Yesterday": "Hier",
 };
 const ES = {
   "Install version {v}": "Instalar la versión {v}",
@@ -419,6 +421,7 @@ const ES = {
   "checks at most every 6 hours; active after a restart": "comprueba como máximo cada 6 horas; activo tras reiniciar",
   "Messages in system font": "Mensajes en la fuente del sistema",
   "like Apple Mail; messages with their own font keep it – off: Thunderbird’s fonts": "como Apple Mail; los mensajes con su propia fuente la conservan – desactivado: fuentes de Thunderbird",
+  "Yesterday": "Ayer",
 };
 const IT = {
   "Install version {v}": "Installa la versione {v}",
@@ -549,6 +552,7 @@ const IT = {
   "checks at most every 6 hours; active after a restart": "controlla al massimo ogni 6 ore; attivo dopo un riavvio",
   "Messages in system font": "Messaggi nel font di sistema",
   "like Apple Mail; messages with their own font keep it – off: Thunderbird’s fonts": "come Apple Mail; i messaggi con un proprio font lo mantengono – disattivato: font di Thunderbird",
+  "Yesterday": "Ieri",
 };
 const TRANSLATIONS = { de: DE, fr: FR, es: ES, it: IT };
 // tr("+{n} more", { n: 3 }) – Platzhalter in geschweiften Klammern
@@ -1030,6 +1034,25 @@ function orgDomain(domain) {
   return SECOND_LEVEL.has(lastTwo)
     ? parts.slice(-3).join(".")
     : lastTwo;
+}
+
+// Datum in der Mailliste wie Apple Mail: heute nur die Uhrzeit, gestern
+// „Gestern“, in den letzten 6 Tagen der Wochentag, sonst nur das Datum
+function appleListDate(ms, now = new Date()) {
+  const locale = Services.locale.appLocaleAsBCP47;
+  const d = new Date(ms);
+  const startOfDay = x => new Date(x.getFullYear(), x.getMonth(), x.getDate()).getTime();
+  const days = Math.round((startOfDay(now) - startOfDay(d)) / 86400000);
+  if (days <= 0) {
+    return new Intl.DateTimeFormat(locale, { timeStyle: "short" }).format(d);
+  }
+  if (days == 1) {
+    return tr("Yesterday");
+  }
+  if (days < 7) {
+    return new Intl.DateTimeFormat(locale, { weekday: "long" }).format(d);
+  }
+  return new Intl.DateTimeFormat(locale, { dateStyle: "short" }).format(d);
 }
 
 function initialsFor(name, email) {
@@ -6658,6 +6681,10 @@ class CardEnhancer {
     }
 
     this.fillAvatar(avatar, hdr);
+    const dateEl = row.querySelector(".thread-card-row .date");
+    if (dateEl && hdr.date) {
+      dateEl.textContent = appleListDate(hdr.date / 1000);
+    }
   }
 
   // Geburtstage aus dem Adressbuch als eigener Kalender wie bei Apple:
