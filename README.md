@@ -41,13 +41,16 @@ Features
 
 Personal data in the screenshots is blurred.
 
-3.0.98 Release Notes
+3.0.99 Release Notes
 --------
-- Messages in the system font like Apple Mail (Mac: SF Pro, Windows: Segoe UI, Linux: your desktop font) – messages with their own font keep it
-- Unsubscribe in the mailing-list note works again
-- Notes above the message (remote content, junk …) are now calm and grey; the scam warning stays yellow
-- No more action bar in the message header; no duplicate date
-- No restart needed after installing
+- Today pane: the + button sits top right next to the title; the event list runs to the bottom, with the same spacing at the bottom as at the top and a soft fade while more events follow
+- Today pane button shows today's date in a calendar icon
+- Message list dates like Apple Mail (time today, "Yesterday", weekday, then date)
+- Minimum widths for all areas in every space – nothing overlaps when the window gets small
+- Message header: room for folder and time measured exactly, long folder names shortened, sender name on one line
+- Notes above the message keep Thunderbird's colours; text wraps and the button stays beside it
+- Previews no longer show HTML code (e.g. some Amazon mails)
+- Finer dividers on Retina displays, better "now" contrast in dark mode, mail cards optically centred
 
 See [Releases](https://github.com/sruf79/halo-spaces/releases) for all versions.
 
