@@ -4912,3 +4912,10 @@ notification-message:not([type="warning"]) button.notification-button {
     color: #FF6961 !important;
   }
 }
+
+/* Thunderbirds Schalter „Nachricht dunkel darstellen“ im Mailkopf (nur im
+   Dunkelmodus sichtbar) passt nicht ins Design – ausgeblendet; die
+   Umfärbung folgt weiter Thunderbirds Einstellung */
+#darkReaderToggle {
+  display: none !important;
+}
