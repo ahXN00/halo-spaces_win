@@ -6009,8 +6009,12 @@ notification-message:not([type="warning"]) button.notification-button {
   color: var(--mt-text) !important;
 }
 
+/* Hinweise über der Mail füllen den Streifen zwischen Kopf und Mail ganz aus –
+   ohne weißen Rand und ohne runde Ecken */
 #mail-notification-top notification-message {
-  margin: 8px 12px 0 !important;
+  margin: 0 !important;
+  border-radius: 0 !important;
+  --message-bar-border-radius: 0 !important;
 }
 
 /* keine Mehrtages-Pfeile (⇕ ↓ ↑) neben den Terminen – wie in Apple Kalender */
