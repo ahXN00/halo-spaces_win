@@ -1078,8 +1078,30 @@ function initialsFor(name, email) {
 
 // Vorschautext wie in Apple Mail: Fließtext ohne Zitate, Links und
 // unsichtbare Füllzeichen (Newsletter verstecken damit ihren „Preheader“).
+// Manche Absender (z. B. Amazon) schicken im Text-Teil in Wahrheit HTML –
+// dann stünde Code in der Vorschau. Tags, Stile und Skripte entfernen.
+function stripHtml(text) {
+  if (!/<(?:!doctype|html|head|body|div|table|p|span|br|style|meta|td)\b/i.test(text)) {
+    return text;
+  }
+  const entities = { nbsp: " ", amp: "&", lt: "<", gt: ">", quot: '"', apos: "'", shy: "" };
+  return text
+    .replace(/<(style|script|head|title)\b[\s\S]*?<\/\1\s*>/gi, " ")
+    .replace(/<(style|script|head)\b[\s\S]*$/i, " ") // angeschnitten (Vorschau gekürzt)
+    .replace(/<!--[\s\S]*?(-->|$)/g, " ")
+    .replace(/<[^>]*>/g, " ")
+    .replace(/<[^>]*$/, " ") // angeschnittenes Tag am Ende
+    .replace(/&(#x[0-9a-f]+|#\d+|[a-z]+);/gi, (all, e) => {
+      if (e[0] == "#") {
+        const n = e[1].toLowerCase() == "x" ? parseInt(e.slice(2), 16) : parseInt(e.slice(1), 10);
+        return Number.isFinite(n) ? String.fromCodePoint(n) : " ";
+      }
+      return entities[e.toLowerCase()] ?? all;
+    });
+}
+
 function cleanPreview(text) {
-  return (text || "")
+  return stripHtml(text || "")
     .replace(/[\u034f\u00ad\u200b-\u200f\u2060\ufeff]/g, "")
     .split(/\r?\n/)
     .filter(line => !/^\s*>/.test(line))
@@ -3761,6 +3783,39 @@ class CardEnhancer {
       top.append(title);
       row?.prepend(top);
       (row || d.body).append(btn);
+      // „+“ oben rechts in der Today-Pane, gleiche Größe und Höhe wie der
+      // Today-Knopf – fragt nach Termin oder Aufgabe (statt unten unter der Liste)
+      const plus = d.createElementNS("http://www.w3.org/1999/xhtml", "button");
+      plus.id = "mcTodayNew";
+      plus.type = "button";
+      plus.title = tr("New Event") + " / " + tr("New Task");
+      plus.setAttribute("aria-label", plus.title);
+      plus.addEventListener("click", event => {
+        event.stopPropagation();
+        this.openNewPopupBelow?.(plus);
+      });
+      btn.after(plus);
+      this.restorers.push(() => {
+        plus.remove();
+        row?.removeAttribute("data-mc-tp-open");
+      });
+      // Verlauf am Kartenboden nur, solange unten noch Termine verborgen sind
+      const agenda = d.getElementById("agenda");
+      if (agenda) {
+        const fade = () => agenda.toggleAttribute("data-mc-more", agenda.scrollTop + agenda.clientHeight < agenda.scrollHeight - 2);
+        const fadeRo = new w.ResizeObserver(fade);
+        const fadeMo = new w.MutationObserver(fade);
+        agenda.addEventListener("scroll", fade, { passive: true });
+        fadeRo.observe(agenda);
+        fadeMo.observe(agenda, { childList: true });
+        fade();
+        this.restorers.push(() => {
+          agenda.removeEventListener("scroll", fade);
+          fadeRo.disconnect();
+          fadeMo.disconnect();
+          agenda.removeAttribute("data-mc-more");
+        });
+      }
       // Breite der Today-Pane (0, wenn aus) an die Toolbar-Zeile – Suchfeld,
       // Fläche und Knopf richten sich danach, auch während der Animation
       const sync = () => {
@@ -3770,10 +3825,12 @@ class CardEnhancer {
         const width = panel && w.TodayPane?.isVisible ? Math.round(panel.getBoundingClientRect().width) : 0;
         const caption = captionWidth(d);
         setVar(row, "--mc-tp-w", `${width}px`);
+        row.toggleAttribute("data-mc-tp-open", width > 0);
         setVar(row, "--mc-caption-w", `${caption}px`);
         setVar(row, "--mc-row-tail", `${rowTail(d)}px`);
         // neben Knopf und Fensterknöpfen zu wenig Platz: nur die Sonne
-        title.toggleAttribute("data-narrow", width - 62 - Math.max(62, caption + 8) < 110);
+        // links Today-Knopf (12 + 40 + 8), rechts „+“ (8 + 40 + 12) und ggf. Fensterknöpfe
+        title.toggleAttribute("data-narrow", width - 60 - (60 + caption) < 110);
       };
       this.todayTopSync = sync;
       const ro = panel ? new w.ResizeObserver(sync) : null;
@@ -4401,6 +4458,16 @@ class CardEnhancer {
         const width = 294; // Breite des Popovers samt Rand für den Schatten
         popup.openPopup(anchor, "before_start", Math.round(anchor.getBoundingClientRect().width / 2 - width / 2), 12);
       };
+      // dasselbe Popover unter dem „+“ oben rechts in der Today-Pane
+      this.openNewPopupBelow = anchor => {
+        if (popup.state == "open" || popup.state == "showing") {
+          popup.hidePopup();
+          return;
+        }
+        popup.classList.remove("mc-up");
+        this.lastNewAnchor = anchor;
+        popup.openPopup(anchor, "after_end", 0, 6);
+      };
       const onHidden = () => popup.classList.remove("mc-up");
       popup.addEventListener("popuphidden", onHidden);
       this.restorers.push(() => {
@@ -4409,6 +4476,7 @@ class CardEnhancer {
         popup.remove();
         delete bar.__mcNewHooked;
         delete this.openNewPopupAbove;
+        delete this.openNewPopupBelow;
       });
     };
 
