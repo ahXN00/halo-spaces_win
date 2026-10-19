@@ -4462,9 +4462,34 @@ addon-page-header h1,
   background-color: var(--mt-control-hover) !important;
 }
 
-/* ---------- Kontakt bearbeiten / neuer Kontakt ---------- */
+/* ---------- Kontakt bearbeiten / neuer Kontakt – wie Apple Kontakte:
+   eine Karte, links graue Bezeichnungen (rechtsbündig), rechts die Felder,
+   durchgehend Systemschrift in 13 px, volle Breite des Bereichs ---------- */
+#editContactForm .contact-details-scroll > *,
+#detailsFooter {
+  max-inline-size: none !important;
+}
+
+#editContactForm .contact-details-scroll > :is(.contact-header, vcard-edit) {
+  max-inline-size: 1040px !important;
+  margin-inline: auto !important;
+}
+
+#editContactForm,
+#editContactForm :is(input, select, textarea, label, legend, button, th, td, p, h1) {
+  font-family: var(--mt-font) !important;
+}
+
 #editContactForm .contact-header {
   padding-top: 24px !important;
+  padding-bottom: 20px !important;
+  gap: 18px !important;
+}
+
+#editContactForm .contact-photo {
+  width: 96px !important;
+  height: 96px !important;
+  border-radius: 50% !important;
 }
 
 #editContactHeadingName {
@@ -4473,34 +4498,99 @@ addon-page-header h1,
   color: var(--mt-text) !important;
 }
 
-#editContactForm vcard-edit {
-  gap: 12px !important;
-  max-width: 900px !important;
+#editContactForm :is(#editContactHeadingNickName, #editContactHeadingEmail) {
+  font-size: 13px !important;
+  color: var(--mt-text-tertiary) !important;
 }
 
-#editContactForm .addr-book-edit-fieldset {
-  padding: 12px 16px 14px !important;
-  border: none !important;
+#editContactForm vcard-edit {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 0 !important;
+  padding: 4px 0 !important;
   border-radius: 12px !important;
-  background: color-mix(in srgb, var(--mt-text) 3.5%, var(--mt-window)) !important;
+  background: color-mix(in srgb, var(--mt-text) 2.5%, var(--mt-window)) !important;
+  color: var(--mt-text) !important;
+  font-size: 13px !important;
+}
+
+/* jede Gruppe eine Zeile: Bezeichnung links, Inhalt rechts, Haarlinie dazwischen */
+#editContactForm .addr-book-edit-fieldset {
+  display: grid !important;
+  grid-template-columns: 140px minmax(0, 1fr) !important;
+  column-gap: 16px !important;
+  /* kein Zeilenabstand: die Bezeichnung überspannt viele (meist leere) Zeilen */
+  row-gap: 0 !important;
+  align-items: start !important;
+  margin: 0 16px !important;
+  padding: 12px 0 !important;
+  border: none !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+}
+
+#editContactForm .addr-book-edit-fieldset + .addr-book-edit-fieldset {
+  border-top: var(--mt-hairline) solid var(--mt-pane-line) !important;
 }
 
 #editContactForm .addr-book-edit-fieldset > legend:not(.screen-reader-only) {
+  /* float: kein „gerenderter“ Legend-Kasten im Rahmen, sondern ein Rasterelement */
   float: inline-start !important;
-  width: 100% !important;
-  padding: 0 0 8px !important;
-  font-size: 12px !important;
-  font-weight: 600 !important;
+  grid-column: 1 !important;
+  grid-row: 1 / span 30 !important;
+  width: auto !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  line-height: 34px !important;
+  text-align: end !important;
+  font-size: 13px !important;
+  font-weight: 400 !important;
   color: var(--mt-text-secondary) !important;
 }
 
 #editContactForm .addr-book-edit-fieldset > :not(legend) {
-  clear: both !important;
+  grid-column: 2 !important;
+  clear: none !important;
+  min-width: 0 !important;
 }
 
-#editContactForm label {
+#editContactForm .addr-book-edit-fieldset > :not(legend) ~ :not(legend) {
+  margin-top: 6px !important;
+}
+
+/* Name: ohne sichtbare Bezeichnung – Felder über die ganze Breite */
+#editContactForm #addr-book-edit-n > :not(legend) {
+  grid-column: 1 / -1 !important;
+}
+
+#editContactForm #addr-book-edit-n .addr-book-edit-display-nickname {
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)) !important;
+  column-gap: 12px !important;
+  margin-top: 6px !important;
+}
+
+#editContactForm vcard-n {
+  gap: 6px 12px !important;
+}
+
+#editContactForm vcard-n > * {
+  flex: 1 1 200px !important;
+}
+
+#editContactForm vcard-n > :has(> .only-icon) {
+  flex: 0 0 auto !important;
+}
+
+#editContactForm label:not(.screen-reader-only) {
+  margin-block-end: 4px !important;
   font-size: 12px !important;
-  font-weight: 500 !important;
+  font-weight: 400 !important;
+  color: var(--mt-text-secondary) !important;
+}
+
+#editContactForm :is(th, #addr-book-edit-email-default span) {
+  font-size: 12px !important;
+  font-weight: 400 !important;
   color: var(--mt-text-secondary) !important;
 }
 
@@ -4513,6 +4603,7 @@ addon-page-header h1,
   color: var(--mt-text) !important;
   box-shadow: none !important;
   font-size: 13px !important;
+  font-weight: 400 !important;
 }
 
 #editContactForm textarea {
@@ -4534,20 +4625,32 @@ addon-page-header h1,
   background-color: var(--mt-control) !important;
   color: var(--mt-text) !important;
   box-shadow: none !important;
+  font-size: 13px !important;
+  font-weight: 400 !important;
 }
 
 /* „Add …“ als dezente Links, ohne gefüllte Fokusfläche */
 #editContactForm .add-property-button {
-  min-height: 28px !important;
+  min-height: 34px !important;
   padding: 0 10px 0 6px !important;
   border: none !important;
   border-radius: 999px !important;
   background-color: transparent !important;
   color: var(--mt-accent) !important;
   font-size: 13px !important;
-  font-weight: 500 !important;
+  font-weight: 400 !important;
   box-shadow: none !important;
   outline: none !important;
+  /* auf einer Linie mit der Bezeichnung links */
+  margin-block: 0 !important;
+}
+
+/* nur Symbol (Präfix, zweiter Vorname, Suffix): rundes „+“ statt leerer Fläche */
+#editContactForm .add-property-button.only-icon {
+  width: 26px !important;
+  min-width: 26px !important;
+  padding: 0 !important;
+  justify-content: center !important;
 }
 
 #editContactForm .add-property-button:is(:hover, :focus-visible) {

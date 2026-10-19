@@ -217,6 +217,7 @@ def take_shots(m, folder, scheme):
         ("calendar-month", 'await toCalendar(); w.switchToView("month"); await wait(800);'),
         ("tasks", 'tm.openTab("tasks", {}); await wait(1500);'),
         ("addressbook", 'tm.openTab("addressBookTab", {}); await wait(2000);'),
+        ("addressbook-edit", ADDRESS_EDIT_JS),
         ("settings", "w.openPreferencesTab(); await wait(2000);"),
         ("addon-settings", f'w.openAddonsMgr("addons://detail/" + encodeURIComponent("{ADDON_ID}") + "/preferences"); await wait(3000);'),
     ]:
@@ -247,6 +248,24 @@ def take_shots(m, folder, scheme):
         print(f"Screenshot {path}", flush=True)
         m.cmd("WebDriver:ExecuteScript", {"script": "window.close(); return 1;", "args": []})
         m.cmd("WebDriver:SwitchToWindow", {"handle": main})
+
+
+# Testkontakt (example.invalid) im persönlichen Adressbuch anlegen und bearbeiten
+ADDRESS_EDIT_JS = r"""
+  const { MailServices } = ChromeUtils.importESModule("resource:///modules/MailServices.sys.mjs");
+  const book = MailServices.ab.getDirectory("jsaddrbook://abook.sqlite");
+  if (!book.childCards.some(c => c.displayName == "Anna Beispiel")) {
+    const c = Cc["@mozilla.org/addressbook/cardproperty;1"].createInstance(Ci.nsIAbCard);
+    for (const [k, v] of Object.entries({ FirstName: "Anna", LastName: "Beispiel", Company: "Beispiel GmbH", JobTitle: "Leitung", WorkPhone: "+43 1 234" })) c.setProperty(k, v);
+    c.displayName = "Anna Beispiel"; c.primaryEmail = "anna@example.invalid"; book.addCard(c);
+  }
+  tm.openTab("addressBookTab", {}); await wait(2000);
+  const ab = tm.currentTabInfo.browser.contentWindow; const ad = ab.document;
+  const list = ad.getElementById("cards");
+  list.selectedIndex = [...Array(list.view.rowCount).keys()].find(k => list.view.getCardFromRow(k)?.displayName == "Anna Beispiel");
+  await wait(800);
+  ad.getElementById("editButton").click(); await wait(1200);
+"""
 
 
 # eine Test-Mail (example.invalid) in Local Folders öffnen – für die Leseansicht
@@ -808,6 +827,29 @@ def run_checks(m, version, profile, results):
               and len(a.get("types", [])) >= 2 and abs(res["splitter"][0] - res["splitter"][1]) <= 1)
         return ok, f"{res}"
     check("Adressbuch: Firmen-Avatar, Initialen im Detail, Konto-Etiketten, Bezeichnungen, Teiler ohne Sprung", address_book, results)
+
+    def contact_edit():
+        # Kontakt bearbeiten wie Apple Kontakte: eine Schrift, Bezeichnungen links, volle Breite
+        res = m.js(ADDRESS_EDIT_JS + r"""
+          const font = ab.getComputedStyle(ad.documentElement).getPropertyValue("--mt-font").trim().split(",")[0];
+          const ve = ad.querySelector("#editContactForm vcard-edit");
+          const scroll = ve.parentElement;
+          const ctrls = [...ad.querySelectorAll("#editContactForm :is(input:not([type=checkbox]), select, legend:not(.screen-reader-only), label:not(.screen-reader-only), .add-property-button:not(.only-icon))")]
+            .filter(e => e.getClientRects().length);
+          const fonts = [...new Set(ctrls.map(e => ab.getComputedStyle(e).fontFamily.split(",")[0]))];
+          const sizes = [...new Set(ctrls.filter(e => !e.matches("label")).map(e => ab.getComputedStyle(e).fontSize))];
+          const tel = ad.getElementById("addr-book-edit-tel");
+          const lg = tel.querySelector(":scope > legend").getBoundingClientRect(), inp = tel.querySelector("input[type=tel]").getBoundingClientRect();
+          const out = { font, fonts, sizes, width: Math.round(ve.getBoundingClientRect().width),
+            avail: Math.round(scroll.clientWidth - parseFloat(ab.getComputedStyle(scroll).paddingLeft) - parseFloat(ab.getComputedStyle(scroll).paddingRight)),
+            legendLeft: lg.right <= inp.left, sameLine: Math.abs((lg.top + lg.height / 2) - (inp.top + inp.height / 2)) <= 3 };
+          ad.getElementById("cancelEditButton").click(); await wait(500);
+          tm.closeTab(tm.currentTabInfo);
+          return out;""")
+        ok = (res["fonts"] == [res["font"]] and res["sizes"] == ["13px"]
+              and res["width"] >= min(res["avail"], 1040) - 2 and res["legendLeft"] and res["sameLine"])
+        return ok, f"{res}"
+    check("Adressbuch: Kontakt bearbeiten in Systemschrift, Bezeichnungen links, volle Breite", contact_edit, results)
 
     def donate():
         # „Say Thanks“ im Info-Fenster öffnet die Spendenseite (Aufruf abgefangen, kein echter Browser)
