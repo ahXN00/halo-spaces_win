@@ -41,16 +41,18 @@ Features
 
 Personal data in the screenshots is blurred.
 
-3.0.99 Release Notes
+3.1.0 Release Notes
 --------
-- Today pane: the + button sits top right next to the title; the event list runs to the bottom, with the same spacing at the bottom as at the top and a soft fade while more events follow
-- Today pane button shows today's date in a calendar icon
-- Message list dates like Apple Mail (time today, "Yesterday", weekday, then date)
-- Minimum widths for all areas in every space – nothing overlaps when the window gets small
-- Message header: room for folder and time measured exactly, long folder names shortened, sender name on one line
-- Notes above the message keep Thunderbird's colours; text wraps and the button stays beside it
-- Previews no longer show HTML code (e.g. some Amazon mails)
-- Finer dividers on Retina displays, better "now" contrast in dark mode, mail cards optically centred
+- **Search like Apple Mail**: the search field searches all mailboxes (not Trash or Junk) – subject, sender, recipients and message text; a date like "12.10" also finds mails from that day. Hits appear in the card list with a result count, highlighted in yellow
+- **Contacts**: companies without a photo get a building icon, people without a photo show their initials in the details; account labels under the name; calmer labels and lighter cards; the photo no longer jumps when you drag the divider
+- **Tasks**: an empty list shows a friendly note instead of a blank area; the hint to choose a task calendar sits next to the + button; iCloud's placeholder reminders are hidden; details, buttons and column headers in the halo.spaces style
+- **Calendar**: events spanning several days are shown as one continuous bar; all-day events without an emoji get a small calendar icon
+- **Settings**: content centred and at most 800 px wide, roomier sidebar, macOS-style checkboxes and radio buttons, restyled view pickers, number fields and account settings
+- Message header: recipients shown by name like Apple Mail (address on hover); blocked images show a neat placeholder instead of their alt text; notes above the message fill their strip
+- Tooltips are readable again in every appearance; space buttons show just their name
+- Previews no longer show codes like "&zwnj;"; the search magnifier no longer turns into an image placeholder
+- "Say Thanks" in the halo.spaces window works again; the window no longer shows an e-mail address (use "Send Feedback")
+- Smoother Today pane animation, no grey strip next to its button when it is closed, and the list divider in the toolbar lines up exactly
 
 See [Releases](https://github.com/sruf79/halo-spaces/releases) for all versions.
 
