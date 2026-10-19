@@ -755,9 +755,10 @@ def run_checks(m, version, profile, results):
             return True, "Testfenster verdeckt – übersprungen"
         # flüssig: viele Zwischenschritte, kein Sprung über die halbe Breite und
         # Bilder im normalen Takt – früher ordnete jedes Bild den ganzen
-        # Mailbereich neu an (20–35 ms statt 8 ms bei 120 Hz)
+        # Mailbereich neu an (20–35 ms statt 8 ms bei 120 Hz); Maßstab höchstens
+        # 60 Hz, falls das Fenster beim Messen des Leerlaufs verdeckt war
         ok = all(res[p]["steps"] >= 6 and res[p]["maxJump"] < res["start"] / 2 and
-                 res[p]["medianFrameMs"] <= res["idleFrameMs"] * 1.5 + 2 for p in ("aus", "ein")) and res["end"] == res["start"]
+                 res[p]["medianFrameMs"] <= min(res["idleFrameMs"], 17) * 1.5 + 2 for p in ("aus", "ein")) and res["end"] == res["start"]
         return ok, f"{res}"
     check("Today-Pane: Ein-/Ausblenden flüssig (kein Sprung)", today_animation, results)
 
