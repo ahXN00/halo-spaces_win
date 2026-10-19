@@ -4106,9 +4106,14 @@ body:has(> #booksPane.mc-side-anim) {
   color: var(--mt-text-secondary);
 }
 
-:root:not([mc-tab]) #mcTodayTop,
-#unifiedToolbarContainer[style*="--mc-tp-w: 0px"] > #mcTodayTop {
+:root:not([mc-tab]) #mcTodayTop {
   border: none;
+}
+
+/* Today-Pane aus (auch am Ende der Ausblend-Animation): Fläche ganz weg –
+   ihr Innenabstand rechts ließe sonst einen grauen Streifen neben dem Knopf */
+#unifiedToolbarContainer[data-mc-tp-none] > #mcTodayTop {
+  display: none !important;
 }
 
 #unifiedToolbarContainer {

@@ -1080,24 +1080,36 @@ function initialsFor(name, email) {
 // unsichtbare Füllzeichen (Newsletter verstecken damit ihren „Preheader“).
 // Manche Absender (z. B. Amazon) schicken im Text-Teil in Wahrheit HTML –
 // dann stünde Code in der Vorschau. Tags, Stile und Skripte entfernen.
+// Benannte Zeichen (&zwnj;, &hellip; …) stehen oft auch in reinen Text-Teilen.
+const ENTITIES = {
+  nbsp: " ", amp: "&", lt: "<", gt: ">", quot: '"', apos: "'", shy: "",
+  zwnj: "", zwj: "", lrm: "", rlm: "", ensp: " ", emsp: " ", thinsp: " ",
+  hellip: "…", mdash: "—", ndash: "–", lsquo: "‘", rsquo: "’", sbquo: "‚",
+  ldquo: "“", rdquo: "”", bdquo: "„", laquo: "«", raquo: "»", bull: "•",
+  middot: "·", copy: "©", reg: "®", trade: "™", euro: "€", deg: "°",
+  auml: "ä", ouml: "ö", uuml: "ü", Auml: "Ä", Ouml: "Ö", Uuml: "Ü", szlig: "ß",
+};
+
+function decodeEntities(text) {
+  return text.replace(/&(#x[0-9a-f]+|#\d+|[a-z]+);/gi, (all, e) => {
+    if (e[0] == "#") {
+      const n = e[1].toLowerCase() == "x" ? parseInt(e.slice(2), 16) : parseInt(e.slice(1), 10);
+      return Number.isFinite(n) && n <= 0x10ffff ? String.fromCodePoint(n) : " ";
+    }
+    return ENTITIES[e] ?? ENTITIES[e.toLowerCase()] ?? all;
+  });
+}
+
 function stripHtml(text) {
   if (!/<(?:!doctype|html|head|body|div|table|p|span|br|style|meta|td)\b/i.test(text)) {
-    return text;
+    return decodeEntities(text);
   }
-  const entities = { nbsp: " ", amp: "&", lt: "<", gt: ">", quot: '"', apos: "'", shy: "" };
-  return text
+  return decodeEntities(text
     .replace(/<(style|script|head|title)\b[\s\S]*?<\/\1\s*>/gi, " ")
     .replace(/<(style|script|head)\b[\s\S]*$/i, " ") // angeschnitten (Vorschau gekürzt)
     .replace(/<!--[\s\S]*?(-->|$)/g, " ")
     .replace(/<[^>]*>/g, " ")
-    .replace(/<[^>]*$/, " ") // angeschnittenes Tag am Ende
-    .replace(/&(#x[0-9a-f]+|#\d+|[a-z]+);/gi, (all, e) => {
-      if (e[0] == "#") {
-        const n = e[1].toLowerCase() == "x" ? parseInt(e.slice(2), 16) : parseInt(e.slice(1), 10);
-        return Number.isFinite(n) ? String.fromCodePoint(n) : " ";
-      }
-      return entities[e.toLowerCase()] ?? all;
-    });
+    .replace(/<[^>]*$/, " ")); // angeschnittenes Tag am Ende
 }
 
 function cleanPreview(text) {
@@ -2346,6 +2358,13 @@ class CardEnhancer {
     }
     this.applyToolbarOnce();
     this.applySpaceToolbarsOnce();
+    // Suche über alle Konten und Treffer als einfache Liste (Einstellungen →
+    // Allgemein) – einmalig, wer es danach abschaltet, behält das
+    if (!Services.prefs.getBoolPref("extensions.mailcards.searchApplied", false)) {
+      Services.prefs.setBoolPref("mailnews.database.global.indexer.enabled", true);
+      Services.prefs.setBoolPref("gloda.show_as_list_by_default", true);
+      Services.prefs.setBoolPref("extensions.mailcards.searchApplied", true);
+    }
     // Windows/Linux: einmal beim ersten Start sagen, dass halo.spaces für
     // macOS gemacht ist und dort noch erprobt wird
     const NOTE_PREF = "extensions.mailcards.platformNoteShown";
@@ -3731,6 +3750,28 @@ class CardEnhancer {
       btn.addEventListener("click", () => this.animateSpaces(w, updateTip));
       bar.after(btn); // Geschwister der Leiste, damit CSS ihren Zustand sieht
       this.restorers.push(() => btn.remove());
+      // Tooltips der Bereiche nur mit Namen („Mail“ statt „Mail (⌃ 1)“):
+      // Thunderbird setzt sie per Fluent aus Titel und Kurzbefehl, auch
+      // später noch (Übersetzung läuft verzögert) – also jedes Mal den
+      // Titel aus den Fluent-Argumenten übernehmen
+      const plainTitle = space => {
+        let name;
+        try {
+          name = JSON.parse(space.getAttribute("data-l10n-args") || "{}").title;
+        } catch {}
+        if (name && space.title != name) {
+          space.title = name;
+        }
+      };
+      // (alle Knöpfe beobachten – beim ersten Aufruf fehlen die Argumente evtl. noch)
+      const spaces = [...bar.querySelectorAll("#mailButton, #addressBookButton, #calendarButton, #tasksButton, #chatButton")];
+      spaces.forEach(plainTitle);
+      const tipMo = new w.MutationObserver(records => records.forEach(r => plainTitle(r.target)));
+      spaces.forEach(space => tipMo.observe(space, { attributes: true, attributeFilter: ["title", "data-l10n-args"] }));
+      this.restorers.push(() => {
+        tipMo.disconnect();
+        spaces.forEach(space => w.document.l10n?.translateElements([space]));
+      });
     };
 
     // Today-Pane ein-/ausblenden: Knopf unten rechts (Gegenstück zum
@@ -3810,6 +3851,7 @@ class CardEnhancer {
       this.restorers.push(() => {
         plus.remove();
         row?.removeAttribute("data-mc-tp-open");
+        row?.removeAttribute("data-mc-tp-none");
       });
       // Verlauf am Kartenboden nur, solange unten noch Termine verborgen sind
       const agenda = d.getElementById("agenda");
@@ -3844,6 +3886,7 @@ class CardEnhancer {
         }
         if (typeof animWidth == "number") {
           setVar(row, "--mc-tp-w", `${Math.round(animWidth)}px`);
+          row.toggleAttribute("data-mc-tp-none", Math.round(animWidth) <= 0);
           return;
         }
         if (panel?.__mcAnimating) {
@@ -3854,6 +3897,9 @@ class CardEnhancer {
         setVar(row, "--mc-tp-w", `${width}px`);
         setVar(row, "--mc-tp-room", `${width}px`);
         row.toggleAttribute("data-mc-tp-open", width > 0);
+        // ohne Today-Pane auch keine Fläche oben (ihr Innenabstand ließe
+        // sonst rechts neben dem Knopf einen grauen Streifen stehen)
+        row.toggleAttribute("data-mc-tp-none", width <= 0);
         setVar(row, "--mc-caption-w", `${caption}px`);
         setVar(row, "--mc-row-tail", `${rowTail(d)}px`);
         // neben Knopf und Fensterknöpfen zu wenig Platz: nur die Sonne
@@ -5863,7 +5909,10 @@ class CardEnhancer {
         // Toolbar-Zeile (statt versetzt quer durch die Knöpfe zu laufen)
         const listRight = buttonsStart >= paneRight - 2 ? paneRight - rowLeft : -10;
         setBarVar(top.document, "--mc-lh-right", `${Math.round(Math.min(paneRight, buttonsStart - 6) - rowLeft)}px`);
-        setBarVar(top.document, "--mc-list-right", `${Math.round(listRight)}px`
+        // auf ganze Bildpunkte des Bildschirms (Retina: 0,5 px) – wie der
+        // Rand der Mailliste, sonst steht die Linie oben um einen Punkt daneben
+        const dpr = top.devicePixelRatio || 1;
+        setBarVar(top.document, "--mc-list-right", `${Math.round(listRight * dpr) / dpr}px`
         );
         // Die Tab-Leiste kann weiter rechts beginnen (z. B. neben der
         // Bereiche-Leiste) – dort dieselben Kanten, um den Versatz korrigiert.
@@ -5871,7 +5920,7 @@ class CardEnhancer {
         if (tabs) {
           const shift = tabs.getBoundingClientRect().left - row.getBoundingClientRect().left;
           setVar(tabs, "--mc-sidebar-right", `${Math.max(0, Math.round(right - shift))}px`);
-          setVar(tabs, "--mc-list-right", `${Math.round(listRight - shift)}px`);
+          setVar(tabs, "--mc-list-right", `${Math.round((listRight - shift) * dpr) / dpr}px`);
         }
       }
     };

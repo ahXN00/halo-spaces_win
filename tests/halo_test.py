@@ -667,6 +667,23 @@ def run_checks(m, version, profile, results):
         return ok, f"{res}"
     check("Mindestbreiten: Fenster wird nicht schmaler als die Bereiche", min_widths, results)
 
+    def today_closed():
+        # Today-Pane aus: keine graue Fläche oben rechts neben dem Knopf
+        res = m.js('''
+          await toMail(); await wait(800);
+          const row = d.getElementById("unifiedToolbarContainer"); const top = d.getElementById("mcTodayTop");
+          const cmd = d.getElementById("calendar_toggle_todaypane_command");
+          const was = w.TodayPane?.isVisible;
+          // erst offen (Fläche da), dann zu (Fläche weg), dann wie vorher
+          if (!was) { cmd.doCommand(); await wait(800); }
+          const out = { open: !row.hasAttribute("data-mc-tp-none") && Math.round(top.getBoundingClientRect().width) > 0 };
+          cmd.doCommand(); await wait(800);
+          out.none = row.hasAttribute("data-mc-tp-none"); out.width = Math.round(top.getBoundingClientRect().width);
+          if (was) { cmd.doCommand(); await wait(800); }
+          return out;''')
+        return res["open"] and res["none"] and res["width"] == 0, f"{res}"
+    check("Today-Pane aus: keine Fläche rechts neben dem Knopf", today_closed, results)
+
     def today_animation():
         res = m.js('''
           await toMail(); await wait(1500);
@@ -698,6 +715,62 @@ def run_checks(m, version, profile, results):
         ok = all(res[p]["steps"] >= 6 and res[p]["maxJump"] < res["start"] / 2 for p in ("aus", "ein")) and res["end"] == res["start"]
         return ok, f"{res}"
     check("Today-Pane: Ein-/Ausblenden flüssig (kein Sprung)", today_animation, results)
+
+
+    def preview_entities():
+        # Text-Teil mit &zwnj; (wie Amazon Visa) – Vorschau ohne Entities
+        res = m.js(r"""
+          const { MailServices } = ChromeUtils.importESModule("resource:///modules/MailServices.sys.mjs");
+          try { MailServices.accounts.localFoldersServer; } catch { MailServices.accounts.createLocalMailAccount(); await wait(500); }
+          const root = MailServices.accounts.localFoldersServer.rootFolder;
+          if (!root.containsChildNamed("Zeichen")) { root.createSubfolder("Zeichen", null); await wait(800); }
+          const f = root.getChildNamed("Zeichen");
+          if (!f.getTotalMessages(false)) {
+            f.QueryInterface(Ci.nsIMsgLocalMailFolder).addMessage("From: Halo <h@example.invalid>\r\nSubject: Zeichen\r\nDate: Sat, 17 Oct 2026 10:00:00 +0200\r\nMessage-ID: <halo-entities@example.invalid>\r\nContent-Type: text/plain; charset=UTF-8\r\n\r\nInformationen zu deiner Karte &zwnj; &zwnj;&zwnj; Hallo &hellip; bis bald\r\n");
+            await wait(800);
+          }
+          const a3 = await toMail(); a3.displayFolder(f.URI);
+          const el = await until(() => [...a3.document.querySelectorAll('#threadTree tr[is="thread-card"] .mc-preview')].find(e => /Hallo/.test(e.textContent)), 8000);
+          return { text: el?.textContent || null, visibility: d.visibilityState, rows: a3.gDBView?.rowCount };""")
+        if res.get("text") is None and res.get("visibility") == "hidden":
+            return True, f"Testfenster verdeckt (Karten nicht gezeichnet) – übersprungen {res}"
+        text = res.get("text") or ""
+        return "Hallo" in text and "&" not in text and "…" in text, f"{res}"
+    check("Vorschau: HTML-Zeichen (&zwnj; …) aufgelöst", preview_entities, results)
+
+    def tooltip_style():
+        # eigene Tooltip-Fläche (sonst dunkle Schrift auf dunklem macOS-Tooltip)
+        res = m.js(MESSAGE_JS + '''
+          const md = a3.messageBrowser.contentDocument;
+          const out = {};
+          for (const [name, tip] of [["mail", d.getElementById("aHTMLTooltip")], ["message", md.getElementById("aHTMLTooltip")]]) {
+            if (!tip) continue;
+            const cs = tip.ownerDocument.defaultView.getComputedStyle(tip);
+            out[name] = { app: cs.appearance, bg: cs.backgroundColor, color: cs.color, radius: cs.borderTopLeftRadius };
+          }
+          const li = md.querySelector("#messageHeader li.header-recipient");
+          out.title = li?.title;
+          return out;''')
+        tips = [res.get("mail"), res.get("message")]
+        ok = all(t and t["app"] == "none" and t["bg"] not in ("", "transparent", "rgba(0, 0, 0, 0)") and t["radius"] == "6px" for t in tips) \
+            and "@" in (res.get("title") or "")
+        return ok, f"{res}"
+    check("Tooltips: eigene Fläche mit lesbarer Schrift", tooltip_style, results)
+
+    def space_tips():
+        res = m.js('''
+          return [...d.querySelectorAll("#spacesToolbar :is(#mailButton, #addressBookButton, #calendarButton, #tasksButton, #chatButton)")].map(b => b.title);''')
+        ok = len(res) == 5 and all(t and "(" not in t and "⌃" not in t for t in res)
+        return ok, f"{res}"
+    check("Bereiche-Leiste: Tooltips nur mit Namen", space_tips, results)
+
+    def search_prefs():
+        res = m.js('''
+          return { gloda: Services.prefs.getBoolPref("mailnews.database.global.indexer.enabled"),
+                   list: Services.prefs.getBoolPref("gloda.show_as_list_by_default"),
+                   applied: Services.prefs.getBoolPref("extensions.mailcards.searchApplied", false) };''')
+        return all(res.values()), f"{res}"
+    check("Suche: alle Konten und einfache Liste voreingestellt", search_prefs, results)
 
     def birthdays():
         res = m.js('''

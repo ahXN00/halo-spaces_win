@@ -28,6 +28,8 @@
   --mt-radius-panel: 18px;
   --mt-radius-row: 10px;
   --mt-menu-bg: rgba(246, 246, 248, 0.80);
+  --mt-tooltip-bg: #FFFFFF;
+  --mt-tooltip-border: rgba(0, 0, 0, 0.15);
   --mt-pane-line: rgba(0, 0, 0, 0.11);
   --mt-tabbar: #E9E9EB;
   --mt-tab-selected: #F9F9FA;
@@ -49,6 +51,8 @@
     --mt-control-hover: rgba(255, 255, 255, 0.12);
     --mt-shadow: 0 0 0 0.5px rgba(255, 255, 255, 0.08), 0 2px 12px rgba(0, 0, 0, 0.35);
     --mt-menu-bg: rgba(40, 40, 42, 0.80);
+    --mt-tooltip-bg: #2C2C2E;
+    --mt-tooltip-border: rgba(255, 255, 255, 0.14);
     --mt-pane-line: rgba(255, 255, 255, 0.10);
     --mt-tabbar: #262628;
     --mt-tab-selected: #3A3A3C;
@@ -224,13 +228,15 @@ global-search-bar {
    in Einstellungen, Kalender usw. bleibt die Zeile neutral */
 :root[mc-mail] #unifiedToolbarContainer {
   /* Seitenleisten-Grau bis zur Ordnerliste, dann je eine feine Linie an der
-     rechten Kante von Ordnerliste und Mailliste – wie in Apple Mail */
+     rechten Kante von Ordnerliste und Mailliste – wie in Apple Mail. Die
+     Linie der Mailliste liegt wie deren Rand innen an der Kante und ist
+     genauso dünn, sonst sitzt sie oben versetzt zur Linie darunter */
   background:
     linear-gradient(
       to right,
-      transparent 0 var(--mc-list-right, -10px),
-      var(--mt-pane-line) var(--mc-list-right, -10px) calc(var(--mc-list-right, -10px) + 1px),
-      transparent calc(var(--mc-list-right, -10px) + 1px)
+      transparent 0 calc(var(--mc-list-right, -10px) - var(--mt-hairline)),
+      var(--mt-pane-line) calc(var(--mc-list-right, -10px) - var(--mt-hairline)) var(--mc-list-right, -10px),
+      transparent var(--mc-list-right, -10px)
     ),
     linear-gradient(
       to right,
@@ -1549,6 +1555,26 @@ menupopup:not(.autoscroller) {
   --menuitem-padding-inline: 10px !important;
   font-family: var(--mt-font) !important;
   font-size: 13px !important;
+}
+
+/* Tooltips mit eigener Fläche: der native macOS-Tooltip folgt dem System,
+   die Schrift aber der in halo.spaces gewählten Darstellung – bei „Hell“
+   in dunklem macOS stand dunkle Schrift auf dunklem Grund */
+tooltip {
+  appearance: none !important;
+  background: var(--mt-tooltip-bg, #FFFFFF) !important;
+  color: var(--mt-text, #1D1D1F) !important;
+  border: 0.5px solid var(--mt-tooltip-border, rgba(0, 0, 0, 0.15)) !important;
+  border-radius: 6px !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12) !important;
+  padding: 3px 7px !important;
+  font: 12px var(--mt-font, -apple-system) !important;
+}
+
+tooltip :is(description, label, .tooltip-label) {
+  color: inherit !important;
+  background: transparent !important;
+  margin: 0 !important;
 }
 
 menupopup > :is(menu, menuitem) {
@@ -5854,9 +5880,14 @@ body:has(> #booksPane.mc-side-anim) {
   color: var(--mt-text-secondary);
 }
 
-:root:not([mc-tab]) #mcTodayTop,
-#unifiedToolbarContainer[style*="--mc-tp-w: 0px"] > #mcTodayTop {
+:root:not([mc-tab]) #mcTodayTop {
   border: none;
+}
+
+/* Today-Pane aus (auch am Ende der Ausblend-Animation): Fläche ganz weg –
+   ihr Innenabstand rechts ließe sonst einen grauen Streifen neben dem Knopf */
+#unifiedToolbarContainer[data-mc-tp-none] > #mcTodayTop {
+  display: none !important;
 }
 
 #unifiedToolbarContainer {
