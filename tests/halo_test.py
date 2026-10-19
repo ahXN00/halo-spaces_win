@@ -766,7 +766,19 @@ def run_checks(m, version, profile, results):
           await probe("settings", async () => { w.openPreferencesTab(); await wait(2000); }, () => tm.currentTabInfo.browser.contentDocument.getElementById("preferencesContainer"));
           w.resizeTo(1500, 900); await wait(800); await toMail();
           return out;''')
-        ok = all(v["pane"] is not None and v["pane"] >= v["min"] - 1 and v["window"] > 600 for v in res.values())
+        # Adressbuch (Bearbeiten): schmales Fenster und weit gezogener Teiler –
+        # die Details bleiben mindestens so breit wie vorgegeben und im Fenster
+        res["addressbook"] = m.js(ADDRESS_EDIT_JS + '''
+          w.resizeTo(600, 900); await wait(1500);
+          ad.body.style.setProperty("--sharedSplitter-width", "2000px"); await wait(800);
+          const el = ad.getElementById("detailsPane"), r = el.getBoundingClientRect();
+          const out = { window: w.outerWidth, pane: Math.round(r.width), min: parseFloat(ab.getComputedStyle(el).minWidth),
+            inside: r.right <= ab.innerWidth + 1 };
+          ad.body.style.removeProperty("--sharedSplitter-width");
+          ab.detailsPane.isDirty = false; ad.getElementById("cancelEditButton").click(); await wait(300);
+          tm.closeTab(tm.currentTabInfo); w.resizeTo(1500, 900); await wait(800); await toMail();
+          return out;''')
+        ok = res["addressbook"]["inside"] and res["addressbook"]["min"] >= 560 and all(v["pane"] is not None and v["pane"] >= v["min"] - 1 and v["window"] > 600 for v in res.values())
         return ok, f"{res}"
     check("Mindestbreiten: Fenster wird nicht schmaler als die Bereiche", min_widths, results)
 
@@ -836,10 +848,10 @@ def run_checks(m, version, profile, results):
           const add = props => { const c = Cc["@mozilla.org/addressbook/cardproperty;1"].createInstance(Ci.nsIAbCard);
             for (const [k, v] of Object.entries(props)) c.setProperty(k, v);
             c.displayName = props.DisplayName; c.primaryEmail = props.PrimaryEmail; return book.addCard(c); };
-          if (!book.childCards.some(c => c.displayName == "Anna Beispiel")) {
-            add({ FirstName: "Anna", LastName: "Beispiel", DisplayName: "Anna Beispiel", PrimaryEmail: "anna@example.invalid", Company: "Beispiel GmbH", JobTitle: "Leitung", WorkPhone: "+43 1 234" });
-            add({ DisplayName: "Muster AG", Company: "Muster AG", PrimaryEmail: "info@example.invalid", WorkPhone: "+43 1 999" });
-          }
+          // einzeln anlegen – Anna gibt es evtl. schon (ADDRESS_EDIT_JS)
+          const has = name => book.childCards.some(c => c.displayName == name);
+          if (!has("Anna Beispiel")) add({ FirstName: "Anna", LastName: "Beispiel", DisplayName: "Anna Beispiel", PrimaryEmail: "anna@example.invalid", Company: "Beispiel GmbH", JobTitle: "Leitung", WorkPhone: "+43 1 234" });
+          if (!has("Muster AG")) add({ DisplayName: "Muster AG", Company: "Muster AG", PrimaryEmail: "info@example.invalid", WorkPhone: "+43 1 999" });
           tm.openTab("addressBookTab", {}); await wait(2500);
           const ab = tm.currentTabInfo.browser.contentWindow; const ad = ab.document;
           const list = ad.getElementById("cards");
@@ -886,13 +898,27 @@ def run_checks(m, version, profile, results):
           const out = { font, fonts, sizes, width: Math.round(ve.getBoundingClientRect().width),
             avail: Math.round(scroll.clientWidth - parseFloat(ab.getComputedStyle(scroll).paddingLeft) - parseFloat(ab.getComputedStyle(scroll).paddingRight)),
             legendLeft: lg.right <= inp.left, sameLine: Math.abs((lg.top + lg.height / 2) - (inp.top + inp.height / 2)) <= 3 };
+          // Bild wie Apple Kontakte: Initialen, mittig über dem Namen; folgt dem Namen beim Tippen
+          const photo = ad.querySelector("#photoInput .contact-photo"), pr = photo.getBoundingClientRect();
+          const hr = ad.getElementById("editContactHeadingName").getBoundingClientRect();
+          const letters = () => decodeURIComponent(photo.getAttribute("src") || "").match(/<text[^>]*>([^<]*)</)?.[1];
+          out.photo = { letters: letters(), size: Math.round(pr.width), above: pr.bottom <= hr.top,
+            centered: Math.abs((pr.left + pr.right) / 2 - (hr.left + hr.right) / 2) <= 2 };
+          const first = ad.getElementById("vcard-n-firstname");
+          first.value = "Berta"; first.dispatchEvent(new ab.InputEvent("input", { bubbles: true }));
+          out.photo.typed = await until(() => letters() == "BB" && "BB") || letters();
+          ab.detailsPane.isDirty = false; // Testeingabe verwerfen, ohne Rückfrage
           ad.getElementById("cancelEditButton").click(); await wait(500);
+          const vp = ad.getElementById("viewContactPhoto");
+          out.viewLetters = decodeURIComponent(vp.getAttribute("src") || "").match(/<text[^>]*>([^<]*)</)?.[1];
           tm.closeTab(tm.currentTabInfo);
           return out;""")
         ok = (res["fonts"] == [res["font"]] and res["sizes"] == ["13px"]
-              and res["width"] >= min(res["avail"], 1040) - 2 and res["legendLeft"] and res["sameLine"])
+              and res["width"] >= min(res["avail"], 1040) - 2 and res["legendLeft"] and res["sameLine"]
+              and res["photo"]["letters"] == "AB" and res["photo"]["above"] and res["photo"]["centered"]
+              and res["photo"]["typed"] == "BB" and res["viewLetters"] == "AB")
         return ok, f"{res}"
-    check("Adressbuch: Kontakt bearbeiten in Systemschrift, Bezeichnungen links, volle Breite", contact_edit, results)
+    check("Adressbuch: Kontakt bearbeiten in Systemschrift, Bezeichnungen links, volle Breite, Initialen mittig über dem Namen", contact_edit, results)
 
     def donate():
         # „Say Thanks“ im Info-Fenster öffnet die Spendenseite (Aufruf abgefangen, kein echter Browser)

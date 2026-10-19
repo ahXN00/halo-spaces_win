@@ -3083,33 +3083,67 @@ class CardEnhancer {
         Avatar.prototype.setData = orig;
         delete Avatar.prototype.__mcFix;
       });
-      // Detailansicht: großes Foto aus der macOS-Kontakte-App, wenn iCloud nur den Link hat
-      const photo = cw.document.getElementById("viewContactPhoto");
-      if (photo) {
-        const fixPhoto = () => {
-          const card = cw.detailsPane?.currentCard;
-          const src = photo.getAttribute("src") || "";
-          if (!card || src == photo.__mcGenerated || src.startsWith("data:") || src.startsWith("file:")) {
-            return;
-          }
-          const local = MacPhotos.lookup([card.primaryEmail, ...(card.emailAddresses || [])], card.displayName);
-          if (local) {
-            photo.src = MacPhotos.fileURL(local);
-            return;
-          }
-          // kein Foto (Thunderbird zeigt dann seine Umriss-Figur)
-          if (!card.photoURL) {
-            const text = initialOf(card.displayName || card.primaryEmail, card);
-            const url = isCompany(card) ? COMPANY_AVATAR : text ? initialsImage(text) : "";
-            if (url) {
-              photo.__mcGenerated = url;
-              photo.src = url;
-            }
+      // Großes Foto in Detailansicht und Bearbeiten: Foto aus der macOS-Kontakte-App,
+      // wenn iCloud nur den Link hat; ohne Foto (oder wenn es sich nicht laden
+      // lässt) wie in der Liste die Initialen bzw. bei Firmen das Gebäude
+      const PLACEHOLDER = "chrome://messenger/skin/icons/new/compact/user.svg";
+      const hookPhoto = (photo, info) => {
+        if (!photo) {
+          return;
+        }
+        const generate = () => {
+          const { card, name, first, last } = info();
+          const text = initialOf(name, { firstName: first ?? card?.firstName, lastName: last ?? card?.lastName });
+          const url = card && isCompany(card) ? COMPANY_AVATAR : text ? initialsImage(text) : "";
+          if (url && url != photo.getAttribute("src")) {
+            photo.__mcGenerated = url;
+            photo.src = url;
           }
         };
+        const fixPhoto = () => {
+          const { card } = info();
+          const src = photo.getAttribute("src") || "";
+          if (src && src != PLACEHOLDER && src != photo.__mcGenerated) {
+            // eigenes Foto: nur iCloud-Links durch das lokale Foto ersetzen
+            if (card && !/^(data|file|blob):/.test(src)) {
+              const local = MacPhotos.lookup([card.primaryEmail, ...(card.emailAddresses || [])], card.displayName);
+              if (local) {
+                photo.src = MacPhotos.fileURL(local);
+              }
+            }
+            return;
+          }
+          generate();
+        };
+        const onError = () => {
+          if (photo.getAttribute("src") != photo.__mcGenerated) {
+            generate();
+          }
+        };
+        photo.addEventListener("error", onError);
         const mo = new cw.MutationObserver(fixPhoto);
         mo.observe(photo, { attributes: true, attributeFilter: ["src"] });
         fixPhoto();
+        this.restorers.push(() => {
+          mo.disconnect();
+          photo.removeEventListener("error", onError);
+        });
+        return fixPhoto;
+      };
+      hookPhoto(cw.document.getElementById("viewContactPhoto"), () => {
+        const card = cw.detailsPane?.currentCard;
+        return { card, name: card?.displayName || card?.primaryEmail };
+      });
+      // Bearbeiten: Initialen folgen dem Namen während der Eingabe
+      const editHeading = cw.document.getElementById("editContactHeadingName");
+      const fixEditPhoto = hookPhoto(cw.document.querySelector("#photoInput .contact-photo"), () => {
+        const val = id => cw.document.getElementById(id)?.value?.trim();
+        return { card: cw.detailsPane?.currentCard, name: editHeading?.textContent,
+          first: val("vcard-n-firstname"), last: val("vcard-n-lastname") };
+      });
+      if (fixEditPhoto && editHeading) {
+        const mo = new cw.MutationObserver(fixEditPhoto);
+        mo.observe(editHeading, { childList: true, characterData: true, subtree: true });
         this.restorers.push(() => mo.disconnect());
       }
       // schon angezeigte Fotos ebenfalls prüfen

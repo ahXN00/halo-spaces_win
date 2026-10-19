@@ -4480,16 +4480,32 @@ addon-page-header h1,
   font-family: var(--mt-font) !important;
 }
 
+/* Kopf wie in der Detailansicht (und Apple Kontakte): großes rundes Bild
+   mittig, Name darunter – beim Wechsel ins Bearbeiten springt nichts */
 #editContactForm .contact-header {
-  padding-top: 24px !important;
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  text-align: center !important;
+  gap: 14px !important;
+  padding-top: 40px !important;
   padding-bottom: 20px !important;
-  gap: 18px !important;
+}
+
+#editContactForm #photoButton {
+  order: -1 !important;
+  border-radius: 50% !important;
 }
 
 #editContactForm .contact-photo {
-  width: 96px !important;
-  height: 96px !important;
+  width: 180px !important;
+  height: 180px !important;
   border-radius: 50% !important;
+}
+
+#editContactForm .contact-headings {
+  align-items: center !important;
+  text-align: center !important;
 }
 
 #editContactHeadingName {
@@ -5903,6 +5919,9 @@ calendar-month-day-box > .mc-more:hover {
    (Variable am body von about:addressbook) */
 body {
   --ab-pane-min-width: 160px !important;
+  /* Kontaktdetails: Rasterspalte und Mindestbreite (#detailsPane unten) gleich,
+     sonst schiebt der Teiler die Details über den Fensterrand hinaus */
+  --ab-details-pane-min-width: 560px !important;
 }
 
 /* Adressbuchliste ausgeblendet: ihre Spalte im Raster entfällt ganz, die
@@ -7283,7 +7302,7 @@ notification-message:not([type="warning"]) button.notification-button {
    Fensterbreite (Summe der Mindestbreiten des offenen Space). ---------- */
 #booksPane { min-width: 160px !important; }
 #cardsPane { min-width: 280px !important; }
-#detailsPane { min-width: 420px !important; }
+#detailsPane { min-width: 560px !important; }
 #calendarDisplayBox { min-width: 560px !important; }
 #calendar-task-tree { min-width: 360px !important; }
 #calendar-task-details-container { min-width: 360px !important; }
