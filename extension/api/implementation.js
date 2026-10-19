@@ -862,6 +862,15 @@ const SECOND_LEVEL = new Set([
 const CSS = `
 #threadTree tr[is="thread-card"] .card-container {
   grid-template-columns: 16px 46px minmax(0, 1fr) !important;
+  /* Inhalt senkrecht mittig: Thunderbird stapelt ihn sonst oben, und der
+     Rest der festen Zeilenhöhe landet unten (bei kompakter Dichte deutlich) */
+  align-content: center !important;
+}
+/* ohne Thunderbirds Innenabstand (nur bei normaler Dichte): das Mitteln
+   übernimmt align-content, und das Bild sitzt bei jeder Dichte gleich zum Absender */
+#threadTree tr[is="thread-card"] .card-container > .thread-card-column:not(.read-status-column) {
+  align-self: start !important;
+  padding-block: 0 !important;
 }
 /* optisch gleiche Abstände oben/unten wie bei Apple: oben zählt das Auge ab
    der Oberkante der Großbuchstaben, unten bis zur Grundlinie der Vorschau –
@@ -873,7 +882,7 @@ const CSS = `
 #threadTree tr[is="thread-card"] .mc-avatar {
   width: 36px;
   height: 36px;
-  margin-top: 6px;
+  margin-top: 3px;
   align-self: start;
   border-radius: 50%;
   overflow: hidden;
@@ -1089,8 +1098,8 @@ function orgDomain(domain) {
     : lastTwo;
 }
 
-// Datum in der Mailliste wie Apple Mail: heute nur die Uhrzeit, gestern
-// „Gestern“, in den letzten 6 Tagen der Wochentag, sonst nur das Datum
+// Datum in der Mailliste: heute nur die Uhrzeit, gestern „Gestern“, davor
+// immer das ganze Datum (17.10.2026) – kein Wochentag
 function appleListDate(ms, now = new Date()) {
   const locale = Services.locale.appLocaleAsBCP47;
   const d = new Date(ms);
@@ -1102,10 +1111,25 @@ function appleListDate(ms, now = new Date()) {
   if (days == 1) {
     return tr("Yesterday");
   }
-  if (days < 7) {
-    return new Intl.DateTimeFormat(locale, { weekday: "long" }).format(d);
+  return new Intl.DateTimeFormat(locale, { day: "2-digit", month: "2-digit", year: "numeric" }).format(d);
+}
+
+// Absender ohne eigenen Namen (nur die Adresse, oft auch als Name
+// wiederholt): wie Apple Mail der Firmenname aus der Domain
+// („rueckgabe@amazon.de“ → „Amazon“). Bei Freemail-Adressen bleibt die Adresse.
+function senderLabel(name, email) {
+  name = (name || "").trim();
+  if (name && !/^[^\s@]+@[^\s@]+$/.test(name)) {
+    return name;
   }
-  return new Intl.DateTimeFormat(locale, { dateStyle: "short" }).format(d);
+  email ||= name.toLowerCase();
+  const domain = email.split("@")[1] || "";
+  const org = domain ? orgDomain(domain) : "";
+  if (!org || FREEMAIL.has(org)) {
+    return email;
+  }
+  const label = org.split(".")[0];
+  return label.charAt(0).toUpperCase() + label.slice(1);
 }
 
 function initialsFor(name, email) {
@@ -6922,7 +6946,7 @@ class CardEnhancer {
     style.id = STYLE_ID;
     style.textContent =
       CSS +
-      `#threadTree tr[is="thread-card"] .mc-preview { -webkit-line-clamp: ${this.previewLines}; }`;
+      `#threadTree tr[is="thread-card"] .mc-preview { -webkit-line-clamp: ${this.previewLines}; min-height: ${this.previewLines * 16}px; }`;
     doc.head.appendChild(style);
 
     const enhancer = this;
@@ -7261,11 +7285,36 @@ class CardEnhancer {
     }
 
     this.fillAvatar(avatar, hdr);
+    this.fillSender(row, hdr);
     const dateEl = row.querySelector(".thread-card-row .date");
     if (dateEl && hdr.date) {
       dateEl.textContent = appleListDate(hdr.date / 1000);
     }
     this.markSearchHits(win, row);
+  }
+
+  // Zeigt Thunderbird nur die Adresse des Absenders (kein Name im Kopf),
+  // stattdessen den Namen aus der Domain. Im Gesendet-Ordner steht dort der
+  // Empfänger – dann bleibt alles, wie es ist.
+  fillSender(row, hdr) {
+    const el = row.querySelector(".thread-card-row .sender");
+    if (!el) {
+      return;
+    }
+    let name = "";
+    let email = "";
+    try {
+      const parsed = MailServices.headerParser.parseDecodedHeader(hdr.mime2DecodedAuthor || hdr.author)[0];
+      name = parsed?.name || "";
+      email = (parsed?.email || "").toLowerCase();
+    } catch {}
+    if (!email || !el.textContent.toLowerCase().includes(email)) {
+      return;
+    }
+    const label = senderLabel(name, email);
+    if (label != el.textContent) {
+      el.textContent = label;
+    }
   }
 
   // Suchtreffer in Absender, Betreff und Vorschau gelb markieren – nur in der

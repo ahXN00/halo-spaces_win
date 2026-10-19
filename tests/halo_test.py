@@ -563,6 +563,32 @@ def run_checks(m, version, profile, results):
         return res.get("found") and res["diff"] >= 60, f"{res}"
     check("Ausgewählte Karte: Aktions-Symbole sichtbar", selected_actions, results)
 
+    def card_sender_date():
+        # Absender nur als Adresse → Name aus der Domain; Datum vor gestern ganz;
+        # kompakte Dichte: Abstand oben und unten gleich (früher unten ~10 px mehr)
+        res = m.js('''
+          const { MailServices } = ChromeUtils.importESModule("resource:///modules/MailServices.sys.mjs");
+          const root = MailServices.accounts.localFoldersServer.rootFolder;
+          if (!root.containsChildNamed("Karten")) { root.createSubfolder("Karten", null); await wait(800); }
+          const f = root.getChildNamed("Karten");
+          f.QueryInterface(Ci.nsIMsgLocalMailFolder).addMessage("From - Mon Jan 05 10:00:00 2026\\r\\nFrom: \\"rueckgabe@amazon.de\\" <rueckgabe@amazon.de>\\r\\nSubject: Ihre Ruecksendung\\r\\nDate: Mon, 05 Jan 2026 10:00:00 +0100\\r\\nMessage-ID: <halo-amazon@example.invalid>\\r\\n\\r\\nIhre Ruecksendung ist eingegangen.\\r\\n");
+          const a3 = await toMail(); a3.displayFolder(f.URI);
+          const out = {};
+          for (const density of [1, 0]) {
+            Services.prefs.setIntPref("mail.uidensity", density); await wait(1200);
+            const row = await until(() => a3.document.querySelector(\'#threadTree tr[is="thread-card"] .mc-preview\')?.textContent && a3.document.querySelector(\'#threadTree tr[is="thread-card"]\'), 8000);
+            const r = sel => row.querySelector(sel).getBoundingClientRect();
+            const c = r(".card-container"), sn = r(".sender"), pv = r(".mc-preview"), av = r(".mc-avatar"), dot = r(".read-status");
+            out[density] = { sender: row.querySelector(".sender").textContent, date: row.querySelector(".date").textContent,
+                             top: Math.round(sn.top - c.top), bottom: Math.round(c.bottom - pv.bottom),
+                             dot: Math.round((dot.top + dot.height / 2) - (av.top + av.height / 2)) };
+          }
+          Services.prefs.clearUserPref("mail.uidensity"); await wait(800);
+          return out;''')
+        ok = all(v["sender"] == "Amazon" and "2026" in v["date"] and 0 <= v["bottom"] - v["top"] <= 3 and abs(v["dot"]) <= 2 for v in res.values())
+        return ok, f"{res}"
+    check("Mailkarte: Absendername aus der Domain, ganzes Datum, Abstände oben/unten gleich", card_sender_date, results)
+
     def reading():
         res = m.js(MESSAGE_JS + '''
           const am = a3.messageBrowser.contentWindow; const md = am.document;
