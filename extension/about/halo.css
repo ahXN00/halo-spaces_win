@@ -46,16 +46,19 @@ body {
   min-height: 100vh;
 }
 
+/* Logo oben mittig, darunter Name und Version (wie „Über“-Fenster in macOS) */
 header {
   display: flex;
+  flex-direction: column;
   align-items: center;
-  gap: 14px;
+  text-align: center;
 }
 
 .icon {
-  width: 52px;
-  height: 52px;
+  width: 64px;
+  height: 64px;
   flex: none;
+  margin-bottom: 10px;
 }
 
 h1 {
@@ -65,8 +68,8 @@ h1 {
 }
 
 .version {
-  margin: 1px 0 0;
-  font-size: 12px;
+  margin: 2px 0 0;
+  font-size: 11px;
   color: var(--text-secondary);
 }
 
