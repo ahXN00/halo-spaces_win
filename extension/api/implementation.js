@@ -2514,6 +2514,52 @@ class CardEnhancer {
     this.mainWindows = new Set();
   }
 
+  // Gmail: dieselbe Mail liegt als Label in mehreren Ordnern (Posteingang,
+  // Wichtig, Alle Nachrichten …). Thunderbird gleicht den Gelesen-Status der
+  // anderen Ordner erst ab, wenn man sie öffnet – bis dahin zeigt z. B.
+  // „Wichtig“ eine Zahl, obwohl alles gelesen ist. Darum die Kopien sofort
+  // mitziehen (auf dem Server ist es ohnehin dieselbe Nachricht).
+  syncGmailLabels() {
+    const READ = Ci.nsMsgMessageFlags.Read;
+    let busy = false;
+    const listener = {
+      onFolderPropertyFlagChanged(hdr, property, oldFlag, newFlag) {
+        if (busy || property != "Status" || !((oldFlag ^ newFlag) & READ)) {
+          return;
+        }
+        try {
+          const folder = hdr.folder;
+          const server = folder?.server;
+          if (server?.type != "imap" || !server.QueryInterface(Ci.nsIImapIncomingServer).isGMailServer || !hdr.messageId) {
+            return;
+          }
+          const read = !!(newFlag & READ);
+          busy = true; // die eigenen Änderungen lösen den Listener erneut aus
+          for (const other of server.rootFolder.descendants) {
+            if (other == folder || other.getFlag(Ci.nsMsgFolderFlags.Virtual)) {
+              continue;
+            }
+            // nur Ordner, deren Zahl sich ändern kann – andere Datenbanken nicht öffnen
+            const unread = other.getNumUnread(false);
+            if (read ? unread <= 0 : other.getTotalMessages(false) - unread <= 0) {
+              continue;
+            }
+            const copy = other.msgDatabase?.getMsgHdrForMessageID(hdr.messageId);
+            if (copy && copy.isRead != read) {
+              other.markMessagesRead([copy], read);
+            }
+          }
+        } catch (e) {
+          log("gmail label sync error", String(e).slice(0, 160));
+        } finally {
+          busy = false;
+        }
+      },
+    };
+    MailServices.mailSession.AddFolderListener(listener, Ci.nsIFolderListener.propertyFlagChanged);
+    this.restorers.push(() => MailServices.mailSession.RemoveFolderListener(listener));
+  }
+
   start() {
     // Wie Apple Mail: Absender, Betreff, darunter die Vorschau. Thunderbirds
     // dritte Kartenzeile wäre sonst nur eine Leerzeile über der Vorschau.
@@ -2639,6 +2685,7 @@ class CardEnhancer {
       clearInterval(t2);
       MacPhotos.listeners.delete(onPhotos);
     });
+    this.syncGmailLabels();
     // Thunderbird lädt die Mailansicht (about:3pane) beim Start oft erst,
     // nachdem die Erweiterung schon läuft – darum jedes Hauptfenster
     // beobachten und seine Tabs wiederholt nach neuen Mailansichten absuchen.
