@@ -153,6 +153,9 @@ const DE = {
   "halo.spaces is made for macOS – on Windows and Linux it is still being tested. If something looks odd, we'd love a quick note!": "halo.spaces ist für macOS gemacht – unter Windows und Linux wird es gerade erst erprobt. Wenn etwas komisch aussieht, freuen wir uns über eine kurze Rückmeldung!",
   "This message is from a mailing list.": "Diese Nachricht stammt von einem Verteiler.",
   "Unsubscribe": "Abmelden",
+  "Unsubscribed": "Abgemeldet",
+  "Unsubscribe from messages from {name}?": "Keine Nachrichten mehr von {name} erhalten?",
+  "The sender will be told directly that you no longer want these messages.": "Der Absender erfährt direkt, dass du diese Nachrichten nicht mehr möchtest.",
   "Close": "Schließen",
   "Install updates at start": "Updates beim Start installieren",
   "checks at most every 6 hours; active after a restart": "prüft höchstens alle 6 Stunden; aktiv nach einem Neustart",
@@ -290,6 +293,9 @@ const FR = {
   "Mail": "Mail",
   "This message is from a mailing list.": "Ce message provient d’une liste de diffusion.",
   "Unsubscribe": "Se désabonner",
+  "Unsubscribed": "Désabonné",
+  "Unsubscribe from messages from {name}?": "Ne plus recevoir de messages de {name} ?",
+  "The sender will be told directly that you no longer want these messages.": "L’expéditeur sera informé directement que vous ne souhaitez plus recevoir ces messages.",
   "Close": "Fermer",
   "Updates": "Mises à jour",
   "Install updates at start": "Installer les mises à jour au démarrage",
@@ -428,6 +434,9 @@ const ES = {
   "Mail": "Correo",
   "This message is from a mailing list.": "Este mensaje procede de una lista de correo.",
   "Unsubscribe": "Darse de baja",
+  "Unsubscribed": "Baja confirmada",
+  "Unsubscribe from messages from {name}?": "¿Dejar de recibir mensajes de {name}?",
+  "The sender will be told directly that you no longer want these messages.": "Se informará directamente al remitente de que ya no quieres estos mensajes.",
   "Close": "Cerrar",
   "Updates": "Actualizaciones",
   "Install updates at start": "Instalar actualizaciones al iniciar",
@@ -566,6 +575,9 @@ const IT = {
   "Mail": "Posta",
   "This message is from a mailing list.": "Questo messaggio proviene da una mailing list.",
   "Unsubscribe": "Annulla iscrizione",
+  "Unsubscribed": "Iscrizione annullata",
+  "Unsubscribe from messages from {name}?": "Non ricevere più messaggi da {name}?",
+  "The sender will be told directly that you no longer want these messages.": "Il mittente verrà informato direttamente che non desideri più questi messaggi.",
   "Close": "Chiudi",
   "Updates": "Aggiornamenti",
   "Install updates at start": "Installa gli aggiornamenti all’avvio",
@@ -1270,6 +1282,23 @@ function bytesToBase64(win, bytes) {
     binary += String.fromCharCode.apply(null, bytes.subarray(i, i + chunk));
   }
   return win.btoa(binary);
+}
+
+// Einen Kopfeintrag der Nachricht lesen, den Thunderbird nicht in der
+// Datenbank hält (z. B. List-Unsubscribe-Post); "" wenn nicht vorhanden
+function readHeader(hdr, name) {
+  return new Promise(resolve => {
+    const timer = setTimeout(() => resolve(""), 5000);
+    try {
+      MsgHdrToMimeMessage(hdr, null, (msgHdr, mime) => {
+        clearTimeout(timer);
+        resolve(String(mime?.headers?.[name.toLowerCase()]?.[0] || ""));
+      }, true, { partsOnDemand: true, examineEncryptedParts: false });
+    } catch {
+      clearTimeout(timer);
+      resolve("");
+    }
+  });
 }
 
 // Netzwerkzugriffe laufen in einer eigenen Sandbox: about:3pane verbietet
@@ -7862,22 +7891,67 @@ class CardEnhancer {
       unsub.type = "button";
       unsub.textContent = tr("Unsubscribe");
       unsub.title = web || mail.replace(/^mailto:/i, "");
-      unsub.addEventListener("click", () => {
+      const openWeb = () => {
+        // im Standardbrowser öffnen – der Absender bestätigt dort. Wie ein
+        // Klick auf einen Link in der Mail (loadURI braucht seit Thunderbird
+        // 140 einen Principal und schlug ohne ihn fehl)
+        if (typeof win.openLinkExternally == "function") {
+          win.openLinkExternally(web);
+        } else {
+          Cc["@mozilla.org/uriloader/external-protocol-service;1"]
+            .getService(Ci.nsIExternalProtocolService)
+            .loadURI(Services.io.newURI(web), Services.scriptSecurityManager.getSystemPrincipal());
+        }
+      };
+      // Abmelde-Mail nur vorbereiten – gesendet wird erst durch den Nutzer
+      const composeMail = () => MailServices.compose.OpenComposeWindowWithURI(null, Services.io.newURI(mail));
+      const unsubscribeOneClick = async () => {
+        let name = "";
         try {
-          if (web) {
-            // im Standardbrowser öffnen – der Absender bestätigt dort. Wie ein
-            // Klick auf einen Link in der Mail (loadURI braucht seit Thunderbird
-            // 140 einen Principal und schlug ohne ihn fehl)
-            if (typeof win.openLinkExternally == "function") {
-              win.openLinkExternally(web);
-            } else {
-              Cc["@mozilla.org/uriloader/external-protocol-service;1"]
-                .getService(Ci.nsIExternalProtocolService)
-                .loadURI(Services.io.newURI(web), Services.scriptSecurityManager.getSystemPrincipal());
-            }
+          const parsed = MailServices.headerParser.parseDecodedHeader(hdr.mime2DecodedAuthor || hdr.author)[0];
+          name = senderLabel(parsed?.name, (parsed?.email || "").toLowerCase());
+        } catch {}
+        // wie Apple Mail erst nachfragen – die Abmeldung geschieht sofort
+        // asynchron: ein modaler Dialog hielte sonst die ganze Oberfläche an
+        const flags = Services.prompt.BUTTON_POS_0 * Services.prompt.BUTTON_TITLE_IS_STRING +
+          Services.prompt.BUTTON_POS_1 * Services.prompt.BUTTON_TITLE_CANCEL;
+        const result = await Services.prompt.asyncConfirmEx(win.browsingContext.top, Services.prompt.MODAL_TYPE_WINDOW,
+          tr("Unsubscribe from messages from {name}?", { name: name || hdr.author }),
+          tr("The sender will be told directly that you no longer want these messages."),
+          flags, tr("Unsubscribe"), null, null, null, false);
+        if (result.getProperty("buttonNumClicked") != 0) {
+          return;
+        }
+        unsub.disabled = true;
+        try {
+          const res = await fetchWithTimeout(win, web, {
+            method: "POST",
+            headers: { "Content-Type": "application/x-www-form-urlencoded" },
+            body: "List-Unsubscribe=One-Click",
+          });
+          if (!res.ok) {
+            throw new Error(`status ${res.status}`);
+          }
+          unsub.textContent = tr("Unsubscribed");
+          unsub.setAttribute("data-done", "true");
+        } catch (e) {
+          // klappt der POST nicht: Abmelde-Mail oder doch die Seite im Browser
+          debugLog("one-click unsubscribe failed", String(e).slice(0, 120));
+          unsub.disabled = false;
+          mail ? composeMail() : openWeb();
+        }
+      };
+      unsub.addEventListener("click", async () => {
+        try {
+          // Ein-Klick-Abmeldung (RFC 8058): der Link erwartet einen POST – im
+          // Browser geöffnet zeigt er nur eine leere Seite (z. B. Google).
+          // Thunderbird reicht List-Unsubscribe-Post nicht in currentHeaderData durch.
+          if (web && /List-Unsubscribe=One-Click/i.test(await readHeader(hdr, "list-unsubscribe-post"))) {
+            await unsubscribeOneClick();
+          } else if (web) {
+            openWeb();
           } else {
-            // Abmelde-Mail nur vorbereiten – gesendet wird erst durch den Nutzer
-            MailServices.compose.OpenComposeWindowWithURI(null, Services.io.newURI(mail));
+            composeMail();
           }
         } catch (e) {
           log("unsubscribe error", e);

@@ -644,6 +644,49 @@ def run_checks(m, version, profile, results):
         return res["button"] and res["opened"] == "https://example.invalid/abmelden?id=1" and not res["error"], f"{res}"
     check("Verteiler-Hinweis: Abmelden öffnet den Link", unsubscribe, results)
 
+    def one_click_unsubscribe():
+        # List-Unsubscribe-Post (RFC 8058, z. B. Google): nachfragen, dann POST
+        # statt Browser – der Link ergäbe dort nur eine leere Seite. Testadresse
+        # ist gesperrt (example.invalid), daher greift danach der Browser als Rückfall.
+        m.js(r"""
+          const { MailServices } = ChromeUtils.importESModule("resource:///modules/MailServices.sys.mjs");
+          const root = MailServices.accounts.localFoldersServer.rootFolder;
+          if (!root.containsChildNamed("EinKlick")) { root.createSubfolder("EinKlick", null); await wait(800); }
+          const f = root.getChildNamed("EinKlick");
+          f.QueryInterface(Ci.nsIMsgLocalMailFolder).addMessage("From - Sat Oct 17 10:00:00 2026\r\nFrom: Google <noreply-accounts@example.invalid>\r\nSubject: Kontodaten geteilt\r\nDate: Sat, 17 Oct 2026 09:41:00 +0200\r\nMessage-ID: <halo-oneclick@example.invalid>\r\nList-Unsubscribe: <https://example.invalid/ein-klick?id=7>\r\nList-Unsubscribe-Post: List-Unsubscribe=One-Click\r\nList-Id: <abc@example.invalid>\r\n\r\nTest\r\n");
+          await wait(800);
+          const a3 = await toMail(); a3.displayFolder(f.URI); await wait(800);
+          a3.threadTree.selectedIndex = 0; await wait(2000);
+          const am = a3.messageBrowser.contentWindow;
+          await until(() => am.document.querySelector("#mcListBanner .mc-lb-unsub"));
+          am.__mcOrigOpen ??= am.openLinkExternally; am.__mcOpened = null;
+          am.openLinkExternally = url => { am.__mcOpened = String(url); };
+          return 1;""")
+        am = "const a3 = await toMail(); const am = a3.messageBrowser.contentWindow;"
+        click = am + 'am.document.querySelector("#mcListBanner .mc-lb-unsub")?.click(); return 1;'
+        opened = am + "await until(() => am.__mcOpened, 3000); return am.__mcOpened;"
+
+        # der Dialog kommt asynchron – Marionette meldet ihn als Alert
+        def alert(cmd):
+            for _ in range(20):
+                try:
+                    return m.cmd(cmd, {}) or True
+                except RuntimeError:
+                    time.sleep(0.25)
+            return None
+        m.js(click)
+        text = (alert("WebDriver:GetAlertText") or {}).get("value", "")
+        alert("WebDriver:DismissAlert")
+        after_cancel = m.js(opened)
+        m.js(click)
+        accepted = alert("WebDriver:AcceptAlert")
+        after_accept = m.js(opened)
+        m.js(am + "if (am.__mcOrigOpen) am.openLinkExternally = am.__mcOrigOpen; return 1;")
+        res = {"prompt": text, "afterCancel": after_cancel, "accepted": bool(accepted), "opened": after_accept}
+        ok = "no longer" in text and after_cancel is None and accepted and after_accept == "https://example.invalid/ein-klick?id=7"
+        return ok, f"{res}"
+    check("Verteiler-Hinweis: Ein-Klick-Abmeldung fragt nach und sendet statt Browser", one_click_unsubscribe, results)
+
     def html_font():
         res = m.js(r"""
           const { MailServices } = ChromeUtils.importESModule("resource:///modules/MailServices.sys.mjs");
