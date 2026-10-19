@@ -606,10 +606,15 @@ def run_checks(m, version, profile, results):
                              dot: Math.round((dot.top + dot.height / 2) - (av.top + av.height / 2)) };
           }
           Services.prefs.clearUserPref("mail.uidensity"); await wait(800);
-          return out;''')
-        ok = all(v["sender"] == "Amazon" and "2026" in v["date"] and 0 <= v["bottom"] - v["top"] <= 3 and abs(v["dot"]) <= 2 for v in res.values())
+          // im Mailkopf derselbe Name
+          a3.threadTree.selectedIndex = 0;
+          const md = a3.messageBrowser.contentWindow.document;
+          await until(() => md.querySelector("#fromRecipient0 .recipient-single-line")?.textContent == "Amazon", 5000);
+          const header = md.querySelector("#fromRecipient0 .recipient-single-line")?.textContent;
+          return { cards: out, header };''')
+        ok = res["header"] == "Amazon" and all(v["sender"] == "Amazon" and "2026" in v["date"] and 0 <= v["bottom"] - v["top"] <= 3 and abs(v["dot"]) <= 2 for v in res["cards"].values())
         return ok, f"{res}"
-    check("Mailkarte: Absendername aus der Domain, ganzes Datum, Abstände oben/unten gleich", card_sender_date, results)
+    check("Mailkarte und Mailkopf: Absendername aus der Domain, ganzes Datum, Abstände oben/unten gleich", card_sender_date, results)
 
     def reading():
         res = m.js(MESSAGE_JS + '''

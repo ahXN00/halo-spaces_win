@@ -2557,7 +2557,38 @@ class CardEnhancer {
       },
     };
     MailServices.mailSession.AddFolderListener(listener, Ci.nsIFolderListener.propertyFlagChanged);
-    this.restorers.push(() => MailServices.mailSession.RemoveFolderListener(listener));
+
+    // Am Handy oder im Web Gelesenes erfährt Thunderbird außerhalb des
+    // Posteingangs erst beim Öffnen des Ordners. Darum Gmail-Ordner, die noch
+    // Ungelesenes zeigen, alle 5 Minuten abgleichen (nur diese, wenige Ordner)
+    const F = Ci.nsMsgFolderFlags;
+    const refresh = () => {
+      if (Services.io.offline) {
+        return;
+      }
+      for (const server of MailServices.accounts.allServers) {
+        try {
+          if (server.type != "imap" || !server.QueryInterface(Ci.nsIImapIncomingServer).isGMailServer) {
+            continue;
+          }
+          for (const f of server.rootFolder.descendants) {
+            if (f.getFlag(F.Inbox | F.Virtual | F.Trash | F.Junk | F.ImapNoselect) || f.getNumUnread(false) <= 0) {
+              continue;
+            }
+            f.updateFolder(null);
+          }
+        } catch (e) {
+          log("gmail refresh error", String(e).slice(0, 160));
+        }
+      }
+    };
+    const first = setTimeout(refresh, 60 * 1000);
+    const every = setInterval(refresh, 5 * 60 * 1000);
+    this.restorers.push(() => {
+      MailServices.mailSession.RemoveFolderListener(listener);
+      clearTimeout(first);
+      clearInterval(every);
+    });
   }
 
   start() {
@@ -7821,11 +7852,15 @@ class CardEnhancer {
     };
     let pending = false;
     // Empfänger wie Apple Mail: nur der Name, die Adresse als Tooltip beim
-    // Überfahren (ohne Namen bleibt die Adresse stehen)
+    // Überfahren (ohne Namen bleibt die Adresse stehen – beim Absender wie in
+    // der Liste der Name aus der Domain, „rueckgabe@amazon.de“ → „Amazon“)
     const shorten = () => {
       for (const li of doc.querySelectorAll("#messageHeader li.header-recipient")) {
         const email = li.emailAddress || "";
-        const name = (li.displayName || "").trim();
+        let name = (li.displayName || "").trim();
+        if (email && li.id.startsWith("fromRecipient")) {
+          name = senderLabel(name, email.toLowerCase());
+        }
         if (email && li.title != email) {
           li.title = email;
         }
