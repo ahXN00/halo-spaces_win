@@ -717,6 +717,61 @@ def run_checks(m, version, profile, results):
     check("Today-Pane: Ein-/Ausblenden flüssig (kein Sprung)", today_animation, results)
 
 
+    def address_book():
+        # Person und Firma (example.invalid) im persönlichen Adressbuch
+        res = m.js(r"""
+          const { MailServices } = ChromeUtils.importESModule("resource:///modules/MailServices.sys.mjs");
+          const book = MailServices.ab.getDirectory("jsaddrbook://abook.sqlite");
+          const add = props => { const c = Cc["@mozilla.org/addressbook/cardproperty;1"].createInstance(Ci.nsIAbCard);
+            for (const [k, v] of Object.entries(props)) c.setProperty(k, v);
+            c.displayName = props.DisplayName; c.primaryEmail = props.PrimaryEmail; return book.addCard(c); };
+          if (!book.childCards.some(c => c.displayName == "Anna Beispiel")) {
+            add({ FirstName: "Anna", LastName: "Beispiel", DisplayName: "Anna Beispiel", PrimaryEmail: "anna@example.invalid", Company: "Beispiel GmbH", JobTitle: "Leitung", WorkPhone: "+43 1 234" });
+            add({ DisplayName: "Muster AG", Company: "Muster AG", PrimaryEmail: "info@example.invalid", WorkPhone: "+43 1 999" });
+          }
+          tm.openTab("addressBookTab", {}); await wait(2500);
+          const ab = tm.currentTabInfo.browser.contentWindow; const ad = ab.document;
+          const list = ad.getElementById("cards");
+          const out = {};
+          for (const name of ["Anna Beispiel", "Muster AG"]) {
+            const i = [...Array(list.view.rowCount).keys()].find(k => list.view.getCardFromRow(k)?.displayName == name);
+            list.selectedIndex = i; await wait(1200);
+            const row = await until(() => [...ad.querySelectorAll("#cards tr")].find(r => r.querySelector(".name")?.textContent == name));
+            const av = row?.querySelector("contact-avatar");
+            const photo = ad.getElementById("viewContactPhoto");
+            out[name] = { company: !!av?.classList.contains("mc-company"), letters: av?.shadowRoot?.querySelector("span")?.textContent,
+              radius: av ? ab.getComputedStyle(av).borderRadius : null,
+              photo: (photo.getAttribute("src") || "").slice(0, 60),
+              books: [...ad.querySelectorAll("#mcDetailBooks .mc-book")].map(e => e.textContent),
+              types: [...ad.querySelectorAll("#viewContact .entry-type")].filter(e => e.textContent).map(e => [e.textContent, ab.getComputedStyle(e).textTransform]) };
+          }
+          // Teiler anfassen ohne Bewegung: Kontaktliste bleibt gleich breit (kein Sprung)
+          const shared = ad.getElementById("sharedSplitter"); const cards = ad.getElementById("cardsPane");
+          const before = Math.round(cards.getBoundingClientRect().width);
+          shared._updateSize?.(before); await wait(200);
+          out.splitter = [before, Math.round(cards.getBoundingClientRect().width)];
+          tm.closeTab(tm.currentTabInfo);
+          return out;""")
+        a, f = res.get("Anna Beispiel", {}), res.get("Muster AG", {})
+        ok = (a.get("letters") == "AB" and not a.get("company") and a.get("photo", "").startswith("data:image/svg")
+              and f.get("company") and "company-avatar.svg" in f.get("photo", "")
+              and a.get("radius") == "50%" and a.get("books") and all(t[1] == "none" for t in a.get("types", []))
+              and len(a.get("types", [])) >= 2 and abs(res["splitter"][0] - res["splitter"][1]) <= 1)
+        return ok, f"{res}"
+    check("Adressbuch: Firmen-Avatar, Initialen im Detail, Konto-Etiketten, Bezeichnungen, Teiler ohne Sprung", address_book, results)
+
+    def no_placeholder_in_ui():
+        # Platzhalter für blockierte Bilder nur in Mails – nicht in der Oberfläche (Lupe im Suchfeld)
+        res = m.js('''
+          await toMail(); await wait(500);
+          const imgs = [];
+          const walk = root => { for (const el of root.querySelectorAll("*")) { if (el.localName == "img") imgs.push(el); if (el.shadowRoot) walk(el.shadowRoot); } };
+          walk(d);
+          const bad = imgs.filter(i => /M3 3l18 18/.test(w.getComputedStyle(i).backgroundImage)).map(i => i.id || i.className || i.getAttribute("alt"));
+          return { imgs: imgs.length, bad };''')
+        return res["imgs"] > 0 and not res["bad"], f"{res}"
+    check("Oberfläche: kein Bild-Platzhalter außerhalb von Mails", no_placeholder_in_ui, results)
+
     def preview_entities():
         # Text-Teil mit &zwnj; (wie Amazon Visa) – Vorschau ohne Entities
         res = m.js(r"""

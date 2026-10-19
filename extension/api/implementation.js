@@ -598,8 +598,10 @@ const SPACE_TOOLBARS = {
 const SPACE_TOOLBAR_PREF = "extensions.mailcards.spaceToolbarsApplied";
 // Feedback aus dem Hilfe-Menü geht an diese Adresse
 const FEEDBACK_ADDRESS = "halo.cat@icloud.com";
-// „Danke sagen“ im Info-Fenster
-const DONATE_URL = "https://buymeacoffee.com/diversion";
+// „Danke sagen“ im Info-Fenster; UTM-Parameter zeigen in Google Analytics
+// der Spendenseite, dass der Aufruf aus halo.spaces kam
+const DONATE_URL = "https://buymeacoffee.com/diversion"
+  + "?utm_source=halo.spaces&utm_medium=thunderbird-addon&utm_campaign=donate&utm_content=about-window";
 const CACHE_FILE = "mail-cards-logos.json";
 const DAY = 24 * 60 * 60 * 1000;
 const HIT_TTL = 30 * DAY;
@@ -2648,7 +2650,9 @@ class CardEnhancer {
             // (ohne Wert – beim Loslassen – nur die tatsächliche Größe übernehmen)
             if (typeof size == "number" && c && b) {
               const maxRight = row.getBoundingClientRect().right - toolbarNeed(d);
-              size = Math.min(size, Math.max(160, maxRight - (b.left + c.left)));
+              // nur am Wachsen hindern – nie unter die jetzige Breite drücken,
+              // sonst springen Liste und Kontaktfoto beim Anfassen des Teilers
+              size = Math.min(size, Math.max(160, Math.round(c.width), maxRight - (b.left + c.left)));
             }
             return origUpdate.call(this, size);
           };
@@ -2766,6 +2770,38 @@ class CardEnhancer {
       const words = (name || "").normalize().split(/\s+/).map(firstLetter).filter(Boolean);
       return words.slice(0, 2).join("").toUpperCase();
     };
+    // Firma statt Person (wie Apple Kontakte): als Firma markiert (iCloud:
+    // X-ABShowAs:COMPANY) oder ohne Vor-/Nachname, aber mit Firmenname
+    const isCompany = card => {
+      if (!card || card.isMailList) {
+        return false;
+      }
+      let props = null;
+      try {
+        props = card.supportsVCard ? card.vCardProperties : null;
+      } catch {}
+      const showAs = String(props?.getFirstValue("x-abshowas") || "").toUpperCase();
+      if (showAs == "COMPANY") {
+        return true;
+      }
+      const prop = name => {
+        try {
+          return card.getProperty(name, "") || "";
+        } catch {
+          return "";
+        }
+      };
+      const org = (props && [props.getFirstValue("org")].flat()[0]) || prop("Company");
+      return !!org && !card.firstName && !card.lastName;
+    };
+    const COMPANY_AVATAR = "resource://mailcards/icons/company-avatar.svg";
+    // großes Bild ohne Foto: Initialen auf dem Verlauf der Liste (statt
+    // Thunderbirds Umriss-Figur)
+    const initialsImage = text => {
+      const esc = String(text).replace(/[<>&"']/g, ch => `&#${ch.charCodeAt(0)};`);
+      const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><linearGradient id="g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#B4CAE4"/><stop offset="1" stop-color="#8A97C5"/></linearGradient></defs><rect width="100" height="100" fill="url(#g)"/><text x="50" y="50" dy="0.35em" text-anchor="middle" fill="#fff" font-family="-apple-system, BlinkMacSystemFont, system-ui, sans-serif" font-weight="600" font-size="44">${esc}</text></svg>`;
+      return "data:image/svg+xml;charset=utf-8," + encodeURIComponent(svg);
+    };
     // Kontaktfotos, die sich nicht laden lassen (z. B. verwaiste Foto-Datei),
     // zeigen sonst den Ersatztext „Profile picture …“. Dann wie bei Kontakten
     // ohne Foto die Initialen anzeigen.
@@ -2814,12 +2850,18 @@ class CardEnhancer {
             span.hidden = true;
           }
         }
-        // ohne Foto: zwei Initialen statt Thunderbirds einem Buchstaben
+        // ohne Foto: zwei Initialen statt Thunderbirds einem Buchstaben,
+        // bei Firmen ein Gebäude (Bild über CSS, Klasse mc-company)
         const letters = this.shadowRoot?.querySelector("span");
         if (letters && !letters.hidden && !c?.isMailList) {
-          const text = initialOf(opts.recipient || name, c);
-          if (text) {
-            letters.textContent = text;
+          if (isCompany(c)) {
+            letters.textContent = "";
+            this.classList.add("mc-company");
+          } else {
+            const text = initialOf(opts.recipient || name, c);
+            if (text) {
+              letters.textContent = text;
+            }
           }
         }
         fixAvatar(this, opts.recipient || name, c);
@@ -2836,12 +2878,22 @@ class CardEnhancer {
         const fixPhoto = () => {
           const card = cw.detailsPane?.currentCard;
           const src = photo.getAttribute("src") || "";
-          if (!card || src.startsWith("data:") || src.startsWith("file:")) {
+          if (!card || src == photo.__mcGenerated || src.startsWith("data:") || src.startsWith("file:")) {
             return;
           }
           const local = MacPhotos.lookup([card.primaryEmail, ...(card.emailAddresses || [])], card.displayName);
           if (local) {
             photo.src = MacPhotos.fileURL(local);
+            return;
+          }
+          // kein Foto (Thunderbird zeigt dann seine Umriss-Figur)
+          if (!card.photoURL) {
+            const text = initialOf(card.displayName || card.primaryEmail, card);
+            const url = isCompany(card) ? COMPANY_AVATAR : text ? initialsImage(text) : "";
+            if (url) {
+              photo.__mcGenerated = url;
+              photo.src = url;
+            }
           }
         };
         const mo = new cw.MutationObserver(fixPhoto);
@@ -2942,6 +2994,56 @@ class CardEnhancer {
         delete Adapter.prototype.__mcDedupe;
       });
 
+      // Etiketten in Kontofarbe (Liste, Tabelle und Detailansicht)
+      const bookPills = (doc, sources) => sources.map(n => {
+        const pill = doc.createElement("span");
+        pill.className = "mc-book";
+        pill.textContent = n;
+        const c = accountColor(n);
+        pill.style.setProperty("--c", c);
+        pill.classList.toggle("mc-dark-color", textOnColor(c) == "#fff" && isVeryDark(c));
+        return pill;
+      });
+      // Detailansicht: unter dem Namen, zu welchen Konten der Kontakt gehört –
+      // bei zusammengeführten Kontakten alle (wie in der Liste)
+      const pane = cw.detailsPane;
+      if (pane && typeof pane.displayContact == "function" && !pane.__mcBooks) {
+        const origDisplay = pane.displayContact;
+        pane.displayContact = function (card, ...rest) {
+          const result = origDisplay.call(this, card, ...rest);
+          try {
+            const doc = cw.document;
+            doc.getElementById("mcDetailBooks")?.remove();
+            if (card && !card.isMailList) {
+              const rows = Object.values(cw.cardsPane?.cardsList?.view?._rowMap || {});
+              const row = rows.find(r => r?.card?.UID == card.UID);
+              let sources = row?.mcSources?.length ? row.mcSources : [];
+              if (!sources.length) {
+                const dir = row?.directory || (card.directoryUID && MailServices.ab.getDirectoryFromUID(card.directoryUID));
+                sources = [dir?.dirName].filter(Boolean);
+              }
+              const headings = doc.querySelector("#viewContact .contact-headings");
+              if (sources.length && headings) {
+                const box = doc.createElement("p");
+                box.id = "mcDetailBooks";
+                box.className = "mc-books";
+                box.replaceChildren(...bookPills(doc, sources));
+                headings.appendChild(box);
+              }
+            }
+          } catch (e) {
+            log("detail books error", e);
+          }
+          return result;
+        };
+        pane.__mcBooks = true;
+        this.restorers.push(() => {
+          pane.displayContact = origDisplay;
+          delete pane.__mcBooks;
+          cw.document.getElementById("mcDetailBooks")?.remove();
+        });
+      }
+
       // Labels je Kontakt: aus welchen Adressbüchern er stammt – nur in der
       // vereinigten Ansicht „Alle Adressbücher“
       const Row = cw.customElements.get("ab-card-row");
@@ -2983,15 +3085,7 @@ class CardEnhancer {
                 box.className = "mc-books";
                 this.firstLine.appendChild(box);
               }
-              box.replaceChildren(...sources.map(n => {
-                const pill = cw.document.createElement("span");
-                pill.className = "mc-book";
-                pill.textContent = n;
-                const c = accountColor(n);
-                pill.style.setProperty("--c", c);
-                pill.classList.toggle("mc-dark-color", textOnColor(c) == "#fff" && isVeryDark(c));
-                return pill;
-              }));
+              box.replaceChildren(...bookPills(cw.document, sources));
               box.title = sources.join(", ");
             }
           } catch (e) {
@@ -3021,15 +3115,7 @@ class CardEnhancer {
             if (cell && !cell.hidden && sources.length) {
               const box = cw.document.createElement("span");
               box.className = "mc-books";
-              box.replaceChildren(...sources.map(n => {
-                const pill = cw.document.createElement("span");
-                pill.className = "mc-book";
-                pill.textContent = n;
-                const c = accountColor(n);
-                pill.style.setProperty("--c", c);
-                pill.classList.toggle("mc-dark-color", textOnColor(c) == "#fff" && isVeryDark(c));
-                return pill;
-              }));
+              box.replaceChildren(...bookPills(cw.document, sources));
               cell.replaceChildren(box);
               cell.title = sources.join(", ");
             }
