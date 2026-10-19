@@ -937,7 +937,8 @@ def run_checks(m, version, profile, results):
     check("Adressbuch: Firmen-Avatar, Initialen im Detail, Konto-Etiketten, Bezeichnungen, Teiler ohne Sprung", address_book, results)
 
     def contact_edit():
-        # Kontakt bearbeiten wie Apple Kontakte: eine Schrift, Bezeichnungen links, volle Breite
+        # Kontakt bearbeiten wie Apple Kontakte: eine Schrift, Überschriften über den Feldern,
+        # volle Breite; zuerst nur Vor-/Nachname, E-Mail, Telefon, Adressen und Ausgefülltes
         res = m.js(ADDRESS_EDIT_JS + r"""
           const font = ab.getComputedStyle(ad.documentElement).getPropertyValue("--mt-font").trim().split(",")[0];
           const ve = ad.querySelector("#editContactForm vcard-edit");
@@ -945,12 +946,22 @@ def run_checks(m, version, profile, results):
           const ctrls = [...ad.querySelectorAll("#editContactForm :is(input:not([type=checkbox]), select, legend:not(.screen-reader-only), label:not(.screen-reader-only), .add-property-button:not(.only-icon))")]
             .filter(e => e.getClientRects().length);
           const fonts = [...new Set(ctrls.map(e => ab.getComputedStyle(e).fontFamily.split(",")[0]))];
-          const sizes = [...new Set(ctrls.filter(e => !e.matches("label")).map(e => ab.getComputedStyle(e).fontSize))];
+          const sizes = [...new Set(ctrls.filter(e => !e.matches("label, legend")).map(e => ab.getComputedStyle(e).fontSize))];
           const tel = ad.getElementById("addr-book-edit-tel");
           const lg = tel.querySelector(":scope > legend").getBoundingClientRect(), inp = tel.querySelector("input[type=tel]").getBoundingClientRect();
           const out = { font, fonts, sizes, width: Math.round(ve.getBoundingClientRect().width),
             avail: Math.round(scroll.clientWidth - parseFloat(ab.getComputedStyle(scroll).paddingLeft) - parseFloat(ab.getComputedStyle(scroll).paddingRight)),
-            legendLeft: lg.right <= inp.left, sameLine: Math.abs((lg.top + lg.height / 2) - (inp.top + inp.height / 2)) <= 3 };
+            legendAbove: lg.bottom <= inp.top && Math.abs(lg.left - tel.querySelector("select").getBoundingClientRect().left) <= 2 };
+          const shown = () => [...ad.querySelectorAll("#addr-book-edit-n :is(input, .mc-more-button)")].filter(e => e.getClientRects().length).map(e => e.id || "mehr");
+          const groups = () => [...ve.querySelectorAll(":scope > fieldset")].filter(e => e.getClientRects().length)
+            .sort((x, y) => x.getBoundingClientRect().top - y.getBoundingClientRect().top).map(e => e.id.replace("addr-book-edit-", ""));
+          const fn = ad.getElementById("vcard-n-firstname").getBoundingClientRect(), ln = ad.getElementById("vcard-n-lastname").getBoundingClientRect();
+          out.names = { closed: shown(), sideBySide: Math.abs(fn.top - ln.top) <= 1 && Math.abs(fn.width - ln.width) <= 1 };
+          out.groups = { closed: groups() };
+          ad.querySelector("#addr-book-edit-n .mc-more-button").click();
+          ad.querySelector("vcard-edit + .mc-more-button").click(); await wait(300);
+          out.names.open = shown(); out.groups.open = groups();
+          out.buttons = [...ad.querySelectorAll(".mc-more-button")].map(b => [b.textContent, b.getAttribute("aria-expanded")]);
           // Bild wie Apple Kontakte: Initialen, mittig über dem Namen; folgt dem Namen beim Tippen
           const photo = ad.querySelector("#photoInput .contact-photo"), pr = photo.getBoundingClientRect();
           const hr = ad.getElementById("editContactHeadingName").getBoundingClientRect();
@@ -964,14 +975,20 @@ def run_checks(m, version, profile, results):
           ad.getElementById("cancelEditButton").click(); await wait(500);
           const vp = ad.getElementById("viewContactPhoto");
           out.viewLetters = decodeURIComponent(vp.getAttribute("src") || "").match(/<text[^>]*>([^<]*)</)?.[1];
+          out.viewSize = Math.round(vp.getBoundingClientRect().width);
           tm.closeTab(tm.currentTabInfo);
           return out;""")
         ok = (res["fonts"] == [res["font"]] and res["sizes"] == ["13px"]
-              and res["width"] >= min(res["avail"], 1040) - 2 and res["legendLeft"] and res["sameLine"]
+              and res["width"] >= min(res["avail"], 1040) - 2 and res["legendAbove"]
+              and res["names"]["closed"] == ["vcard-n-firstname", "vcard-n-lastname", "mehr"] and res["names"]["sideBySide"]
+              and {"vcard-n-prefix", "vcard-n-middlename", "vcard-n-suffix", "vCardNickName", "vCardDisplayName"} <= set(res["names"]["open"])
+              and res["groups"]["closed"][:4] == ["n", "email", "tel", "address"] and "org" in res["groups"]["closed"]
+              and "url" not in res["groups"]["closed"] and "url" in res["groups"]["open"]
+              and all(b[1] == "true" for b in res["buttons"]) and len(res["buttons"]) == 2
               and res["photo"]["letters"] == "AB" and res["photo"]["above"] and res["photo"]["centered"]
-              and res["photo"]["typed"] == "BB" and res["viewLetters"] == "AB")
+              and res["photo"]["typed"] == "BB" and res["viewLetters"] == "AB" and res["viewSize"] > res["photo"]["size"] >= 100)
         return ok, f"{res}"
-    check("Adressbuch: Kontakt bearbeiten in Systemschrift, Bezeichnungen links, volle Breite, Initialen mittig über dem Namen", contact_edit, results)
+    check("Adressbuch: Kontakt bearbeiten in Systemschrift, Überschriften über den Feldern, Wichtiges zuerst, Weiteres auf Wunsch, Initialen mittig über dem Namen", contact_edit, results)
 
     def donate():
         # „Say Thanks“ im Info-Fenster öffnet die Spendenseite (Aufruf abgefangen, kein echter Browser)
