@@ -41,18 +41,14 @@ Features
 
 Personal data in the screenshots is blurred.
 
-3.1.0 Release Notes
+3.2.0 Release Notes
 --------
-- **Search like Apple Mail**: the search field searches all mailboxes (not Trash or Junk) – subject, sender, recipients and message text; a date like "12.10" also finds mails from that day. Hits appear in the card list with a result count, highlighted in yellow
-- **Contacts**: companies without a photo get a building icon, people without a photo show their initials in the details; account labels under the name; calmer labels and lighter cards; the photo no longer jumps when you drag the divider
-- **Tasks**: an empty list shows a friendly note instead of a blank area; the hint to choose a task calendar sits next to the + button; iCloud's placeholder reminders are hidden; details, buttons and column headers in the halo.spaces style
-- **Calendar**: events spanning several days are shown as one continuous bar; all-day events without an emoji get a small calendar icon
-- **Settings**: content centred and at most 800 px wide, roomier sidebar, macOS-style checkboxes and radio buttons, restyled view pickers, number fields and account settings
-- Message header: recipients shown by name like Apple Mail (address on hover); blocked images show a neat placeholder instead of their alt text; notes above the message fill their strip
-- Tooltips are readable again in every appearance; space buttons show just their name
-- Previews no longer show codes like "&zwnj;"; the search magnifier no longer turns into an image placeholder
-- "Say Thanks" in the halo.spaces window works again; the window no longer shows an e-mail address (use "Send Feedback")
-- Smoother Today pane animation, no grey strip next to its button when it is closed, and the list divider in the toolbar lines up exactly
+- **Contacts like Apple Contacts**: a much larger photo when viewing a contact; editing shows headings above the fields and one card per group – first and last name side by side, then email, phone and addresses. Prefix, middle name, suffix, nickname and display name sit behind "More name fields", rarely used groups behind "More fields"; anything already filled in always stays visible. The edit photo shows the initials and follows the name as you type; the details keep a minimum width so nothing gets pushed out of view
+- **One-click unsubscribe**: for mailing lists that support it (e.g. Google), "Unsubscribe" asks once and unsubscribes directly instead of opening an empty browser page, then shows "Unsubscribed"
+- **Gmail**: read/unread now applies right away to the copies in the other label folders (Important, All Mail …); folders with unread mail are checked every 5 minutes, so mail read on your phone or on the web no longer stays unread
+- **Message cards and header**: senders without a name show the name from their domain like Apple Mail ("rueckgabe@amazon.de" becomes "Amazon"); dates before yesterday are shown in full; card content is centred vertically
+- **Status bar**: flat and slim (22 px) with small text and icons, without the Today pane button; in Mail the sidebar grey runs down to the bottom edge
+- Today pane: showing and hiding it is smooth; "+" → New Event opens the quick window fully on screen instead of cut off at the right edge
 
 See [Releases](https://github.com/sruf79/halo-spaces/releases) for all versions.
 
