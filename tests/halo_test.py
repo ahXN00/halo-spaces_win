@@ -414,9 +414,12 @@ def run_checks(m, version, profile, results):
           t.dispatchEvent(new w.KeyboardEvent("keydown", { key: "Enter", isComposing: true, bubbles: true })); await wait(600);
           const afterIme = (await items("Halo Testtermin")).length;
           t.dispatchEvent(new w.KeyboardEvent("keydown", { key: "Enter", bubbles: true })); await wait(1200);
-          return { opened: true, afterIme, created: (await items("Halo Testtermin")).length, closed: p.state };""")
-        ok = res["afterIme"] == 0 and res["created"] == 1 and res["closed"] == "closed"
-        return ok, f"nach IME-Enter {res['afterIme']}, nach Enter {res['created']} Termin, Fenster {res['closed']}"
+          await until(() => p.state == "closed", 3000);
+          return { opened: true, afterIme, created: (await items("Halo Testtermin")).length, closed: p.state, visibility: d.visibilityState };""")
+        # verdeckt pausiert macOS die Schließ-Animation – dann bleibt es bei „hiding“
+        closed = res["closed"] == "closed" or (res["closed"] == "hiding" and res["visibility"] == "hidden")
+        ok = res["afterIme"] == 0 and res["created"] == 1 and closed
+        return ok, f"nach IME-Enter {res['afterIme']}, nach Enter {res['created']} Termin, Fenster {res['closed']} ({res['visibility']})"
     check("Schnellfenster: legt an, IME-Enter nicht", quick_window, results)
 
     def natural():
