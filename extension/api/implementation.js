@@ -163,6 +163,10 @@ const DE = {
   "Tasks you add appear here.": "Neue Aufgaben erscheinen hier.",
   "No Task List Selected": "Keine Aufgabenliste ausgewählt",
   "Choose a calendar that supports tasks in the sidebar.": "Wähle links einen Kalender, der Aufgaben unterstützt.",
+  "Searching": "Suche",
+  "All Mailboxes": "Alle Postfächer",
+  "{n} result": "{n} Treffer",
+  "{n} results": "{n} Treffer",
 };
 const FR = {
   "Install version {v}": "Installer la version {v}",
@@ -297,6 +301,10 @@ const FR = {
   "Tasks you add appear here.": "Les tâches ajoutées apparaissent ici.",
   "No Task List Selected": "Aucune liste de tâches sélectionnée",
   "Choose a calendar that supports tasks in the sidebar.": "Choisissez dans la barre latérale un calendrier qui prend en charge les tâches.",
+  "Searching": "Recherche",
+  "All Mailboxes": "Toutes les boîtes",
+  "{n} result": "{n} résultat",
+  "{n} results": "{n} résultats",
 };
 const ES = {
   "Install version {v}": "Instalar la versión {v}",
@@ -431,6 +439,10 @@ const ES = {
   "Tasks you add appear here.": "Las tareas que añadas aparecerán aquí.",
   "No Task List Selected": "No hay ninguna lista de tareas seleccionada",
   "Choose a calendar that supports tasks in the sidebar.": "Elige en la barra lateral un calendario que admita tareas.",
+  "Searching": "Buscando",
+  "All Mailboxes": "Todos los buzones",
+  "{n} result": "{n} resultado",
+  "{n} results": "{n} resultados",
 };
 const IT = {
   "Install version {v}": "Installa la versione {v}",
@@ -565,6 +577,10 @@ const IT = {
   "Tasks you add appear here.": "Le attività aggiunte appaiono qui.",
   "No Task List Selected": "Nessun elenco attività selezionato",
   "Choose a calendar that supports tasks in the sidebar.": "Scegli nella barra laterale un calendario che supporta le attività.",
+  "Searching": "Ricerca",
+  "All Mailboxes": "Tutte le caselle",
+  "{n} result": "{n} risultato",
+  "{n} results": "{n} risultati",
 };
 const TRANSLATIONS = { de: DE, fr: FR, es: ES, it: IT };
 // tr("+{n} more", { n: 3 }) – Platzhalter in geschweiften Klammern
@@ -886,6 +902,22 @@ const CSS = `
   height: 62%;
   object-fit: contain;
 }
+/* Suchtreffer gelb hinterlegt wie in Apple Mail (markHits) */
+#threadTree tr[is="thread-card"] mark.mc-hit {
+  background: rgba(255, 214, 10, 0.45);
+  color: inherit;
+  border-radius: 3px;
+  padding: 0 1px;
+  margin: 0 -1px;
+}
+@media (prefers-color-scheme: dark) {
+  #threadTree tr[is="thread-card"] mark.mc-hit {
+    background: rgba(255, 214, 10, 0.35);
+  }
+}
+#threadTree tr[is="thread-card"].selected mark.mc-hit {
+  background: rgba(255, 255, 255, 0.3);
+}
 #threadTree tr[is="thread-card"] .mc-preview {
   font-size: 12px;
   font-weight: 400 !important;
@@ -1138,6 +1170,73 @@ function cleanPreview(text) {
     .replace(/\s+/g, " ")
     .trim()
     .slice(0, 300);
+}
+
+// ---------------------------------------------------------------------------
+// Suche wie Apple Mail: das Suchfeld oben durchsucht in der Mail alle
+// Postfächer (außer Papierkorb und Spam) über einen versteckten Suchordner;
+// Treffer stehen in der Kartenliste, gelb markiert, oben mit Anzahl.
+// ---------------------------------------------------------------------------
+const SEARCH_FOLDER_NAME = "halo.spaces search";
+
+// Datum im Suchbegriff („12.10“, „12.10.“, „12.10.26“, „12.10.2026“) – ohne
+// Jahr das letzte vergangene Vorkommen
+function searchDate(text) {
+  const m = /^\s*(\d{1,2})\.(\d{1,2})\.?(\d{2}|\d{4})?\s*$/.exec(text || "");
+  if (!m) {
+    return null;
+  }
+  const day = Number(m[1]);
+  const month = Number(m[2]);
+  const now = new Date();
+  let year = m[3] ? (m[3].length == 2 ? 2000 + Number(m[3]) : Number(m[3])) : now.getFullYear();
+  let date = new Date(year, month - 1, day);
+  if (!m[3] && date > now) {
+    date = new Date(--year, month - 1, day);
+  }
+  return date.getMonth() == month - 1 && date.getDate() == day ? date : null;
+}
+
+// Suchbegriff in einem Element gelb hinterlegen (nur Text, per DOM)
+function markHits(el, term) {
+  if (!el) {
+    return;
+  }
+  for (const old of el.querySelectorAll("mark.mc-hit")) {
+    old.replaceWith(old.textContent);
+  }
+  el.normalize();
+  const needle = (term || "").trim().toLowerCase();
+  if (needle.length < 2) {
+    return;
+  }
+  const doc = el.ownerDocument;
+  const walker = doc.createTreeWalker(el, 4 /* NodeFilter.SHOW_TEXT */);
+  const nodes = [];
+  while (walker.nextNode()) {
+    nodes.push(walker.currentNode);
+  }
+  for (const node of nodes) {
+    const text = node.nodeValue;
+    const lower = text.toLowerCase();
+    let at = lower.indexOf(needle);
+    if (at < 0) {
+      continue;
+    }
+    const frag = doc.createDocumentFragment();
+    let from = 0;
+    while (at >= 0) {
+      frag.append(text.slice(from, at));
+      const mark = doc.createElementNS("http://www.w3.org/1999/xhtml", "mark");
+      mark.className = "mc-hit";
+      mark.textContent = text.slice(at, at + needle.length);
+      frag.append(mark);
+      from = at + needle.length;
+      at = lower.indexOf(needle, from);
+    }
+    frag.append(text.slice(from));
+    node.replaceWith(frag);
+  }
 }
 
 function bytesToBase64(win, bytes) {
@@ -3571,6 +3670,12 @@ class CardEnhancer {
           input.dispatchEvent(new w.Event("input", { bubbles: true }));
         },
       },
+      // Mail: alle Postfächer (Suchordner), Tippen sucht kurz verzögert
+      mail3PaneTab: {
+        de: "Alle Postfächer durchsuchen", en: "Search All Mailboxes",
+        input: () => ({ value: this.mailSearchTerm || "" }),
+        mail: true,
+      },
       preferencesTab: {
         de: "Einstellungen durchsuchen", en: "Find in Settings",
         input: cw => cw?.document.getElementById("searchInput"),
@@ -3622,6 +3727,18 @@ class CardEnhancer {
         event.stopImmediatePropagation();
         event.preventDefault();
         const cur = currentTarget();
+        if (cur?.target.mail) {
+          const text = event.type == "search" ? event.detail ?? event.target.value : event.detail;
+          w.clearTimeout(w.__mcMailSearchTimer);
+          const run = () => this.mailSearch(w, text || "");
+          // Eingabetaste oder leeres Feld sofort, beim Tippen kurz warten
+          if (event.type == "search" || !text) {
+            run();
+          } else {
+            w.__mcMailSearchTimer = w.setTimeout(run, 250);
+          }
+          return;
+        }
         const input = cur?.target.input(cur.cw);
         if (input && event.type == "autocomplete") {
           cur.target.set(input, event.detail || "");
@@ -5132,6 +5249,14 @@ class CardEnhancer {
     const count = box.querySelector(".mc-lh-count");
     try {
       const folder = ab.gFolder;
+      if (this.isSearchFolder(folder)) {
+        // Suche: „Suche“ und „Alle Postfächer, 12 Treffer“ wie Apple Mail
+        const n = ab.gDBView?.numMsgsInView || 0;
+        title.textContent = tr("Searching");
+        count.textContent = tr("All Mailboxes") + ", " +
+          tr(n == 1 ? "{n} result" : "{n} results", { n: n.toLocaleString(Services.locale.appLocaleAsBCP47) });
+        return;
+      }
       title.textContent = folder ? appleFolderTitle(folder) : ab.document.title || "";
       const n = folder?.getTotalMessages(false) || ab.gDBView?.numMsgsInView || 0;
       count.textContent = folder || ab.gDBView
@@ -6888,6 +7013,15 @@ class CardEnhancer {
     };
     tph.__mcHooked = true;
     win.addEventListener("folderURIChanged", update);
+    // anderen Ordner gewählt, während gesucht wurde: Suchfeld leeren
+    const leave = () => {
+      if (self.mailSearchTerm && !self.isSearchFolder(win.gFolder)) {
+        self.mailSearchTerm = "";
+        top.document.querySelector("#unifiedToolbarContent global-search-bar")?.reset?.();
+      }
+    };
+    win.addEventListener("folderURIChanged", leave);
+    this.restorers.push(() => win.removeEventListener("folderURIChanged", leave));
     this.restorers.push(() => {
       tph.onFolderSelected = origSelected;
       tph.updateMessageCount = origCount;
@@ -6980,6 +7114,11 @@ class CardEnhancer {
         } catch {}
         const label = li.querySelector(":scope > .container .name");
         const topLevel = li.parentElement?.parentElement === modeLi;
+        // der Suchordner ist nur Mittel zum Zweck – nie in der Ordnerliste
+        if (this.isSearchFolder(folder)) {
+          setAttr(li, "data-mc-hide", true);
+          continue;
+        }
 
         if (mode == "smart") {
           if (li.hasAttribute("data-server-type")) {
@@ -7126,6 +7265,132 @@ class CardEnhancer {
     if (dateEl && hdr.date) {
       dateEl.textContent = appleListDate(hdr.date / 1000);
     }
+    this.markSearchHits(win, row);
+  }
+
+  // Suchtreffer in Absender, Betreff und Vorschau gelb markieren – nur in der
+  // Suche (Zeilen werden wiederverwendet: sonst alte Markierungen entfernen)
+  markSearchHits(win, row) {
+    const term = this.isSearchFolder(win.gFolder) ? this.mailSearchTerm : "";
+    for (const el of [row.querySelector(".sender"), row.querySelector(".subject"), row.querySelector(".mc-preview")]) {
+      if (el && (term || el.querySelector("mark.mc-hit"))) {
+        markHits(el, term);
+      }
+    }
+  }
+
+  isSearchFolder(folder) {
+    try {
+      return !!folder && folder.name == SEARCH_FOLDER_NAME && folder.getFlag(Ci.nsMsgFolderFlags.Virtual) &&
+        folder.parent?.isServer && folder.server == MailServices.accounts.localFoldersServer;
+    } catch {
+      return false;
+    }
+  }
+
+  // versteckter Suchordner unter „Lokale Ordner“ (nur bei Bedarf angelegt)
+  searchFolder(create = false) {
+    let root = null;
+    try {
+      root = MailServices.accounts.localFoldersServer?.rootFolder;
+    } catch {}
+    if (!root) {
+      return null;
+    }
+    const existing = root.subFolders.find(f => this.isSearchFolder(f));
+    if (existing || !create) {
+      return existing || null;
+    }
+    const { VirtualFolderHelper } = ChromeUtils.importESModule("resource:///modules/VirtualFolderWrapper.sys.mjs");
+    return VirtualFolderHelper.createNewVirtualFolder(SEARCH_FOLDER_NAME, root, this.searchScope(), [], false).virtualFolder;
+  }
+
+  // alle Postfächer aller Konten – ohne Papierkorb, Spam und Suchordner
+  searchScope() {
+    const F = Ci.nsMsgFolderFlags;
+    return MailServices.accounts.allFolders.filter(f =>
+      !f.isServer && !(f.flags & (F.Virtual | F.Trash | F.Junk | F.ImapNoselect)));
+  }
+
+  // Begriff in Betreff, Absender, Empfänger oder Text – oder, wenn er wie ein
+  // Datum aussieht („12.10“), Mails von diesem Tag
+  searchTerms(session, text) {
+    const A = Ci.nsMsgSearchAttrib;
+    const O = Ci.nsMsgSearchOp;
+    const terms = [];
+    const add = (attrib, op, fill) => {
+      const term = session.createTerm();
+      term.attrib = attrib;
+      term.op = op;
+      const value = term.value;
+      value.attrib = attrib;
+      fill(value);
+      term.value = value;
+      term.booleanAnd = false;
+      terms.push(term);
+    };
+    for (const attrib of [A.Subject, A.Sender, A.ToOrCC, A.Body]) {
+      add(attrib, O.Contains, v => (v.str = text));
+    }
+    const date = searchDate(text);
+    if (date) {
+      add(A.Date, O.Is, v => (v.date = date.getTime() * 1000));
+    }
+    return terms;
+  }
+
+  // Suchfeld oben in der Mail: Treffer aus allen Postfächern in der
+  // Kartenliste; leeres Feld kehrt zum vorherigen Ordner zurück
+  mailSearch(top, text) {
+    const a3 = top.document.getElementById("tabmail")?.currentAbout3Pane;
+    if (!a3?.displayFolder) {
+      return;
+    }
+    const term = (text || "").trim();
+    let folder = this.searchFolder(false);
+    if (!term) {
+      this.mailSearchTerm = "";
+      if (folder && this.isSearchFolder(a3.gFolder)) {
+        let back = null;
+        try {
+          back = this.searchPrevURI && MailServices.folderLookup.getFolderForURL(this.searchPrevURI);
+        } catch {}
+        back ??= MailServices.accounts.defaultAccount?.incomingServer?.rootFolder
+          ?.getFolderWithFlags(Ci.nsMsgFolderFlags.Inbox);
+        if (back) {
+          a3.displayFolder(back.URI);
+        }
+      }
+      this.updateListHeader(top);
+      return;
+    }
+    try {
+      folder ??= this.searchFolder(true);
+      const { VirtualFolderHelper } = ChromeUtils.importESModule("resource:///modules/VirtualFolderWrapper.sys.mjs");
+      const wrapper = VirtualFolderHelper.wrapVirtualFolder(folder);
+      wrapper.searchFolders = this.searchScope();
+      wrapper.searchTerms = this.searchTerms(wrapper.searchTermsSession, term);
+      wrapper.onlineSearch = false;
+      MailServices.accounts.saveVirtualFolders();
+      this.mailSearchTerm = term;
+      if (this.isSearchFolder(a3.gFolder) && a3.gViewWrapper?.search) {
+        // Suche läuft schon: neue Begriffe direkt in die Ansicht
+        a3.gViewWrapper.search.virtualFolderTerms = wrapper.searchTerms;
+      } else {
+        if (a3.gFolder && !this.isSearchFolder(a3.gFolder)) {
+          this.searchPrevURI = a3.gFolder.URI;
+        }
+        wrapper.cleanUpMessageDatabase();
+        a3.displayFolder(folder.URI);
+        // frisch angelegt: die Ordnerliste hat die Zeile evtl. erst gleich
+        if (!this.isSearchFolder(a3.gFolder)) {
+          top.setTimeout(() => this.mailSearchTerm == term && a3.displayFolder(folder.URI), 300);
+        }
+      }
+    } catch (e) {
+      log("mail search error", e);
+    }
+    this.updateListHeader(top);
   }
 
   // Geburtstage aus dem Adressbuch als eigener Kalender wie bei Apple:
@@ -7149,10 +7414,15 @@ class CardEnhancer {
     // Deaktivieren/Deinstallieren: Kalender entfernen (beim Beenden oder
     // Update bleibt er, sonst bekäme er jedes Mal eine neue Kennung)
     const { AddonManager } = ChromeUtils.importESModule("resource://gre/modules/AddonManager.sys.mjs");
-    const addonListener = {
-      onDisabling: addon => addon.id == "mail-cards@sebastian.local" && this.removeBirthdayCalendar(),
-      onUninstalling: addon => addon.id == "mail-cards@sebastian.local" && this.removeBirthdayCalendar(),
+    // (dabei auch den versteckten Suchordner entfernen – ohne halo.spaces
+    // stünde er sonst sichtbar unter „Lokale Ordner“)
+    const goodbye = addon => {
+      if (addon.id == "mail-cards@sebastian.local") {
+        this.removeBirthdayCalendar();
+        this.removeSearchFolder();
+      }
     };
+    const addonListener = { onDisabling: goodbye, onUninstalling: goodbye };
     AddonManager.addAddonListener(addonListener);
     this.restorers.push(() => {
       clearTimeout(timer);
@@ -7162,6 +7432,16 @@ class CardEnhancer {
       Services.prefs.removeObserver(BDAY_PREF, prefObs);
       AddonManager.removeAddonListener(addonListener);
     });
+  }
+
+  removeSearchFolder() {
+    try {
+      const folder = this.searchFolder(false);
+      folder?.parent?.propagateDelete(folder, true);
+      MailServices.accounts.saveVirtualFolders();
+    } catch (e) {
+      log("search folder remove error", e);
+    }
   }
 
   removeBirthdayCalendar() {
@@ -7752,6 +8032,7 @@ class CardEnhancer {
         try {
           const hdr = this.hdrForRow(row);
           preview.textContent = cleanPreview(hdr?.getStringProperty("preview"));
+          this.markSearchHits(win, row);
         } catch {}
       }
     }
