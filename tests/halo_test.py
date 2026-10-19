@@ -599,6 +599,9 @@ def run_checks(m, version, profile, results):
           for (const density of [1, 0]) {
             Services.prefs.setIntPref("mail.uidensity", density); await wait(1200);
             const row = await until(() => a3.document.querySelector(\'#threadTree tr[is="thread-card"] .mc-preview\')?.textContent && a3.document.querySelector(\'#threadTree tr[is="thread-card"]\'), 8000);
+            if (!row) return { diag: true, density, rows: a3.gDBView?.rowCount, folder: a3.gFolder?.URI,
+              cards: [...a3.document.querySelectorAll('#threadTree tr')].map(r => [r.getAttribute("is"), r.querySelector(".mc-preview")?.textContent ?? null]),
+              preview: Services.prefs.getIntPref("extensions.mailcards.previewLines", -1), view: Services.prefs.getIntPref("mail.threadpane.listview", -1) };
             const r = sel => row.querySelector(sel).getBoundingClientRect();
             const c = r(".card-container"), sn = r(".sender"), pv = r(".mc-preview"), av = r(".mc-avatar"), dot = r(".read-status");
             out[density] = { sender: row.querySelector(".sender").textContent, date: row.querySelector(".date").textContent,
@@ -612,6 +615,8 @@ def run_checks(m, version, profile, results):
           await until(() => md.querySelector("#fromRecipient0 .recipient-single-line")?.textContent == "Amazon", 5000);
           const header = md.querySelector("#fromRecipient0 .recipient-single-line")?.textContent;
           return { cards: out, header };''')
+        if res.get("diag"):
+            return False, f"keine Karte mit Vorschau – Diagnose {res}"
         ok = res["header"] == "Amazon" and all(v["sender"] == "Amazon" and "2026" in v["date"] and 0 <= v["bottom"] - v["top"] <= 3 and abs(v["dot"]) <= 2 for v in res["cards"].values())
         return ok, f"{res}"
     check("Mailkarte und Mailkopf: Absendername aus der Domain, ganzes Datum, Abstände oben/unten gleich", card_sender_date, results)
