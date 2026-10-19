@@ -813,18 +813,23 @@ def run_checks(m, version, profile, results):
           const right = w.screen.availLeft + w.screen.availWidth;
           w.moveTo(right - 1300, w.screen.availTop); w.resizeTo(1300, 900); await wait(1200);
           if (!w.TodayPane.isVisible) { d.getElementById("mcTodayToggle").click(); await wait(800); }
-          d.getElementById("mcTodayNew").click(); await until(() => d.getElementById("mcNewPopup").state == "open", 3000);
-          d.getElementById("mcNewEvent").click();
-          const qp = d.getElementById("mcQuickPanel"); await until(() => qp.state == "open", 3000); await wait(400);
-          const r = qp.getOuterScreenRect();
-          const out = { state: qp.state, visibility: d.visibilityState, width: Math.round(r.width), right: Math.round(r.left + r.width), screenRight: right };
-          qp.hidePopup(); await wait(400);
+          const out = { visibility: d.visibilityState, screenRight: right };
+          for (const id of ["mcNewEvent", "mcNewTask"]) {
+            d.getElementById("mcTodayNew").click(); await until(() => d.getElementById("mcNewPopup").state == "open", 3000);
+            d.getElementById(id).click();
+            const qp = d.getElementById("mcQuickPanel"); await until(() => qp.state == "open", 3000); await wait(400);
+            const r = qp.getOuterScreenRect();
+            out[id] = { state: qp.state, mode: qp.querySelector(".mc-qc-seg > button[selected]")?.dataset.mode, width: Math.round(r.width), right: Math.round(r.left + r.width) };
+            qp.hidePopup(); await until(() => qp.state == "closed", 2000);
+          }
           w.moveTo(sx, sy); w.resizeTo(sw, sh); await wait(800);
           return out;''')
-        if res["state"] != "open" and res["visibility"] == "hidden":
+        panels = [res["mcNewEvent"], res["mcNewTask"]]
+        if any(p["state"] != "open" for p in panels) and res["visibility"] == "hidden":
             return True, f"Testfenster verdeckt – übersprungen {res}"
-        return res["width"] >= 370 and res["right"] <= res["screenRight"], f"{res}"
-    check("Today-Pane: „+“ → Neuer Termin ganz auf dem Bildschirm", today_plus_event, results)
+        modes = res["mcNewEvent"]["mode"] == "event" and res["mcNewTask"]["mode"] == "task"
+        return modes and all(p["width"] >= 370 and p["right"] <= res["screenRight"] for p in panels), f"{res}"
+    check("Today-Pane: „+“ → Neuer Termin / Neue Aufgabe ganz auf dem Bildschirm", today_plus_event, results)
 
     def today_animation():
         res = m.js('''
