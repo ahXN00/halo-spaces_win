@@ -6007,13 +6007,22 @@ class CardEnhancer {
       f.calendar.value = preset.calendar.id;
       f.calendar.dispatchEvent(new w.Event("change", { bubbles: true }));
     }
+    // Das Fenster ist 380 px breit. Thunderbird schiebt es am Bildschirmrand
+    // nicht zurück, sondern drückt es zusammen (rechts abgeschnitten) – daher
+    // selbst so weit nach links rücken, dass es ganz ins Fenster und auf den
+    // Bildschirm passt (z. B. unter dem „+“ ganz rechts in der Today-Pane)
+    const PANEL_W = 380;
+    const screenRight = w.screen.availLeft + w.screen.availWidth;
     if (preset?.at) {
       // an der Mausposition, etwas nach rechts unten versetzt
-      panel.openPopupAtScreen(preset.at.x + 8, preset.at.y + 8, false);
+      const x = Math.max(w.screen.availLeft + 8, Math.min(preset.at.x + 8, screenRight - PANEL_W - 8));
+      panel.openPopupAtScreen(x, preset.at.y + 8, false);
     } else if (anchor) {
       const r = anchor.getBoundingClientRect();
       const below = r.top < w.innerHeight / 2;
-      panel.openPopup(anchor, below ? "after_start" : "before_start", Math.round(r.width / 2 - 190), below ? 4 : -4);
+      const right = Math.min(w.innerWidth, screenRight - w.mozInnerScreenX) - 8;
+      const left = Math.max(8, Math.min(r.left + r.width / 2 - PANEL_W / 2, right - PANEL_W));
+      panel.openPopup(anchor, below ? "after_start" : "before_start", Math.round(left - r.left), below ? 4 : -4);
     } else {
       panel.openPopup(null, "", Math.round(w.innerWidth / 2 - 190), 80, false, false);
     }

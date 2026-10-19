@@ -804,6 +804,28 @@ def run_checks(m, version, profile, results):
         return res["open"] and res["none"] and res["width"] == 0, f"{res}"
     check("Today-Pane aus: keine Fläche rechts neben dem Knopf", today_closed, results)
 
+    def today_plus_event():
+        # „+“ ganz rechts → „New Event“: Schnellfenster ganz auf dem Bildschirm
+        # (früher mittig unter dem „+“ geöffnet und von Thunderbird am Rand auf
+        # 224 statt 380 px zusammengedrückt)
+        res = m.js('''
+          await toMail(); const sx = w.screenX, sy = w.screenY, sw = w.outerWidth, sh = w.outerHeight;
+          const right = w.screen.availLeft + w.screen.availWidth;
+          w.moveTo(right - 1300, w.screen.availTop); w.resizeTo(1300, 900); await wait(1200);
+          if (!w.TodayPane.isVisible) { d.getElementById("mcTodayToggle").click(); await wait(800); }
+          d.getElementById("mcTodayNew").click(); await until(() => d.getElementById("mcNewPopup").state == "open", 3000);
+          d.getElementById("mcNewEvent").click();
+          const qp = d.getElementById("mcQuickPanel"); await until(() => qp.state == "open", 3000); await wait(400);
+          const r = qp.getOuterScreenRect();
+          const out = { state: qp.state, visibility: d.visibilityState, width: Math.round(r.width), right: Math.round(r.left + r.width), screenRight: right };
+          qp.hidePopup(); await wait(400);
+          w.moveTo(sx, sy); w.resizeTo(sw, sh); await wait(800);
+          return out;''')
+        if res["state"] != "open" and res["visibility"] == "hidden":
+            return True, f"Testfenster verdeckt – übersprungen {res}"
+        return res["width"] >= 370 and res["right"] <= res["screenRight"], f"{res}"
+    check("Today-Pane: „+“ → Neuer Termin ganz auf dem Bildschirm", today_plus_event, results)
+
     def today_animation():
         res = m.js('''
           await toMail(); await wait(1500);
