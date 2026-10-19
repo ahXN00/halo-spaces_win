@@ -33,13 +33,13 @@ DEFAULT_TB = {
 
 
 class Marionette:
-    def __init__(self, port):
+    def __init__(self, port, capabilities=None):
         self.sock = socket.create_connection(("127.0.0.1", port))
         # nie endlos warten: ein Befehl darf höchstens 11 Minuten dauern (--perf)
         self.sock.settimeout(660)
         self.id = 0
         self._read()
-        self.cmd("WebDriver:NewSession", {"capabilities": {}})
+        self.cmd("WebDriver:NewSession", {"capabilities": capabilities or {}})
         self.cmd("Marionette:SetContext", {"value": "chrome"})
 
     def _recv(self, n):
@@ -113,6 +113,55 @@ def wait_port(port, timeout=60):
     return False
 
 
+def create_profile(xpi, port, dark=False, prefix="halo-test-"):
+    """Legt ein leeres, temporäres Profil mit installiertem Paket an (keine Konten, keine echten Daten)."""
+    profile = tempfile.mkdtemp(prefix=prefix)
+    os.makedirs(os.path.join(profile, "extensions"))
+    shutil.copy(xpi, os.path.join(profile, "extensions", f"{ADDON_ID}.xpi"))
+    with open(os.path.join(profile, "user.js"), "w") as f:
+        for pref, value in {
+            "extensions.autoDisableScopes": 0,
+            "marionette.port": port,
+            "mail.shell.checkDefaultClient": False,
+            "mail.provider.suppress_dialog_on_startup": True,
+            "mail.rights.version": 1,
+            "app.update.enabled": False,
+            "datareporting.policy.dataSubmissionPolicyBypassNotification": True,
+            "toolkit.telemetry.reportingpolicy.firstRun": False,
+            "calendar.timezone.useSystemTimezone": True,
+            # Zeitgeber im Hintergrund nicht drosseln
+            "widget.windows.window_occlusion_tracking.enabled": False,
+            "dom.timeout.enable_budget_timer_throttling": False,
+            "dom.min_background_timeout_value": 4,
+            # das macOS-Adressbuch (echte Kontakte) nicht einbinden
+            "ldap_2.servers.osx.position": 0,
+            **({"ui.systemUsesDarkTheme": 1} if dark else {}),
+        }.items():
+            f.write(f"user_pref({json.dumps(pref)}, {json.dumps(value)});\n")
+    return profile
+
+
+def start_thunderbird(tb, profile, log=None):
+    """Startet Thunderbird mit Marionette im angegebenen Profil."""
+    out = open(log, "w") if log else subprocess.DEVNULL
+    return subprocess.Popen([tb, "-profile", profile, "-no-remote", "-marionette", "-remote-allow-system-access"],
+                            stdout=out, stderr=subprocess.STDOUT if log else subprocess.DEVNULL,
+                            # ab Thunderbird 159 zusätzlich als Umgebungsvariable nötig
+                            env={**os.environ, "MOZ_REMOTE_ALLOW_SYSTEM_ACCESS": "1"})
+
+
+def stop_thunderbird(port, proc):
+    """Beendet das Test-Thunderbird (nur den selbst gestarteten Prozess)."""
+    try:
+        Marionette(port).js("Services.startup.quit(Ci.nsIAppStartup.eForceQuit); return 1;")
+    except Exception:
+        pass
+    try:
+        proc.wait(timeout=20)
+    except subprocess.TimeoutExpired:
+        proc.kill()
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--xpi", help="Paket (Standard: neuestes dist/halo-spaces-*.xpi)")
@@ -138,36 +187,9 @@ def main():
         sys.exit("Kein Paket gefunden – zuerst ./build.sh")
     version = json.load(open(os.path.join(ROOT, "extension", "manifest.json")))["version"]
 
-    profile = tempfile.mkdtemp(prefix="halo-test-")
-    os.makedirs(os.path.join(profile, "extensions"))
-    shutil.copy(xpi, os.path.join(profile, "extensions", f"{ADDON_ID}.xpi"))
-    with open(os.path.join(profile, "user.js"), "w") as f:
-        for pref, value in {
-            "extensions.autoDisableScopes": 0,
-            "marionette.port": args.port,
-            "mail.shell.checkDefaultClient": False,
-            "mail.provider.suppress_dialog_on_startup": True,
-            "mail.rights.version": 1,
-            "app.update.enabled": False,
-            "datareporting.policy.dataSubmissionPolicyBypassNotification": True,
-            "toolkit.telemetry.reportingpolicy.firstRun": False,
-            "calendar.timezone.useSystemTimezone": True,
-            # Zeitgeber im Hintergrund nicht drosseln
-            "widget.windows.window_occlusion_tracking.enabled": False,
-            "dom.timeout.enable_budget_timer_throttling": False,
-            "dom.min_background_timeout_value": 4,
-            # das macOS-Adressbuch (echte Kontakte) nicht einbinden
-            "ldap_2.servers.osx.position": 0,
-            **({"ui.systemUsesDarkTheme": 1} if args.dark else {}),
-        }.items():
-            f.write(f"user_pref({json.dumps(pref)}, {json.dumps(value)});\n")
-
+    profile = create_profile(xpi, args.port, args.dark)
     print(f"halo.spaces {version} · Paket {os.path.basename(xpi)} · Profil {profile}", flush=True)
-    out = open(args.tb_log, "w") if args.tb_log else subprocess.DEVNULL
-    proc = subprocess.Popen([args.tb, "-profile", profile, "-no-remote", "-marionette", "-remote-allow-system-access"],
-                            stdout=out, stderr=subprocess.STDOUT if args.tb_log else subprocess.DEVNULL,
-                            # ab Thunderbird 159 zusätzlich als Umgebungsvariable nötig
-                            env={**os.environ, "MOZ_REMOTE_ALLOW_SYSTEM_ACCESS": "1"})
+    proc = start_thunderbird(args.tb, profile, args.tb_log)
     results = []
     try:
         if not wait_port(args.port):
@@ -186,14 +208,7 @@ def main():
             if args.compare:
                 compare_shots(m, args.compare, args.shots)
     finally:
-        try:
-            Marionette(args.port).js("Services.startup.quit(Ci.nsIAppStartup.eForceQuit); return 1;")
-        except Exception:
-            pass
-        try:
-            proc.wait(timeout=20)
-        except subprocess.TimeoutExpired:
-            proc.kill()
+        stop_thunderbird(args.port, proc)
         if not args.keep:
             shutil.rmtree(profile, ignore_errors=True)
 
