@@ -486,7 +486,9 @@ def run_checks(m, version, profile, results):
         x, y = m.js('''
           for (const x of [...Services.wm.getEnumerator(null)]) if (!x.location.href.includes("messenger.xhtml")) x.close();
           await toCalendar(); w.switchToView("week"); await wait(1200);
-          const col = [...d.querySelectorAll("#week-view calendar-event-column")].filter(c => c.getBoundingClientRect().width)[1];
+          // Tag ohne Termine – frühere Prüfungen legen heute/morgen welche an, ein
+          // Treffer öffnet den Termin statt des Schnellfensters (je nach Wochentag)
+          const col = [...d.querySelectorAll("#week-view calendar-event-column")].filter(c => c.getBoundingClientRect().width && !c.querySelector("calendar-event-box"))[1];
           const lbl = [...d.querySelectorAll("#week-view .multiday-timebar-time")].find(l => /^\s*(14[:.]00|0?2:00\s*PM)\s*$/i.test(l.textContent));
           lbl.scrollIntoView({ block: "center" }); await wait(500);
           const r = col.getBoundingClientRect(); return [Math.round(r.left + r.width / 2), Math.round(lbl.getBoundingClientRect().top + 8)];''')
@@ -496,7 +498,10 @@ def run_checks(m, version, profile, results):
         res = m.js('''const p = await until(() => { const q = d.getElementById("mcQuickPanel"); return q?.state == "open" && q; }) || d.getElementById("mcQuickPanel");
           const r = { state: p?.state, line: p?.querySelector(".mc-qc-line1").textContent,
             dialogs: [...Services.wm.getEnumerator(null)].filter(x => /calendar-event-dialog/.test(x.location.href)).length };
-          p?.hidePopup(); return r;''')
+          p?.hidePopup();
+          // falls doch ein Fenster aufging: schließen, sonst fehlt den folgenden Prüfungen der Fokus
+          for (const x of [...Services.wm.getEnumerator(null)]) if (!x.location.href.includes("messenger.xhtml")) x.close();
+          return r;''')
         # „showing“ = geht gerade auf (in einem verdeckten Fenster bleibt die Animation dort stehen)
         ok = res["state"] in ("open", "showing") and res["dialogs"] == 0 and ("14:" in res["line"] or "02:00 PM" in res["line"] or "2:00 PM" in res["line"])
         return ok, f"Fenster {res['state']}, {res['line']}, große Dialoge {res['dialogs']}"
@@ -759,6 +764,27 @@ def run_checks(m, version, profile, results):
               and len(a.get("types", [])) >= 2 and abs(res["splitter"][0] - res["splitter"][1]) <= 1)
         return ok, f"{res}"
     check("Adressbuch: Firmen-Avatar, Initialen im Detail, Konto-Etiketten, Bezeichnungen, Teiler ohne Sprung", address_book, results)
+
+    def donate():
+        # „Say Thanks“ im Info-Fenster öffnet die Spendenseite (Aufruf abgefangen, kein echter Browser)
+        res = m.js('''
+          await toMail();
+          const orig = w.openLinkExternally; let opened = null;
+          w.openLinkExternally = url => { opened = String(url); };
+          d.getElementById("mcHaloSpaces").doCommand();
+          const hw = await until(() => [...Services.wm.getEnumerator(null)].find(x => x.location?.href.startsWith("resource://mailcards/about/halo.html") && x.document.getElementById("version")?.textContent));
+          await wait(500);
+          hw?.document.getElementById("donate")?.click(); await wait(300);
+          // keine Mailadresse unten – dafür gibt es „Send Feedback“
+          const address = /@/.test(hw?.document.body.textContent || "");
+          const last = hw?.document.querySelector("main")?.lastElementChild?.getBoundingClientRect();
+          const room = last ? Math.round(hw.innerHeight - last.bottom) : null;
+          w.openLinkExternally = orig; hw?.close();
+          return { window: !!hw, opened, address, room };''')
+        url = res.get("opened") or ""
+        ok = url.startswith("https://buymeacoffee.com/diversion?") and "utm_content=about-window" in url
+        return ok and not res["address"] and res["room"] is not None and 10 <= res["room"] <= 30, f"{res}"
+    check("Info-Fenster: „Say Thanks“ öffnet die Spendenseite, keine Mailadresse unten", donate, results)
 
     def no_placeholder_in_ui():
         # Platzhalter für blockierte Bilder nur in Mails – nicht in der Oberfläche (Lupe im Suchfeld)

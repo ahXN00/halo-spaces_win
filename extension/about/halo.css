@@ -137,24 +137,6 @@ main {
   background: color-mix(in srgb, var(--donate) 22%, transparent);
 }
 
-footer {
-  margin-top: auto;
-  text-align: center;
-  font-size: 12px;
-  color: var(--text-secondary);
-}
-
-footer a {
-  color: var(--text);
-  font-weight: 600;
-  text-decoration: none;
-  margin-inline-start: 3px;
-}
-
-footer a:hover {
-  text-decoration: underline;
-}
-
 .note {
   margin: -6px 0 0;
   padding: 10px 12px;

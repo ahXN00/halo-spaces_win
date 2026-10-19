@@ -150,7 +150,6 @@ const DE = {
   "Settings…": "Einstellungen …",
   "Send Feedback": "Feedback senden",
   "Say Thanks": "Danke sagen",
-  "Feedback or ideas?": "Feedback oder Ideen?",
   "halo.spaces is made for macOS – on Windows and Linux it is still being tested. If something looks odd, we'd love a quick note!": "halo.spaces ist für macOS gemacht – unter Windows und Linux wird es gerade erst erprobt. Wenn etwas komisch aussieht, freuen wir uns über eine kurze Rückmeldung!",
   "This message is from a mailing list.": "Diese Nachricht stammt von einem Verteiler.",
   "Unsubscribe": "Abmelden",
@@ -279,7 +278,6 @@ const FR = {
   "Settings…": "Réglages…",
   "Send Feedback": "Envoyer un avis",
   "Say Thanks": "Dire merci",
-  "Feedback or ideas?": "Un avis ou des idées ?",
   "halo.spaces is made for macOS – on Windows and Linux it is still being tested. If something looks odd, we'd love a quick note!": "halo.spaces est conçu pour macOS – sous Windows et Linux, il est encore en test. Si quelque chose semble bizarre, un petit mot nous ferait plaisir !",
   "Mail": "Mail",
   "This message is from a mailing list.": "Ce message provient d’une liste de diffusion.",
@@ -410,7 +408,6 @@ const ES = {
   "Settings…": "Ajustes…",
   "Send Feedback": "Enviar comentarios",
   "Say Thanks": "Dar las gracias",
-  "Feedback or ideas?": "¿Comentarios o ideas?",
   "halo.spaces is made for macOS – on Windows and Linux it is still being tested. If something looks odd, we'd love a quick note!": "halo.spaces está hecho para macOS – en Windows y Linux aún se está probando. Si algo se ve raro, ¡nos encantaría que nos avisaras!",
   "Mail": "Correo",
   "This message is from a mailing list.": "Este mensaje procede de una lista de correo.",
@@ -541,7 +538,6 @@ const IT = {
   "Settings…": "Impostazioni…",
   "Send Feedback": "Invia feedback",
   "Say Thanks": "Dì grazie",
-  "Feedback or ideas?": "Feedback o idee?",
   "halo.spaces is made for macOS – on Windows and Linux it is still being tested. If something looks odd, we'd love a quick note!": "halo.spaces è fatto per macOS – su Windows e Linux è ancora in prova. Se qualcosa sembra strano, ci farebbe piacere un messaggio!",
   "Mail": "Posta",
   "This message is from a mailing list.": "Questo messaggio proviene da una mailing list.",
@@ -6388,7 +6384,6 @@ class CardEnhancer {
     const api = {
       german: Services.locale.appLocaleAsBCP47.startsWith("de"),
       version,
-      feedbackAddress: FEEDBACK_ADDRESS,
       checkUpdate: () => this.findUpdate(),
       mac: Services.appinfo.OS == "Darwin",
       platformNote,
@@ -6412,13 +6407,21 @@ class CardEnhancer {
         return MacPhotos.byEmail.size;
       },
       sendFeedback: () => this.sendFeedback(),
+      // im Standardbrowser öffnen (loadURI braucht seit Thunderbird 140 einen
+      // Principal und tat ohne ihn nichts)
       donate: () => {
-        const ext = Cc["@mozilla.org/uriloader/external-protocol-service;1"].getService(Ci.nsIExternalProtocolService);
-        ext.loadURI(Services.io.newURI(DONATE_URL));
+        const main = Services.wm.getMostRecentWindow("mail:3pane") || w;
+        if (typeof main.openLinkExternally == "function") {
+          main.openLinkExternally(DONATE_URL);
+        } else {
+          Cc["@mozilla.org/uriloader/external-protocol-service;1"]
+            .getService(Ci.nsIExternalProtocolService)
+            .loadURI(Services.io.newURI(DONATE_URL), Services.scriptSecurityManager.getSystemPrincipal());
+        }
       },
     };
     const hw = w.openDialog("resource://mailcards/about/halo.html", "halo-spaces",
-      `chrome,dialog=yes,centerscreen,resizable=no,width=360,height=${(api.mac ? 432 : 384) + (platformNote ? 64 : 0)}`);
+      `chrome,dialog=yes,centerscreen,resizable=no,width=360,height=${(api.mac ? 378 : 330) + (platformNote ? 64 : 0)}`);
     // erst lädt das Fenster about:blank, dann unsere Seite – darauf warten
     let tries = 0;
     const wire = () => {
@@ -6450,7 +6453,6 @@ class CardEnhancer {
       note.textContent = tr("halo.spaces is made for macOS – on Windows and Linux it is still being tested. If something looks odd, we'd love a quick note!");
       note.hidden = false;
     }
-    $("mail").textContent = api.feedbackAddress;
 
     const button = $("update");
     const label = button.querySelector(".label");
@@ -6548,7 +6550,6 @@ class CardEnhancer {
       hw.close();
     });
     $("feedback").addEventListener("click", feedback);
-    $("mail").addEventListener("click", feedback);
     $("donate").addEventListener("click", () => api.donate());
     // Logo mit Versionsnummer laden (sonst zeigt Thunderbird nach einem
     // Update noch das zwischengespeicherte alte)
