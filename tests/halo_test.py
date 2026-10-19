@@ -491,20 +491,27 @@ def run_checks(m, version, profile, results):
           const col = [...d.querySelectorAll("#week-view calendar-event-column")].filter(c => c.getBoundingClientRect().width && ![...c.querySelectorAll("calendar-event-box")].some(b => !b.hidden && b.occurrence))[1];
           const lbl = [...d.querySelectorAll("#week-view .multiday-timebar-time")].find(l => /^\s*(14[:.]00|0?2:00\s*PM)\s*$/i.test(l.textContent));
           lbl.scrollIntoView({ block: "center" }); await wait(500);
+          // Aufgehen und Zugehen mitzählen – unter xvfb ohne Fenstermanager klappt
+          // das Fenster teils sofort wieder zu
+          const qp = d.getElementById("mcQuickPanel"); const t0 = Date.now(); w.__mcQp = { shown: 0, hiddenAfter: null };
+          qp?.addEventListener("popupshown", () => { w.__mcQp.shown++; w.__mcQp.t = Date.now(); }, { once: true });
+          qp?.addEventListener("popuphidden", () => { w.__mcQp.hiddenAfter = Date.now() - (w.__mcQp.t || t0); }, { once: true });
           const r = col.getBoundingClientRect(); return [Math.round(r.left + r.width / 2), Math.round(lbl.getBoundingClientRect().top + 8)];''')
         time.sleep(1.2)
         m.pointer([{"type": "pointerMove", "x": x, "y": y, "origin": "viewport"}, {"type": "pointerDown", "button": 0}, {"type": "pointerUp", "button": 0},
                    {"type": "pause", "duration": 80}, {"type": "pointerDown", "button": 0}, {"type": "pointerUp", "button": 0}])
         res = m.js('''const p = await until(() => { const q = d.getElementById("mcQuickPanel"); return q?.state == "open" && q; }) || d.getElementById("mcQuickPanel");
-          const r = { state: p?.state, line: p?.querySelector(".mc-qc-line1").textContent,
+          const r = { state: p?.state, line: p?.querySelector(".mc-qc-line1").textContent, shown: w.__mcQp?.shown || 0, hiddenAfter: w.__mcQp?.hiddenAfter ?? null,
             dialogs: [...Services.wm.getEnumerator(null)].filter(x => /calendar-event-dialog/.test(x.location.href)).length };
           p?.hidePopup();
           // falls doch ein Fenster aufging: schließen, sonst fehlt den folgenden Prüfungen der Fokus
           for (const x of [...Services.wm.getEnumerator(null)]) if (!x.location.href.includes("messenger.xhtml")) x.close();
           return r;''')
         # „showing“ = geht gerade auf (in einem verdeckten Fenster bleibt die Animation dort stehen)
-        ok = res["state"] in ("open", "showing") and res["dialogs"] == 0 and ("14:" in res["line"] or "02:00 PM" in res["line"] or "2:00 PM" in res["line"])
-        return ok, f"Fenster {res['state']}, {res['line']}, große Dialoge {res['dialogs']}"
+        # aufgegangen = jetzt offen oder zumindest einmal gezeigt (xvfb schließt es teils sofort)
+        opened = res["state"] in ("open", "showing") or res["shown"] > 0
+        ok = opened and res["dialogs"] == 0 and ("14:" in res["line"] or "02:00 PM" in res["line"] or "2:00 PM" in res["line"])
+        return ok, f"Fenster {res['state']} (gezeigt {res['shown']}×, zu nach {res['hiddenAfter']} ms), {res['line']}, große Dialoge {res['dialogs']}"
     check("Doppelklick im Kalender öffnet das Schnellfenster", double_click, results)
 
     def hover_actions():
