@@ -5953,7 +5953,11 @@ class CardEnhancer {
 
   // Today-Pane weich ein-/ausblenden wie die Seitenleisten: die Breite
   // gleitet zwischen 0 und voller Breite, der Inhalt behält seine Breite und
-  // wird nur zugedeckt
+  // wird nur zugedeckt. Während der Animation liegt sie über dem Mailbereich
+  // (position: absolute) – schob sie ihn pro Bild zur Seite, musste
+  // Thunderbird Mailliste und geöffnete Mail jedes Mal neu anordnen (20–35 ms
+  // pro Bild, sichtbares Ruckeln). So ändert sich der Mailbereich nur einmal:
+  // beim Ausblenden am Anfang, beim Einblenden am Ende, jeweils unter der Pane.
   animateTodayPane(w, command, onDone) {
     const d = w.document;
     const panel = d.getElementById("today-pane-panel");
@@ -5981,10 +5985,17 @@ class CardEnhancer {
     }
     const DURATION = 250;
     const curve = cubicBezier(0.25, 0.1, 0.25, 1);
-    const PROPS = ["overflow", "min-width", "width", "max-width"];
+    const PROPS = ["overflow", "min-width", "width", "max-width", "position", "inset-block", "inset-inline-end", "z-index"];
     const saved = PROPS.map(p => [p, panel.style.getPropertyValue(p), panel.style.getPropertyPriority(p)]);
+    const box = panel.parentElement;
+    const savedBox = box.style.getPropertyValue("position");
     const kids = [...panel.children];
     kids.forEach(k => k.style.setProperty("min-width", `${full}px`));
+    box.style.setProperty("position", "relative");
+    panel.style.setProperty("position", "absolute", "important");
+    panel.style.setProperty("inset-block", "0", "important");
+    panel.style.setProperty("inset-inline-end", "0", "important");
+    panel.style.setProperty("z-index", "2", "important");
     panel.style.setProperty("overflow", "hidden", "important");
     panel.style.setProperty("min-width", "0px", "important");
     const setW = v => {
@@ -6015,6 +6026,11 @@ class CardEnhancer {
         }
       }
       kids.forEach(k2 => k2.style.removeProperty("min-width"));
+      if (savedBox) {
+        box.style.setProperty("position", savedBox);
+      } else {
+        box.style.removeProperty("position");
+      }
       if (!showing) {
         command.doCommand();
       }

@@ -733,6 +733,10 @@ def run_checks(m, version, profile, results):
           const cons = []; const listener = { observe: m => { if (m instanceof Ci.nsIScriptError && /implementation\.js/.test(m.sourceName)) cons.push(m.errorMessage.slice(0, 200) + " @" + m.lineNumber); } };
           Services.console.registerListener(listener);
           out.errs = errs; out.cons = cons; out.visibility = d.visibilityState;
+          // Bildtakt ohne Animation als Maßstab (60 oder 120 Hz)
+          const idle = []; const tIdle = performance.now(); let tPrev = tIdle;
+          while (performance.now() - tIdle < 300 || idle.length < 2) { await new Promise(r => w.requestAnimationFrame(r)); const t = performance.now(); idle.push(t - tPrev); tPrev = t; if (idle.length > 60) break; }
+          out.idleFrameMs = Math.round(idle.sort((a, b) => a - b)[idle.length >> 1]);
           for (const phase of ["aus", "ein"]) {
             btn.click(); const { ws, ts } = await record(); await wait(300);
             // nur Bilder, in denen sich die Breite ändert (die Animation selbst)
@@ -749,8 +753,11 @@ def run_checks(m, version, profile, results):
         if res.get("visibility") == "hidden" and all(res[p]["steps"] <= 1 for p in ("aus", "ein")):
             # macOS pausiert Bildschritte in verdeckten Fenstern – kein Fehler der Animation
             return True, "Testfenster verdeckt – übersprungen"
-        # flüssig: viele Zwischenschritte, kein Sprung über die halbe Breite
-        ok = all(res[p]["steps"] >= 6 and res[p]["maxJump"] < res["start"] / 2 for p in ("aus", "ein")) and res["end"] == res["start"]
+        # flüssig: viele Zwischenschritte, kein Sprung über die halbe Breite und
+        # Bilder im normalen Takt – früher ordnete jedes Bild den ganzen
+        # Mailbereich neu an (20–35 ms statt 8 ms bei 120 Hz)
+        ok = all(res[p]["steps"] >= 6 and res[p]["maxJump"] < res["start"] / 2 and
+                 res[p]["medianFrameMs"] <= res["idleFrameMs"] * 1.5 + 2 for p in ("aus", "ein")) and res["end"] == res["start"]
         return ok, f"{res}"
     check("Today-Pane: Ein-/Ausblenden flüssig (kein Sprung)", today_animation, results)
 
