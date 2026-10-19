@@ -123,6 +123,7 @@ def main():
     ap.add_argument("--shots", help="Ordner für Screenshots aller Bereiche")
     ap.add_argument("--eval", help="nur dieses JavaScript ausführen (Chrome-Kontext, mit den Hilfen aus PRELUDE) und das Ergebnis ausgeben – zum Untersuchen")
     ap.add_argument("--perf", action="store_true", help="nur die Geschwindigkeit messen (5000 Mails, mit und ohne halo.spaces)")
+    ap.add_argument("--port", type=int, default=PORT, help=f"Marionette-Port (Standard {PORT}; eigener Port erlaubt mehrere Testläufe gleichzeitig)")
     ap.add_argument("--compare", help="Ordner mit früheren Screenshots: zeigt, wo sich etwas verändert hat (braucht --shots)")
     args = ap.parse_args()
 
@@ -143,7 +144,7 @@ def main():
     with open(os.path.join(profile, "user.js"), "w") as f:
         for pref, value in {
             "extensions.autoDisableScopes": 0,
-            "marionette.port": PORT,
+            "marionette.port": args.port,
             "mail.shell.checkDefaultClient": False,
             "mail.provider.suppress_dialog_on_startup": True,
             "mail.rights.version": 1,
@@ -169,10 +170,10 @@ def main():
                             env={**os.environ, "MOZ_REMOTE_ALLOW_SYSTEM_ACCESS": "1"})
     results = []
     try:
-        if not wait_port(PORT):
+        if not wait_port(args.port):
             sys.exit("Thunderbird hat Marionette nicht geöffnet")
         time.sleep(8)  # Erweiterung und Fenster fertig aufbauen lassen
-        m = Marionette(PORT)
+        m = Marionette(args.port)
         if args.perf:
             args.eval = open(os.path.join(ROOT, "tests", "perf.js")).read()
         if args.eval:
@@ -186,7 +187,7 @@ def main():
                 compare_shots(m, args.compare, args.shots)
     finally:
         try:
-            Marionette(PORT).js("Services.startup.quit(Ci.nsIAppStartup.eForceQuit); return 1;")
+            Marionette(args.port).js("Services.startup.quit(Ci.nsIAppStartup.eForceQuit); return 1;")
         except Exception:
             pass
         try:
