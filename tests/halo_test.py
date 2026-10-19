@@ -903,6 +903,37 @@ def run_checks(m, version, profile, results):
         return ok, f"{res}"
     check("Suche: alle Postfächer, Datum, Trefferzahl, Markierung, zurück zum Ordner", mail_search, results)
 
+    def settings_style():
+        # Einstellungen: Inhalt mittig (max. 800 px), Kästchen/Optionsfelder im macOS-Stil,
+        # Zahlenfeld ohne Systempfeile, Ansichtskacheln ohne Optionsfeld, Kontoeinstellungen als Karten
+        res = m.js(r'''
+          w.resizeTo(1500, 950); w.openPreferencesTab("paneAppearance"); await wait(2500);
+          const cw = tm.currentTabInfo.browser.contentWindow; const cd = cw.document; const cs = e => cw.getComputedStyle(e);
+          const deck = cd.querySelector(".paneDeckContainer").getBoundingClientRect();
+          const box = cd.getElementById("preferencesContainer").getBoundingClientRect();
+          const checked = [...cd.querySelectorAll("#paneDeck checkbox[checked]")].find(c => c.getBoundingClientRect().width)?.querySelector(".checkbox-check");
+          const radio = cd.querySelector("#paneDeck radio:not(.appearance-options radio) .radio-check");
+          const tileCheck = cd.querySelector("#appearanceStyleCards .radio-check");
+          cw.gotoPref("paneChat"); await wait(1200);
+          const num = cd.querySelector("#paneDeck input[type=number]");
+          const out = { width: Math.round(deck.width), offset: Math.round((deck.left - box.left) - (box.right - deck.right)),
+            checkbox: checked ? [cs(checked).appearance, cs(checked).borderTopLeftRadius] : null,
+            radio: radio ? [cs(radio).appearance, cs(radio).borderTopLeftRadius] : null,
+            tileCheck: tileCheck ? cs(tileCheck).display : null, number: num ? cs(num).appearance : null };
+          tm.closeTab(tm.currentTabInfo);
+          w.MsgAccountManager(null);
+          // je nach Konto die Liste (Ausgangsserver) oder ein Eingabefeld (Kontoseite)
+          const el = await until(() => tm.currentTabInfo.browser?.contentDocument?.getElementById("contentFrame")?.contentDocument
+            ?.querySelector("#containerBox richlistbox, #containerBox input:is([type=text], :not([type]))"), 8000);
+          out.accountList = el ? [el.localName, el.ownerDocument.defaultView.getComputedStyle(el).borderTopLeftRadius] : null;
+          tm.closeTab(tm.currentTabInfo);
+          return out;''')
+        ok = (res["width"] <= 800 and abs(res["offset"]) <= 4 and res["checkbox"] == ["none", "4px"]
+              and res["radio"] and res["radio"][0] == "none" and res["tileCheck"] == "none" and res["number"] == "textfield"
+              and res["accountList"] in (["richlistbox", "12px"], ["input", "7px"]))
+        return ok, f"{res}"
+    check("Einstellungen: Inhalt mittig, Kästchen und Optionsfelder wie macOS, Kacheln, Kontoeinstellungen", settings_style, results)
+
     def no_placeholder_in_ui():
         # Platzhalter für blockierte Bilder nur in Mails – nicht in der Oberfläche (Lupe im Suchfeld)
         res = m.js('''

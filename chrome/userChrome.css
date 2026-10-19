@@ -30,6 +30,8 @@
   --mt-menu-bg: rgba(246, 246, 248, 0.80);
   --mt-tooltip-bg: #FFFFFF;
   --mt-tooltip-border: rgba(0, 0, 0, 0.15);
+  --mt-check-bg: #FFFFFF;
+  --mt-check-border: rgba(0, 0, 0, 0.22);
   --mt-pane-line: rgba(0, 0, 0, 0.11);
   --mt-tabbar: #E9E9EB;
   --mt-tab-selected: #F9F9FA;
@@ -53,6 +55,8 @@
     --mt-menu-bg: rgba(40, 40, 42, 0.80);
     --mt-tooltip-bg: #2C2C2E;
     --mt-tooltip-border: rgba(255, 255, 255, 0.14);
+    --mt-check-bg: rgba(255, 255, 255, 0.08);
+    --mt-check-border: rgba(255, 255, 255, 0.28);
     --mt-pane-line: rgba(255, 255, 255, 0.10);
     --mt-tabbar: #262628;
     --mt-tab-selected: #3A3A3C;
@@ -3604,6 +3608,8 @@ search-bar {
 
 /* ---------- Einstellungen wie die macOS-Systemeinstellungen ---------- */
 #pref-category-box {
+  width: 240px !important;
+  min-width: 240px !important;
   background: var(--mt-sidebar) !important;
   border-inline-end: 1px solid var(--mt-sidebar-border) !important;
   /* erster Eintrag auf derselben Höhe wie „Favoriten“ in der Mail */
@@ -3617,8 +3623,9 @@ search-bar {
 }
 
 #categories > richlistitem.category {
-  min-height: 34px !important;
-  margin: 1px 0 !important;
+  /* luftig wie die Systemeinstellungen: höhere Zeilen, etwas mehr Abstand */
+  min-height: 38px !important;
+  margin: 2px 0 !important;
   padding: 0 8px !important;
   border-radius: 8px !important;
   gap: 10px !important;
@@ -3641,8 +3648,8 @@ search-bar {
 #categories .category-icon,
 .sidebar-footer-list .sidebar-footer-icon {
   --tile: #8E8E93;
-  width: 22px !important;
-  height: 22px !important;
+  width: 24px !important;
+  height: 24px !important;
   padding: 3px !important;
   margin: 0 !important;
   box-sizing: border-box !important;
@@ -3670,7 +3677,7 @@ search-bar {
 }
 
 .sidebar-footer-link {
-  min-height: 34px !important;
+  min-height: 38px !important;
   padding: 0 8px !important;
   border-radius: 8px !important;
   gap: 10px !important;
@@ -3709,7 +3716,7 @@ search-bar {
   padding: 12px 16px 14px !important;
   border: none !important;
   border-radius: 12px !important;
-  background: color-mix(in srgb, var(--mt-text) 3.5%, var(--mt-window)) !important;
+  background: color-mix(in srgb, var(--mt-text) 2.5%, var(--mt-window)) !important;
 }
 
 #paneDeck fieldset > legend {
@@ -3757,6 +3764,230 @@ search-bar {
   border-radius: 999px !important;
   background-color: var(--mt-control) !important;
   box-shadow: none !important;
+}
+
+/* Inhalt höchstens 800 px breit und mittig – lesbare Zeilen, keine
+   halbe Fensterbreite links */
+#preferencesContainer .paneDeckContainer,
+#preferencesContainer .sticky-container {
+  margin-inline: auto !important;
+  inline-size: min(100%, 800px) !important;
+}
+
+/* Abschnittsüberschriften wie in den übrigen Bereichen */
+#paneDeck h2 {
+  font-size: 15px !important;
+  font-weight: 600 !important;
+  color: var(--mt-text) !important;
+}
+
+#paneDeck :is(description, .tip-caption, label.indent) {
+  color: var(--mt-text-secondary) !important;
+}
+
+/* ---------- Kästchen und Optionsfelder im macOS-Stil (überall) ----------
+   statt der grauen Systemknöpfe: weiße Fläche mit feinem Rand, ausgewählt
+   in der Akzentfarbe mit weißem Haken bzw. Punkt */
+checkbox > .checkbox-check,
+radio > .radio-check,
+#paneDeck input:is([type="checkbox"], [type="radio"]):not(.toggle-button) {
+  appearance: none !important;
+  box-sizing: border-box !important;
+  width: 16px !important;
+  min-width: 16px !important;
+  height: 16px !important;
+  margin-block: 0 !important;
+  margin-inline: 0 6px !important;
+  border: 1px solid var(--mt-check-border) !important;
+  background: var(--mt-check-bg) !important;
+  box-shadow: 0 0.5px 1px rgba(0, 0, 0, 0.06) !important;
+}
+
+checkbox > .checkbox-check,
+#paneDeck input[type="checkbox"]:not(.toggle-button) {
+  border-radius: 4px !important;
+}
+
+radio > .radio-check,
+#paneDeck input[type="radio"] {
+  border-radius: 50% !important;
+}
+
+checkbox[checked] > .checkbox-check,
+#paneDeck input[type="checkbox"]:not(.toggle-button):checked {
+  border-color: transparent !important;
+  background: var(--mt-accent) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='white' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m4 8.3 2.6 2.6L12 5.4'/%3E%3C/svg%3E") center / 12px no-repeat !important;
+}
+
+radio[selected] > .radio-check,
+#paneDeck input[type="radio"]:checked {
+  border: 4.5px solid var(--mt-accent) !important;
+  background: white !important;
+}
+
+:is(checkbox, radio)[disabled] > :is(.checkbox-check, .radio-check),
+#paneDeck input:is([type="checkbox"], [type="radio"]):disabled {
+  opacity: 0.45 !important;
+}
+
+:is(checkbox, radio):focus-visible > :is(.checkbox-check, .radio-check) {
+  outline: 3px solid color-mix(in srgb, var(--mt-accent) 45%, transparent) !important;
+  outline-offset: 0 !important;
+}
+
+/* Zahlenfelder (z. B. „5 Minuten“ im Chat) wie die übrigen Felder: ohne
+   Systempfeile, Wert mittig */
+#paneDeck input[type="number"],
+input[type="number"].size2,
+input[type="number"].size3,
+input[type="number"].size4 {
+  appearance: textfield !important;
+  min-height: 26px !important;
+  padding-inline: 8px !important;
+  text-align: center !important;
+  border: var(--mt-hairline) solid var(--mt-pane-line) !important;
+  border-radius: 7px !important;
+  background-color: var(--mt-window) !important;
+  color: var(--mt-text) !important;
+}
+
+/* Auswahllisten: überall derselbe feine Pfeil (auch Tagesbeginn/-ende im Kalender) */
+#paneDeck menulist {
+  --menulist-dropmarker: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='%23000' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m4.5 6.5 3.5 3.5 3.5-3.5'/%3E%3C/svg%3E");
+}
+
+#paneDeck menulist > :is(dropmarker, .menulist-dropmarker) {
+  appearance: none !important;
+  width: 12px !important;
+  height: 12px !important;
+  margin-inline-start: 6px !important;
+  background-color: currentColor !important;
+  mask: var(--menulist-dropmarker) center / contain no-repeat !important;
+  list-style-image: none !important;
+  opacity: 0.7 !important;
+}
+
+#paneDeck menulist > dropmarker::part(icon),
+#paneDeck menulist > .menulist-dropmarker .dropmarker-icon {
+  display: none !important;
+}
+
+/* Ansicht (Karten/Tabelle) und Unterhaltungen: Kacheln wie in den
+   Systemeinstellungen – hell, rund, ausgewählt mit Akzentrahmen, ohne
+   eigenes Optionsfeld */
+#paneDeck .appearance-options radio {
+  padding: 8px !important;
+  border: 1px solid var(--mt-pane-line) !important;
+  border-radius: 12px !important;
+  background: var(--mt-window) !important;
+  box-shadow: none !important;
+  outline: none !important;
+}
+
+#paneDeck .appearance-options radio:hover {
+  background: color-mix(in srgb, var(--mt-text) 3%, var(--mt-window)) !important;
+}
+
+#paneDeck .appearance-options radio[selected] {
+  border-color: var(--mt-accent) !important;
+  box-shadow: 0 0 0 2px var(--mt-accent) !important;
+}
+
+#paneDeck .appearance-options radio > .radio-check {
+  display: none !important;
+}
+
+#paneDeck .appearance-options .radio-icon {
+  margin-inline-start: 0 !important;
+  border-radius: 8px !important;
+  background-color: color-mix(in srgb, var(--mt-text) 3%, var(--mt-window)) !important;
+}
+
+#paneDeck .appearance-options .radio-label-box {
+  align-items: center !important;
+}
+
+#paneDeck .appearance-options .radio-label {
+  align-self: center !important;
+  font-size: 12px !important;
+  color: var(--mt-text-secondary) !important;
+}
+
+#paneDeck .appearance-options radio[selected] .radio-label {
+  color: var(--mt-text) !important;
+  font-weight: 500 !important;
+}
+
+/* Kontoeinstellungen: Felder und Listen wie in den Einstellungen (der rote
+   Löschen-Knopf bleibt, wie er ist) */
+:is(#containerBox, .account-settings) :is(input:is([type="text"], [type="email"], [type="url"], [type="number"], [type="password"], :not([type])), textarea) {
+  min-height: 26px !important;
+  padding-inline: 8px !important;
+  border: var(--mt-hairline) solid var(--mt-pane-line) !important;
+  border-radius: 7px !important;
+  background-color: var(--mt-window) !important;
+  color: var(--mt-text) !important;
+  box-shadow: none !important;
+}
+
+:is(#containerBox, .account-settings) menulist {
+  min-height: 26px !important;
+  padding-inline: 12px 8px !important;
+  border: none !important;
+  border-radius: 999px !important;
+  background-color: var(--mt-control) !important;
+  color: var(--mt-text) !important;
+}
+
+/* Listen und Infokästen in den Kontoeinstellungen (z. B. Ausgangsserver)
+   als helle Karten statt grauer Kästen mit Rahmen */
+#containerBox richlistbox,
+#smtpServerInfoBox {
+  border: none !important;
+  border-radius: 12px !important;
+  background: color-mix(in srgb, var(--mt-text) 2.5%, var(--mt-window)) !important;
+  color: var(--mt-text) !important;
+  padding: 6px !important;
+}
+
+#smtpServerInfoBox :is(th, td) {
+  padding: 3px 8px !important;
+  font-weight: 400 !important;
+}
+
+#smtpServerInfoBox th {
+  color: var(--mt-text-tertiary) !important;
+}
+
+#containerBox richlistbox > richlistitem {
+  border-radius: 8px !important;
+  padding: 4px 8px !important;
+}
+
+#containerBox richlistbox > richlistitem[selected] {
+  background: var(--mt-accent) !important;
+  color: var(--mt-accent-text) !important;
+}
+
+#containerBox fieldset {
+  border: none !important;
+  border-radius: 12px !important;
+  padding: 12px 16px 14px !important;
+  margin: 0 0 12px !important;
+  background: color-mix(in srgb, var(--mt-text) 2.5%, var(--mt-window)) !important;
+}
+
+#containerBox fieldset > legend {
+  float: inline-start !important;
+  width: 100% !important;
+  padding: 0 0 6px !important;
+  font-size: 13px !important;
+  font-weight: 600 !important;
+  color: var(--mt-text) !important;
+}
+
+#containerBox fieldset > :not(legend) {
+  clear: both !important;
 }
 
 /* ---------- Add-ons-Verwaltung ---------- */
