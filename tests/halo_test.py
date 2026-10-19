@@ -858,9 +858,13 @@ def run_checks(m, version, profile, results):
           for (const e of made) { try { await c.deleteItem(e); } catch {} }
           return { parts, icon: (icon || "").slice(0, 20), emoji: plain?.getAttribute("data-mc-emoji") };''')
         p = res["parts"]
-        # erste Woche: Fr, Sa, So zusammenhängend; Mo in der nächsten Zeile wieder mit Rundung links
-        joined = len(p) == 4 and all(abs(p[i + 1]["l"] - p[i]["r"]) <= 2 and p[i]["jr"] and p[i + 1]["jl"] for i in range(2)) \
-            and not p[0]["jl"] and not p[2]["jr"] and not p[3]["jl"] and p[3]["t"] > p[0]["t"]
+        # Fr–Mo über einen Wochenwechsel: je Zeile zusammenhängend, an den Zeilenenden
+        # gerundet – wo die Zeile umbricht, hängt vom Wochenbeginn ab (Mo bzw. So unter en-US)
+        rows = [sorted((q for q in p if q["t"] == t), key=lambda q: q["l"]) for t in sorted({q["t"] for q in p})]
+        joined = len(p) == 4 and len(rows) == 2 and all(
+            not r[0]["jl"] and not r[-1]["jr"]
+            and all(abs(r[i + 1]["l"] - r[i]["r"]) <= 2 and r[i]["jr"] and r[i + 1]["jl"] for i in range(len(r) - 1))
+            for r in rows)
         return joined and res["icon"].startswith("url(") and not res["emoji"], f"{res}"
     check("Kalender: mehrtägige Termine als Balken, Kalendersymbol ohne Emoji", month_spans, results)
 
