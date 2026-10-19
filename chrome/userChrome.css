@@ -259,6 +259,85 @@ global-search-bar {
   color: var(--mt-text-tertiary) !important;
 }
 
+/* Statusleiste ruhig und flach: 22 px hoch, 11-px-Systemschrift in
+   Tertiärgrau, feine Linie oben, Symbole klein und ohne eigenen Rahmen */
+#status-bar.statusbar {
+  min-height: 22px !important;
+  padding: 0 12px !important;
+  font: 11px var(--mt-font) !important;
+  align-items: center !important;
+}
+
+#status-bar .statusbarpanel {
+  margin: 0 !important;
+  padding: 0 4px !important;
+  border: none !important;
+  background: none !important;
+}
+
+#status-bar label.statusbarpanel,
+#status-bar .statusbarpanel > label {
+  margin: 0 !important;
+  color: inherit !important;
+}
+
+#status-bar toolbarbutton {
+  appearance: none !important;
+  margin: 0 !important;
+  padding: 0 2px !important;
+  border: none !important;
+  border-radius: 4px !important;
+  background: none !important;
+  color: inherit !important;
+}
+
+#status-bar toolbarbutton:hover {
+  background: var(--mt-control-hover) !important;
+}
+
+#status-bar toolbarbutton .toolbarbutton-icon {
+  width: 14px !important;
+  height: 14px !important;
+  fill: currentColor !important;
+  -moz-context-properties: fill, stroke !important;
+}
+
+#status-bar .progressmeter-statusbar {
+  height: 4px !important;
+  border: none !important;
+  border-radius: 999px !important;
+  background: var(--mt-control) !important;
+}
+
+#status-bar .progressmeter-statusbar::-moz-progress-bar {
+  border-radius: 999px !important;
+  background: AccentColor !important;
+}
+
+/* Der Today-Pane-Knopf unten rechts entfällt – das Kalendersymbol oben in
+   der Toolbar (#mcTodayToggle) übernimmt das. Er bleibt im Dokument, weil
+   das Symbol oben von ihm die Tageszahl übernimmt. */
+#calendar-show-todaypane-panel {
+  display: none !important;
+}
+
+/* Mailansicht: wie oben in der Toolbar-Zeile läuft das Seitenleisten-Grau
+   bis zum unteren Fensterrand; Linie und Inhalt beginnen erst rechts der
+   Ordnerliste (--mc-sidebar-right setzt die Erweiterung) */
+:root[mc-mail] #status-bar.statusbar {
+  border-top: none !important;
+  padding-inline-start: calc(var(--mc-sidebar-right, 0px) + 12px) !important;
+  background:
+    linear-gradient(var(--mt-pane-line), var(--mt-pane-line))
+      right top / calc(100% - var(--mc-sidebar-right, 0px) - 1px) var(--mt-hairline) no-repeat,
+    linear-gradient(
+      to right,
+      var(--mt-sidebar) 0 var(--mc-sidebar-right, 0px),
+      var(--mt-sidebar-border) var(--mc-sidebar-right, 0px) calc(var(--mc-sidebar-right, 0px) + 1px),
+      var(--mt-window) calc(var(--mc-sidebar-right, 0px) + 1px)
+    ) !important;
+}
+
 /* ---------- 3-Fenster-Ansicht (about:3pane) ---------- */
 
 #paneLayout,

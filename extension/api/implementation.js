@@ -6482,6 +6482,12 @@ class CardEnhancer {
           setVar(tabs, "--mc-sidebar-right", `${Math.max(0, Math.round(right - shift))}px`);
           setVar(tabs, "--mc-list-right", `${Math.round((listRight - shift) * dpr) / dpr}px`);
         }
+        // Statusleiste ebenso: Seitenleisten-Grau läuft unten bis zum Fensterrand
+        const status = top.document.getElementById("status-bar");
+        if (status) {
+          const shift = status.getBoundingClientRect().left - row.getBoundingClientRect().left;
+          setVar(status, "--mc-sidebar-right", `${Math.max(0, Math.round(right - shift))}px`);
+        }
       }
     };
     this.offsetUpdaters ??= new Set();
@@ -6512,6 +6518,7 @@ class CardEnhancer {
       const tabsBar = top.document.getElementById("tabs-toolbar");
       tabsBar?.style.removeProperty("--mc-sidebar-right");
       tabsBar?.style.removeProperty("--mc-list-right");
+      top.document.getElementById("status-bar")?.style.removeProperty("--mc-sidebar-right");
       barTarget(top.document).style.removeProperty("--mc-toolbar-offset");
       barTarget(top.document).style.removeProperty("--mc-sidebar-right");
       barTarget(top.document).style.removeProperty("--mc-list-right");

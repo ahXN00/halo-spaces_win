@@ -804,6 +804,27 @@ def run_checks(m, version, profile, results):
         return res["open"] and res["none"] and res["width"] == 0, f"{res}"
     check("Today-Pane aus: keine Fläche rechts neben dem Knopf", today_closed, results)
 
+    def statusbar():
+        # kein Today-Pane-Knopf mehr unten rechts (das Symbol oben übernimmt
+        # weiter dessen Tageszahl); Leiste flach, Grau der Seitenleiste läuft
+        # durch, Text beginnt rechts der Ordnerliste
+        res = m.js('''
+          await toMail(); await wait(800);
+          const sb = d.getElementById("status-bar"), cs = getComputedStyle(sb);
+          const a3 = tm.currentAbout3Pane, fp = a3.document.getElementById("folderPane").getBoundingClientRect();
+          const sidebarRight = tm.currentTabInfo.chromeBrowser.getBoundingClientRect().left + fp.right;
+          const panel = d.getElementById("calendar-show-todaypane-panel");
+          const text = d.getElementById("statusTextBox").getBoundingClientRect();
+          return { panel: panel ? getComputedStyle(panel).display : "fehlt",
+                   day: d.querySelector("#mcTodayToggle .mc-today-day")?.textContent,
+                   height: Math.round(sb.getBoundingClientRect().height), font: cs.fontSize,
+                   textLeft: Math.round(text.left), sidebarRight: Math.round(sidebarRight),
+                   bg: cs.backgroundImage.includes("gradient") };''')
+        ok = (res["panel"] in ("none", "fehlt") and res["day"] and res["height"] <= 24 and res["font"] == "11px"
+              and res["bg"] and res["textLeft"] >= res["sidebarRight"])
+        return ok, f"{res}"
+    check("Statusleiste: ohne Today-Pane-Knopf, flach, Seitenleiste läuft durch", statusbar, results)
+
     def today_plus_event():
         # „+“ ganz rechts → „New Event“: Schnellfenster ganz auf dem Bildschirm
         # (früher mittig unter dem „+“ geöffnet und von Thunderbird am Rand auf
