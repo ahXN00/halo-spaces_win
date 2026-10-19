@@ -159,6 +159,10 @@ const DE = {
   "Messages in system font": "Mails in Systemschrift",
   "like Apple Mail; messages with their own font keep it – off: Thunderbird’s fonts": "wie Apple Mail; Mails mit eigener Schrift behalten sie – aus: Thunderbirds Schriften",
   "Yesterday": "Gestern",
+  "No Tasks": "Keine Aufgaben",
+  "Tasks you add appear here.": "Neue Aufgaben erscheinen hier.",
+  "No Task List Selected": "Keine Aufgabenliste ausgewählt",
+  "Choose a calendar that supports tasks in the sidebar.": "Wähle links einen Kalender, der Aufgaben unterstützt.",
 };
 const FR = {
   "Install version {v}": "Installer la version {v}",
@@ -289,6 +293,10 @@ const FR = {
   "Messages in system font": "Messages dans la police système",
   "like Apple Mail; messages with their own font keep it – off: Thunderbird’s fonts": "comme Apple Mail ; les messages avec leur propre police la gardent – désactivé : polices de Thunderbird",
   "Yesterday": "Hier",
+  "No Tasks": "Aucune tâche",
+  "Tasks you add appear here.": "Les tâches ajoutées apparaissent ici.",
+  "No Task List Selected": "Aucune liste de tâches sélectionnée",
+  "Choose a calendar that supports tasks in the sidebar.": "Choisissez dans la barre latérale un calendrier qui prend en charge les tâches.",
 };
 const ES = {
   "Install version {v}": "Instalar la versión {v}",
@@ -419,6 +427,10 @@ const ES = {
   "Messages in system font": "Mensajes en la fuente del sistema",
   "like Apple Mail; messages with their own font keep it – off: Thunderbird’s fonts": "como Apple Mail; los mensajes con su propia fuente la conservan – desactivado: fuentes de Thunderbird",
   "Yesterday": "Ayer",
+  "No Tasks": "No hay tareas",
+  "Tasks you add appear here.": "Las tareas que añadas aparecerán aquí.",
+  "No Task List Selected": "No hay ninguna lista de tareas seleccionada",
+  "Choose a calendar that supports tasks in the sidebar.": "Elige en la barra lateral un calendario que admita tareas.",
 };
 const IT = {
   "Install version {v}": "Installa la versione {v}",
@@ -549,6 +561,10 @@ const IT = {
   "Messages in system font": "Messaggi nel font di sistema",
   "like Apple Mail; messages with their own font keep it – off: Thunderbird’s fonts": "come Apple Mail; i messaggi con un proprio font lo mantengono – disattivato: font di Thunderbird",
   "Yesterday": "Ieri",
+  "No Tasks": "Nessuna attività",
+  "Tasks you add appear here.": "Le attività aggiunte appaiono qui.",
+  "No Task List Selected": "Nessun elenco attività selezionato",
+  "Choose a calendar that supports tasks in the sidebar.": "Scegli nella barra laterale un calendario che supporta le attività.",
 };
 const TRANSLATIONS = { de: DE, fr: FR, es: ES, it: IT };
 // tr("+{n} more", { n: 3 }) – Platzhalter in geschweiften Klammern
@@ -2703,7 +2719,7 @@ class CardEnhancer {
       const rr = row.getBoundingClientRect();
       // nur an den Leisten, die in die Toolbar-Zeile verlegt werden
       const rowVar = (name, value) => {
-        for (const id of ["chat-view-toolbox", "viewToggle"]) {
+        for (const id of ["chat-view-toolbox", "viewToggle", "task-addition-box"]) {
           setVar(d.getElementById(id), name, value);
         }
       };
@@ -4390,6 +4406,33 @@ class CardEnhancer {
         }
       }
     };
+    // Mehrtägige ganztägige Termine in Monat/Mehrwochen als durchgehender
+    // Balken wie in Apple Kalender: jedes Tagesstück weiß, ob es links/rechts
+    // weitergeht (innerhalb einer Wochenzeile); der Titel steht nur im
+    // ersten Stück je Woche
+    const annotateSpans = root => {
+      for (const el of root.querySelectorAll("calendar-month-day-box-item")) {
+        let left = false;
+        let right = false;
+        try {
+          const occ = el.occurrence;
+          const day = el.parentBox?.date;
+          const start = occ?.startDate;
+          const end = occ?.endDate;
+          if (el.hasAttribute("allday") && day && start && end) {
+            const next = day.clone();
+            next.day += 1;
+            const cell = el.closest("td");
+            const row = cell?.parentElement;
+            const col = cell ? [...row.children].indexOf(cell) : -1;
+            left = day.compare(start) > 0 && col > 0;
+            right = next.compare(end) < 0 && col >= 0 && col < row.children.length - 1;
+          }
+        } catch {}
+        el.toggleAttribute("data-mc-join-l", left);
+        el.toggleAttribute("data-mc-join-r", right);
+      }
+    };
     const hookCalendarEmoji = () => {
       for (const id of ["view-box", "agenda"]) {
         const root = w.document.getElementById(id);
@@ -4401,6 +4444,9 @@ class CardEnhancer {
         const run = () => {
           pending = false;
           annotateEmoji(root);
+          if (id == "view-box") {
+            annotateSpans(root);
+          }
         };
         const mo = new w.MutationObserver(() => {
           if (!pending) {
@@ -4421,9 +4467,124 @@ class CardEnhancer {
           for (const label of root.querySelectorAll("[data-mc-emoji]")) {
             label.removeAttribute("data-mc-emoji");
           }
+          for (const el of root.querySelectorAll("[data-mc-join-l], [data-mc-join-r]")) {
+            el.removeAttribute("data-mc-join-l");
+            el.removeAttribute("data-mc-join-r");
+          }
           delete root.__mcEmoji;
         });
       }
+    };
+
+    // Aufgaben ohne Einträge: mittig Symbol, Titel und kurzer Text statt
+    // leerer Fläche (wie Apple Erinnerungen) – ohne Aufgabenkalender mit
+    // Hinweis, wo man einen auswählt
+    const hookTasksEmpty = () => {
+      const d = w.document;
+      const tree = d.getElementById("calendar-task-tree");
+      const field = d.getElementById("view-task-edit-field");
+      if (!tree?.mTreeView || d.getElementById("mcTasksEmpty")) {
+        return;
+      }
+      const HTML = "http://www.w3.org/1999/xhtml";
+      const box = d.createElementNS(HTML, "div");
+      box.id = "mcTasksEmpty";
+      box.hidden = true;
+      const icon = d.createElementNS(HTML, "div");
+      icon.className = "mc-te-icon";
+      const title = d.createElementNS(HTML, "div");
+      title.className = "mc-te-title";
+      const text = d.createElementNS(HTML, "div");
+      text.className = "mc-te-text";
+      box.append(icon, title, text);
+      tree.after(box);
+      const update = () => {
+        const empty = !tree.mTreeView || tree.mTreeView.rowCount == 0;
+        // ohne Aufgabenkalender ist das Eingabefeld schreibgeschützt (Hinweis als Wert)
+        const noList = !!field && (field.readOnly || field.getAttribute("aria-disabled") == "true");
+        title.textContent = noList ? tr("No Task List Selected") : tr("No Tasks");
+        text.textContent = noList ? tr("Choose a calendar that supports tasks in the sidebar.") : tr("Tasks you add appear here.");
+        box.hidden = !empty;
+      };
+      let pending = false;
+      const later = () => {
+        if (!pending) {
+          pending = true;
+          w.setTimeout(() => {
+            pending = false;
+            update();
+          }, 50);
+        }
+      };
+      const view = tree.mTreeView;
+      const wrapped = ["addItems", "removeItems", "modifyItems", "clear"].map(name => {
+        const orig = view[name];
+        view[name] = function (...args) {
+          const result = orig.apply(this, args);
+          later();
+          return result;
+        };
+        return [name, orig];
+      });
+      tree.addEventListener("refresh", later);
+      const mo = field ? new w.MutationObserver(later) : null;
+      mo?.observe(field, { attributes: true, attributeFilter: ["readonly", "aria-disabled"] });
+      update();
+      this.restorers.push(() => {
+        for (const [name, orig] of wrapped) {
+          view[name] = orig;
+        }
+        tree.removeEventListener("refresh", later);
+        mo?.disconnect();
+        box.remove();
+      });
+    };
+
+    // iCloud legt in umgestellte Erinnerungslisten Platzhalter-Aufgaben an
+    // („Wo sind meine Erinnerungen?“, „Der Ersteller dieser Liste hat diese
+    // Erinnerungen aktualisiert.“) – mit Verweis auf Apples Hilfeseite
+    // HT210220. Sie sind keine echten Aufgaben: in allen Aufgabenlisten
+    // ausblenden (an den Daten in iCloud ändert sich nichts).
+    const hookTaskPlaceholders = () => {
+      const proto = w.calFilter?.prototype;
+      if (!proto || proto.__mcPlaceholders) {
+        return;
+      }
+      const orig = proto.isItemInFilters;
+      proto.isItemInFilters = function (item) {
+        try {
+          if (item?.isTodo?.() && /support\.apple\.com\/(?:[a-z-]+\/)?HT210220/i.test(item.getProperty("DESCRIPTION") || "")) {
+            return false;
+          }
+        } catch {}
+        return orig.call(this, item);
+      };
+      proto.__mcPlaceholders = true;
+      // schon angezeigte Listen neu füllen (refreshFromCalendar statt
+      // refresh() – das meldet die Beobachter jedes Mal neu an)
+      const refresh = () => {
+        let cals = [];
+        try {
+          const { cal } = ChromeUtils.importESModule("resource:///modules/calendar/calUtils.sys.mjs");
+          cals = cal.view.getCompositeCalendar(w).getCalendars() || [];
+        } catch {}
+        for (const tree of w.document.querySelectorAll(".calendar-task-tree")) {
+          if (!tree.mTreeView || typeof tree.refreshFromCalendar != "function") {
+            continue;
+          }
+          for (const calendar of cals.filter(c => !c.getProperty("disabled"))) {
+            try {
+              tree.refreshFromCalendar(calendar);
+            } catch {}
+          }
+        }
+      };
+      refresh();
+      this.restorers.push(() => {
+        proto.isItemInFilters = orig;
+        delete proto.__mcPlaceholders;
+        refresh();
+      });
     };
 
     // Doppelklick auf freie Zeit (Woche/Tag), die Ganztägig-Zeile oder einen
@@ -4773,6 +4934,8 @@ class CardEnhancer {
       hookNewButton();
       hookCalendarNotes();
       hookCalendarEmoji();
+      hookTaskPlaceholders();
+      hookTasksEmpty();
       hookCalendarDoubleClick();
       hookTaskHint();
       hookTitle();
@@ -6421,7 +6584,7 @@ class CardEnhancer {
       },
     };
     const hw = w.openDialog("resource://mailcards/about/halo.html", "halo-spaces",
-      `chrome,dialog=yes,centerscreen,resizable=no,width=360,height=${(api.mac ? 378 : 330) + (platformNote ? 64 : 0)}`);
+      `chrome,dialog=yes,centerscreen,resizable=no,width=360,height=${(api.mac ? 438 : 390) + (platformNote ? 64 : 0)}`);
     // erst lädt das Fenster about:blank, dann unsere Seite – darauf warten
     let tries = 0;
     const wire = () => {

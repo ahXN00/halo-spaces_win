@@ -488,7 +488,7 @@ def run_checks(m, version, profile, results):
           await toCalendar(); w.switchToView("week"); await wait(1200);
           // Tag ohne Termine – frühere Prüfungen legen heute/morgen welche an, ein
           // Treffer öffnet den Termin statt des Schnellfensters (je nach Wochentag)
-          const col = [...d.querySelectorAll("#week-view calendar-event-column")].filter(c => c.getBoundingClientRect().width && !c.querySelector("calendar-event-box"))[1];
+          const col = [...d.querySelectorAll("#week-view calendar-event-column")].filter(c => c.getBoundingClientRect().width && ![...c.querySelectorAll("calendar-event-box")].some(b => !b.hidden && b.occurrence))[1];
           const lbl = [...d.querySelectorAll("#week-view .multiday-timebar-time")].find(l => /^\s*(14[:.]00|0?2:00\s*PM)\s*$/i.test(l.textContent));
           lbl.scrollIntoView({ block: "center" }); await wait(500);
           const r = col.getBoundingClientRect(); return [Math.round(r.left + r.width / 2), Math.round(lbl.getBoundingClientRect().top + 8)];''')
@@ -779,12 +779,83 @@ def run_checks(m, version, profile, results):
           const address = /@/.test(hw?.document.body.textContent || "");
           const last = hw?.document.querySelector("main")?.lastElementChild?.getBoundingClientRect();
           const room = last ? Math.round(hw.innerHeight - last.bottom) : null;
+          // Kopf: Logo oben mittig, darunter Name, darunter kleinere Version
+          const box = sel => hw?.document.querySelector(sel)?.getBoundingClientRect();
+          const icon = box(".icon"), h1 = box("h1"), ver = box("#version");
+          const mid = r => r ? Math.round(r.left + r.width / 2 - hw.innerWidth / 2) : null;
+          const size = sel => parseFloat(hw?.getComputedStyle(hw.document.querySelector(sel)).fontSize);
+          const head = icon && h1 && ver ? { offsets: [mid(icon), mid(h1), mid(ver)],
+            stacked: icon.bottom <= h1.top && h1.bottom <= ver.top + 1, sizes: [size("h1"), size("#version")] } : null;
           w.openLinkExternally = orig; hw?.close();
-          return { window: !!hw, opened, address, room };''')
+          return { window: !!hw, opened, address, room, head };''')
         url = res.get("opened") or ""
         ok = url.startswith("https://buymeacoffee.com/diversion?") and "utm_content=about-window" in url
-        return ok and not res["address"] and res["room"] is not None and 10 <= res["room"] <= 30, f"{res}"
-    check("Info-Fenster: „Say Thanks“ öffnet die Spendenseite, keine Mailadresse unten", donate, results)
+        head = res.get("head") or {}
+        centered = head and all(o is not None and abs(o) <= 2 for o in head["offsets"]) and head["stacked"] and head["sizes"][1] < 12
+        return ok and centered and not res["address"] and res["room"] is not None and 10 <= res["room"] <= 30, f"{res}"
+    check("Info-Fenster: Logo, Name und Version mittig untereinander; „Say Thanks“ öffnet die Spendenseite, keine Mailadresse unten", donate, results)
+
+    def tasks_view():
+        # Leeranzeige, iCloud-Platzhalter ausgeblendet, Hinweis neben dem Plus, Kapsel-Knöpfe
+        res = m.js(r'''
+          w.resizeTo(1500, 900);
+          const c = testCalendar();
+          tm.openTab("tasks", {}); await wait(2000);
+          const tree = d.getElementById("calendar-task-tree"); const empty = d.getElementById("mcTasksEmpty");
+          const field = d.getElementById("view-task-edit-field");
+          const shown = () => empty && !empty.hidden;
+          const out = { emptyAtStart: shown() };
+          // Platzhalter, wie iCloud ihn anlegt – darf nicht erscheinen
+          const ph = new CalTodo(); ph.title = "Wo sind meine Erinnerungen?"; ph.calendar = c;
+          ph.setProperty("DESCRIPTION", "Weitere Infos: https://support.apple.com/HT210220"); const phSaved = await c.addItem(ph);
+          await wait(1200);
+          out.placeholderRows = tree.mTreeView.rowCount; out.emptyWithPlaceholder = shown();
+          const todo = new CalTodo(); todo.title = "Halo Testaufgabe"; todo.calendar = c; const todoSaved = await c.addItem(todo);
+          await until(() => tree.mTreeView.rowCount > 0); await wait(300);
+          out.rows = tree.mTreeView.rowCount; out.emptyWithTask = shown();
+          tree.mTreeView.selection?.select(0); await wait(600);
+          const btn = d.getElementById("task-actions-priority"); const cs = w.getComputedStyle(btn);
+          out.button = [cs.borderRadius, cs.height];
+          // schreibgeschützter Kalender als Standard: Hinweis in der Toolbar-Zeile neben dem Plus
+          let ro = cal.manager.getCalendars().find(x => x.name == "Halo Nur Lesen");
+          if (!ro) { ro = cal.manager.createCalendar("storage", Services.io.newURI("moz-storage-calendar://")); ro.name = "Halo Nur Lesen"; cal.manager.registerCalendar(ro); ro.readOnly = true; }
+          const comp = cal.view.getCompositeCalendar(w); const before = comp.defaultCalendar;
+          comp.defaultCalendar = ro; await wait(800);
+          const plus = [...d.querySelectorAll("#unifiedToolbarContent > li:not([hidden])")].find(li => li.getBoundingClientRect().width > 30 && !["search-bar", "spacer"].includes(li.getAttribute("item-id")));
+          const pr = plus?.getBoundingClientRect(), fr = field.getBoundingClientRect();
+          out.hint = { readOnly: field.readOnly, dy: pr ? Math.round((fr.top + fr.height / 2) - (pr.top + pr.height / 2)) : null, dx: pr ? Math.round(fr.left - pr.right) : null };
+          comp.defaultCalendar = before; await wait(500);
+          for (const it of [phSaved, todoSaved]) { try { await c.deleteItem(it); } catch {} }
+          return out;''')
+        h = res.get("hint", {})
+        ok = (res["emptyAtStart"] and res["placeholderRows"] == 0 and res["emptyWithPlaceholder"] and res["rows"] == 1 and not res["emptyWithTask"]
+              and res["button"][0] == "999px" and h.get("readOnly") and h.get("dy") is not None and abs(h["dy"]) <= 3 and 0 <= h["dx"] <= 20)
+        return ok, f"{res}"
+    check("Aufgaben: Leeranzeige, iCloud-Platzhalter ausgeblendet, Hinweis neben dem Plus, Kapseln", tasks_view, results)
+
+    def month_spans():
+        # mehrtägige ganztägige Termine als durchgehender Balken; Kalendersymbol ohne Emoji
+        res = m.js(r'''
+          w.resizeTo(1500, 900);
+          const c = testCalendar();
+          const mk = async (title, dd, days) => { const e = new CalEvent(); e.title = title; e.calendar = c;
+            const s = cal.createDateTime(); s.resetTo(2026, 9, dd, 0, 0, 0, cal.dtz.floating); s.isDate = true; const en = s.clone(); en.day += days;
+            e.startDate = s; e.endDate = en; return await c.addItem(e); };
+          const made = [await mk("Halo Mehrtagig", 23, 4), await mk("Qwrtz Abgabe", 27, 1)];
+          await toCalendar(); w.switchToView("month"); w.currentView().goToDay(cal.createDateTime("20261015")); await wait(1500);
+          const all = [...d.querySelectorAll("calendar-month-day-box-item")];
+          const parts = all.filter(e => e.occurrence?.title == "Halo Mehrtagig").map(e => { const b = e.getBoundingClientRect();
+            return { l: Math.round(b.left), r: Math.round(b.right), t: Math.round(b.top), jl: e.hasAttribute("data-mc-join-l"), jr: e.hasAttribute("data-mc-join-r") }; });
+          const plain = all.find(e => e.occurrence?.title == "Qwrtz Abgabe")?.querySelector(".event-name-label");
+          const icon = plain ? w.getComputedStyle(plain, "::before").maskImage : null;
+          for (const e of made) { try { await c.deleteItem(e); } catch {} }
+          return { parts, icon: (icon || "").slice(0, 20), emoji: plain?.getAttribute("data-mc-emoji") };''')
+        p = res["parts"]
+        # erste Woche: Fr, Sa, So zusammenhängend; Mo in der nächsten Zeile wieder mit Rundung links
+        joined = len(p) == 4 and all(abs(p[i + 1]["l"] - p[i]["r"]) <= 2 and p[i]["jr"] and p[i + 1]["jl"] for i in range(2)) \
+            and not p[0]["jl"] and not p[2]["jr"] and not p[3]["jl"] and p[3]["t"] > p[0]["t"]
+        return joined and res["icon"].startswith("url(") and not res["emoji"], f"{res}"
+    check("Kalender: mehrtägige Termine als Balken, Kalendersymbol ohne Emoji", month_spans, results)
 
     def no_placeholder_in_ui():
         # Platzhalter für blockierte Bilder nur in Mails – nicht in der Oberfläche (Lupe im Suchfeld)

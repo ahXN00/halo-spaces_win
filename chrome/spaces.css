@@ -655,6 +655,38 @@ calendar-month-day-box-item[allday] {
   font-weight: 500 !important;
 }
 
+/* ganztägig ohne Emoji: Kalendersymbol vor dem Titel (mit Emoji bleibt
+   das Emoji allein) */
+calendar-month-day-box-item[allday] .event-name-label:not([data-mc-emoji])::before {
+  content: "" !important;
+  display: inline-block !important;
+  width: 11px !important;
+  height: 11px !important;
+  margin-inline-end: 4px !important;
+  vertical-align: -1px !important;
+  background-color: currentColor !important;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='%23000' stroke-width='1.5' stroke-linecap='round'%3E%3Crect x='2' y='3' width='12' height='11' rx='2.2'/%3E%3Cpath d='M2 6.5h12M5.2 1.6v2.6M10.8 1.6v2.6'/%3E%3C/svg%3E") center / contain no-repeat !important;
+}
+
+/* mehrtägig: Tagesstücke zu einem durchgehenden Balken verbinden – über den
+   Innenabstand der Tageszelle hinweg, innen ohne Rundung; Titel nur im
+   ersten Stück je Woche (data-mc-join-l/-r setzt die Erweiterung) */
+calendar-month-day-box-item[allday][data-mc-join-r] {
+  margin-inline-end: -6px !important;
+  border-start-end-radius: 0 !important;
+  border-end-end-radius: 0 !important;
+}
+
+calendar-month-day-box-item[allday][data-mc-join-l] {
+  margin-inline-start: -6px !important;
+  border-start-start-radius: 0 !important;
+  border-end-start-radius: 0 !important;
+}
+
+calendar-month-day-box-item[allday][data-mc-join-l] .event-name-label {
+  visibility: hidden !important;
+}
+
 /* ausgewählter Termin: kräftig gefüllt wie bei Apple */
 calendar-month-day-box-item[selected] {
   background: var(--item-backcolor) !important;
@@ -1024,6 +1056,224 @@ calendar-event-box :is(.alarm-icons-box, .item-classification-icon, .item-recurr
 
 .calendar-task-tree > treechildren::-moz-tree-image(calendar-task-tree-col-completed, completed) {
   list-style-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20'%3E%3Ccircle cx='10' cy='10' r='9.3' fill='%23007AFF'/%3E%3Cpath d='m6 10.3 2.7 2.7L14.2 7.4' fill='none' stroke='white' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") !important;
+}
+
+/* Hinweis „Bitte einen Kalender wählen, der Aufgaben unterstützt“ oben in
+   der Toolbar-Zeile neben dem Plus statt als eigene Zeile darunter
+   (--mc-tab-left, --mc-row-top/-h misst die Erweiterung) */
+#view-task-edit-field:is([readonly], [aria-disabled="true"]) {
+  position: fixed !important;
+  z-index: 3 !important;
+  top: calc(var(--mc-row-top, 0px) + (var(--mc-row-h, 50px) - 22px) / 2) !important;
+  inset-inline-start: calc(var(--mc-tab-left, 300px) + 52px) !important;
+  width: 360px !important;
+  max-width: calc(100vw - var(--mc-tab-left, 300px) - 520px) !important;
+  margin: 0 !important;
+  font-size: 13px !important;
+  pointer-events: none !important;
+  text-overflow: ellipsis !important;
+}
+
+/* die Zeile darunter entfällt dann – die Liste beginnt direkt unter der Toolbar */
+#task-addition-box:has(#view-task-edit-field:is([readonly], [aria-disabled="true"])) {
+  height: 0 !important;
+  min-height: 0 !important;
+  padding: 0 !important;
+  border: none !important;
+  overflow: visible !important;
+}
+
+/* leere Aufgabenliste: Symbol, Titel und Text mittig (wie Apple Erinnerungen) */
+/* über die Liste gelegt (ausblenden würde Thunderbirds Liste ihre Ansicht nehmen) */
+#calendar-task-box > vbox:has(> #mcTasksEmpty) {
+  position: relative !important;
+}
+
+#mcTasksEmpty {
+  position: absolute !important;
+  inset: 0 !important;
+  z-index: 2 !important;
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 6px !important;
+  padding: 24px !important;
+  background: var(--mt-window) !important;
+  text-align: center !important;
+  font-family: var(--mt-font) !important;
+}
+
+#mcTasksEmpty[hidden] {
+  display: none !important;
+}
+
+#mcTasksEmpty .mc-te-icon {
+  width: 56px !important;
+  height: 56px !important;
+  margin-bottom: 8px !important;
+  background-color: var(--mt-text-tertiary) !important;
+  opacity: 0.6 !important;
+  /* Abhak-Kreis wie das Aufgaben-Symbol (tasks.svg nutzt context-fill und
+     wäre als Maske ein voller Kreis) */
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='1.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='12' r='9'/%3E%3Cpath d='m8.2 12.2 2.6 2.6 5-5.4'/%3E%3C/svg%3E") center / contain no-repeat !important;
+}
+
+#mcTasksEmpty .mc-te-title {
+  font-size: 20px !important;
+  font-weight: 600 !important;
+  color: var(--mt-text-secondary) !important;
+}
+
+#mcTasksEmpty .mc-te-text {
+  max-width: 320px !important;
+  font-size: 13px !important;
+  color: var(--mt-text-tertiary) !important;
+}
+
+/* Spaltenköpfe (Abhaken, Priorität, Titel, Beginn, Fällig) leise wie in
+   den übrigen Listen: kleine graue Schrift, keine Trennstriche */
+.calendar-task-tree > treecols {
+  min-height: 28px !important;
+  padding-inline: 4px !important;
+}
+
+.calendar-task-tree > treecols > :is(treecol, treecolpicker) {
+  appearance: none !important;
+  min-height: 28px !important;
+  padding-inline: 8px !important;
+  border: none !important;
+  background: transparent !important;
+  font-family: var(--mt-font) !important;
+  font-size: 12px !important;
+  font-weight: 500 !important;
+  color: var(--mt-text-tertiary) !important;
+}
+
+.calendar-task-tree > treecols > treecol:hover {
+  color: var(--mt-text-secondary) !important;
+}
+
+.calendar-task-tree > treecols > treecol .treecol-image {
+  opacity: 0.6 !important;
+}
+
+.calendar-task-tree > treecols > splitter {
+  border: none !important;
+  background: transparent !important;
+}
+
+/* Detailbereich unten: helle Fläche, Titel groß, Angaben in leiser Schrift */
+#calendar-task-view-splitter {
+  border: none !important;
+  border-top: var(--mt-hairline) solid var(--mt-pane-line) !important;
+  background: transparent !important;
+  min-height: 0 !important;
+}
+
+#calendar-task-details-container,
+#calendar-task-details {
+  background: var(--mt-window) !important;
+  color: var(--mt-text) !important;
+  font-family: var(--mt-font) !important;
+}
+
+#calendar-task-details {
+  padding: 12px 20px 8px !important;
+  gap: 6px !important;
+}
+
+#calendar-task-details-grid {
+  padding: 0 !important;
+  border-spacing: 0 4px !important;
+}
+
+#calendar-task-details-grid > tr > th,
+#calendar-task-details-grid > .item-date-row > .headline {
+  min-width: 70px !important;
+  padding-inline-end: 12px !important;
+  font-size: 12px !important;
+  font-weight: 500 !important;
+  color: var(--mt-text-tertiary) !important;
+  opacity: 1 !important;
+  vertical-align: baseline !important;
+}
+
+#calendar-task-details-grid > tr > td,
+#calendar-task-details-grid .task-details-value {
+  font-size: 13px !important;
+  color: var(--mt-text) !important;
+}
+
+#calendar-task-details-title {
+  font-size: 17px !important;
+  font-weight: 600 !important;
+}
+
+#calendar-task-details-description {
+  background: transparent !important;
+  border: none !important;
+  border-top: var(--mt-hairline) solid var(--mt-pane-line) !important;
+  padding: 10px 20px !important;
+  font-family: var(--mt-font) !important;
+  font-size: 13px !important;
+  color: var(--mt-text) !important;
+}
+
+#calendar-task-details-attachment-row {
+  border-top: var(--mt-hairline) solid var(--mt-pane-line) !important;
+}
+
+/* Aktionen (Kategorie, Erledigt, Priorität, Löschen) als Kapseln wie im
+   Adressbuch und in der Mail */
+#other-actions-box {
+  padding: 0 !important;
+}
+
+#task-actions-toolbar {
+  gap: 6px !important;
+  background: transparent !important;
+}
+
+#task-actions-toolbar > toolbarbutton {
+  appearance: none !important;
+  height: 30px !important;
+  min-height: 30px !important;
+  margin: 0 !important;
+  padding: 0 12px !important;
+  border: none !important;
+  border-radius: 999px !important;
+  background: var(--mt-control) !important;
+  color: var(--mt-text) !important;
+  font-family: var(--mt-font) !important;
+  font-size: 12px !important;
+  font-weight: 500 !important;
+  box-shadow: none !important;
+  gap: 5px !important;
+}
+
+#task-actions-toolbar > toolbarbutton:hover:not([disabled]) {
+  background: var(--mt-control-hover) !important;
+}
+
+#task-actions-toolbar > toolbarbutton[disabled] {
+  opacity: 0.45 !important;
+}
+
+/* Erledigt: Haupt- und Menüteil in einer Kapsel */
+#task-actions-markcompleted :is(.toolbarbutton-menubutton-button, .toolbarbutton-menubutton-dropmarker, dropmarker) {
+  appearance: none !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  border: none !important;
+  background: transparent !important;
+  color: inherit !important;
+}
+
+#task-actions-toolbar > toolbarbutton .toolbarbutton-icon {
+  width: 14px !important;
+  height: 14px !important;
+  margin: 0 !important;
 }
 
 /* ---------- Today-Pane rechts (Termine/Aufgaben) ---------- */
