@@ -1275,12 +1275,20 @@ function searchDate(text) {
   const day = Number(m[1]);
   const month = Number(m[2]);
   const now = new Date();
-  let year = m[3] ? (m[3].length == 2 ? 2000 + Number(m[3]) : Number(m[3])) : now.getFullYear();
-  let date = new Date(year, month - 1, day);
-  if (!m[3] && date > now) {
-    date = new Date(--year, month - 1, day);
+  if (m[3]) {
+    const year = m[3].length == 2 ? 2000 + Number(m[3]) : Number(m[3]);
+    const date = new Date(year, month - 1, day);
+    return date.getMonth() == month - 1 && date.getDate() == day ? date : null;
   }
-  return date.getMonth() == month - 1 && date.getDate() == day ? date : null;
+  // ohne Jahr: letztes vergangenes Vorkommen, auch für den 29.2. (8 Jahre
+  // reichen auch über Jahrhundertjahre ohne Schalttag; „31.4“ gibt es nie)
+  for (let year = now.getFullYear(), i = 0; i < 8; i++, year--) {
+    const date = new Date(year, month - 1, day);
+    if (date.getMonth() == month - 1 && date.getDate() == day && date <= now) {
+      return date;
+    }
+  }
+  return null;
 }
 
 // Suchbegriff in einem Element gelb hinterlegen (nur Text, per DOM)
@@ -2283,7 +2291,8 @@ const EMOJI_RULES = [
   ["🦷", { stems: ["zahnarzt", "zahnärzt", "kieferchirurg", "kieferorthop", "dentist", "zahnreinigung"] }],
   ["💉", { stems: ["impfung", "vaccin", "blutabnahme"] }],
   ["🏥", { stems: ["krankenhaus", "spital", "hospital"] }],
-  ["🩺", { stems: ["arzt", "ärztin", "doctor", "ordination", "therapie", "physio", "untersuchung", "befund"] }],
+  // „Ordination“ nur am Wortanfang (nicht in „Koordination“)
+  ["🩺", { stems: ["arzt", "ärztin", "doctor", "therapie", "physio", "untersuchung", "befund"], re: /(?<![\p{L}\p{N}])ordination/u }],
   ["💇", { stems: ["friseur", "frisör", "haircut", "beauty", "kosmetik", "maniküre", "pediküre"] }],
   ["✈️", { stems: ["flughafen", "airport", "abflug", "rückflug", "flight"], words: ["flug"] }],
   ["🚆", { stems: ["bahnhof"], words: ["zug", "bahn", "train", "öbb"] }],
@@ -2308,7 +2317,8 @@ const EMOJI_RULES = [
   ["🎬", { stems: ["kino", "movie"] }],
   ["🎭", { stems: ["theater", "musical"], words: ["oper"] }],
   ["⚖️", { stems: ["gericht", "anwalt", "verhandlung", "notar"] }],
-  ["💰", { stems: ["steuer", "finanzamt", "steuerberat"], words: ["bank"] }],
+  // „Steuer“ auch in „Einkommensteuer“, aber nicht „Steuerung(sgruppe)“
+  ["💰", { stems: ["finanzamt", "steuerberat"], words: ["bank"], re: /steuer(?!ung)/u }],
   ["🛒", { stems: ["einkauf", "shopping", "supermarkt"] }],
   ["📦", { stems: ["umzug", "paket", "lieferung"] }],
   ["🚗", { stems: ["werkstatt", "pickerl", "reifenwechsel", "autoservice"], words: ["auto"] }],
@@ -2318,9 +2328,11 @@ const EMOJI_RULES = [
   ["🧹", { stems: ["putzen", "reinigung", "putzfrau"] }],
   ["👶", { stems: ["baby", "kindergarten", "kita"] }],
   ["🐶", { stems: ["hund", "gassi"] }],
-].map(([emoji, { stems = [], words = [] }]) => ({
+].map(([emoji, { stems = [], words = [], re = null }]) => ({
   emoji,
   stems,
+  // eigener Ausdruck (auf den kleingeschriebenen Titel) für Sonderfälle
+  re,
   // ganze Wörter: davor und danach kein Buchstabe und keine Ziffer
   word: words.length ? new RegExp(`(?<![\\p{L}\\p{N}])(?:${words.join("|")})(?![\\p{L}\\p{N}])`, "iu") : null,
 }));
@@ -2357,7 +2369,7 @@ function emojiFor(title) {
   // eigene Stichwörter zuerst
   let found = customEmojiRules().find(r => lower.includes(r.stem))?.emoji || "";
   for (const rule of found ? [] : EMOJI_RULES) {
-    if (rule.stems.some(st => lower.includes(st)) || rule.word?.test(text)) {
+    if (rule.stems.some(st => lower.includes(st)) || rule.word?.test(text) || rule.re?.test(lower)) {
       found = rule.emoji;
       break;
     }
@@ -8117,21 +8129,26 @@ class CardEnhancer {
         if (card.isMailList) {
           continue;
         }
-        let value = "";
+        let entry = null;
         try {
-          value = String(card.vCardProperties?.getFirstValue("bday") || "");
+          entry = card.vCardProperties?.getFirstEntry("bday");
         } catch {}
+        const value = String(entry?.value || "");
         const m = value.match(/^(?:(\d{4})|--)-?(\d{2})-?(\d{2})/);
         if (!m) {
           continue;
         }
+        // Apple (Kontakte/iCloud) speichert Geburtstage ohne Jahr als 1604 mit
+        // X-APPLE-OMIT-YEAR – das ist kein Geburtsjahr (auch ohne den Parameter)
+        const omit = entry.params?.["x-apple-omit-year"];
+        const year = m[1] && m[1] != omit && Number(m[1]) > 1604 ? Number(m[1]) : null;
         const name = (card.displayName || `${card.firstName || ""} ${card.lastName || ""}`).trim() || card.primaryEmail;
         if (!name) {
           continue;
         }
         const key = `${name.toLocaleLowerCase()}|${m[2]}${m[3]}`;
-        if (!found.has(key) || (!found.get(key).year && m[1])) {
-          found.set(key, { name, year: m[1] ? Number(m[1]) : null, month: Number(m[2]), day: Number(m[3]) });
+        if (!found.has(key) || (!found.get(key).year && year)) {
+          found.set(key, { name, year, month: Number(m[2]), day: Number(m[3]) });
         }
       }
     }

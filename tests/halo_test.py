@@ -659,6 +659,22 @@ def run_checks(m, version, profile, results):
         return res == ["🎂", "⚽", "🎂"], f"eingebaut {res[0]}, eigenes Stichwort {res[1]}, wieder {res[2]}"
     check("Emoji vor Termintitel", emoji, results)
 
+    def emoji_rules():
+        # emojiFor direkt über das Experiment-Modul: „Ordination“ nicht in
+        # „Koordination“, „Steuer“ nicht in „Steuerung“
+        res = m.js('''
+          const { ExtensionParent } = ChromeUtils.importESModule("resource://gre/modules/ExtensionParent.sys.mjs");
+          const f = Cu.evalInSandbox("emojiFor", ExtensionParent.GlobalManager.getExtension("%s").experimentAPIManager.global);
+          const out = {};
+          for (const t of ["Ordination Dr. Muster", "Ordinationszeiten", "Koordination Projekt X", "Koordinationsmeeting",
+                           "Einkommensteuer", "Steuererklärung", "Steuerungsgruppe"]) out[t] = f(t);
+          return out;''' % ADDON_ID)
+        expected = {"Ordination Dr. Muster": "🩺", "Ordinationszeiten": "🩺", "Koordination Projekt X": "", "Koordinationsmeeting": "👥",
+                    "Einkommensteuer": "💰", "Steuererklärung": "💰", "Steuerungsgruppe": ""}
+        bad = [f"„{k}“ → {res.get(k)!r}" for k, v in expected.items() if res.get(k) != v]
+        return not bad, "; ".join(bad) or f"{len(expected)} Titel richtig"
+    check("Emoji: „Koordination“ ohne Arzt, „Steuerung“ ohne Geld", emoji_rules, results)
+
     def readstatus():
         res = m.js("""
           await toCalendar(); const c = testCalendar(); c.readOnly = true; await wait(800);
@@ -1653,6 +1669,31 @@ def run_checks(m, version, profile, results):
         return all(res.values()), f"{res}"
     check("Suche: alle Konten und einfache Liste voreingestellt", search_prefs, results)
 
+    def search_date():
+        # Datum im Suchbegriff ohne Jahr: letztes vergangenes Vorkommen, auch
+        # für den 29.2. („jetzt“ im Experiment-Modul kurz umgestellt)
+        res = m.js('''
+          const { ExtensionParent } = ChromeUtils.importESModule("resource://gre/modules/ExtensionParent.sys.mjs");
+          const g = ExtensionParent.GlobalManager.getExtension("%s").experimentAPIManager.global;
+          const sd = Cu.evalInSandbox("searchDate", g);
+          const p = n => String(n).padStart(2, "0");
+          const f = x => x ? `${p(x.getDate())}.${p(x.getMonth() + 1)}.${x.getFullYear()}` : "-";
+          const out = {};
+          for (const [now, terms] of [["2026, 9, 20, 15", ["29.2", "12.10", "21.10", "31.4", "29.2.2026", "1.3.25"]], ["2028, 0, 15, 12", ["29.2"]]]) {
+            Cu.evalInSandbox(`globalThis.__mcRealDate = Date; Date = class extends __mcRealDate { constructor(...a) { if (a.length) super(...a); else super(${now}); } };`, g);
+            try {
+              for (const t of terms) out[`${now.split(",")[0]}: ${t}`] = f(sd(t));
+            } finally {
+              Cu.evalInSandbox("Date = globalThis.__mcRealDate; delete globalThis.__mcRealDate;", g);
+            }
+          }
+          return out;''' % ADDON_ID)
+        expected = {"2026: 29.2": "29.02.2024", "2026: 12.10": "12.10.2026", "2026: 21.10": "21.10.2025", "2026: 31.4": "-",
+                    "2026: 29.2.2026": "-", "2026: 1.3.25": "01.03.2025", "2028: 29.2": "29.02.2024"}
+        bad = [f"„{k}“ → {res.get(k)}" for k, v in expected.items() if res.get(k) != v]
+        return not bad, "; ".join(bad) or f"{len(expected)} Suchbegriffe richtig (29.2. ohne Jahr, ungültige Tage)"
+    check("Suche: Datum ohne Jahr („29.2“) findet das letzte Vorkommen", search_date, results)
+
     def birthdays():
         res = m.js('''
           const { MailServices } = ChromeUtils.importESModule("resource:///modules/MailServices.sys.mjs");
@@ -1660,17 +1701,26 @@ def run_checks(m, version, profile, results):
           const book = MailServices.ab.getDirectory("jsaddrbook://abook.sqlite");
           const card = VCardUtils.vCardToAbCard("BEGIN:VCARD\\r\\nVERSION:4.0\\r\\nFN:Halo Testkontakt\\r\\nBDAY:1990-03-15\\r\\nEND:VCARD\\r\\n");
           book.addCard(card);
+          // Apple (Kontakte/iCloud): Geburtstag ohne Jahr als 1604 mit X-APPLE-OMIT-YEAR
+          book.addCard(VCardUtils.vCardToAbCard("BEGIN:VCARD\\r\\nVERSION:3.0\\r\\nFN:Halo Applekontakt\\r\\nBDAY;X-APPLE-OMIT-YEAR=1604:1604-08-15\\r\\nEND:VCARD\\r\\n"));
           // der Kalender wird 3 s nach der Änderung neu gefüllt
           let c = null;
           for (let i = 0; i < 30 && !c; i++) { await wait(500); c = cal.manager.getCalendarById(Services.prefs.getStringPref("extensions.mailcards.birthdayCalendarId", "")); }
           if (!c) return { calendar: false };
-          await wait(800);
-          const all = await c.getItemsAsArray(Ci.calICalendar.ITEM_FILTER_ALL_ITEMS, 0, null, null);
+          let all = [];
+          for (let i = 0; i < 20; i++) {
+            await wait(400);
+            all = await c.getItemsAsArray(Ci.calICalendar.ITEM_FILTER_ALL_ITEMS, 0, null, null);
+            if (all.some(i => /Halo Testkontakt/.test(i.title)) && all.some(i => /Halo Applekontakt/.test(i.title))) break;
+          }
           const it = all.find(i => /Halo Testkontakt/.test(i.title));
-          return { calendar: true, name: c.name, readOnly: c.readOnly, title: it?.title, yearly: it?.recurrenceInfo?.getRecurrenceItems()[0]?.type, allDay: it?.startDate.isDate };''')
-        ok = res.get("calendar") and res.get("readOnly") and res.get("yearly") == "YEARLY" and res.get("allDay") and "Halo Testkontakt" in (res.get("title") or "")
+          const apple = all.find(i => /Halo Applekontakt/.test(i.title));
+          return { calendar: true, name: c.name, readOnly: c.readOnly, title: it?.title, yearly: it?.recurrenceInfo?.getRecurrenceItems()[0]?.type, allDay: it?.startDate.isDate,
+                   born: it?.getProperty("DESCRIPTION") || null, apple: apple ? { year: apple.startDate.year, desc: apple.getProperty("DESCRIPTION") || null } : null };''')
+        ok = res.get("calendar") and res.get("readOnly") and res.get("yearly") == "YEARLY" and res.get("allDay") and "Halo Testkontakt" in (res.get("title") or "") \
+            and "1990" in (res.get("born") or "") and res.get("apple") == {"year": 2000, "desc": None}
         return ok, f"{res}"
-    check("Geburtstage aus dem Adressbuch als Kalender", birthdays, results)
+    check("Geburtstage aus dem Adressbuch als Kalender (Apple ohne Jahr ohne „Geboren 1604“)", birthdays, results)
 
     def mac_photos_off():
         # Einstellungsseite (setSetting) direkt über das Experiment-Modul; den
