@@ -654,6 +654,44 @@ def run_checks(m, version, profile, results):
         return res["button"] and res["opened"] == "https://example.invalid/abmelden?id=1" and not res["error"], f"{res}"
     check("Verteiler-Hinweis: Abmelden öffnet den Link", unsubscribe, results)
 
+    def header_long_name():
+        # eigene Adresse bei mehreren Identitäten: Thunderbird schreibt „Name <Adresse>“
+        # in den Kopf – nur der Name; lange Namen enden mit „…“ vor Ordner und
+        # Uhrzeit statt darunter zu laufen (neues Profil auf dem Mac mini)
+        res = m.js(r"""
+          const { MailServices } = ChromeUtils.importESModule("resource:///modules/MailServices.sys.mjs");
+          const root = MailServices.accounts.localFoldersServer.rootFolder;
+          const acc = MailServices.accounts.findAccountForServer(MailServices.accounts.localFoldersServer);
+          const ids = [["Halo Ich", "ich@example.invalid"], ["Halo Arbeit", "arbeit@example.invalid"]].map(([n, e]) => {
+            const id = MailServices.accounts.createIdentity(); id.fullName = n; id.email = e; acc.addIdentity(id); return id; });
+          const name = "Postfach mit einem sehr langen Namen ich@example.invalid";
+          if (!root.containsChildNamed(name)) { root.createSubfolder(name, null); await wait(800); }
+          const f = root.getChildNamed(name);
+          const lf = f.QueryInterface(Ci.nsIMsgLocalMailFolder);
+          lf.addMessage("From - Sat Oct 17 10:00:00 2026\r\nFrom: Halo Ich <ich@example.invalid>\r\nSubject: Eigene Mail\r\nDate: Sat, 17 Oct 2026 11:43:00 +0200\r\nMessage-ID: <halo-own@example.invalid>\r\n\r\nTest\r\n");
+          lf.addMessage("From - Sat Oct 17 10:00:00 2026\r\nFrom: Maximiliane Sophie von und zu Langnamenhausen-Beispiel <lang@example.invalid>\r\nSubject: Langer Name\r\nDate: Sat, 17 Oct 2026 11:44:00 +0200\r\nMessage-ID: <halo-long@example.invalid>\r\n\r\nTest\r\n");
+          await wait(800);
+          const a3 = await toMail(); a3.displayFolder(f.URI); await wait(800);
+          const md = () => a3.messageBrowser.contentWindow.document;
+          const out = {};
+          for (const i of [0, 1]) {
+            const key = a3.gDBView.getMsgHdrAt(i).subject == "Eigene Mail" ? "own" : "long";
+            a3.threadTree.selectedIndex = i; await wait(2000);
+            const d = md(); const li = d.querySelector("#fromRecipient0"); const meta = d.getElementById("mcHdrMeta");
+            const nameEl = [li?.querySelector(".recipient-multi-line-name"), li?.querySelector(".recipient-single-line")].find(e => e?.getBoundingClientRect().width);
+            out[key] = { text: nameEl?.textContent, nameRight: Math.round(li?.getBoundingClientRect().right), metaLeft: Math.round(meta?.getBoundingClientRect().left),
+                         cut: !!nameEl && nameEl.scrollWidth > nameEl.clientWidth, header: Math.round(d.getElementById("messageHeader").getBoundingClientRect().right),
+                         row: Math.round(d.getElementById("headerSenderToolbarContainer").getBoundingClientRect().right) };
+          }
+          // Testidentitäten wieder weg (die zuerst angelegte ist Standard und geht zuletzt)
+          for (const id of ids.reverse()) { try { acc.removeIdentity(id); } catch {} }
+          return out;""")
+        own, long = res["own"], res["long"]
+        ok = (own["text"] == "Halo Ich" and long["nameRight"] <= long["metaLeft"] and long["cut"]
+              and long["row"] <= long["header"])
+        return ok, f"{res}"
+    check("Mailkopf: eigene Adresse nur mit Namen, lange Namen mit „…“ vor Ordner und Uhrzeit", header_long_name, results)
+
     def one_click_unsubscribe():
         # List-Unsubscribe-Post (RFC 8058, z. B. Google): nachfragen, dann POST
         # statt Browser – der Link ergäbe dort nur eine leere Seite. Testadresse

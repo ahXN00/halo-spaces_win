@@ -5464,6 +5464,12 @@ notification-message:not([type="warning"]) button.notification-button {
   text-overflow: ellipsis !important;
 }
 
+#mcHdrMeta .mc-hdr-folder-text {
+  min-width: 0 !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+}
+
 #mcHdrMeta .mc-hdr-folder[hidden] {
   display: none !important;
 }
@@ -5481,6 +5487,33 @@ notification-message:not([type="warning"]) button.notification-button {
 #messageHeader:has(#mcHdrMeta) #headerSenderToolbarContainer {
   /* Breite von Ordner + Uhrzeit misst die Erweiterung (--mc-meta-w) */
   padding-inline-end: calc(var(--mc-meta-w, 260px) + 16px) !important;
+}
+
+/* lange Absendernamen mit „…“ kürzen – sonst wird die Zeile breiter als der
+   Mailbereich und der Name läuft unter Ordner und Uhrzeit */
+#messageHeader:has(#mcHdrMeta) {
+  /* Thunderbirds Raster hat nur eine automatische Spalte – die wächst mit
+     dem längsten Namen über den Rand hinaus */
+  grid-auto-columns: minmax(0, 1fr) !important;
+}
+
+#messageHeader:has(#mcHdrMeta) :is(#headerSenderToolbarContainer, #expandedfromRow, #expandedfromBox) {
+  min-width: 0 !important;
+}
+
+#messageHeader:has(#mcHdrMeta) #expandedfromBox :is(.header-recipient, .recipient-single-line, .recipient-multi-line, .recipient-multi-line-name) {
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
+}
+
+/* Name in Thunderbirds Flex-Zeile: nur so breit wie der Platz, sonst kein „…“ */
+#messageHeader:has(#mcHdrMeta) #expandedfromBox .recipient-multi-line {
+  max-width: 100% !important;
+}
+
+#messageHeader:has(#mcHdrMeta) #expandedfromBox .recipient-multi-line-name {
+  min-width: 0 !important;
 }
 
 /* Mailbereich nicht schmaler als 480 px ziehen lassen – darunter passt der

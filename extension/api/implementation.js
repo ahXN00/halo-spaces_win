@@ -7999,16 +7999,19 @@ class CardEnhancer {
     const shorten = () => {
       for (const li of doc.querySelectorAll("#messageHeader li.header-recipient")) {
         const email = li.emailAddress || "";
-        let name = (li.displayName || "").trim();
+        // bei eigenen Adressen (mehrere Identitäten, kein Kontakt) schreibt
+        // Thunderbird „Name <Adresse>“ – davon nur den Namen
+        let name = (li.displayName || "").trim().replace(/^"?(.*?)"?\s*<[^<>\s]+@[^<>\s]+>$/, "$1").trim();
         if (email && li.id.startsWith("fromRecipient")) {
           name = senderLabel(name, email.toLowerCase());
         }
         if (email && li.title != email) {
           li.title = email;
         }
-        const single = li.querySelector(".recipient-single-line");
-        if (single && name && single.textContent != name) {
-          single.textContent = name;
+        for (const el of [li.querySelector(".recipient-single-line"), li.querySelector(".recipient-multi-line-name")]) {
+          if (el && name && el.textContent != name) {
+            el.textContent = name;
+          }
         }
       }
     };
@@ -8111,7 +8114,14 @@ class CardEnhancer {
     try {
       title = hdr.folder ? appleFolderTitle(hdr.folder) : "";
     } catch {}
-    folderEl.textContent = title;
+    // Text in eigenem Element – nur so kürzt ein langer Name mit „…“
+    let folderText = folderEl.querySelector(".mc-hdr-folder-text");
+    if (!folderText) {
+      folderText = doc.createElementNS(X, "span");
+      folderText.className = "mc-hdr-folder-text";
+      folderEl.replaceChildren(folderText);
+    }
+    folderText.textContent = title;
     folderEl.hidden = !title;
     // genau so viel Platz rechts reservieren, wie Ordner und Uhrzeit brauchen
     const measure = () => header.style.setProperty("--mc-meta-w", `${Math.ceil(meta.getBoundingClientRect().width)}px`);
