@@ -33,13 +33,13 @@ DEFAULT_TB = {
 
 
 class Marionette:
-    def __init__(self, port):
+    def __init__(self, port, capabilities=None):
         self.sock = socket.create_connection(("127.0.0.1", port))
         # nie endlos warten: ein Befehl darf höchstens 11 Minuten dauern (--perf)
         self.sock.settimeout(660)
         self.id = 0
         self._read()
-        self.cmd("WebDriver:NewSession", {"capabilities": {}})
+        self.cmd("WebDriver:NewSession", {"capabilities": capabilities or {}})
         self.cmd("Marionette:SetContext", {"value": "chrome"})
 
     def _recv(self, n):
@@ -204,6 +204,55 @@ def local_https(host):
     return server.server_port, der, hits, posts, close
 
 
+def create_profile(xpi, port, dark=False, prefix="halo-test-"):
+    """Legt ein leeres, temporäres Profil mit installiertem Paket an (keine Konten, keine echten Daten)."""
+    profile = tempfile.mkdtemp(prefix=prefix)
+    os.makedirs(os.path.join(profile, "extensions"))
+    shutil.copy(xpi, os.path.join(profile, "extensions", f"{ADDON_ID}.xpi"))
+    with open(os.path.join(profile, "user.js"), "w") as f:
+        for pref, value in {
+            "extensions.autoDisableScopes": 0,
+            "marionette.port": port,
+            "mail.shell.checkDefaultClient": False,
+            "mail.provider.suppress_dialog_on_startup": True,
+            "mail.rights.version": 1,
+            "app.update.enabled": False,
+            "datareporting.policy.dataSubmissionPolicyBypassNotification": True,
+            "toolkit.telemetry.reportingpolicy.firstRun": False,
+            "calendar.timezone.useSystemTimezone": True,
+            # Zeitgeber im Hintergrund nicht drosseln
+            "widget.windows.window_occlusion_tracking.enabled": False,
+            "dom.timeout.enable_budget_timer_throttling": False,
+            "dom.min_background_timeout_value": 4,
+            # das macOS-Adressbuch (echte Kontakte) nicht einbinden
+            "ldap_2.servers.osx.position": 0,
+            **({"ui.systemUsesDarkTheme": 1} if dark else {}),
+        }.items():
+            f.write(f"user_pref({json.dumps(pref)}, {json.dumps(value)});\n")
+    return profile
+
+
+def start_thunderbird(tb, profile, log=None):
+    """Startet Thunderbird mit Marionette im angegebenen Profil."""
+    out = open(log, "w") if log else subprocess.DEVNULL
+    return subprocess.Popen([tb, "-profile", profile, "-no-remote", "-marionette", "-remote-allow-system-access"],
+                            stdout=out, stderr=subprocess.STDOUT if log else subprocess.DEVNULL,
+                            # ab Thunderbird 159 zusätzlich als Umgebungsvariable nötig
+                            env={**os.environ, "MOZ_REMOTE_ALLOW_SYSTEM_ACCESS": "1"})
+
+
+def stop_thunderbird(port, proc):
+    """Beendet das Test-Thunderbird (nur den selbst gestarteten Prozess)."""
+    try:
+        Marionette(port).js("Services.startup.quit(Ci.nsIAppStartup.eForceQuit); return 1;")
+    except Exception:
+        pass
+    try:
+        proc.wait(timeout=20)
+    except subprocess.TimeoutExpired:
+        proc.kill()
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--xpi", help="Paket (Standard: neuestes dist/halo-spaces-*.xpi)")
@@ -229,36 +278,9 @@ def main():
         sys.exit("Kein Paket gefunden – zuerst ./build.sh")
     version = json.load(open(os.path.join(ROOT, "extension", "manifest.json")))["version"]
 
-    profile = tempfile.mkdtemp(prefix="halo-test-")
-    os.makedirs(os.path.join(profile, "extensions"))
-    shutil.copy(xpi, os.path.join(profile, "extensions", f"{ADDON_ID}.xpi"))
-    with open(os.path.join(profile, "user.js"), "w") as f:
-        for pref, value in {
-            "extensions.autoDisableScopes": 0,
-            "marionette.port": args.port,
-            "mail.shell.checkDefaultClient": False,
-            "mail.provider.suppress_dialog_on_startup": True,
-            "mail.rights.version": 1,
-            "app.update.enabled": False,
-            "datareporting.policy.dataSubmissionPolicyBypassNotification": True,
-            "toolkit.telemetry.reportingpolicy.firstRun": False,
-            "calendar.timezone.useSystemTimezone": True,
-            # Zeitgeber im Hintergrund nicht drosseln
-            "widget.windows.window_occlusion_tracking.enabled": False,
-            "dom.timeout.enable_budget_timer_throttling": False,
-            "dom.min_background_timeout_value": 4,
-            # das macOS-Adressbuch (echte Kontakte) nicht einbinden
-            "ldap_2.servers.osx.position": 0,
-            **({"ui.systemUsesDarkTheme": 1} if args.dark else {}),
-        }.items():
-            f.write(f"user_pref({json.dumps(pref)}, {json.dumps(value)});\n")
-
+    profile = create_profile(xpi, args.port, args.dark)
     print(f"halo.spaces {version} · Paket {os.path.basename(xpi)} · Profil {profile}", flush=True)
-    out = open(args.tb_log, "w") if args.tb_log else subprocess.DEVNULL
-    proc = subprocess.Popen([args.tb, "-profile", profile, "-no-remote", "-marionette", "-remote-allow-system-access"],
-                            stdout=out, stderr=subprocess.STDOUT if args.tb_log else subprocess.DEVNULL,
-                            # ab Thunderbird 159 zusätzlich als Umgebungsvariable nötig
-                            env={**os.environ, "MOZ_REMOTE_ALLOW_SYSTEM_ACCESS": "1"})
+    proc = start_thunderbird(args.tb, profile, args.tb_log)
     results = []
     try:
         if not wait_port(args.port):
@@ -277,14 +299,7 @@ def main():
             if args.compare:
                 compare_shots(m, args.compare, args.shots)
     finally:
-        try:
-            Marionette(args.port).js("Services.startup.quit(Ci.nsIAppStartup.eForceQuit); return 1;")
-        except Exception:
-            pass
-        try:
-            proc.wait(timeout=20)
-        except subprocess.TimeoutExpired:
-            proc.kill()
+        stop_thunderbird(args.port, proc)
         if not args.keep:
             shutil.rmtree(profile, ignore_errors=True)
 
@@ -445,12 +460,1289 @@ def compare_shots(m, before, after):
             print(f"  geändert  {name}: {res['changed'] * 100:.2f} % der Fläche, Bereich x {l}–{r}, y {t}–{b} → {os.path.basename(diff)}", flush=True)
 
 
+# Mailliste: eigene Ordner mit erfundenen Mails (example.invalid) – Konversation
+# (Wurzel gelesen, neuere Antwort ungelesen), Schlagwörter, verschiedene Tage,
+# „Gesendet-Test“ mit Gesendet-Merkmal; dazu Hilfen für Farben und Kontrast
+MAILLIST_JS = r"""
+  const { MailServices } = ChromeUtils.importESModule("resource:///modules/MailServices.sys.mjs");
+  try { MailServices.accounts.localFoldersServer; } catch { MailServices.accounts.createLocalMailAccount(); await wait(500); }
+  const root = MailServices.accounts.localFoldersServer.rootFolder;
+  const pad = n => String(n).padStart(2, "0");
+  const DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"], MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+  const rfc = dt => { const o = -dt.getTimezoneOffset();
+    return `${DAYS[dt.getDay()]}, ${pad(dt.getDate())} ${MONTHS[dt.getMonth()]} ${dt.getFullYear()} ${pad(dt.getHours())}:${pad(dt.getMinutes())}:00 ${o >= 0 ? "+" : "-"}${pad(Math.floor(Math.abs(o) / 60))}${pad(Math.abs(o) % 60)}`; };
+  // vor „days“ Tagen um h Uhr (heute höchstens 10 Minuten vor jetzt)
+  const ago = (days, h) => { const dt = new Date(); dt.setDate(dt.getDate() - days); dt.setHours(h, 0, 0, 0); if (dt > new Date()) dt.setTime(Date.now() - 600000); return dt; };
+  const raw = o => unescape(encodeURIComponent([`From: ${o.from}`, `To: ${o.to || "Halo Test <halo@example.invalid>"}`, `Subject: ${o.subject}`,
+    `Date: ${rfc(o.date)}`, `Message-ID: <${o.id}@example.invalid>`, ...(o.ref ? [`In-Reply-To: <${o.ref}@example.invalid>`, `References: <${o.ref}@example.invalid>`] : []),
+    "Content-Type: text/plain; charset=UTF-8", "", "Erfundene Testnachricht.", ""].join("\r\n")));
+  const folder = async (name, mails, flag = 0) => {
+    if (!root.containsChildNamed(name)) { root.createSubfolder(name, null); await wait(800); }
+    const f = root.getChildNamed(name);
+    if (flag) f.setFlag(flag);
+    if (!f.getTotalMessages(false)) {
+      const lf = f.QueryInterface(Ci.nsIMsgLocalMailFolder);
+      for (const o of mails) lf.addMessage(raw(o));
+      await wait(800);
+      for (const o of mails) { const h = f.msgDatabase.getMsgHdrForMessageID(`${o.id}@example.invalid`); if (!h) continue;
+        if (o.read) f.markMessagesRead([h], true); if (o.tag) f.addKeywordsToMessages([h], o.tag); }
+      await wait(300);
+    }
+    return f;
+  };
+  const list = await folder("Mailliste", [
+    { id: "halo-ml-1", from: "Ben Muster <ben@example.invalid>", subject: "Halo Faden", date: ago(3, 9), read: true },
+    { id: "halo-ml-2", from: "Carla Ölmann <carla@example.invalid>", subject: "Re: Halo Faden", date: ago(2, 9), ref: "halo-ml-1" },
+    { id: "halo-ml-3", from: "Dana Zöllner <dana@example.invalid>", subject: "Halo Schlagwort To Do", date: ago(0, 8), read: true, tag: "$label4" },
+    { id: "halo-ml-4", from: "Frieda Lang <frieda@example.invalid>", subject: "Halo Schlagwort Work", date: ago(1, 9), read: true, tag: "$label2" },
+    { id: "halo-ml-5", from: "Emil Kurz <emil@example.invalid>", subject: "Halo Ungelesen", date: ago(5, 9) },
+    { id: "halo-ml-6", from: "Gustav Weit <gustav@example.invalid>", subject: "Halo Alt", date: ago(20, 9), read: true },
+  ]);
+  const sent = await folder("Gesendet-Test", [{ id: "halo-ml-sent", from: "Halo Test <halo@example.invalid>", to: "Anna Beispiel <anna@example.invalid>",
+    subject: "Halo Gesendet", date: ago(1, 10), read: true }], Ci.nsMsgFolderFlags.SentMail);
+  const a3 = await toMail(); const ad = a3.document;
+  const cmd = name => a3.commandController.doCommand(name);
+  const cs = (el, pseudo) => a3.getComputedStyle(el, pseudo);
+  const showFolder = async (f = list) => { if (a3.gFolder?.URI != f.URI) { a3.displayFolder(f.URI); await until(() => a3.gFolder?.URI == f.URI && a3.gDBView, 6000); await wait(900); } };
+  const cards = () => [...ad.querySelectorAll('#threadTree tr[is="thread-card"]')];
+  const tableRows = () => [...ad.querySelectorAll('#threadTree tr[is="thread-row"]')];
+  const props = r => (r.dataset.properties || "").split(" ");
+  const subjectOf = r => r.querySelector(".subject, .subject-line span")?.textContent || "";
+  // Farben: rgb()/rgba() und color(srgb …) auf 0–255, dazu die Deckkraft
+  const rgba = c => { const v = (String(c).match(/-?[\d.]+(?:e-?\d+)?/g) || []).map(Number); const k = String(c).startsWith("color(") ? 255 : 1;
+    return [v[0] * k, v[1] * k, v[2] * k, v.length > 3 ? v[3] : 1]; };
+  const over = (fg, bg) => fg.slice(0, 3).map((x, i) => x * fg[3] + bg[i] * (1 - fg[3])).concat(1);
+  const lum = c => { const [r, g, b] = c.slice(0, 3).map(x => { x /= 255; return x <= 0.03928 ? x / 12.92 : ((x + 0.055) / 1.055) ** 2.4; }); return 0.2126 * r + 0.7152 * g + 0.0722 * b; };
+  const contrast = (a, b) => { const [x, y] = [lum(a), lum(b)].sort((p, q) => q - p); return Math.round((x + 0.05) / (y + 0.05) * 100) / 100; };
+  const same = (a, b) => { const [x, y] = [rgba(a), rgba(b)]; return x.every((v, i) => Math.abs(v - y[i]) <= (i == 3 ? 0.02 : 2)); };
+  const accent = (() => { const e = ad.createElement("div"); e.style.color = "AccentColor"; ad.body.append(e); const c = cs(e).color; e.remove(); return c; })();
+  const asCards = async () => { if (Services.prefs.getIntPref("mail.threadpane.listview", 0) != 0) { cmd("cmd_threadPaneViewCards"); await wait(1000); } };
+  const asTable = async () => { if (Services.prefs.getIntPref("mail.threadpane.listview", 0) != 1) { cmd("cmd_threadPaneViewTable"); await wait(1200); } };"""
+
+
+def maillist_checks(m, results):
+    """Mailliste: Gruppenköpfe, Konversationen, Gesendet, Tabelle, Schlagwörter, Schnellfilter, Layouts, Konto-Startseite."""
+
+    def group_headers():
+        res = m.js(MAILLIST_JS + r"""
+          await showFolder(); await asCards();
+          const v = a3.gViewWrapper; v.sort(Ci.nsMsgViewSortType.byDate, Ci.nsMsgViewSortOrder.descending);
+          v.showGroupedBySort = true; await wait(1200);
+          const heads = await until(() => { const h = cards().filter(r => props(r).includes("dummy")); return h.length >= 2 && h; }, 8000) || [];
+          const out = heads.map(r => {
+            const c = r.querySelector(".card-container").getBoundingClientRect();
+            const main = r.querySelector(".card-container > .thread-card-column:not(.read-status-column)");
+            const box = r.querySelector(".thread-card-subject-container"), sub = r.querySelector(".subject"), det = r.querySelector(".sort-header-details");
+            return { title: sub.textContent, cut: box.scrollWidth > box.clientWidth + 1 || sub.getBoundingClientRect().right > box.getBoundingClientRect().right + 1,
+                     main: Math.round(main.getBoundingClientRect().width / c.width * 100), avatar: cs(r.querySelector(".mc-avatar")).display,
+                     detailsInside: det.getBoundingClientRect().right <= c.right + 1, weight: cs(sub).fontWeight, detailSize: cs(det).fontSize };
+          });
+          v.showGroupedBySort = false; v.showThreaded = true; await wait(800);
+          return out;""")
+        ok = len(res) >= 2 and all(not h["cut"] and h["main"] >= 60 and h["avatar"] == "none" and h["detailsInside"]
+                                   and int(h["weight"]) >= 600 and h["detailSize"] == "11px" for h in res)
+        return ok, f"{res}"
+    check("Mailliste: Gruppenköpfe (Heute, Gestern …) ganz lesbar, halbfett, ohne Absenderbild", group_headers, results)
+
+    def thread_sender():
+        # zugeklappt: Name und Bild der neuesten Mail (Carla), aufgeklappt die Wurzel (Ben)
+        res = m.js(MAILLIST_JS + r"""
+          await showFolder(); await asCards(); a3.gViewWrapper.showThreaded = true; await wait(800);
+          const info = r => r && { sender: r.querySelector(".sender").textContent, avatar: r.querySelector(".mc-avatar").textContent,
+                                   email: r.querySelector(".mc-avatar").dataset.email, img: !!r.querySelector(".mc-avatar img") };
+          cmd("cmd_collapseAllThreads"); await wait(800);
+          const closed = await until(() => cards().find(r => r.classList.contains("children") && r.classList.contains("collapsed") && subjectOf(r).includes("Halo Faden")
+                                                           && r.querySelector(".mc-avatar")?.dataset.email), 6000);
+          const out = { closed: info(closed) };
+          cmd("cmd_expandAllThreads"); await wait(800);
+          const open = await until(() => cards().find(r => r.classList.contains("children") && !r.classList.contains("collapsed") && subjectOf(r).includes("Halo Faden")), 6000);
+          out.open = info(open);
+          cmd("cmd_collapseAllThreads"); await wait(500);
+          return out;""")
+        c, o = res.get("closed") or {}, res.get("open") or {}
+        ok = (c.get("sender") == "Carla Ölmann" and c.get("email") == "carla@example.invalid" and (c.get("img") or c.get("avatar") == "CÖ")
+              and o.get("sender") == "Ben Muster" and o.get("email") == "ben@example.invalid" and (o.get("img") or o.get("avatar") == "BM"))
+        return ok, f"{res}"
+    check("Mailliste: zugeklappte Konversation zeigt Name und Bild der neuesten Mail", thread_sender, results)
+
+    def thread_button():
+        # Thread-Knopf ohne Stern und Akzentrahmen, Abstand zum Betreff; Ungelesen-Punkt
+        # bei zugeklappter Konversation mit ungelesener Antwort
+        res = m.js(MAILLIST_JS + r"""
+          await showFolder(); await asCards(); a3.gViewWrapper.showThreaded = true; await wait(600); cmd("cmd_collapseAllThreads"); await wait(800);
+          const row = () => cards().find(r => r.classList.contains("children") && r.classList.contains("collapsed") && subjectOf(r).includes("Halo Faden"));
+          const out = { gaps: {} };
+          for (const density of [1, 0]) {
+            Services.prefs.setIntPref("mail.uidensity", density); await wait(1200);
+            const r = await until(row, 5000); const t = r.querySelector("button.twisty");
+            out.gaps[density] = Math.round(r.querySelector(".subject").getBoundingClientRect().left - t.getBoundingClientRect().right);
+          }
+          Services.prefs.clearUserPref("mail.uidensity"); await wait(1000);
+          const r = row(), t = r.querySelector("button.twisty"), dot = r.querySelector(".read-status");
+          Object.assign(out, { props: r.dataset.properties, before: cs(t, "::before").content, border: cs(t).borderTopColor,
+                               dot: cs(dot).display, dotColor: cs(dot).backgroundColor, accent });
+          // ausgewählt mit Fokus: durchscheinende Kapsel auf der Akzentfarbe
+          const i = [...Array(a3.gDBView.rowCount).keys()].find(k => a3.gDBView.getMsgHdrAt(k)?.messageId == "halo-ml-1@example.invalid");
+          a3.threadTree.selectedIndex = i; a3.threadTree.focus(); await wait(800);
+          const sel = await until(() => cards().find(x => x.classList.contains("selected") && subjectOf(x).includes("Halo Faden")), 4000);
+          out.selected = sel ? cs(sel.querySelector("button.twisty")).backgroundColor : null;
+          a3.threadTree.selectedIndex = -1; await wait(300);
+          return out;""")
+        ok = (res["before"] == "none" and rgba_alpha(res["border"]) == 0 and res["dot"] != "none" and same_color(res["dotColor"], res["accent"])
+              and all(g >= 2 for g in res["gaps"].values()) and res["selected"] and rgba_alpha(res["selected"]) < 1)
+        return ok, f"{res}"
+    check("Mailliste: Thread-Knopf ohne Stern und Akzentrahmen, Ungelesen-Punkt an zugeklappter Konversation", thread_button, results)
+
+    def date_weight():
+        res = m.js(MAILLIST_JS + r"""
+          await showFolder(); await asCards();
+          const r = await until(() => cards().find(x => props(x).includes("unread") && !props(x).includes("dummy")), 5000);
+          return r ? { date: cs(r.querySelector(".date")).fontWeight, sender: cs(r.querySelector(".sender")).fontWeight } : {};""")
+        return res.get("date") == "400" and res.get("sender") == "600", f"ungelesene Karte {res}"
+    check("Mailliste: Datum ungelesener Karten normal, Absender halbfett", date_weight, results)
+
+    def sent_avatar():
+        # Gesendet: Name und Bild des Empfängers; im Mailkopf bleibt der Absender
+        res = m.js(MAILLIST_JS + r"""
+          await showFolder(sent); await asCards();
+          const r = await until(() => cards().find(x => x.querySelector(".mc-avatar")?.dataset.email), 6000);
+          if (!r) return {};
+          const av = r.querySelector(".mc-avatar");
+          const out = { sender: r.querySelector(".sender").textContent, avatar: av.textContent, email: av.dataset.email, img: !!av.querySelector("img") };
+          a3.threadTree.selectedIndex = 0; await wait(1500);
+          const md = a3.messageBrowser.contentWindow.document;
+          const hav = await until(() => md.querySelector("#fromRecipient0 .mc-hdr-avatar")?.dataset.email && md.querySelector("#fromRecipient0 .mc-hdr-avatar"), 6000);
+          out.header = hav ? { email: hav.dataset.email, text: hav.textContent } : null;
+          a3.threadTree.selectedIndex = -1; await wait(300);
+          return out;""")
+        h = res.get("header") or {}
+        ok = (res.get("sender") == "Anna Beispiel" and res.get("email") == "anna@example.invalid" and (res.get("img") or res.get("avatar") == "AB")
+              and h.get("email") == "halo@example.invalid")
+        return ok, f"{res}"
+    check("Mailliste: Gesendet zeigt Bild des Empfängers, Mailkopf weiter den Absender", sent_avatar, results)
+
+    def table_font():
+        res = m.js(MAILLIST_JS + r"""
+          await showFolder(); await asCards();
+          const card = await until(() => cards().find(x => !props(x).includes("dummy")), 5000);
+          const out = { card: cs(card.querySelector(".sender")).fontSize };
+          await asTable();
+          const row = await until(() => tableRows()[0], 5000);
+          out.row = cs(row.querySelector("td")).fontSize; out.head = cs(ad.querySelector("#threadTree thead th")).fontSize;
+          await asCards(); return out;""")
+        return res["card"] == res["row"] == res["head"] == "13px", f"Karte/Tabelle/Spaltenkopf {res}"
+    check("Mailliste: Tabelle in 13 px wie Karten und Spaltenkopf", table_font, results)
+
+    def table_unread():
+        # Ungelesen als Punkt in Akzentfarbe (kein Grün), kein Stern vor neuen Mails;
+        # Zusammenfassung mehrerer Mails ebenso
+        res = m.js(MAILLIST_JS + r"""
+          await showFolder(); await asTable(); a3.threadTree.selectedIndex = -1; await wait(500);
+          if (!tableRows().some(r => props(r).includes("new"))) {
+            // neue Mail, solange der Ordner angezeigt wird (sonst setzt Thunderbird „neu“ zurück)
+            list.QueryInterface(Ci.nsIMsgLocalMailFolder).addMessage(raw({ id: "halo-ml-new-" + Date.now(), from: "Ida Viel <ida@example.invalid>", subject: "Halo Neu", date: ago(0, 7) }));
+            await wait(1200);
+          }
+          const unread = await until(() => tableRows().find(r => props(r).includes("unread") && !r.classList.contains("selected")), 5000);
+          const fresh = tableRows().find(r => props(r).includes("new") && !["replied", "forwarded", "redirected"].some(p => props(r).includes(p)));
+          const img = unread?.querySelector(".tree-button-unread > img");
+          const out = { fill: img && cs(img).fill, accent, newStar: fresh ? cs(fresh.querySelector(".subject-line img")).visibility : "keine neue Mail" };
+          await asCards();
+          // Zusammenfassung: eine ungelesene und eine gelesene Mail auswählen
+          const v = a3.gDBView, ids = ["halo-ml-5@example.invalid", "halo-ml-6@example.invalid"];
+          a3.threadTree.selectedIndices = [...Array(v.rowCount).keys()].filter(k => ids.includes(v.getMsgHdrAt(k)?.messageId)); await wait(1500);
+          const md = a3.multiMessageBrowser?.contentDocument;
+          const li = await until(() => md?.querySelector("#messageList > li.unread"), 5000);
+          out.summary = li ? md.defaultView.getComputedStyle(li, "::before").fill : null;
+          a3.threadTree.selectedIndex = -1; await wait(300);
+          return out;""")
+        ok = same_color(res["fill"], res["accent"]) and res["newStar"] == "hidden" and same_color(res["summary"], res["accent"])
+        return ok, f"{res}"
+    check("Mailliste: Tabelle und Zusammenfassung mit Ungelesen-Punkt in Akzentfarbe, ohne Stern", table_unread, results)
+
+    def tag_contrast():
+        # Schlagwortfarben als Schrift (Tabelle, Schnellfilter-Knöpfe) mit Kontrast ≥ 4,5:1
+        res = m.js(MAILLIST_JS + r"""
+          await showFolder(); await asTable(); a3.threadTree.selectedIndex = -1; await wait(600);
+          const treeBg = rgba(cs(ad.getElementById("threadTree")).backgroundColor);
+          const out = { rows: {}, buttons: {} };
+          for (const r of tableRows().filter(x => subjectOf(x).includes("Halo Schlagwort")))
+            out.rows[subjectOf(r)] = contrast(over(rgba(cs(r).color), treeBg), over(rgba(cs(r).backgroundColor), treeBg));
+          await asCards();
+          if (ad.getElementById("quick-filter-bar")?.hidden !== false) { cmd("cmd_toggleQuickFilterBar"); await wait(900); }
+          ad.getElementById("qfb-tags").click(); await wait(1200);
+          const bar = ad.getElementById("quick-filter-bar"), barBg = over(rgba(cs(bar).backgroundColor), treeBg);
+          for (const b of ad.querySelectorAll('#quick-filter-bar button.qfb-tag-button:not([aria-pressed="true"])'))
+            if (b.getClientRects().length) out.buttons[b.textContent.trim()] = contrast(rgba(cs(b).color), barBg);
+          cmd("cmd_resetQuickFilterBar"); cmd("cmd_toggleQuickFilterBar"); await wait(600);
+          return out;""")
+        values = list(res["rows"].values()) + list(res["buttons"].values())
+        ok = len(res["rows"]) == 2 and len(res["buttons"]) >= 2 and all(v >= 4.5 for v in values)
+        return ok, f"Kontrast {res}"
+    check("Mailliste: Schlagwortfarben in Tabelle und Schnellfilter lesbar (Kontrast ≥ 4,5:1)", tag_contrast, results)
+
+    def quick_filter():
+        res = m.js(MAILLIST_JS + r"""
+          await showFolder(); await asCards();
+          if (ad.getElementById("quick-filter-bar")?.hidden !== false) { cmd("cmd_toggleQuickFilterBar"); await wait(900); }
+          const bar = ad.getElementById("quick-filter-bar");
+          const card = cards().find(x => !props(x).includes("dummy"))?.querySelector(".card-container");
+          const left = el => el ? Math.round(el.getBoundingClientRect().left) : null;
+          const out = { bg: cs(bar).backgroundColor, tree: cs(ad.getElementById("threadTree")).backgroundColor, line: parseFloat(cs(bar).borderBottomWidth),
+                        card: left(card), pin: left(ad.getElementById("qfb-sticky")) };
+          ad.getElementById("qfb-tags").click(); await wait(1200);
+          out.mode = left(ad.getElementById("qfb-tag-filter-mode"));
+          cmd("cmd_resetQuickFilterBar"); cmd("cmd_toggleQuickFilterBar"); await wait(600);
+          return out;""")
+        ok = (res["bg"] == res["tree"] and res["line"] <= 1 and res["card"] is not None
+              and abs(res["pin"] - res["card"]) <= 4 and abs(res["mode"] - res["card"]) <= 4)
+        return ok, f"{res}"
+    check("Mailliste: Schnellfilter-Leiste auf der Listenfläche, bündig mit den Karten", quick_filter, results)
+
+    def layout_lines():
+        res = m.js(MAILLIST_JS + r"""
+          await showFolder(); await asCards();
+          const before = Services.prefs.getIntPref("mail.pane_config.dynamic", 2);
+          const line = () => { const p = ad.getElementById("messagePane"); return { width: parseFloat(cs(p).borderTopWidth), style: cs(p).borderTopStyle,
+            left: Math.round(p.getBoundingClientRect().left), folders: Math.round(ad.getElementById("folderPane").getBoundingClientRect().left) }; };
+          const out = {};
+          cmd("cmd_viewClassicMailLayout"); await wait(1200); out.classic = line();
+          cmd("cmd_viewWideMailLayout"); await wait(1200); out.wide = line();
+          cmd("cmd_viewVerticalMailLayout"); await wait(1200); out.vertical = line();
+          Services.prefs.setIntPref("mail.pane_config.dynamic", before); await wait(800);
+          return out;""")
+        c, w_, v = res["classic"], res["wide"], res["vertical"]
+        ok = (c["width"] > 0 and c["style"] == "solid" and w_["width"] > 0 and w_["style"] == "solid"
+              and w_["left"] <= w_["folders"] + 1 and v["width"] == 0)
+        return ok, f"{res}"
+    check("Mailliste: Layout „klassisch“ und „breit“ mit Linie über der Leseansicht, „vertikal“ ohne", layout_lines, results)
+
+    def account_central():
+        res = m.js(MAILLIST_JS + r"""
+          a3.displayFolder(root.URI);
+          const doc = await until(() => { const x = ad.getElementById("accountCentralBrowser")?.contentDocument; return x?.getElementById("accountCentral") && x; }, 8000);
+          if (!doc) return {};
+          const vis = e => e.getClientRects().length && e.getBoundingClientRect().height > 0;
+          const parts = () => [doc.body, ...[...doc.querySelectorAll(".account-central-header, .account-central-section")].filter(vis)];
+          const bgs = () => [...new Set(parts().map(e => doc.defaultView.getComputedStyle(e).backgroundColor))];
+          await until(() => bgs().length == 1, 4000);
+          const btn = [...doc.querySelectorAll(".btn-hub")].find(vis);
+          const out = { backgrounds: bgs(), radius: btn ? doc.defaultView.getComputedStyle(btn).borderTopLeftRadius : null };
+          await showFolder(); return out;""")
+        ok = len(res.get("backgrounds", [])) == 1 and res.get("radius") == "6px"
+        return ok, f"{res}"
+    check("Mailliste: Konto-Startseite in einer ruhigen Fläche, Kacheln als Knöpfe", account_central, results)
+
+    # aufräumen: Testmails endgültig löschen (sonst fänden spätere Prüfungen wie
+    # die Suche sie mit), Gesendet-Merkmal wieder entfernen
+    m.js(MAILLIST_JS + r"""
+      a3.threadTree.selectedIndex = -1; await asCards();
+      for (const f of [list, sent]) { const hs = [...f.messages]; if (hs.length) f.deleteMessages(hs, null, true, false, null, false); }
+      sent.clearFlag(Ci.nsMsgFolderFlags.SentMail); await wait(800); return 1;""")
+
+
+# Leseansicht und Mailkopf: erfundene Mails (example.invalid) im Ordner „Kopf“
+READING_JS = r"""
+  const { MailServices } = ChromeUtils.importESModule("resource:///modules/MailServices.sys.mjs");
+  try { MailServices.accounts.localFoldersServer; } catch { MailServices.accounts.createLocalMailAccount(); await wait(500); }
+  const root = MailServices.accounts.localFoldersServer.rootFolder;
+  const pad = n => String(n).padStart(2, "0");
+  const DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"], MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+  const rfc = dt => { const o = -dt.getTimezoneOffset();
+    return `${DAYS[dt.getDay()]}, ${pad(dt.getDate())} ${MONTHS[dt.getMonth()]} ${dt.getFullYear()} ${pad(dt.getHours())}:${pad(dt.getMinutes())}:${pad(dt.getSeconds())} ${o >= 0 ? "+" : "-"}${pad(Math.floor(Math.abs(o) / 60))}${pad(Math.abs(o) % 60)}`; };
+  const ics = (days, h) => { const t = new Date(); t.setDate(t.getDate() + days); t.setHours(h, 0, 0, 0); return t.toISOString().replace(/[-:]/g, "").replace(/\.\d+Z$/, "Z"); };
+  const raw = o => unescape(encodeURIComponent([`From: ${o.from || "Anna Beispiel <anna@example.invalid>"}`, `To: ${o.to || "Halo Test <halo@example.invalid>"}`,
+    ...(o.cc ? [`Cc: ${o.cc}`] : []), `Subject: ${o.subject}`, `Date: ${rfc(o.date || new Date(Date.now() - 2 * 86400000))}`, `Message-ID: <${o.id}@example.invalid>`,
+    "MIME-Version: 1.0", `Content-Type: ${o.type || "text/plain; charset=UTF-8"}`, "", o.body || "Erfundene Testnachricht.", ""].join("\r\n")));
+  if (!root.containsChildNamed("Kopf")) { root.createSubfolder("Kopf", null); await wait(800); }
+  const f = root.getChildNamed("Kopf");
+  if (!f.getTotalMessages(false)) {
+    const many = ["Halo Test", "Anna Beispiel", "Ben Muster", "Carla Ölmann", "Emil Kurz", "Frieda Lang", "Gustav Weit", "Jana Breit", "Karl Lang", "Lena Mehr", "Mia Viel", "Nora Weit"]
+      .map(n => `${n} <${n.split(" ")[0].toLowerCase()}@example.invalid>`).join(", ");
+    const b = "----=_halo_kopf", c = "----=_halo_einladung";
+    const vcal = ["BEGIN:VCALENDAR", "PRODID:-//Halo//Test//DE", "VERSION:2.0", "METHOD:REQUEST", "BEGIN:VEVENT", "UID:halo-kopf-einladung@example.invalid",
+      `DTSTAMP:${ics(0, 8)}`, `DTSTART:${ics(3, 10)}`, `DTEND:${ics(3, 11)}`, "SUMMARY:Halo Workshop", "LOCATION:Raum 2.01",
+      "ORGANIZER;CN=Anna Beispiel:mailto:anna@example.invalid",
+      "ATTENDEE;CN=Halo Test;ROLE=REQ-PARTICIPANT;PARTSTAT=NEEDS-ACTION;RSVP=TRUE:mailto:halo@example.invalid",
+      "ATTENDEE;CN=Anna Beispiel;ROLE=CHAIR;PARTSTAT=ACCEPTED:mailto:anna@example.invalid", "SEQUENCE:0", "END:VEVENT", "END:VCALENDAR"].join("\r\n");
+    const att = name => `--${b}\r\nContent-Type: text/plain; name="${name}"\r\nContent-Disposition: attachment; filename="${name}"\r\nContent-Transfer-Encoding: base64\r\n\r\n${btoa("Erfundene Testdatei " + name)}\r\n`;
+    const lf = f.QueryInterface(Ci.nsIMsgLocalMailFolder);
+    for (const o of [
+      { id: "halo-kopf-lang", from: "Dr. Maximilian Alexander von Langenname-Überlänge <max@example.invalid>",
+        subject: "Halo Lang: eine sehr lange Betreffzeile, die garantiert nicht in eine Zeile passt, weil sie wirklich außergewöhnlich viele Wörter enthält – und noch mehr", body: "Kurzer Inhalt." },
+      { id: "halo-kopf-viele", from: "Dana Zöllner <dana@example.invalid>", to: many, cc: "Hannah Mehr <hannah@example.invalid>, Ida Viel <ida@example.invalid>", subject: "Halo Viele Empfänger" },
+      { id: "halo-kopf-anhang", subject: "Halo Anhänge", type: `multipart/mixed; boundary="${b}"`,
+        body: `--${b}\r\nContent-Type: text/plain; charset=UTF-8\r\n\r\nDrei Anhänge.\r\n${att("Ausflug-01.txt")}${att("Ausflug-02.txt")}${att("Notizen.txt")}--${b}--` },
+      { id: "halo-kopf-einladung", subject: "Einladung: Halo Workshop", type: `multipart/alternative; boundary="${c}"`,
+        body: `--${c}\r\nContent-Type: text/plain; charset=UTF-8\r\n\r\nErfundene Einladung.\r\n--${c}\r\nContent-Type: text/calendar; charset=UTF-8; method=REQUEST\r\n\r\n${vcal}\r\n--${c}--` },
+      { id: "halo-kopf-jetzt", subject: "Halo Jetzt", date: new Date() },
+      { id: "halo-kopf-kontakt", from: "Paula Panel <paula@example.invalid>", subject: "Halo Kontakt" },
+    ]) lf.addMessage(raw(o));
+    await wait(1000);
+  }
+  const a3 = await toMail();
+  const md = () => a3.messageBrowser.contentDocument;
+  const cs = (el, p) => el.ownerDocument.defaultView.getComputedStyle(el, p);
+  const vis = el => !!el && el.getClientRects().length > 0 && el.getBoundingClientRect().width > 0;
+  const showMail = async subj => {
+    if (a3.gFolder?.URI != f.URI) { a3.displayFolder(f.URI); await until(() => a3.gFolder?.URI == f.URI && a3.gDBView, 6000); await wait(800); }
+    const v = a3.gDBView; let i = -1;
+    for (let k = 0; k < v.rowCount; k++) if ((v.getMsgHdrAt(k).mime2DecodedSubject || "").includes(subj)) i = k;
+    a3.threadTree.selectedIndex = i;
+    await until(() => (md().getElementById("expandedsubjectBox")?.textContent || "").includes(subj) && md().getElementById("messagepane")?.contentDocument?.body?.textContent, 6000);
+    await wait(900); return md(); };
+  // schmaler Mailbereich (unter 768 px stellt Thunderbird den Kopf auf Spalten um): Today-Pane auf
+  const tpCmd = d.getElementById("calendar_toggle_todaypane_command");
+  const narrow = async () => { if (md().documentElement.clientWidth >= 768 && !w.TodayPane.isVisible) { tpCmd.doCommand(); w.__haloTpOpened = true; await wait(1500); } return md().documentElement.clientWidth; };
+  const restore = async () => { if (w.__haloTpOpened && w.TodayPane.isVisible) { tpCmd.doCommand(); await wait(800); } w.__haloTpOpened = false; };
+  const rgb = c => (c.match(/-?[\d.]+/g) || []).map(Number).map((v, i) => (c.startsWith("color(") && i < 3 ? v * 255 : v));
+  const lum = ([r, g, b]) => { const t = v => { v /= 255; return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4; }; return 0.2126 * t(r) + 0.7152 * t(g) + 0.0722 * t(b); };
+  const contrast = (a, b) => { const [x, y] = [lum(a), lum(b)].sort((p, q) => q - p); return Math.round((x + 0.05) / (y + 0.05) * 100) / 100; };
+  const over = (fg, bg) => { const al = fg[3] ?? 1; return fg.slice(0, 3).map((v, i) => v * al + bg[i] * (1 - al)); };"""
+
+
+def reading_checks(m, results):
+    """Leseansicht und Mailkopf: langer Absender, Einladung, Anhänge, Suchleiste, Kontakt-Panel, Mail im Tab, Datum, Linie, „Mehr“, Kommas."""
+
+    def long_sender():
+        # schmaler Mailbereich: Name endet mit „…“ vor Ordner und Uhrzeit, Kopf nicht breiter als der Mailbereich
+        res = m.js(READING_JS + r"""
+          let doc = await showMail("Halo Lang"); const width = await narrow(); doc = md(); await wait(500);
+          const header = doc.getElementById("messageHeader"), meta = doc.getElementById("mcHdrMeta"), subj = doc.getElementById("expandedsubjectBox");
+          const name = [...doc.querySelectorAll("#fromRecipient0 :is(.recipient-single-line, .recipient-multi-line-name)")].find(vis);
+          // das kürzende Element: der Name selbst (Block) oder sein Listenelement (einzeiliger Name)
+          const box = name && (cs(name).display == "inline" ? name.closest("li") : name);
+          const out = { width, scroll: header.scrollWidth, client: header.clientWidth, name: name?.textContent,
+                        nameRight: Math.round(box?.getBoundingClientRect().right), metaLeft: Math.round(meta?.getBoundingClientRect().left),
+                        subjRight: Math.round(subj.getBoundingClientRect().right), headerRight: Math.round(header.getBoundingClientRect().right),
+                        ellipsis: box && cs(box).textOverflow, cut: box && box.scrollWidth > box.clientWidth };
+          await restore(); return out;""")
+        ok = (res["width"] < 768 and res["scroll"] <= res["client"] + 1 and res["nameRight"] <= res["metaLeft"] + 1
+              and res["subjRight"] <= res["headerRight"] and res["ellipsis"] == "ellipsis" and res["cut"])
+        return ok, f"{res}"
+    check("Mailkopf: langer Absender im schmalen Mailbereich endet mit „…“ vor Ordner und Uhrzeit, Betreff ganz", long_sender, results)
+
+    def invitation():
+        # Einladung: graue Kapsel statt blauer/lila Fläche mit Schatten, Text einzeilig und lesbar; Details in voller Breite
+        res = m.js(READING_JS + r"""
+          await showMail("Halo Workshop"); await narrow(); const doc = md();
+          const bar = await until(() => vis(doc.getElementById("imip-bar")) && doc.getElementById("imip-bar"), 6000);
+          if (!bar) { await restore(); return { bar: false }; }
+          await wait(500);
+          const s = cs(bar), t = bar.querySelector(".msgNotificationBarText");
+          const lh = parseFloat(cs(t).lineHeight) || parseFloat(cs(t).fontSize) * 1.2;
+          const win = rgb(cs(doc.getElementById("messageHeader")).backgroundColor);
+          const btn = doc.getElementById("imipAcceptButton");
+          const body = doc.getElementById("messagepane").contentDocument;
+          const border = await until(() => body.querySelector(".invitation-border"), 6000);
+          const out = { bar: true, bg: s.backgroundColor, radius: parseFloat(s.borderTopLeftRadius), shadow: s.boxShadow,
+                        text: t.textContent.trim(), textLines: Math.round(t.getBoundingClientRect().height / lh * 10) / 10,
+                        // Text über die ganze Zeile (nicht als schmale Spalte neben den Knöpfen), Knöpfe darunter
+                        fullRow: t.getBoundingClientRect().right >= bar.getBoundingClientRect().right - parseFloat(s.paddingRight) - 2,
+                        below: doc.getElementById("imip-view-toolbox").getBoundingClientRect().top >= t.getBoundingClientRect().bottom - 1,
+                        contrast: contrast(rgb(cs(t).color), over(rgb(s.backgroundColor), win)),
+                        btnRadius: parseFloat(cs(btn).borderTopLeftRadius), btnBorder: cs(btn.querySelector(".toolbarbutton-menubutton-button") || btn).borderTopColor,
+                        bodyScroll: body.documentElement.scrollWidth, inner: body.defaultView.innerWidth,
+                        cardBorder: border && parseFloat(cs(border).borderTopWidth), cardRight: border && Math.round(border.getBoundingClientRect().right) };
+          await restore(); return out;""")
+        ok = (res.get("bar") and res["bg"] not in ("rgb(192, 132, 252)", "rgb(221, 238, 254)") and res["radius"] >= 10
+              and res["shadow"] == "none" and res["fullRow"] and res["below"] and res["contrast"] >= 4.5 and res["btnRadius"] >= 10
+              and rgba_alpha(res["btnBorder"]) == 0 and res["bodyScroll"] <= res["inner"] + 1
+              and res["cardBorder"] is not None and res["cardBorder"] <= 1 and res["cardRight"] <= res["inner"])
+        return ok, f"{res}"
+    check("Einladung: Leiste als graue Kapsel (Text über die ganze Zeile, lesbar, Knöpfe darunter), Details als Karte in der Breite des Lesebereichs", invitation, results)
+
+    def attachments():
+        res = m.js(READING_JS + r"""
+          const doc = await showMail("Halo Anhänge");
+          doc.defaultView.toggleAttachmentList?.(true, true); await wait(900);
+          const list = doc.getElementById("attachmentList");
+          list.selectedIndex = 0; list.focus(); await wait(400);
+          const item = list.querySelector(".attachmentItem[selected]");
+          const focused = { bg: cs(item).backgroundColor, radius: parseFloat(cs(item).borderTopLeftRadius), outline: cs(item).outlineStyle };
+          a3.threadTree.focus(); await wait(300);
+          const out = { list: cs(list).backgroundColor, header: cs(doc.getElementById("messageHeader")).backgroundColor,
+                        bar: cs(doc.getElementById("attachmentBar")).backgroundColor, focused, unfocused: cs(item).backgroundColor,
+                        accent: (() => { const e = doc.createElement("div"); e.style.color = "AccentColor"; doc.documentElement.append(e); const c = cs(e).color; e.remove(); return c; })() };
+          doc.defaultView.toggleAttachmentList?.(false); return out;""")
+        f = res["focused"]
+        ok = (same_color(res["list"], res["header"]) and same_color(res["bar"], res["header"]) and f["radius"] >= 6
+              and f["outline"] == "none" and same_color(f["bg"], res["accent"]) and not same_color(res["unfocused"], res["accent"]))
+        return ok, f"{res}"
+    check("Anhänge: Liste auf der Fläche der Mail, markierte Datei abgerundet ohne Rahmen (unfokussiert grau)", attachments, results)
+
+    def find_bar():
+        res = m.js(READING_JS + r"""
+          const doc = await showMail("Halo Jetzt"); await narrow();
+          a3.commandController.doCommand("cmd_find"); await wait(900);
+          const fb = doc.querySelector("findbar");
+          if (!fb || fb.hidden) { await restore(); return { open: false }; }
+          const right = fb.getBoundingClientRect().right;
+          const outside = [...fb.querySelectorAll(".findbar-container > *")].filter(e => e.getBoundingClientRect().width > 0 && e.getBoundingClientRect().right > right + 1)
+            .map(e => e.getAttribute("anonid") || e.className);
+          const tb = fb.querySelector(".findbar-textbox");
+          const out = { open: true, width: Math.round(right), outside, border: cs(tb).borderTopStyle, radius: parseFloat(cs(tb).borderTopLeftRadius) };
+          fb.close(); await wait(900);
+          // geschlossen: keine Lücke unter der Mail
+          out.gap = Math.round(doc.getElementById("messagepanebox").getBoundingClientRect().bottom - doc.getElementById("messagepane").getBoundingClientRect().bottom);
+          await restore(); return out;""")
+        ok = res.get("open") and not res["outside"] and res["border"] == "none" and res["radius"] >= 6 and res["gap"] <= 1
+        return ok, f"{res}"
+    check("Suchleiste in der Mail: nichts abgeschnitten, Suchfeld ohne Rahmen, geschlossen ohne Lücke", find_bar, results)
+
+    def contact_panel():
+        # Panel „Kontakt bearbeiten“ (über das Menü zur Absenderadresse) mit der Fläche der Tooltips
+        res = m.js(READING_JS + r"""
+          const book = MailServices.ab.getDirectory("jsaddrbook://abook.sqlite");
+          let card = book.childCards.find(c => c.primaryEmail == "paula@example.invalid");
+          if (!card) { card = Cc["@mozilla.org/addressbook/cardproperty;1"].createInstance(Ci.nsIAbCard);
+            card.displayName = "Paula Panel"; card.primaryEmail = "paula@example.invalid"; card = book.addCard(card); }
+          const doc = await showMail("Halo Kontakt");
+          const menu = doc.getElementById("emailAddressPopup"), from = doc.querySelector("#fromRecipient0");
+          (from.querySelector(".recipient-single-line, .recipient-multi-line-name") || from).click();
+          await until(() => menu.state == "open", 3000);
+          const item = doc.getElementById("editContactItem"); const shown = !!item && !item.hidden;
+          if (shown) item.doCommand();
+          menu.hidePopup();
+          const panel = await until(() => { const p = doc.getElementById("editContactPanel"); return p?.state == "open" && p; }, 4000);
+          const out = { shown, open: !!panel };
+          if (panel) { await wait(300); const s = cs(panel), r = cs(doc.documentElement);
+            Object.assign(out, { bg: s.getPropertyValue("--panel-background-color").trim(), want: r.getPropertyValue("--mt-tooltip-bg").trim(),
+                                 border: s.getPropertyValue("--panel-border-color").trim(), wantBorder: r.getPropertyValue("--mt-tooltip-border").trim() });
+            panel.hidePopup(); await wait(300); }
+          book.deleteCards([card]); return out;""")
+        ok = res.get("open") and res["bg"] == res["want"] and res["border"] == res["wantBorder"] and "262d3b" not in res["bg"].lower()
+        return ok, f"{res}"
+    check("Mailkopf: Panel „Kontakt bearbeiten“ mit neutraler Fläche wie die Tooltips", contact_panel, results)
+
+    def message_tab():
+        # Mail im eigenen Tab: kein Listenkopf, kein Grau der Ordnerliste; zurück im Mail-Tab wieder da
+        res = m.js(READING_JS + r"""
+          await showMail("Halo Jetzt"); await wait(500);
+          const hdr = a3.gDBView.hdrForFirstSelectedMessage;
+          tm.openTab("mailMessageTab", { messageURI: hdr.folder.getUriForMsg(hdr), background: false });
+          await until(() => d.documentElement.getAttribute("mc-tab") == "mailMessageTab", 6000); await wait(1500);
+          const row = d.getElementById("unifiedToolbarContainer"), status = d.getElementById("status-bar"), lh = d.getElementById("mcListHeader");
+          const v = (el, n) => w.getComputedStyle(el).getPropertyValue(n).trim();
+          const tab = { mode: d.documentElement.getAttribute("mc-tab"), header: lh && w.getComputedStyle(lh).display,
+                        row: v(row, "--mc-sidebar-right"), status: v(status, "--mc-sidebar-right"), line: v(row, "--mc-list-right") };
+          tm.closeTab(tm.currentTabInfo); await toMail(); await wait(1200);
+          const mail = { mode: d.documentElement.getAttribute("mc-tab"), header: lh && w.getComputedStyle(lh).display, row: v(row, "--mc-sidebar-right") };
+          return { tab, mail };""")
+        t, ml = res["tab"], res["mail"]
+        ok = (t["mode"] == "mailMessageTab" and t["header"] == "none" and t["row"] == "0px" and t["status"] == "0px" and t["line"] == "-10px"
+              and ml["mode"] == "mail3PaneTab" and ml["header"] != "none" and float(ml["row"].replace("px", "") or 0) > 0)
+        return ok, f"{res}"
+    check("Mail im eigenen Tab: ohne Listenkopf und Seitenleisten-Grau, im Mail-Tab wieder vorhanden", message_tab, results)
+
+    def list_date():
+        # Uhrzeit in Liste und Kopf im selben Format (Regionaleinstellungen des Systems)
+        res = m.js(READING_JS + r"""
+          const doc = await showMail("Halo Jetzt");
+          const hdr = a3.gDBView.hdrForFirstSelectedMessage;
+          const row = await until(() => [...a3.document.querySelectorAll('#threadTree tr[is="thread-card"]')].find(r => (r.querySelector(".subject")?.textContent || "").includes("Halo Jetzt") && r.querySelector(".date")?.textContent), 6000);
+          const norm = s => (s || "").replace(/\s+/g, " ").trim();
+          // ältere Mail (vor zwei Tagen): ganzes Datum im Muster des Systems
+          const oldHdr = [...f.messages].find(h => h.messageId == "halo-kopf-anhang@example.invalid");
+          const oldRow = [...a3.document.querySelectorAll('#threadTree tr[is="thread-card"]')].find(r => (r.querySelector(".subject")?.textContent || "").includes("Halo Anhänge"));
+          return { list: norm(row?.querySelector(".date")?.textContent), header: norm(doc.querySelector("#mcHdrMeta #dateLabel")?.textContent),
+                   want: norm(new Services.intl.DateTimeFormat(undefined, { timeStyle: "short" }).format(new Date(hdr.date / 1000))),
+                   old: norm(oldRow?.querySelector(".date")?.textContent), oldWant: oldHdr && norm(new Services.intl.DateTimeFormat(undefined, { dateStyle: "medium" }).format(new Date(oldHdr.date / 1000))) };""")
+        ok = bool(res["list"]) and res["list"] == res["want"] and res["list"] in res["header"] and bool(res["old"]) and res["old"] == res["oldWant"]
+        return ok, f"{res}"
+    check("Mailliste und Mailkopf: Uhrzeit und Datum im Format der Regionaleinstellungen", list_date, results)
+
+    def header_line():
+        res = m.js(READING_JS + r"""
+          const doc = await showMail("Halo Jetzt");
+          const top = doc.getElementById("mail-notification-top"), header = doc.getElementById("messageHeader");
+          return { top: parseFloat(cs(top).borderBottomWidth), header: parseFloat(cs(header).borderBottomWidth),
+                   gap: Math.round((doc.getElementById("messagepane").getBoundingClientRect().top - header.getBoundingClientRect().bottom) * 10) / 10 };""")
+        ok = res["top"] == 0 and res["header"] > 0 and res["gap"] <= 0.5
+        return ok, f"{res}"
+    check("Mailkopf: eine Linie zum Mailtext (keine zweite darunter)", header_line, results)
+
+    def recipients():
+        # viele Empfänger: „Mehr“ als graue Kapsel in 11 px; Kommas in Cc wie in An
+        res = m.js(READING_JS + r"""
+          const doc = await showMail("Halo Viele Empfänger");
+          const btn = [...doc.querySelectorAll("#expandedtoBox .show-more-recipients")].find(vis);
+          const accent = (() => { const e = doc.createElement("div"); e.style.color = "AccentColor"; doc.documentElement.append(e); const c = cs(e).color; e.remove(); return c; })();
+          const comma = id => { const li = doc.querySelector(`#${id} li.header-recipient`); return li && cs(li, "::after").color; };
+          return { more: !!btn, transform: btn && cs(btn).textTransform, size: btn && parseFloat(cs(btn).fontSize), bg: btn && cs(btn).backgroundColor, accent,
+                   to: comma("expandedtoBox"), cc: comma("expandedccBox") };""")
+        ok = (res["more"] and res["transform"] == "none" and res["size"] >= 11 and not same_color(res["bg"], res["accent"])
+              and res["to"] and res["cc"] and same_color(res["to"], res["cc"]))
+        return ok, f"{res}"
+    check("Mailkopf: „Mehr“-Knopf als graue Kapsel in 11 px, Kommas in Cc wie in An", recipients, results)
+
+
+# Verfassen-Fenster und seine Dialoge: Test-Identität (example.invalid, kein Server), Fenster öffnen/schließen,
+# Editor-Dialoge (modal) erst nach dem Skript öffnen. Gewartet wird über den Zeitgeber des Moduls –
+# solange ein modaler Dialog offen ist, ruhen die Zeitgeber der Fenster.
+COMPOSE_CHECK_JS = r"""
+  const { MailServices } = ChromeUtils.importESModule("resource:///modules/MailServices.sys.mjs");
+  const { setTimeout: modTimeout } = ChromeUtils.importESModule("resource://gre/modules/Timer.sys.mjs");
+  const pause = ms => new Promise(r => modTimeout(r, ms));
+  const till = async (fn, ms = 8000) => { for (let t = 0; t < ms; t += 100) { const v = fn(); if (v) return v; await pause(100); } return fn(); };
+  try { MailServices.accounts.localFoldersServer; } catch { MailServices.accounts.createLocalMailAccount(); await pause(500); }
+  const acc = MailServices.accounts.findAccountForServer(MailServices.accounts.localFoldersServer);
+  if (!acc.identities.length) { const id = MailServices.accounts.createIdentity(); id.fullName = "Halo Test"; id.email = "halo@example.invalid"; acc.addIdentity(id); }
+  const later = fn => w.setTimeout(() => { try { fn(); } catch (e) { console.error("Test:", e); } }, 0);
+  const compose = async (o = {}) => {
+    const params = Cc["@mozilla.org/messengercompose/composeparams;1"].createInstance(Ci.nsIMsgComposeParams);
+    const fields = Cc["@mozilla.org/messengercompose/composefields;1"].createInstance(Ci.nsIMsgCompFields);
+    fields.to = o.to ?? "Anna Beispiel <anna@example.invalid>"; fields.subject = o.subject ?? "Halo Entwurf";
+    if (o.cc) fields.cc = o.cc;
+    fields.body = o.body ?? "<p>Hallo Anna,</p><p>das ist ein Testentwurf.</p>";
+    params.composeFields = fields; params.identity = acc.identities[0]; params.format = Ci.nsIMsgCompFormat.HTML;
+    const before = new Set(Services.wm.getEnumerator("msgcompose"));
+    MailServices.compose.OpenComposeWindowWithParams(null, params);
+    const cw = await till(() => [...Services.wm.getEnumerator("msgcompose")].find(x => !before.has(x) && x.document.readyState == "complete" && x.gMsgCompose), 12000);
+    if (!cw) throw new Error("Verfassen-Fenster nicht offen");
+    cw.resizeTo(o.width ?? 1000, 760); await pause(1800); return cw; };
+  const closeCompose = async cw => { if (!cw || cw.closed) return; cw.gContentChanged = false; if (cw.gMsgCompose) cw.gMsgCompose.bodyModified = false;
+    cw.close(); await till(() => cw.closed, 4000); await pause(300); };
+  // mit Verfassen-Fenster: fn(cw, cd), danach das Fenster immer schließen
+  const withCompose = async (o, fn) => { const cw = await compose(o); try { return await fn(cw, cw.document); } finally { await closeCompose(cw); } };
+  const winUrl = (part, ms = 10000) => till(() => [...Services.wm.getEnumerator(null)].find(x => x.location.href.includes(part) && x.document.readyState == "complete"), ms);
+  // Dialog über „Abbrechen“ schließen (die Rechtschreibprüfung gibt nur so ihr Verfassen-Fenster wieder frei)
+  const shut = async x => { for (let i = 0; i < 3 && x && !x.closed; i++) {
+    try { const dl = x.document.querySelector("dialog"); if (i == 0 && dl?.cancelDialog) dl.cancelDialog(); else x.close(); } catch {}
+    await till(() => x.closed, 2000); } await pause(200); };
+  // modalen Dialog über einen Befehl öffnen: fn(dw, dd), danach schließen
+  const dialog = async (open, part, fn) => { later(open); const dw = await winUrl(part); if (!dw) throw new Error(part + " nicht offen");
+    await pause(800); try { return await fn(dw, dw.document); } finally { await shut(dw); } };
+  // Fenster nach vorn, damit :focus greift
+  const front = async x => { x.focus(); await till(() => Services.focus.activeWindow == x, 3000); await pause(200); };
+  const csOf = (el, pseudo) => el.ownerDocument.defaultView.getComputedStyle(el, pseudo);
+  // berechnete Farbe eines Werts (AccentColor, var(--mt-…)) im Dokument
+  const colorOf = (doc, value, prop = "color") => { const e = doc.createElementNS("http://www.w3.org/1999/xhtml", "div"); e.style[prop] = value;
+    doc.documentElement.append(e); const c = csOf(e)[prop]; e.remove(); return c; };
+  const vis = el => !!el && el.getClientRects().length > 0 && el.getBoundingClientRect().width > 0;
+  const rgba = c => { const v = (String(c).match(/-?[\d.]+(?:e-?\d+)?/g) || []).map(Number); const k = String(c).startsWith("color(") ? 255 : 1;
+    return [v[0] * k, v[1] * k, v[2] * k, v.length > 3 ? v[3] : 1]; };
+  // Farbe über einem Grund gemischt, relative Leuchtdichte, senkrechte Mitte eines Elements
+  const over = (fg, bg) => fg.slice(0, 3).map((x, i) => x * fg[3] + bg[i] * (1 - fg[3])).concat(1);
+  const lum = c => { const [r, g, b] = c.slice(0, 3).map(x => { x /= 255; return x <= 0.03928 ? x / 12.92 : ((x + 0.055) / 1.055) ** 2.4; }); return 0.2126 * r + 0.7152 * g + 0.0722 * b; };
+  const mid = el => { if (!el) return null; const r = el.getBoundingClientRect(); return Math.round((r.top + r.height / 2) * 10) / 10; };
+  const dark = w.matchMedia("(prefers-color-scheme: dark)").matches;
+  const testFolder = async () => { const root = MailServices.accounts.localFoldersServer.rootFolder;
+    if (!root.containsChildNamed("Lesen")) { root.createSubfolder("Lesen", null); await pause(800); } return root.getChildNamed("Lesen"); };"""
+
+
+def compose_checks(m, results):
+    """Verfassen-Fenster und Editor-Dialoge: Kästchen, Anhänge, Textfläche, Hinweisleiste, Felder, Kontakte, Rückfragen,
+    Listen, Reiter, Anpassen, Trennlinie, Empfängerzeilen, schmale Symbolleiste."""
+
+    def checkboxes():
+        # angehakt mit Haken: data:-Bilder sperrt die CSP der Dialoge (default-src chrome:) – nur die blaue Fläche blieb
+        res = m.js(COMPOSE_CHECK_JS + r"""
+          const look = (dd, cb) => { const s = csOf(cb.querySelector(".checkbox-check"));
+            return { img: s.backgroundImage, fill: s.fill, bg: s.backgroundColor, accent: colorOf(dd, "AccentColor"), accentText: colorOf(dd, "AccentColorText") }; };
+          const out = {};
+          out.replace = await withCompose({}, cw => dialog(() => cw.goDoCommand("cmd_findReplace"), "EdReplace", async (dw, dd) => {
+            const blocked = []; dd.addEventListener("securitypolicyviolation", e => blocked.push(e.blockedURI));
+            const cb = dd.getElementById("dialog.wrap"), was = cb.checked;
+            cb.checked = false; await pause(100); cb.checked = true; await pause(400);
+            const r = look(dd, cb); r.blocked = blocked; cb.checked = was; return r; }));
+          const f = await testFolder(); tm.switchToTab(0); await pause(500); const a3 = tm.currentAbout3Pane; a3.displayFolder(f.URI); await pause(800);
+          out.folder = await dialog(() => a3.commandController.doCommand("cmd_properties"), "folderProps", async (dw, dd) => {
+            const cb = [...dd.querySelectorAll("checkbox")].find(vis), was = cb.checked;
+            cb.checked = true; await pause(300); const r = look(dd, cb); cb.checked = was; return r; });
+          return out;""")
+        def good(r):
+            return (r["img"].startswith('url("chrome://') and "data:" not in r["img"]
+                    and same_color(r["fill"], r["accentText"]) and same_color(r["bg"], r["accent"]))
+        ok = good(res["replace"]) and not res["replace"]["blocked"] and good(res["folder"])
+        return ok, f"{res}"
+    check("Dialoge: angehakte Kästchen mit Haken (chrome://-Grafik, die CSP sperrt data:) – Suchen/Ersetzen, Ordner-Eigenschaften", checkboxes, results)
+
+    def attachments():
+        res = m.js(COMPOSE_CHECK_JS + r"""
+          return await withCompose({}, async (cw, cd) => {
+            const atts = [];
+            for (const n of ["Halo Anhang eins.txt", "Halo Anhang zwei.txt"]) { const path = PathUtils.join(PathUtils.profileDir, n);
+              if (!await IOUtils.exists(path)) await IOUtils.writeUTF8(path, "Erfundene Testdatei\n");
+              const a = Cc["@mozilla.org/messengercompose/attachment;1"].createInstance(Ci.nsIMsgAttachment); a.url = PathUtils.toFileURI(path); a.name = n; a.size = 30; atts.push(a); }
+            cw.AddAttachments(atts);
+            if (!await till(() => cw.gAttachmentBucket?.itemCount >= 2, 5000)) return { attached: false };
+            await pause(800); await front(cw);
+            const area = cd.getElementById("attachmentArea"), bucket = cd.getElementById("attachmentBucket");
+            bucket.selectedIndex = 0; bucket.focus(); await pause(300);
+            const item = bucket.querySelector(".attachmentItem[selected]"), s = csOf(item);
+            const focused = { focus: bucket.matches(":focus"), bg: s.backgroundColor, radius: parseFloat(s.borderTopLeftRadius), outline: s.outlineStyle, border: parseFloat(s.borderTopWidth) };
+            cd.getElementById("msgSubject").focus(); await pause(300);
+            return { attached: true, focused, unfocused: csOf(item).backgroundColor, accent: colorOf(cd, "AccentColor"),
+                     summary: csOf(area.querySelector("summary")).backgroundColor, bucket: csOf(bucket).backgroundColor,
+                     header: csOf(cd.getElementById("MsgHeadersToolbar")).backgroundColor, bucketBorder: parseFloat(csOf(bucket).borderTopWidth),
+                     size: csOf(cd.getElementById("attachmentBucketSize")).backgroundColor }; });""")
+        f = res.get("focused") or {}
+        ok = (res.get("attached") and same_color(res["summary"], res["header"]) and same_color(res["bucket"], res["header"]) and res["bucketBorder"] == 0
+              and f["focus"] and same_color(f["bg"], res["accent"]) and f["radius"] >= 6 and f["outline"] == "none" and f["border"] == 0
+              and not same_color(res["unfocused"], res["accent"]) and rgba_alpha(res["size"]) == 0)
+        return ok, f"{res}"
+    check("Verfassen: Anhänge auf der Fläche des Fensters, markierte Datei abgerundet ohne Rahmen (unfokussiert grau), Größe ohne Plakette", attachments, results)
+
+    def body():
+        # Textfläche in der Fläche des Fensters (dunkel sonst bläulich #2a2a2e); eigene Hintergründe der Mail bleiben
+        res = m.js(COMPOSE_CHECK_JS + r"""
+          return await withCompose({}, async (cw, cd) => {
+            const ed = cw.GetCurrentEditorElement().contentDocument; const b = ed.body;
+            const out = { dark, body: csOf(b).backgroundColor, header: csOf(cd.getElementById("MsgHeadersToolbar")).backgroundColor,
+                          area: csOf(cd.getElementById("messageArea")).backgroundColor, box: csOf(cd.getElementById("composeContentBox")).backgroundColor };
+            b.setAttribute("bgcolor", "#ffffcc"); await pause(200); out.own = csOf(b).backgroundColor; b.removeAttribute("bgcolor");
+            return out; });""")
+        ok = same_color(res["area"], res["header"]) and same_color(res["box"], res["header"]) and same_color(res["own"], "rgb(255, 255, 204)")
+        # hell bleibt der Körper weiß (bzw. durchsichtig auf weißem Grund)
+        ok = ok and (same_color(res["body"], res["header"]) if res["dark"]
+                     else rgba_alpha(res["body"]) == 0 or same_color(res["body"], "rgb(255, 255, 255)"))
+        return ok, f"{res}"
+    check("Verfassen: Textfläche und Fugen in der Fläche des Fensters (dunkel kein zweites Grau), eigene Hintergrundfarbe bleibt", body, results)
+
+    def reminder():
+        # Hinweis „Anhang vergessen?“: „Später erinnern“ als Kapsel wie „Anhang hinzufügen“, Leiste ohne violettgrauen Rand
+        res = m.js(COMPOSE_CHECK_JS + r"""
+          return await withCompose({ body: "<p>Hallo Anna,</p><p>im Anhang findest du das Dokument (attached).</p>" }, async (cw, cd) => {
+            await cw.gAttachmentNotifier.checkForAttachmentKeywords?.();
+            const msg = await till(() => cd.querySelector('notification-message[value="attachmentReminder"]'), 6000);
+            if (!msg) return { bar: false };
+            await pause(800);
+            const all = sel => [...msg.querySelectorAll(sel), ...(msg.shadowRoot?.querySelectorAll(sel) || [])].find(vis);
+            const b = all("button.notification-button"), t = all("toolbarbutton.notification-button");
+            if (!b || !t) return { bar: true, buttons: false };
+            const rb = b.getBoundingClientRect(), rt = t.getBoundingClientRect(), st = csOf(t);
+            const stack = msg.closest(".notificationbox-stack") || cd.querySelector("#compose-notification-bottom .notificationbox-stack");
+            return { bar: true, buttons: true, heights: [rb.height, rt.height], mids: [rb.top + rb.height / 2, rt.top + rt.height / 2],
+                     radius: parseFloat(st.borderTopLeftRadius), border: parseFloat(st.borderTopWidth),
+                     innerBorder: parseFloat(csOf(t.querySelector(".toolbarbutton-menubutton-button")).borderTopWidth),
+                     // die gelbe Fläche (Schatten-DOM, fest 4 px) wird vom runden Rand der Leiste zugeschnitten
+                     host: parseFloat(csOf(msg).borderTopLeftRadius), clip: csOf(msg).overflowX,
+                     container: parseFloat(csOf(msg.shadowRoot.querySelector(".container")).borderTopLeftRadius),
+                     stack: stack && csOf(stack).backgroundColor, header: csOf(cd.getElementById("MsgHeadersToolbar")).backgroundColor }; });""")
+        ok = (res.get("buttons") and abs(res["heights"][0] - res["heights"][1]) <= 1 and abs(res["mids"][0] - res["mids"][1]) <= 1
+              and res["radius"] >= 14 and res["border"] == 0 and res["innerBorder"] == 0
+              and res["host"] >= 10 and (res["container"] >= 10 or res["clip"] in ("clip", "hidden"))
+              and res["stack"] and same_color(res["stack"], res["header"]))
+        return ok, f"{res}"
+    check("Verfassen: Hinweis „Anhang vergessen?“ – „Später erinnern“ als Kapsel gleich hoch wie „Anhang hinzufügen“, runde Leiste ohne Rand", reminder, results)
+
+    def dialog_fields():
+        # Felder in Dialogen 28 px wie die Auswahllisten daneben, Zahlenfelder bleiben breit genug
+        res = m.js(COMPOSE_CHECK_JS + r"""
+          return await withCompose({}, async cw => {
+            const out = {};
+            out.table = await dialog(() => cw.goDoCommand("cmd_InsertTable"), "EdInsertTable", async (dw, dd) => {
+              const rows = dd.getElementById("rowsInput"), wi = dd.getElementById("widthInput"), ml = dd.getElementById("widthPixelOrPercentMenulist");
+              const was = wi.value; wi.value = "100"; await pause(100);
+              const r = { rows: rows.getBoundingClientRect().height, width: wi.getBoundingClientRect().height, menulist: ml.getBoundingClientRect().height,
+                          scroll: wi.scrollWidth, client: wi.clientWidth };
+              wi.value = was; return r; });
+            out.replace = await dialog(() => cw.goDoCommand("cmd_findReplace"), "EdReplace", async (dw, dd) => dd.getElementById("dialog.findInput").getBoundingClientRect().height);
+            return out; });""")
+        t = res["table"]
+        ok = t["rows"] <= 29 and abs(t["width"] - t["menulist"]) <= 1 and t["scroll"] <= t["client"] and res["replace"] <= 29
+        return ok, f"{res}"
+    check("Dialoge: Eingabefelder 28 px hoch wie die Auswahllisten daneben, „100“ im Zahlenfeld ganz sichtbar", dialog_fields, results)
+
+    def contacts():
+        res = m.js(COMPOSE_CHECK_JS + r"""
+          return await withCompose({}, async (cw, cd) => {
+            cw.toggleContactsSidebar();
+            const d2 = await till(() => { const b = cd.getElementById("contactsBrowser"); const x = b?.contentDocument;
+              return x?.readyState == "complete" && x.getElementById("abResultsTree") && x; }, 6000);
+            if (!d2) return { open: false };
+            await pause(1000);
+            const tree = d2.getElementById("abResultsTree"), list = d2.getElementById("addressbookList"), label = d2.querySelector("label[control]");
+            const head = cd.querySelector("#contactsSidebar > .sidebar-header");
+            return { open: true, tree: csOf(tree).backgroundColor, root: csOf(d2.documentElement).backgroundColor,
+                     listBorder: parseFloat(csOf(list).borderTopWidth), listRadius: parseFloat(csOf(list).borderTopLeftRadius),
+                     labelMargin: label && parseFloat(csOf(label).marginInlineStart),
+                     headLine: csOf(head).borderBottomColor, line: colorOf(cd, "var(--mt-pane-line)") }; });""")
+        ok = (res.get("open") and (rgba_alpha(res["tree"]) == 0 or same_color(res["tree"], res["root"])) and not same_color(res["tree"], "rgb(0, 0, 0)")
+              and res["listBorder"] == 0 and res["listRadius"] >= 12 and (res["labelMargin"] or 0) >= 6 and same_color(res["headLine"], res["line"]))
+        return ok, f"{res}"
+    check("Verfassen: Kontakte-Seitenleiste durchgehend im Seitenleisten-Grau, Adressbuch-Auswahl als Kapsel, Abstand zum Rand", contacts, results)
+
+    def common_dialog():
+        # Rückfragen (hier die des Verfassen-Fensters wie „Speichern?“) dunkel neutral wie die übrigen Dialoge,
+        # ohne violettgrauen Farbstich; hell weiß. Sie gehört nicht zum Hauptfenster – Marionette lässt sie offen
+        res = m.js(COMPOSE_CHECK_JS + r"""
+          return await withCompose({}, async cw => {
+            let done = false;
+            cw.setTimeout(() => Services.prompt.asyncConfirm(cw.browsingContext, Services.prompt.MODAL_TYPE_WINDOW, "Halo", "Test")
+              .finally(() => { done = true; }), 0);
+            const dw = await winUrl("commonDialog");
+            if (!dw) return { open: false };
+            await pause(600);
+            const dl = dw.document.querySelector("dialog");
+            const own = csOf(dl).backgroundColor, rootBg = csOf(dw.document.documentElement).backgroundColor;
+            dl.cancelDialog(); await till(() => done && dw.closed, 4000);
+            return { open: true, dark, dialog: own, root: rootBg, visible: rgba(own)[3] > 0 ? own : rootBg }; });""")
+        c = res.get("visible", "")
+        import re
+        v = [float(x) for x in re.findall(r"-?[\d.]+", c)][:3]
+        if res.get("dark"):
+            ok = len(v) == 3 and max(abs(v[0] - v[1]), abs(v[1] - v[2]), abs(v[0] - v[2])) <= 3 and not same_color(c, "rgb(66, 65, 77)")
+        else:
+            ok = len(v) == 3 and min(v) >= 250
+        return bool(res.get("open")) and ok, f"{res}"
+    check("Rückfragen: neutrale Fläche (dunkel ohne violettgrauen Farbstich, hell weiß)", common_dialog, results)
+
+    def lists():
+        # Listen in Dialogen ohne harten macOS-Rahmen, Auswahl abgerundet in Akzentfarbe (unfokussiert grau)
+        res = m.js(COMPOSE_CHECK_JS + r"""
+          const out = {};
+          out.spell = await withCompose({ body: "<p>Ein Tset mit Fehlrn und noch mehr Fehlren.</p>" }, cw =>
+            dialog(() => cw.goDoCommand("cmd_spelling"), "EdSpellCheck", async (dw, dd) => {
+              await pause(600);
+              const list = dd.getElementById("SuggestedList");
+              if (!list.itemCount) list.appendItem("Probe");
+              if (list.selectedIndex < 0) list.selectedIndex = 0;
+              await front(dw); list.focus(); await pause(300);
+              const item = list.selectedItem;
+              const r = { appearance: csOf(list).appearance, radius: parseFloat(csOf(item).borderTopLeftRadius), focus: list.matches(":focus"),
+                          focused: csOf(item).backgroundColor, accent: colorOf(dd, "AccentColor") };
+              dd.getElementById("ReplaceWordInput").focus(); await pause(300); r.unfocused = csOf(item).backgroundColor;
+              return r; }));
+          // Filter-Editor: Zeilen mit Menülisten und Feldern behalten ihre Farben
+          const f = await testFolder(); w.MsgFilters(null, f);
+          const lw = await winUrl("FilterListDialog"); if (!lw) throw new Error("Filterliste nicht offen");
+          await pause(1000);
+          try {
+            out.filter = await dialog(() => lw.onNewFilter(), "FilterEditor", async (dw, dd) => ({
+              terms: csOf(dd.getElementById("searchTermList")).appearance, actions: csOf(dd.getElementById("filterActionList")).appearance }));
+          } finally { await shut(lw); }
+          return out;""")
+        s, f = res["spell"], res["filter"]
+        ok = (s["appearance"] == "none" and s["radius"] >= 6 and s["focus"] and same_color(s["focused"], s["accent"])
+              and not same_color(s["unfocused"], s["accent"]) and f["terms"] == "none" and f["actions"] == "none")
+        return ok, f"{res}"
+    check("Dialoge: Listen ohne harten Rahmen, Auswahl abgerundet in Akzentfarbe (Rechtschreibung), Filter-Editor ohne macOS-Rahmen", lists, results)
+
+    def tabs():
+        res = m.js(COMPOSE_CHECK_JS + r"""
+          return await withCompose({}, cw => dialog(() => cw.goDoCommand("cmd_image"), "EdImageProps", async (dw, dd) => {
+            const tabs = dd.querySelector("tabs"), t = tabs.querySelector("tab[selected]"), u = tabs.querySelector("tab:not([selected])");
+            const s = csOf(t), after = csOf(t, "::after");
+            return { bottom: parseFloat(s.borderBottomWidth), radius: parseFloat(s.borderTopLeftRadius), bg: s.backgroundColor,
+                     control: colorOf(dd, "var(--mt-control)", "backgroundColor"), after: [after.display, after.content],
+                     tabsLine: parseFloat(csOf(tabs).borderBottomWidth), other: csOf(u).backgroundColor }; }));""")
+        ok = (res["bottom"] == 0 and res["radius"] >= 12 and same_color(res["bg"], res["control"])
+              and (res["after"][0] == "none" or res["after"][1] == "none") and res["tabsLine"] == 0 and rgba_alpha(res["other"]) == 0)
+        return ok, f"{res}"
+    check("Dialoge: Reiter als Segment-Kapseln ohne Strich und Linie (Bild einfügen)", tabs, results)
+
+    def customize():
+        res = m.js(COMPOSE_CHECK_JS + r"""
+          return await withCompose({}, async (cw, cd) => {
+            cw.CustomizeMailToolbar("compose-toolbox", "CustomizeComposeToolbar");
+            const frame = cd.getElementById("customizeToolbarSheetIFrame");
+            const d2 = await till(() => { const x = frame?.contentDocument; return x?.readyState == "complete" && x.getElementById("palette-box")?.querySelector("toolbarspring") && x; }, 8000);
+            if (!d2) return { open: false };
+            await pause(800);
+            const box = d2.getElementById("palette-box"), spring = box.querySelector("toolbarspring"), s = csOf(box);
+            const out = { open: true, border: parseFloat(s.borderTopWidth), radius: parseFloat(s.borderTopLeftRadius), bg: s.backgroundColor,
+                          spring: [csOf(spring).borderTopStyle, parseFloat(csOf(spring).borderTopLeftRadius)] };
+            try { frame.contentWindow.onClose(); } catch {} await pause(800);
+            return out; });""")
+        ok = res.get("open") and res["border"] == 0 and res["radius"] >= 8 and rgba_alpha(res["bg"]) <= 0.15 and res["spring"][0] == "dashed" and res["spring"][1] >= 4
+        return ok, f"{res}"
+    check("Verfassen: Anpassen-Sheet mit ruhiger Palette ohne Rahmen, Platzhalter gestrichelt und gerundet", customize, results)
+
+    def separator():
+        res = m.js(COMPOSE_CHECK_JS + r"""
+          return await withCompose({}, cw => dialog(() => cw.goDoCommand("cmd_link"), "EdLinkProps", async (dw, dd) => {
+            const s = dd.getElementById("advancedSeparator");
+            return { border: csOf(s).borderTopWidth, height: s.getBoundingClientRect().height, bg: csOf(s).backgroundColor,
+                     line: colorOf(dd, "var(--mt-pane-line)", "backgroundColor") }; }));""")
+        ok = res["border"] == "0px" and res["height"] <= 1 and same_color(res["bg"], res["line"])
+        return ok, f"{res}"
+    check("Dialoge: Trennlinie über OK/Abbrechen als Haarlinie (Link einfügen)", separator, results)
+
+    # Empfängerzeilen: vier Empfänger in An (bricht bei 860 px um), einer in Cc, Bcc leer eingeblendet – ein Fenster für drei Prüfungen
+    rcpt = {}
+
+    def recipients():
+        if not rcpt:
+            rcpt.update(m.js(COMPOSE_CHECK_JS + r"""
+              const to = "Anna Beispiel <anna@example.invalid>, Ben Muster <ben@example.invalid>, Carla Ölmann <carla@example.invalid>, "
+                + "Dr. Maximilian Alexander von Langenname-Überlänge <maximilian.von.langenname@example.invalid>";
+              return await withCompose({ to, cc: "Projektteam <team@example.invalid>", width: 860 }, async (cw, cd) => {
+                const pills = () => [...cd.querySelectorAll("#toAddrContainer mail-address-pill")];
+                const top = p => Math.round(p.getBoundingClientRect().top), left = p => Math.round(p.getBoundingClientRect().left * 10) / 10;
+                const rows = () => new Set(pills().map(top)).size;
+                for (const width of [760, 680]) { if (rows() >= 2) break; cw.resizeTo(width, 760); await pause(800); }
+                cw.showAndFocusAddressRow("addressRowBcc"); await pause(500);
+                const all = pills(), first = all[0], textLeft = el => el.getBoundingClientRect().left + parseFloat(csOf(el).paddingLeft);
+                const bar = csOf(cd.getElementById("MsgHeadersToolbar")).backgroundColor, bcc = cd.querySelector("#bccAddrContainer .address-input");
+                const out = { dark, rows: rows(), bar, pill: csOf(first).backgroundColor,
+                  to: [mid(cd.getElementById("toAddrLabel")), mid(first)],
+                  cc: [mid(cd.getElementById("ccAddrLabel")), mid(cd.querySelector("#ccAddrContainer mail-address-pill"))],
+                  bcc: [mid(cd.getElementById("bccAddrLabel")), mid(bcc)],
+                  first: left(first), wrapped: all.filter(p => top(p) > top(first) + 4).map(left),
+                  bccText: textLeft(bcc), subjectText: textLeft(cd.getElementById("msgSubject")) };
+                out.pillLum = lum(over(rgba(out.pill), rgba(bar))); out.barLum = lum(rgba(bar));
+                // Zustände ohne Übergang messen (verdeckte Testfenster halten Übergänge an)
+                const p = all[1]; p.style.transition = "none";
+                p.setAttribute("selected", "selected"); await pause(150); out.selected = csOf(p).backgroundColor; p.removeAttribute("selected");
+                p.classList.add("invalid-address"); await pause(150); out.invalid = csOf(p).backgroundColor; p.classList.remove("invalid-address");
+                p.style.transition = ""; out.accent = colorOf(cd, "AccentColor");
+                return out; });"""))
+        return rcpt
+
+    def labels():
+        r = recipients()
+        ok = all(a is not None and b is not None and abs(a - b) <= 1.5 for a, b in (r["to"], r["cc"], r["bcc"]))
+        return ok, f"Mitte Beschriftung/Pille: An {r['to']}, Cc {r['cc']}, Bcc leer (Eingabefeld) {r['bcc']}"
+    check("Verfassen: „An“, „Cc“ und „Bcc“ auf der Höhe der ersten Pille bzw. des leeren Eingabefelds", labels, results)
+
+    def wrap():
+        r = recipients()
+        ok = (r["rows"] >= 2 and r["wrapped"] and all(abs(x - r["first"]) <= 0.5 for x in r["wrapped"])
+              and abs(r["bccText"] - r["subjectText"]) <= 1)
+        return ok, (f"{r['rows']} Zeilen, erste Pille links {r['first']}, umbrochene {r['wrapped']}; "
+                    f"Text leeres Bcc {r['bccText']} gegen Betreff {r['subjectText']}")
+    check("Verfassen: umbrochene Empfänger-Pillen beginnen bündig mit der ersten, leeres Feld bündig mit dem Betreff", wrap, results)
+
+    def pill_color():
+        r = recipients()
+        # dunkel heller als die Fläche (vorher dunkler: „Löcher“), hell weiter Thunderbirds Grau (dunkler als die Fläche)
+        lighter = r["pillLum"] > r["barLum"] if r["dark"] else r["pillLum"] < r["barLum"]
+        ok = lighter and same_color(r["selected"], r["accent"]) and same_color(r["invalid"], "rgb(215, 0, 34)")
+        return ok, (f"Pille {r['pill']} auf {r['bar']} (Leuchtdichte {r['pillLum']:.4f} gegen {r['barLum']:.4f}), "
+                    f"ausgewählt {r['selected']} (Akzent {r['accent']}), ungültige Adresse {r['invalid']}")
+    check("Verfassen: Empfänger-Pillen dunkel heller als die Fläche; Auswahl und Warnfarbe ungültiger Adressen bleiben", pill_color, results)
+
+    def narrow_toolbar():
+        # schmales Fenster: nur Symbole statt gekürzter Beschriftungen, Formatleiste innerhalb des Fensters; breit wieder mit Beschriftung
+        res = m.js(COMPOSE_CHECK_JS + r"""
+          return await withCompose({}, async (cw, cd) => {
+            const bar = cd.getElementById("composeToolbar2"), fmt = cd.getElementById("FormatToolbar"), box = cd.getElementById("compose-toolbox");
+            const state = () => { const texts = [...bar.querySelectorAll(":scope > toolbarbutton .toolbarbutton-text")].filter(vis);
+              return { width: cw.innerWidth, icons: bar.hasAttribute("mc-icons-only"), labels: texts.length,
+                       cut: texts.filter(t => t.scrollWidth > t.clientWidth + 1).map(t => t.value || t.textContent),
+                       overflow: bar.scrollWidth - bar.clientWidth, fmt: [fmt.scrollWidth, fmt.clientWidth],
+                       outside: [...fmt.children].filter(c => vis(c) && c.getBoundingClientRect().right > cw.innerWidth + 0.5).map(c => c.id || c.localName) }; };
+            const size = async width => { cw.resizeTo(width, 700); await till(() => cw.innerWidth == width, 3000); await pause(900); return state(); };
+            const out = { mode: box.getAttribute("mode") };
+            out.narrow = await size(640); out.tiny = await size(560); out.wide = await size(1000);
+            // Modus „nur Text“: Beschriftungen bleiben auch schmal (sonst leere Knöpfe)
+            box.setAttribute("mode", "text"); out.text = await size(640);
+            box.setAttribute("mode", out.mode || "full"); await pause(300);
+            return out; });""")
+        n, t, wd, tx = res["narrow"], res["tiny"], res["wide"], res["text"]
+        fits = lambda s: not s["cut"] and s["overflow"] <= 1 and s["fmt"][0] <= s["fmt"][1] + 1 and not s["outside"]
+        ok = (n["icons"] and n["labels"] == 0 and fits(n) and t["icons"] and fits(t)
+              and not wd["icons"] and wd["labels"] >= 3 and fits(wd)
+              and not tx["icons"] and tx["labels"] >= 3)
+        return ok, f"{res}"
+    check("Verfassen: schmales Fenster zeigt nur Symbole statt gekürzter Beschriftungen, Formatleiste bleibt im Fenster; breit wieder mit Beschriftung", narrow_toolbar, results)
+
+
+FOLDER_JS = r"""
+  const { MailServices } = ChromeUtils.importESModule("resource:///modules/MailServices.sys.mjs");
+  try { MailServices.accounts.localFoldersServer; } catch { MailServices.accounts.createLocalMailAccount(); await wait(500); }
+  const csOf = (el, pseudo) => el.ownerDocument.defaultView.getComputedStyle(el, pseudo);
+  // berechnete Farbe eines Werts (var(--mt-…)) im Dokument
+  const colorOf = (doc, value, prop = "color") => { const e = doc.createElementNS("http://www.w3.org/1999/xhtml", "div"); e.style[prop] = value;
+    doc.documentElement.append(e); const c = csOf(e)[prop]; e.remove(); return c; };
+  const rgba = c => { const v = (String(c).match(/-?[\d.]+(?:e-?\d+)?/g) || []).map(Number); const k = String(c).startsWith("color(") ? 255 : 1;
+    return [v[0] * k, v[1] * k, v[2] * k, v.length > 3 ? v[3] : 1]; };
+  const lum = c => { const [r, g, b] = c.slice(0, 3).map(x => { x /= 255; return x <= 0.03928 ? x / 12.92 : ((x + 0.055) / 1.055) ** 2.4; }); return 0.2126 * r + 0.7152 * g + 0.0722 * b; };
+  const contrast = (a, b) => { const [x, y] = [lum(a), lum(b)].sort((p, q) => q - p); return Math.round((x + 0.05) / (y + 0.05) * 100) / 100; };
+  // ausgeblendet (display oder visibility) bzw. gar nicht vorhanden
+  const gone = el => !el || csOf(el).display == "none" || csOf(el).visibility == "hidden";"""
+
+
+def folder_checks(m, results):
+    """Ordnerliste, Toolbar und Suche: neue Mails, Platz für den Bereiche-Knopf, Abschnitte ohne Linien, globale Suche
+    (Suchfeld, Ergebnis-Tab, Vorschläge), Toolbar anpassen, „Anpassen…“ der Bereiche-Leiste."""
+
+    def new_messages():
+        res = m.js(FOLDER_JS + r"""
+          const a3 = await toMail(); const ad = a3.document; const tree = ad.getElementById("folderTree");
+          const li = await until(() => [...tree.querySelectorAll("li:not([data-server-type], [data-mode], .unselectable)")]
+            .find(x => x.querySelector(":scope > .container > .name")?.getBoundingClientRect().width));
+          if (!li) return { folder: null };
+          li.classList.add("new-messages"); await wait(150);
+          const name = li.querySelector(":scope > .container > .name"), star = li.querySelector(":scope > .container > .new-icon");
+          const out = { folder: name.textContent, color: csOf(name).color, text: colorOf(ad, "var(--mt-text)"), weight: csOf(name).fontWeight,
+                        star: star ? csOf(star).visibility : "fehlt" };
+          li.classList.remove("new-messages");
+          // Kontozeile bleibt grauer Abschnittstitel
+          const srv = tree.querySelector("li[data-server-type] > .container > .name");
+          if (srv) { const sl = srv.closest("li"); const had = sl.classList.contains("new-messages"); sl.classList.add("new-messages"); await wait(100);
+            out.server = csOf(srv).color; out.tertiary = colorOf(ad, "var(--mt-text-tertiary)"); if (!had) sl.classList.remove("new-messages"); }
+          return out;""")
+        ok = (res.get("folder") is not None and same_color(res["color"], res["text"]) and res["weight"] == "400" and res["star"] == "hidden"
+              and ("server" not in res or same_color(res["server"], res["tertiary"])))
+        return ok, f"{res}"
+    check("Ordnerliste: Ordner mit neuen Mails ohne Funkelstern, Name in Textfarbe wie die übrigen", new_messages, results)
+
+    def toggle_room():
+        # Bereiche-Leiste aus: der Knopf unten links schwebt über der Ordnerliste – ganz nach unten gescrollt endet die
+        # letzte Zeile darüber (auch ohne Statusleiste); Liste künstlich kurz, damit sie im leeren Testprofil scrollt
+        res = m.js(FOLDER_JS + r"""
+          const a3 = await toMail(); const ad = a3.document; const tree = ad.getElementById("folderTree");
+          const wasHidden = w.gSpacesToolbar.isHidden;
+          w.gSpacesToolbar.toggleToolbar(true); await wait(900);
+          try {
+            const btn = d.getElementById("mcSpacesToggle").getBoundingClientRect();
+            const off = a3.browsingContext.embedderElement.getBoundingClientRect();
+            const pane = ad.getElementById("folderPane").getBoundingClientRect();
+            const pad = parseFloat(csOf(tree).paddingBottom);
+            tree.style.maxHeight = "120px"; await wait(200);
+            tree.scrollTop = tree.scrollHeight; await wait(200);
+            const t = tree.getBoundingClientRect();
+            const rows = [...tree.querySelectorAll("li > .container")].filter(c => c.getBoundingClientRect().height > 0);
+            const last = rows.at(-1)?.getBoundingClientRect();
+            return { pad, btnTop: Math.round(btn.top), btnW: Math.round(btn.width), btnLeft: Math.round(btn.left), paneBottom: Math.round(off.top + pane.bottom),
+                     paneLeft: Math.round(off.left + pane.left), win: w.innerHeight, scrolls: tree.scrollHeight > tree.clientHeight,
+                     lastGap: last ? Math.round(t.bottom - last.bottom) : null };
+          } finally {
+            tree.style.maxHeight = ""; tree.scrollTop = 0;
+            if (!wasHidden) w.gSpacesToolbar.toggleToolbar(false);
+            await wait(600);
+          }""")
+        ok = (res["btnW"] > 0 and res["btnLeft"] >= res["paneLeft"] and res["pad"] >= 46
+              and res["paneBottom"] - res["pad"] <= res["btnTop"] - 4 and res["win"] - res["pad"] <= res["btnTop"]
+              and res["scrolls"] and res["lastGap"] is not None and res["lastGap"] >= res["pad"] - 1)
+        return ok, f"{res}"
+    check("Ordnerliste: letzte Zeile lässt sich über den Bereiche-Knopf hinaus scrollen (Leiste ausgeblendet)", toggle_room, results)
+
+    def mode_lines():
+        res = m.js(FOLDER_JS + r"""
+          const a3 = await toMail(); const ad = a3.document; const fp = a3.folderPane; const old = fp.activeModes;
+          fp.activeModes = ["smart", "all", "unread", "recent"]; await wait(1200);
+          const out = [...ad.querySelectorAll("#folderTree > li[data-mode] > .mode-container")].filter(c => csOf(c).display != "none")
+            .map(c => [c.parentNode.dataset.mode, csOf(c).borderTopStyle, csOf(c).borderTopWidth]);
+          fp.activeModes = old; await wait(800);
+          return out;""")
+        ok = len(res) >= 3 and all(s == "none" or wd == "0px" for _, s, wd in res)
+        return ok, f"{res}"
+    check("Ordnerliste: Abschnitte (Favoriten, Ungelesen, Zuletzt) einheitlich ohne Linie darüber", mode_lines, results)
+
+    # globale Suche im eigenen Tab: ein Tab für zwei Prüfungen
+    gloda = {}
+
+    def gloda_tab():
+        if not gloda:
+            gloda.update(m.js(FOLDER_JS + r"""
+              const { GlodaMsgSearcher } = ChromeUtils.importESModule("resource:///modules/gloda/GlodaMsgSearcher.sys.mjs");
+              await toMail();
+              const measure = () => { const p = d.getElementById("spacesPinnedButton").getBoundingClientRect();
+                const s = d.querySelector('#unifiedToolbarContent > li[item-id="search-bar"]')?.getBoundingClientRect();
+                return { pinned: Math.round(p.right), search: s?.width ? Math.round(s.left) : null }; };
+              const fits = () => { const x = measure(); return x.search !== null && x.search >= x.pinned + 11 && x; };
+              const tab = tm.openTab("glodaFacet", { searcher: new GlodaMsgSearcher(null, "halo") });
+              const out = {};
+              try {
+                await wait(1500);
+                out.first = await until(fits, 4000) || measure();
+                // nach einem Bereich mit anderer Kante (Kalender) wieder zum Such-Tab
+                await toCalendar(); tm.switchToTab(tab); await wait(1200);
+                out.again = await until(fits, 4000) || measure();
+                const gd = await until(() => { const x = tab.browser?.contentDocument; return x?.readyState == "complete" && x.getElementById("gloda-facet-view") && x; }, 6000);
+                if (gd) {
+                  const view = gd.getElementById("gloda-facet-view"), empty = gd.querySelector("span.empty"), img = gd.querySelector("img.empty");
+                  out.view = { bg: csOf(view).backgroundColor, window: colorOf(gd, "var(--mt-window)", "backgroundColor"),
+                    side: csOf(gd.querySelector(".facets-sidebar")).backgroundColor, sidebar: colorOf(gd, "var(--mt-sidebar)", "backgroundColor"),
+                    empty: csOf(empty).color, secondary: colorOf(gd, "var(--mt-text-secondary)"), img: csOf(img).width };
+                  out.view.contrast = contrast(rgba(out.view.empty), rgba(out.view.bg));
+                  // Treffer mit denselben Klassen wie glodaFacet.js nachgebaut (Gloda indiziert im Testprofil
+                  // nicht verlässlich rechtzeitig); Thunderbirds Regeln hängen nur an den Klassen
+                  const mk = (tag, cls, text) => { const e = gd.createElementNS("http://www.w3.org/1999/xhtml", tag); e.className = cls;
+                    if (text) e.textContent = text; return e; };
+                  const box = mk("div", "halo-test"), m1 = mk("div", "message"), m2 = mk("div", "message");
+                  const subj = mk("span", "message-subject", "Betreff"), tag = mk("span", "message-tag", "To Do"),
+                        body = mk("div", "message-body", "Auszug"), bar = mk("span", "bar-link", "Anna Beispiel");
+                  m1.append(subj, tag, body); box.append(m1, m2, bar); gd.getElementById("main-column").append(box);
+                  out.results = { font: csOf(view).fontFamily, msg: csOf(m1).fontFamily, bodyFont: csOf(body).fontFamily,
+                    subj: [csOf(subj).color, csOf(subj).fontSize, csOf(subj).fontWeight], text: colorOf(gd, "var(--mt-text)"),
+                    body: [csOf(body).color, csOf(body).fontSize], line: csOf(m1).borderBottomColor, sep: colorOf(gd, "var(--mt-separator)"),
+                    person: csOf(bar).color, tag: [csOf(tag).borderTopStyle, csOf(tag).borderTopLeftRadius] };
+                  box.remove();
+                }
+                const rs = tab.panel?.querySelector(".remote-gloda-search");
+                out.field = rs && { border: csOf(rs).borderTopStyle, radius: parseFloat(csOf(rs).borderTopLeftRadius), height: Math.round(rs.getBoundingClientRect().height),
+                                    bg: csOf(rs).backgroundColor, control: colorOf(d, "var(--mt-control)", "backgroundColor") };
+              } finally { tm.closeTab(tab); await wait(600); await toMail(); }
+              return out;"""))
+        return gloda
+
+    def gloda_search_field():
+        g = gloda_tab()
+        ok = all(g.get(k, {}).get("search") is not None and g[k]["search"] >= g[k]["pinned"] + 11 for k in ("first", "again"))
+        return ok, f"Suchfeld links / Seitenleisten-Knopf rechts: zuerst {g.get('first')}, nach dem Kalender {g.get('again')}"
+    check("Globale Suche: Suchfeld oben rechts vom Seitenleisten-Knopf, auch nach dem Wechsel aus dem Kalender", gloda_search_field, results)
+
+    def gloda_page():
+        g = gloda_tab()
+        v, f = g.get("view") or {}, g.get("field") or {}
+        ok = (bool(v) and same_color(v["bg"], v["window"]) and same_color(v["side"], v["sidebar"]) and same_color(v["empty"], v["secondary"])
+              and v["contrast"] >= 4.5 and v["img"].endswith("px") and float(v["img"][:-2]) <= 64
+              and bool(f) and f["border"] == "none" and f["radius"] >= 14 and f["height"] >= 26 and same_color(f["bg"], f["control"]))
+        return ok, f"Seite {v}; Suchfeld {f}"
+    check("Globale Suche: Ergebnis-Tab in den Flächen der übrigen Ansichten, Leerhinweis grau (Kontrast ≥ 4,5:1), Suchfeld als Kapsel", gloda_page, results)
+
+    def gloda_results():
+        g = gloda_tab()
+        r, v = g.get("results") or {}, g.get("view") or {}
+        ok = (bool(r) and r["msg"] == r["font"] and r["bodyFont"] == r["font"] and "monospace" not in r["bodyFont"]
+              and same_color(r["subj"][0], r["text"]) and r["subj"][1] == "13px" and r["subj"][2] == "600"
+              and same_color(r["body"][0], v.get("secondary")) and r["body"][1] == "12px"
+              and same_color(r["line"], r["sep"]) and same_color(r["person"], r["text"])
+              and r["tag"] == ["none", "4px"])
+        return ok, f"{r}"
+    check("Globale Suche: Treffer in Systemschrift statt Monospace, Betreff und Personen in Textfarbe statt Linkblau, Linien als Haarlinie",
+          gloda_results, results)
+
+    def menu_accel():
+        # Tastenkürzel in Menüs (z. B. „Markieren“): neutral grau statt blaugrau, im markierten Eintrag in Auswahl-Schrift.
+        # Eigenes kleines Menü im Hauptfenster (Einträge geschlossener Menüs haben keine berechneten Stile)
+        res = m.js(FOLDER_JS + r"""
+          await toMail();
+          const p = d.createXULElement("menupopup"), mi = d.createXULElement("menuitem"), off = d.createXULElement("menuitem");
+          mi.setAttribute("label", "Als ungelesen"); mi.setAttribute("acceltext", "M");
+          off.setAttribute("label", "Als gelesen"); off.setAttribute("acceltext", "M"); off.setAttribute("disabled", "true");
+          p.append(mi, off); (d.getElementById("mainPopupSet") || d.documentElement).append(p);
+          p.openPopupAtScreen(w.screenX + 300, w.screenY + 200, false);
+          const out = {};
+          try {
+            out.state = await until(() => p.state == "open" && p.state, 4000) || p.state;
+            const acc = mi.querySelector(".menu-accel"), acc2 = off.querySelector(".menu-accel");
+            if (!acc) return out;
+            Object.assign(out, { color: csOf(acc).color, secondary: colorOf(d, "var(--mt-text-secondary)"),
+                                 disabled: [csOf(acc2).color, csOf(off).color] });
+            mi.setAttribute("_moz-menuactive", "true"); await wait(100);
+            out.active = [csOf(acc).color, csOf(mi).color, colorOf(d, "var(--mt-accent-text)")];
+          } finally { p.hidePopup(); await wait(300); p.remove(); }
+          return out;""")
+        ok = (bool(res.get("color")) and same_color(res["color"], res["secondary"]) and same_color(res["disabled"][0], res["disabled"][1])
+              and same_color(res["active"][0], res["active"][1]) and same_color(res["active"][0], res["active"][2]))
+        return ok, f"{res}"
+    check("Menüs: Tastenkürzel neutral grau, im markierten Eintrag in der Schriftfarbe der Auswahl", menu_accel, results)
+
+    def folder_menu_icons():
+        # Ordnermenü „Verschieben“ (Toolbar): Umriss-Symbole wie die Ordnerliste in Akzentfarbe, Papierkorb und Konto
+        # mit eigenem Symbol; markiertes Konto in der Schrift der Auswahl, ohne dass sein Untermenü das erbt
+        res = m.js(FOLDER_JS + r"""
+          await toMail();
+          const P = d.getElementById("toolbarMoveToPopup");
+          const mask = v => { const e = d.createElementNS("http://www.w3.org/1999/xhtml", "div"); e.style.maskImage = v;
+            d.documentElement.append(e); const r = csOf(e).maskImage; e.remove(); return r; };
+          const icon = x => x.querySelector(":scope > .menu-icon");
+          const info = x => { const s = csOf(icon(x)); return { label: x.getAttribute("label"), mask: s.maskImage, bg: s.backgroundColor, w: s.width }; };
+          const out = { accent: colorOf(d, "var(--mt-accent)"), folder: mask("var(--mi-folder)"), serverMask: mask("var(--mi-server)"),
+                        trashMask: mask("var(--mi-trash)") };
+          P.openPopupAtScreen(w.screenX + 300, w.screenY + 200, false);
+          try {
+            out.state = await until(() => P.state == "open" && P.state, 4000) || P.state;
+            const server = [...P.children].find(x => x.getAttribute("IsServer") == "true");
+            const plain = [...P.children].find(x => x.classList.contains("folderMenuItem") && !x.hasAttribute("IsServer"));
+            if (!server || !plain || !icon(server)) return { ...out, fehlt: [!!server, !!plain] };
+            server.openMenu(true);
+            out.sub_state = await until(() => server.menupopup?.state == "open" && "open", 4000) || server.menupopup?.state;
+            const kids = [...server.menupopup.children].filter(x => x.classList.contains("folderMenuItem"));
+            const trash = kids.find(x => x.getAttribute("SpecialFolder") == "Trash"), sub = kids.find(x => x.getAttribute("SpecialFolder") == "none");
+            Object.assign(out, { plain: info(plain), trash: trash && info(trash), sub: sub && info(sub) });
+            server.setAttribute("_moz-menuactive", "true"); await wait(100);
+            out.server = info(server); out.server_color = csOf(server).color; out.trash_active = trash && csOf(icon(trash)).backgroundColor;
+          } finally { P.hidePopup(); await wait(400); }
+          // Ordner- und Mailansicht erlauben data:-Bilder (sonst fielen die Masken dort aus)
+          const scope = ':has(> head > meta[http-equiv="Content-Security-Policy"][content*="data:"])';
+          const a3 = tm.currentAbout3Pane;
+          out.scope = [d, a3.document, a3.messageBrowser?.contentDocument].map(x => !!x && x.documentElement.matches(scope));
+          return out;""")
+        if not res or "fehlt" in res or "plain" not in res:
+            return False, f"{res}"
+        acc, trash, sub = res["accent"], res.get("trash") or {}, res.get("sub")
+        flags = {
+            "Ordner": res["plain"]["mask"] == res["folder"] and same_color(res["plain"]["bg"], acc) and res["plain"]["w"] == "16px",
+            "Konto markiert": res["server"]["mask"] == res["serverMask"] and same_color(res["server"]["bg"], res["server_color"]),
+            "Papierkorb": trash.get("mask") == res["trashMask"] and same_color(trash.get("bg"), acc) and same_color(res.get("trash_active"), acc),
+            "Unterordner": not sub or (sub["mask"] == res["folder"] and same_color(sub["bg"], acc)),
+            "CSP erlaubt data:": res["scope"] == [True, True, True]}
+        detail = {k: v for k, v in res.items() if k not in ("folder", "serverMask", "trashMask")}
+        for k in ("plain", "server", "trash", "sub"):
+            if detail.get(k):
+                detail[k] = {**detail[k], "mask": detail[k]["mask"][:40]}
+        return all(flags.values()), f"{flags} {detail}"
+    check("Ordnermenüs (Verschieben): Umriss-Symbole in Akzentfarbe wie die Ordnerliste statt Thunderbirds gefüllter Ordner",
+          folder_menu_icons, results)
+
+    def suggestions():
+        res = m.js(FOLDER_JS + r"""
+          const p = d.getElementById("PopupGlodaAutocomplete"); if (!p) return null; const s = csOf(p);
+          return { font: s.fontSize, border: colorOf(d, s.getPropertyValue("--panel-border-color").trim() || "red"),
+                   bg: colorOf(d, s.getPropertyValue("--panel-background-color").trim() || "red"), menu: colorOf(d, "var(--mt-menu-bg)"),
+                   url: colorOf(d, s.getPropertyValue("--autocomplete-popup-url-color").trim() || "red"), secondary: colorOf(d, "var(--mt-text-secondary)") };""")
+        ok = (res is not None and res["font"] == "13px" and rgba_alpha(res["border"]) == 0 and same_color(res["bg"], res["menu"])
+              and same_color(res["url"], res["secondary"]))
+        return ok, f"{res}"
+    check("Suche: Vorschlagsliste wie die übrigen Menüs (13 px, ohne harten Rand, Adressen grau)", suggestions, results)
+
+    def customize_toolbar():
+        res = m.js(FOLDER_JS + r"""
+          await toMail();
+          d.querySelector("unified-toolbar").showCustomization();
+          const out = { on: !!await until(() => d.documentElement.classList.contains("customizingUnifiedToolbar")) };
+          try {
+            await wait(800);
+            const IDS = ["mcListHeader", "mcTodayToggle", "mcTodayTop", "mcTodayNew", "mcSpacesToggle"];
+            const row = d.getElementById("unifiedToolbarContainer");
+            out.shown = IDS.filter(id => !gone(d.getElementById(id)));
+            out.hits = [[w.innerWidth - 50, 10], [30, w.innerHeight - 20], [400, 10]]
+              .map(([x, y]) => d.elementFromPoint(x, y)?.closest?.('[id^="mc"]')?.id).filter(Boolean);
+            out.row = [csOf(row).backgroundImage, csOf(row).backgroundColor, colorOf(d, "var(--mt-window)", "backgroundColor"), csOf(row, "::before").display];
+          } finally {
+            d.querySelector("unified-toolbar-customization").toggle(false);
+            out.off = !!await until(() => !d.documentElement.classList.contains("customizingUnifiedToolbar"));
+            await wait(600);
+          }
+          out.back = ["mcListHeader", "mcSpacesToggle"].filter(id => gone(d.getElementById(id)));
+          return out;""")
+        r = res.get("row") or ["?", "", "", ""]
+        ok = (res["on"] and res["off"] and not res["shown"] and not res["hits"] and r[0] == "none" and same_color(r[1], r[2])
+              and r[3] == "none" and not res["back"])
+        return ok, f"{res}"
+    check("Toolbar anpassen: Listenkopf, Today- und Bereiche-Knopf ausgeblendet, Zeile einfarbig; danach wieder da", customize_toolbar, results)
+
+    def spaces_customize():
+        res = m.js(FOLDER_JS + r"""
+          await toMail();
+          const item = id => d.getElementById(id);
+          const sep = item("settingsContextOpenCustomizeItem")?.previousElementSibling;
+          const out = { hidden: ["spacesToolbarContextCustomize", "settingsContextOpenCustomizeItem"].map(id => item(id)?.hidden ?? "fehlt"),
+                        sep: sep?.localName == "menuseparator" ? sep.hidden : "fehlt" };
+          const pop = async (menu, target) => { const r = target.getBoundingClientRect();
+            target.dispatchEvent(new w.MouseEvent("contextmenu", { bubbles: true, cancelable: true, clientX: r.left + r.width / 2, clientY: r.top + r.height / 2,
+              screenX: w.screenX + r.left + r.width / 2, screenY: w.screenY + r.top + r.height / 2 }));
+            await wait(700); const state = menu.state;
+            const visible = [...menu.children].filter(c => !c.hidden && c.localName == "menuitem").length;
+            if (state != "closed") { menu.hidePopup(); await wait(400); } return { state, visible }; };
+          // Rechtsklick auf die leere Leiste: kein (leeres) Menü
+          out.bar = await pop(item("spacesToolbarContextMenu"), item("spacesToolbar"));
+          out.customizing = w.gSpacesToolbar.isCustomizing;
+          // Gegenprobe: das Menü am Einstellungen-Knopf geht weiter auf (Einstellungen, Konten, Add-ons)
+          out.settings = await pop(item("settingsContextMenu"), item("settingsButton"));
+          const before = w.gSpacesToolbar.isHidden;
+          w.gSpacesToolbar.toggleToolbar(!before); await wait(300); out.toggled = w.gSpacesToolbar.isHidden != before;
+          w.gSpacesToolbar.toggleToolbar(before); await wait(500); out.restored = w.gSpacesToolbar.isHidden == before;
+          return out;""")
+        ok = (res["hidden"] == [True, True] and res["sep"] is True and res["bar"]["state"] == "closed" and res["customizing"] is False
+              and res["settings"]["state"] in ("open", "showing") and res["settings"]["visible"] == 3 and res["toggled"] and res["restored"])
+        return ok, f"{res}"
+    check("Bereiche-Leiste: „Anpassen…“ (öffnete nicht, sperrte das Ausblenden) entfernt, leere Leiste ohne leeres Menü", spaces_customize, results)
+
+
+# Kontextmenü der Mailliste per Rechtsklick auf die ausgewählte Testmail (nach MESSAGE_JS) öffnen;
+# dazu Farbhilfen (rgb()/color(srgb …) auf 0–255) und Kontrast nach WCAG
+MENU_JS = MESSAGE_JS + r"""
+  const ad = a3.document, P = ad.getElementById("mailContext");
+  const cs = (el, pseudo) => a3.getComputedStyle(el, pseudo);
+  const rgba = c => { const v = (String(c).match(/-?[\d.]+(?:e-?\d+)?/g) || []).map(Number); const k = String(c).startsWith("color(") ? 255 : 1;
+    return [v[0] * k, v[1] * k, v[2] * k, v.length > 3 ? v[3] : 1]; };
+  const over = (fg, bg) => fg.slice(0, 3).map((x, i) => x * fg[3] + bg[i] * (1 - fg[3])).concat(1);
+  const lum = c => { const [r, g, b] = c.slice(0, 3).map(x => { x /= 255; return x <= 0.03928 ? x / 12.92 : ((x + 0.055) / 1.055) ** 2.4; }); return 0.2126 * r + 0.7152 * g + 0.0722 * b; };
+  const contrast = (a, b) => { const [x, y] = [lum(a), lum(b)].sort((p, q) => q - p); return Math.round((x + 0.05) / (y + 0.05) * 100) / 100; };
+  const colorOf = value => { const e = ad.createElementNS("http://www.w3.org/1999/xhtml", "div"); e.style.color = value;
+    ad.documentElement.append(e); const c = cs(e).color; e.remove(); return c; };
+  const openContext = async () => {
+    const row = ad.querySelector('#threadTree tr.selected, #threadTree tr[aria-selected="true"]');
+    if (!row) return "keine Zeile";
+    const r = row.getBoundingClientRect(), x = r.left + Math.min(r.width / 2, 40), y = r.top + r.height / 2;
+    for (const [type, buttons] of [["mousedown", 2], ["contextmenu", 2], ["mouseup", 0]])
+      row.dispatchEvent(new a3.MouseEvent(type, { bubbles: true, cancelable: true, composed: true, view: a3, button: 2, buttons,
+        clientX: x, clientY: y, screenX: a3.mozInnerScreenX + x, screenY: a3.mozInnerScreenY + y }));
+    return await until(() => P.state == "open" && "open", 4000) || P.state;
+  };"""
+
+
+def menu_checks(m, results):
+    """Menüs: gleichmäßige Zeilen im Kontextmenü der Mailliste, lesbare Schlagwörter im Schlagwort-Menü."""
+
+    def nav_rows():
+        # Archivieren/Spam/Löschen baut halo.spaces aus Thunderbirds Symbolzeile zu Textzeilen um – sie waren 2 px niedriger
+        res = m.js(MENU_JS + r"""
+          const item = id => ad.getElementById(id);
+          const NAV = ["navContext-archive", "navContext-markAsJunk", "navContext-delete"], REST = ["mailContext-editAsNew", "mailContext-moveMenu", "mailContext-tags", "mailContext-saveAs"];
+          const out = { list: !!item("mailContext-navigation")?.classList.contains("mc-nav-list") };
+          out.state = await openContext();
+          try {
+            // berechnete Abstände gibt es erst bei offenem Menü
+            out.pad = Object.fromEntries([...NAV, ...REST].map(id => [id, item(id) ? cs(item(id)).paddingTop : "fehlt"]));
+            const h = id => { const e = item(id); return e && e.getClientRects().length ? Math.round(e.getBoundingClientRect().height * 10) / 10 : null; };
+            out.nav = NAV.map(h).filter(x => x); out.rest = REST.map(h).filter(x => x);
+          } finally { P.hidePopup(); await wait(400); }
+          return out;""")
+        pads = set((res.get("pad") or {"-": ""}).values())
+        hs = res.get("nav", []) + res.get("rest", [])
+        # Fenster verdeckt (Höhe 0): nur das Padding werten
+        heights_ok = (not any(hs)) or (len(res["nav"]) >= 2 and len(res["rest"]) >= 3 and max(hs) - min(hs) < 0.5)
+        ok = res["list"] and len(pads) == 1 and pads.pop().endswith("px") and heights_ok
+        return ok, f"{res}"
+    check("Kontextmenü Mailliste: Archivieren/Spam/Löschen so hoch wie die übrigen Zeilen", nav_rows, results)
+
+    def tag_menu():
+        # Schlagwort-Menü: Thunderbird färbt die Namen in der Grundfarbe (Orange auf Hellgrau 1,6:1) – gemischt mit der Textfarbe lesbar
+        res = m.js(MENU_JS + r"""
+          const sub = ad.getElementById("mailContext-tagpopup"), menu = ad.getElementById("mailContext-tags");
+          const text = colorOf("var(--mt-text)"), menuBg = rgba(colorOf("var(--mt-menu-bg)"));
+          const dark = lum(rgba(text)) > 0.5;
+          // gemessener Menügrund (durchscheinend) und die Menüfläche über Weiß bzw. Schwarz
+          const bgs = dark ? [[36, 36, 38, 1], over(menuBg, [0, 0, 0])] : [[224, 224, 224, 1], over(menuBg, [255, 255, 255])];
+          const out = { dark, state: await openContext(), tags: [] };
+          try {
+            menu.open = true;
+            out.sub = await until(() => sub.state == "open" && "open", 4000) || sub.state;
+            const tags = [...sub.querySelectorAll(':scope > menuitem[type="checkbox"]')].filter(x => x.style.color);
+            for (const t of tags) {
+              const tx = cs(t.querySelector(".menu-text")).color, icon = t.querySelector(".menu-icon");
+              out.tags.push({ name: t.getAttribute("label"), inline: t.style.color, text: tx, icon: icon ? cs(icon).color : null,
+                              contrast: Math.min(...bgs.map(b => contrast(rgba(tx), b))) });
+            }
+            if (tags[1]) { tags[1].setAttribute("_moz-menuactive", "true"); await wait(100);
+              out.active = [cs(tags[1].querySelector(".menu-text")).color, colorOf("var(--mt-accent-text)")];
+              tags[1].removeAttribute("_moz-menuactive"); }
+          } finally { sub.hidePopup?.(); P.hidePopup(); await wait(400); }
+          return out;""")
+        tags = res.get("tags", [])
+        ok = (len(tags) >= 5 and all(not same_color(t["text"], t["inline"]) and same_color(t["icon"], t["text"]) and t["contrast"] >= 4.5 for t in tags)
+              and same_color(*res.get("active", ["", "?"])))
+        return ok, f"{res}"
+    check("Schlagwort-Menü: Namen in Schlagwortfarbe lesbar (Kontrast ≥ 4,5:1), markiert in der Schrift der Auswahl", tag_menu, results)
+
+
+def rgba_alpha(c):
+    """Deckkraft aus rgb()/rgba()/color(srgb …) – 1, wenn keine angegeben ist."""
+    import re
+    v = re.findall(r"-?[\d.]+(?:e-?\d+)?", c or "")
+    return float(v[3]) if len(v) > 3 else 1.0
+
+
+def same_color(a, b, tol=2):
+    """Gleiche Farbe (rgb() und color(srgb …) gleichwertig), Abweichung höchstens tol je Kanal."""
+    import re
+    def norm(c):
+        v = [float(x) for x in re.findall(r"-?[\d.]+(?:e-?\d+)?", c or "")]
+        k = 255 if (c or "").startswith("color(") else 1
+        return [x * k for x in v[:3]] + [v[3] if len(v) > 3 else 1.0]
+    x, y = norm(a), norm(b)
+    return len(x) == 4 and len(y) == 4 and all(abs(p - q) <= (0.02 if i == 3 else tol) for i, (p, q) in enumerate(zip(x, y)))
+
+
 def run_checks(m, version, profile, results):
     # Vorbereitung: Fenstergröße, Testkalender, Fenster ohne Dialoge
     m.js("""
       for (const x of [...Services.wm.getEnumerator(null)]) if (!x.location.href.includes("messenger.xhtml")) x.close();
       w.moveTo(0, 0); w.resizeTo(1500, 900); await wait(500);
-      // Marionette sperrt Add-on-Updates – für die Prüfung „Updates beim Start“ erlauben
+      // Marionette sperrt Add-on-Updates – für die Prüfung „Updates beim Start“ erlauben. Die Update-Liste
+      // (updates.json auf GitHub) bleibt im Testprofil aber unerreichbar: ein veröffentlichtes Update
+      // ersetzte sonst mitten im Lauf Design und Logik des geprüften Pakets
+      Services.obs.addObserver({ observe(ch) { ch.QueryInterface(Ci.nsIHttpChannel);
+        if (/\\/updates\\.json(\\?|$)/.test(ch.URI.spec)) ch.cancel(Cr.NS_ERROR_ABORT); } }, "http-on-modify-request");
       Services.prefs.setBoolPref("extensions.update.enabled", true);
       // Aktionen beim Überfahren sind standardmäßig aus – für die Prüfungen einschalten
       Services.prefs.setBoolPref("extensions.mailcards.hoverActions", true);
@@ -932,6 +2224,8 @@ def run_checks(m, version, profile, results):
         return ok, f"{res}"
     check("Mailkarte und Mailkopf: Absendername aus der Domain, ganzes Datum, Abstände oben/unten gleich", card_sender_date, results)
 
+    maillist_checks(m, results)
+
     def reading():
         res = m.js(MESSAGE_JS + '''
           const am = a3.messageBrowser.contentWindow; const md = am.document;
@@ -1172,6 +2466,11 @@ def run_checks(m, version, profile, results):
         ok = res["placeholder"] and res["textHidden"] and res["size"] == [48, 40] and max(res["pixel"]) <= 1
         return ok, f"{res}"
     check("Blockierte Bilder: Platzhalter statt Ersatztext, Zählpixel unsichtbar", blocked_image, results)
+
+    reading_checks(m, results)
+    compose_checks(m, results)
+    folder_checks(m, results)
+    menu_checks(m, results)
 
     def min_widths():
         res = m.js('''

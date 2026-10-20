@@ -926,6 +926,14 @@ const CSS = `
      Rest der festen Zeilenhöhe landet unten (bei kompakter Dichte deutlich) */
   align-content: center !important;
 }
+/* Gruppenköpfe („Heute“, „Gestern“ … bei „Gruppiert nach Sortierung“): nur
+   eine Spalte wie bei Thunderbird – sonst landet der Text in der 46-px-Spalte
+   des Absenderbilds und wird abgeschnitten („Yesterd“). Unten an der Zeile,
+   direkt über der ersten Mail der Gruppe, wie ein Abschnittstitel. */
+#threadTree tr[is="thread-card"]:is(.dummy, [data-properties~="dummy"]) .card-container {
+  grid-template-columns: minmax(0, 1fr) !important;
+  align-content: end !important;
+}
 /* ohne Thunderbirds Innenabstand (nur bei normaler Dichte): das Mitteln
    übernimmt align-content, und das Bild sitzt bei jeder Dichte gleich zum Absender */
 #threadTree tr[is="thread-card"] .card-container > .thread-card-column:not(.read-status-column) {
@@ -1037,10 +1045,9 @@ const CSS = `
 #folderTree > li[data-mode] {
   border: none !important;
 }
-#threadTree tr[is="thread-card"].dummy .mc-avatar,
-#threadTree tr[is="thread-card"][data-properties~="dummy"] .mc-avatar,
-#threadTree tr[is="thread-card"][data-properties~="dummy"] .mc-preview {
-  visibility: hidden;
+/* Gruppenköpfe ohne Absenderbild und Vorschau (auch ohne deren Platz) */
+#threadTree tr[is="thread-card"]:is(.dummy, [data-properties~="dummy"]) :is(.mc-avatar, .mc-preview) {
+  display: none !important;
 }
 /* Aktionen beim Überfahren: rechts unten in der Karte */
 #threadTree tr[is="thread-card"] .mc-actions {
@@ -1159,21 +1166,25 @@ function orgDomain(domain) {
 }
 
 // Datum in der Mailliste: heute nur die Uhrzeit, gestern „Gestern“, davor
-// immer das ganze Datum (17.10.2026) – kein Wochentag
+// immer das ganze Datum (17.10.2026) – kein Wochentag.
+// Formatiert wie der Mailkopf: Thunderbirds eigener Formatierer ohne Sprache
+// nimmt die Regionaleinstellungen des Systems (auch 12/24 Stunden) – sonst
+// stand in der Liste „12:49 AM“ neben „00:49“ im Kopf
 function appleListDate(ms, now = new Date()) {
-  const locale = Services.locale.appLocaleAsBCP47;
+  const fmt = opts => new Services.intl.DateTimeFormat(undefined, opts);
   const d = new Date(ms);
   const startOfDay = x => new Date(x.getFullYear(), x.getMonth(), x.getDate()).getTime();
   const days = Math.round((startOfDay(now) - startOfDay(d)) / 86400000);
   // nur heute die Uhrzeit – Datum in der Zukunft (falsche Uhr beim Absender,
   // Spam „oben halten“) zeigt das ganze Datum
   if (days == 0) {
-    return new Intl.DateTimeFormat(locale, { timeStyle: "short" }).format(d);
+    return fmt({ timeStyle: "short" }).format(d);
   }
   if (days == 1) {
     return tr("Yesterday");
   }
-  return new Intl.DateTimeFormat(locale, { day: "2-digit", month: "2-digit", year: "numeric" }).format(d);
+  // „mittel“ ist das ganze Datum im Muster des Systems (17.10.2026)
+  return fmt({ dateStyle: "medium" }).format(d);
 }
 
 // Absender ohne eigenen Namen (nur die Adresse, oft auch als Name
@@ -1192,6 +1203,22 @@ function senderLabel(name, email) {
   }
   const label = org.split(".")[0];
   return label.charAt(0).toUpperCase() + label.slice(1);
+}
+
+// Wer in der Karte steht: der Absender – in Gesendet, Entwürfen, Vorlagen und
+// Postausgang wie bei Thunderbird die Empfänger (ohne Empfänger der Absender)
+function personsFor(hdr, outgoing = false) {
+  const parse = header => {
+    try {
+      return MailServices.headerParser.parseDecodedHeader(header || "")
+        .filter(p => p?.email || p?.name)
+        .map(p => ({ name: p.name || "", email: (p.email || "").toLowerCase() }));
+    } catch {
+      return [];
+    }
+  };
+  const list = outgoing ? parse(hdr.mime2DecodedRecipients || hdr.recipients) : [];
+  return list.length ? list : parse(hdr.mime2DecodedAuthor || hdr.author);
 }
 
 function initialsFor(name, email) {
@@ -2925,6 +2952,98 @@ class CardEnhancer {
       chromeURLs: ["chrome://messenger/content/messenger.xhtml"],
       onLoadWindow: w => this.watchMainWindow(w),
     });
+    // Verfassen-Fenster: Symbolleiste nur mit Symbolen, sobald Beschriftungen
+    // gekürzt würden (siehe watchComposeToolbar)
+    const composeCleanups = new Set();
+    ExtensionSupport.registerWindowListener("mail-cards-compose", {
+      chromeURLs: ["chrome://messenger/content/messengercompose/messengercompose.xhtml"],
+      onLoadWindow: w => this.watchComposeToolbar(w, composeCleanups),
+    });
+    this.restorers.push(() => {
+      ExtensionSupport.unregisterWindowListener("mail-cards-compose");
+      for (const cleanup of [...composeCleanups]) {
+        try {
+          cleanup();
+        } catch {}
+      }
+    });
+  }
+
+  // Schmale Verfassen-Fenster: Thunderbird kürzt die Beschriftungen der
+  // Symbolleiste („Se…“, sehr schmal mitten im Buchstaben). Wie Apple Mail
+  // zeigt die Leiste dann nur Symbole (Attribut „mc-icons-only“, spaces.css;
+  // Tooltips nennen die Knöpfe). Die Grenze hängt von der Sprache ab
+  // („Verschlüsseln“ ist breiter als „Encrypt“), deshalb wird gemessen statt
+  // eine feste Breite zu nehmen: nur Symbole, sobald eine Beschriftung oder
+  // die Leiste überläuft; Beschriftungen zurück, sobald die Leiste so breit
+  // ist, wie sie dafür sein muss.
+  watchComposeToolbar(w, cleanups) {
+    const d = w.document;
+    const bar = d.getElementById("composeToolbar2");
+    const box = d.getElementById("compose-toolbox");
+    if (!bar || bar.__mcIconsWatched) {
+      return;
+    }
+    bar.__mcIconsWatched = true;
+    const ATTR = "mc-icons-only";
+    let need = 0; // nötige Breite der Leiste für die Beschriftungen
+    const update = () => {
+      if (w.closed || !bar.isConnected) {
+        return;
+      }
+      // Modus „nur Text“ bzw. „nur Symbole“ aus „Anpassen“ bleibt unberührt
+      const mode = box?.getAttribute("mode");
+      if (mode == "text" || mode == "icons") {
+        bar.removeAttribute(ATTR);
+        need = 0;
+        return;
+      }
+      if (bar.hasAttribute(ATTR)) {
+        if (bar.clientWidth >= need) {
+          bar.removeAttribute(ATTR);
+          // im nächsten Bild neu messen, falls es doch nicht passt
+          w.requestAnimationFrame(update);
+        }
+        return;
+      }
+      let short = Math.max(0, bar.scrollWidth - bar.clientWidth);
+      for (const button of bar.querySelectorAll(":scope > toolbarbutton")) {
+        const text = button.querySelector(".toolbarbutton-text");
+        if (!text?.getClientRects().length) {
+          continue;
+        }
+        short += Math.max(0, text.scrollWidth - text.clientWidth, button.scrollWidth - button.clientWidth);
+      }
+      if (short > 1) {
+        need = bar.clientWidth + short + 8;
+        bar.setAttribute(ATTR, "true");
+      }
+    };
+    const reset = () => {
+      bar.removeAttribute(ATTR);
+      need = 0;
+      update();
+    };
+    const ro = new w.ResizeObserver(() => update());
+    ro.observe(bar);
+    // andere Knöpfe („Anpassen“) oder anderer Modus: neu messen
+    const mo = new w.MutationObserver(reset);
+    mo.observe(bar, { childList: true });
+    if (box) {
+      mo.observe(box, { attributes: true, attributeFilter: ["mode"] });
+    }
+    const cleanup = () => {
+      ro.disconnect();
+      mo.disconnect();
+      cleanups.delete(cleanup);
+      if (!w.closed) {
+        bar.removeAttribute(ATTR);
+        delete bar.__mcIconsWatched;
+      }
+    };
+    cleanups.add(cleanup);
+    w.addEventListener("unload", cleanup, { once: true });
+    update();
   }
 
   // Kleinste Fensterbreite je Space: beim Verkleinern schrumpft nur ein
@@ -3064,6 +3183,18 @@ class CardEnhancer {
       const row = d.getElementById("unifiedToolbarContainer");
       if (!el || !row) {
         barTarget(d).style.removeProperty("--mc-side-right");
+        // Tabs ohne eigene Seitenleiste (globale Suche, sonstige Inhalts-Tabs):
+        // Abstandhalter nicht auf dem Wert des zuletzt besuchten Bereichs
+        // lassen – Knöpfe und Suchfeld beginnen rechts vom Seitenleisten-Knopf
+        // (gemessen nach dem Entfernen von --mc-side-right, also an seinem
+        // Platz in diesem Tab)
+        const content = row && d.getElementById("unifiedToolbarContent");
+        const first = content?.querySelector(':scope > li[item-id="spacer"]') || content;
+        const pinned = d.getElementById("spacesPinnedButton")?.getBoundingClientRect();
+        if (first && pinned?.width) {
+          const start = first.getBoundingClientRect().left;
+          setBarVar(d, "--mc-tab-offset", `${Math.max(0, Math.round(pinned.right + 12 - start))}px`);
+        }
         return;
       }
       const inContent = el.ownerDocument != d;
@@ -4542,6 +4673,28 @@ class CardEnhancer {
       btn.addEventListener("click", () => this.animateSpaces(w, updateTip));
       bar.after(btn); // Geschwister der Leiste, damit CSS ihren Zustand sieht
       this.restorers.push(() => btn.remove());
+      // „Anpassen…“ der Bereiche-Leiste ausblenden: Thunderbirds Panel hängt am
+      // ausgeblendeten Knopf #collapseButton – es öffnet nicht und sperrt danach
+      // das Ein-/Ausblenden der Leiste (isCustomizing bleibt gesetzt); die
+      // Farben gibt ohnehin halo.spaces vor
+      const custItems = ["spacesToolbarContextCustomize", "settingsContextOpenCustomizeItem"]
+        .map(id => d.getElementById(id)).filter(Boolean);
+      const custSep = d.getElementById("settingsContextOpenCustomizeItem")?.previousElementSibling;
+      const custHide = [...custItems, ...(custSep?.localName == "menuseparator" ? [custSep] : [])];
+      custHide.forEach(el => (el.hidden = true));
+      // das Kontextmenü der leeren Leiste hat dann keinen Eintrag mehr – nicht
+      // als leere Fläche öffnen
+      const spacesMenu = d.getElementById("spacesToolbarContextMenu");
+      const noEmpty = e => {
+        if (e.target == spacesMenu && ![...spacesMenu.children].some(c => !c.hidden)) {
+          e.preventDefault();
+        }
+      };
+      spacesMenu?.addEventListener("popupshowing", noEmpty);
+      this.restorers.push(() => {
+        custHide.forEach(el => (el.hidden = false));
+        spacesMenu?.removeEventListener("popupshowing", noEmpty);
+      });
       // Tooltips der Bereiche nur mit Namen („Mail“ statt „Mail (⌃ 1)“):
       // Thunderbird setzt sie per Fluent aus Titel und Kurzbefehl, auch
       // später noch (Übersetzung läuft verzögert) – also jedes Mal den
@@ -7041,6 +7194,17 @@ class CardEnhancer {
           sss.unregisterSheet(parts, sss.AUTHOR_SHEET);
         }
       });
+      // Textfläche des Verfassen-Fensters (about:blank?compose) dunkel in der
+      // Fläche des Fensters – theme.css gilt dort nicht (siehe compose-body.css)
+      const body = Services.io.newURI(`resource://mailcards/compose-body.css?v=${extensionVersion}`);
+      if (!sss.sheetRegistered(body, sss.USER_SHEET)) {
+        sss.loadAndRegisterSheet(body, sss.USER_SHEET);
+      }
+      this.restorers.push(() => {
+        if (sss.sheetRegistered(body, sss.USER_SHEET)) {
+          sss.unregisterSheet(body, sss.USER_SHEET);
+        }
+      });
     }
     if (!Services.prefs.getBoolPref("extensions.mailcards.appleIcons", true)) {
       return;
@@ -7932,8 +8096,9 @@ class CardEnhancer {
       }
     }
 
-    this.fillAvatar(avatar, hdr);
-    this.fillSender(row, hdr);
+    const outgoing = this.isOutgoingView(win, row);
+    this.fillAvatar(avatar, hdr, outgoing);
+    this.fillSender(row, hdr, outgoing);
     const dateEl = row.querySelector(".thread-card-row .date");
     if (dateEl && hdr.date) {
       dateEl.textContent = appleListDate(hdr.date / 1000);
@@ -7941,25 +8106,47 @@ class CardEnhancer {
     this.markSearchHits(win, row);
   }
 
-  // Zeigt Thunderbird nur die Adresse des Absenders (kein Name im Kopf),
-  // stattdessen den Namen aus der Domain. Im Gesendet-Ordner steht dort der
-  // Empfänger – dann bleibt alles, wie es ist.
-  fillSender(row, hdr) {
+  // Zeigt die Karte Empfänger statt Absender? Wie Thunderbird: in Ordnern für
+  // Ausgehendes, ohne Ordner (Suchergebnisse) je Mail
+  isOutgoingView(win, row) {
+    try {
+      if (win.gFolder) {
+        const F = Ci.nsMsgFolderFlags;
+        return win.gFolder.isSpecialFolder(F.SentMail | F.Drafts | F.Queue | F.Templates, true);
+      }
+    } catch {}
+    return (row.dataset.properties || "").split(" ").includes("outgoing");
+  }
+
+  // Zugeklappte Konversation: Bild, Vorschau und Datum stammen von der neuesten
+  // Mail (hdrForRow) – dann auch der Name, sonst stünde dort der Absender der
+  // ersten Mail neben dem Bild eines anderen. Sonst schreibt Thunderbird den
+  // Namen; zeigt es Adressen (Person nicht im Adressbuch, „Anna <anna@…>“ oder
+  // nur die Adresse), stehen wie in Apple Mail nur die Namen da – ohne Namen
+  // der aus der Domain („rueckgabe@amazon.de“ → „Amazon“). Die Adressen bleiben
+  // im Tooltip. Gilt ebenso für die Empfänger in Gesendet, Entwürfen …
+  fillSender(row, hdr, outgoing = false) {
     const el = row.querySelector(".thread-card-row .sender");
     if (!el) {
       return;
     }
-    let name = "";
-    let email = "";
+    let own = null;
     try {
-      const parsed = MailServices.headerParser.parseDecodedHeader(hdr.mime2DecodedAuthor || hdr.author)[0];
-      name = parsed?.name || "";
-      email = (parsed?.email || "").toLowerCase();
+      own = row.view.getMsgHdrAt(row._index);
     } catch {}
-    if (!email || !el.textContent.toLowerCase().includes(email)) {
+    const persons = personsFor(hdr, outgoing);
+    const label = persons.map(p => senderLabel(p.name, p.email)).filter(Boolean).join(", ");
+    if (own && own != hdr && (own.messageKey != hdr.messageKey || own.folder?.URI != hdr.folder?.URI)) {
+      if (label && el.textContent != label) {
+        el.textContent = label;
+        el.title = label;
+      }
       return;
     }
-    const label = senderLabel(name, email);
+    const text = el.textContent.toLowerCase();
+    if (!label || !persons.some(p => p.email && text.includes(p.email))) {
+      return;
+    }
     if (label != el.textContent) {
       el.textContent = label;
     }
@@ -8622,16 +8809,10 @@ class CardEnhancer {
     (view || header).before(banner);
   }
 
-  fillAvatar(avatar, hdr) {
-    let name = "";
-    let email = "";
-    try {
-      const parsed = MailServices.headerParser.parseDecodedHeader(
-        hdr.mime2DecodedAuthor || hdr.author
-      )[0];
-      name = parsed?.name || "";
-      email = (parsed?.email || "").toLowerCase();
-    } catch {}
+  // outgoing: Bild des (ersten) Empfängers wie der Name in der Karte (im
+  // Mailkopf bleibt es der Absender)
+  fillAvatar(avatar, hdr, outgoing = false) {
+    const { name = "", email = "" } = personsFor(hdr, outgoing)[0] || {};
 
     avatar.dataset.email = email;
     const initials = initialsFor(name, email);

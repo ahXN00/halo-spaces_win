@@ -372,6 +372,14 @@ body.layout-wide {
   padding: 8px 10px 4px !important;
 }
 
+/* unten Platz für den Bereiche-Knopf: bei ausgeblendeter Leiste sitzt
+   #mcSpacesToggle fest unten links über der Ordnerliste (8 px Rand + 38 px
+   Knopf + 8 px Luft) – ganz nach unten gescrollt endet die letzte Zeile
+   darüber, auch ohne Statusleiste */
+#folderTree {
+  padding-block-end: 54px !important;
+}
+
 /* Ordnerkategorien („Postfächer“, Kontoname) wie die Abschnittstitel in Apple Mail */
 #folderTree > li > .container .name,
 #folderPane .mode-name {
@@ -430,6 +438,18 @@ body.layout-wide {
   font-weight: 400 !important;
 }
 
+/* Ordner mit neuen Mails wie in Apple Mail: Name in Textfarbe statt
+   Thunderbirds Blau, kein gelber Funkelstern auf dem Symbol – die Zahl rechts
+   genügt (Kontozeilen bleiben graue Abschnittstitel) */
+#folderTree li.new-messages:not([data-server-type]) > .container > .name {
+  color: var(--mt-text) !important;
+  font-weight: 400 !important;
+}
+
+#folderTree .container > .new-icon {
+  visibility: hidden !important;
+}
+
 #folderTree .account-indicator {
   display: none !important;
 }
@@ -440,6 +460,10 @@ body.layout-wide {
   min-height: 22px !important;
   margin: 10px 8px 2px 18px !important;
   padding: 0 !important;
+  /* keine Linie über den Abschnitten (Thunderbird zeichnet sie über jedem
+     außer dem ersten – mit ausgeblendetem „Alle Ordner“ stand sie nur
+     teilweise); gegliedert wird wie in Apple Mail durch den Abstand */
+  border-block-start: none !important;
 }
 
 #folderTree .mode-name {
@@ -497,6 +521,13 @@ body.layout-vertical #threadPane {
   border-inline-end: var(--mt-hairline) solid var(--mt-pane-line) !important;
 }
 
+/* Layout „klassisch“ und „breit“ (Mail unter der Liste): waagerechte Linie
+   oben an der Leseansicht – bei „breit“ über die volle Breite, trennt also
+   auch die Ordnerliste ab; ohne Leseansicht verschwindet sie mit */
+body:is(.layout-classic, .layout-wide) #messagePane {
+  border-block-start: var(--mt-hairline) solid var(--mt-pane-line) !important;
+}
+
 /* Thunderbirds eigene Trennbalken unsichtbar (die Linie oben ersetzt sie) */
 hr[is="pane-splitter"],
 #folderPaneSplitter,
@@ -516,11 +547,19 @@ hr[is="pane-splitter"],
   border: none !important;
 }
 
-#threadPaneHeaderBar,
-#quickFilterBar {
+#threadPaneHeaderBar {
   background: var(--mt-window) !important;
   border: none !important;
   padding-inline: 12px !important;
+}
+
+/* Schnellfilter-Leiste: dieselbe Fläche wie die Liste, nur eine Haarlinie
+   darunter; Inhalt bündig mit den Karten (8 px Einzug wie .card-container) */
+#quick-filter-bar {
+  background: var(--mt-window) !important;
+  border: none !important;
+  border-block-end: var(--mt-hairline) solid var(--mt-separator) !important;
+  padding-inline: 8px !important;
 }
 
 #threadPaneFolderName {
@@ -626,11 +665,11 @@ hr[is="pane-splitter"],
   color: var(--mc-pill-icon) !important;
 }
 
-/* Tabellenansicht: dieselbe Schriftgröße wie in der Kartenansicht
-   (sonst erbt sie Thunderbirds kleinere Grundschrift) */
+/* Tabellenansicht: wie Absender und Betreff in der Kartenansicht und der
+   Spaltenkopf 13 px (Apple-Listenschrift; sonst erbt sie Thunderbirds Grundschrift) */
 #threadTree tr[is="thread-row"],
 #threadTree tr[is="thread-row"] td {
-  font-size: 14px !important;
+  font-size: 13px !important;
 }
 
 #threadTree thead th,
@@ -694,6 +733,30 @@ hr[is="pane-splitter"],
   background-color: var(--mt-control) !important;
 }
 
+/* Schlagwortfarben als Schrift (Tabellenzeilen, Schnellfilter-Knöpfe): die
+   Grundfarben (#FF9900, #3333FF …) sind auf Weiß bzw. Dunkelgrau kaum lesbar –
+   hell abgedunkelt, dunkel aufgehellt (Kontrast mind. 4,5:1). Ausgewählte
+   Zeilen (Schrift in Akzentkontrast) und gedrückte Knöpfe bleiben, wie sie sind. */
+#threadTree tr[is="thread-row"][data-properties~="tagged"] {
+  color: color-mix(in srgb, var(--tag-color) 60%, black) !important;
+}
+
+#quick-filter-bar button.qfb-tag-button:not([aria-pressed="true"]) {
+  color: color-mix(in srgb, var(--tag-color) 60%, black) !important;
+  border-color: color-mix(in srgb, var(--tag-color) 60%, black) !important;
+}
+
+@media (prefers-color-scheme: dark) {
+  #threadTree tr[is="thread-row"][data-properties~="tagged"] {
+    color: color-mix(in srgb, var(--tag-color) 55%, white) !important;
+  }
+
+  #quick-filter-bar button.qfb-tag-button:not([aria-pressed="true"]) {
+    color: color-mix(in srgb, var(--tag-color) 55%, white) !important;
+    border-color: color-mix(in srgb, var(--tag-color) 55%, white) !important;
+  }
+}
+
 /* Typografie in der Karte: Absender fett, Betreff normal, Rest grau */
 #threadTree tr[is="thread-card"] .sender {
   font-size: 13px !important;
@@ -709,7 +772,21 @@ hr[is="pane-splitter"],
 
 #threadTree tr[is="thread-card"] .date {
   font-size: 12px !important;
+  /* auch bei ungelesenen Mails normal (Thunderbird setzt die ganze Zeile fett) */
+  font-weight: 400 !important;
   color: var(--mt-text-tertiary) !important;
+}
+
+/* Gruppenköpfe („Heute“, „Gestern“ … bei „Gruppiert nach Sortierung“) als
+   Abschnittstitel: Titel halbfett, Anzahl klein und grau */
+#threadTree tr[is="thread-card"][data-properties~="dummy"] .subject {
+  font-weight: 600 !important;
+  color: var(--mt-text) !important;
+}
+
+#threadTree tr[is="thread-card"][data-properties~="dummy"] .sort-header-details {
+  font-size: 11px !important;
+  color: var(--mt-text-secondary) !important;
 }
 
 /* Kein „Mehr“-Knopf (⋯) oben rechts in der Karte – Apple Mail hat dort
@@ -721,7 +798,8 @@ hr[is="pane-splitter"],
 
 /* Ungelesen und neu: derselbe blaue Punkt wie in Apple Mail
    (Thunderbird zeigt bei neuen Mails sonst einen Stern) */
-#threadTree tr:is([data-properties~="unread"], [data-properties~="new"]) .read-status {
+#threadTree tr:is([data-properties~="unread"], [data-properties~="new"]) .read-status,
+#threadTree tr[is="thread-card"].children.collapsed[data-properties~="hasUnread"]:not([data-properties~="dummy"]) .read-status {
   /* leeres Bild statt Stern/Punkt-Symbol, der Punkt ist die Fläche selbst */
   content: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10'/%3E") !important;
   background-color: var(--mt-accent) !important;
@@ -729,6 +807,12 @@ hr[is="pane-splitter"],
   width: 10px !important;
   height: 10px !important;
   opacity: 1 !important;
+}
+
+/* zugeklappte Konversation mit Ungelesenem: derselbe Punkt (Thunderbird
+   blendet ihn dort aus und zeigt stattdessen einen Stern am Thread-Knopf) */
+#threadTree tr[is="thread-card"].children.collapsed[data-properties~="hasUnread"]:not([data-properties~="dummy"]) .read-status {
+  display: inline-block !important;
 }
 
 /* Karten: Punkt wie in Apple Mail links neben dem Absenderbild, auf
@@ -754,8 +838,63 @@ hr[is="pane-splitter"],
 }
 
 /* Ausgewählte Mail mit Fokus: weißer Punkt auf Blau */
-#threadTree:focus-within tr:is([data-properties~="unread"], [data-properties~="new"]):is(.selected, [aria-selected="true"]) .read-status {
+#threadTree:focus-within tr:is([data-properties~="unread"], [data-properties~="new"]):is(.selected, [aria-selected="true"]) .read-status,
+#threadTree:focus-within tr[is="thread-card"].children.collapsed[data-properties~="hasUnread"]:not([data-properties~="dummy"]):is(.selected, [aria-selected="true"]) .read-status {
   background-color: var(--mt-accent-text) !important;
+}
+
+/* Thread-Knopf (Pfeil zum Auf-/Zuklappen) als ruhige graue Kapsel: ohne
+   Thunderbirds Akzentrahmen und ohne Stern bzw. grünen Punkt darüber –
+   Ungelesenes zeigt der Punkt links wie bei einzelnen Mails */
+#threadTree tr[is="thread-card"] button.twisty {
+  background-color: var(--mt-control) !important;
+  border-color: transparent !important;
+  color: var(--mt-text-secondary) !important;
+  margin-inline-end: 4px !important;
+}
+
+#threadTree tr[is="thread-card"] button.twisty:hover {
+  background-color: var(--mt-control-hover) !important;
+  border-color: transparent !important;
+}
+
+#threadTree tr[is="thread-card"] button.twisty::before {
+  content: none !important;
+}
+
+#threadTree:focus-within tr[is="thread-card"]:is(.selected, [aria-selected="true"]) button.twisty {
+  background-color: color-mix(in srgb, var(--mt-accent-text) 22%, transparent) !important;
+  color: var(--mt-accent-text) !important;
+}
+
+/* Tabelle: Ungelesen als voller Punkt in Akzentfarbe statt Thunderbirds
+   grünem Punkt bzw. blauem Ring (zugeklappte Konversation mit Ungelesenem);
+   ausgewählt mit Fokus weiß auf Akzent */
+#threadTree {
+  --thread-pane-unread-fill: var(--mt-accent) !important;
+  --thread-pane-unread-stroke: var(--mt-accent) !important;
+}
+
+#threadTree tr[is="thread-row"]:is([data-properties~="unread"], .children.collapsed[data-properties~="hasUnread"]) .tree-button-unread > img {
+  fill: var(--mt-accent) !important;
+  stroke: var(--mt-accent) !important;
+}
+
+#threadTree:focus-within tr[is="thread-row"]:is([data-properties~="unread"], .children.collapsed[data-properties~="hasUnread"]):is(.selected, [aria-selected="true"]) .tree-button-unread > img {
+  fill: currentColor !important;
+  stroke: currentColor !important;
+}
+
+/* Tabelle: kein Stern vor dem Betreff neuer Mails (wie in den Karten) – die
+   Symbole für beantwortet/weitergeleitet bleiben */
+#threadTree tr[is="thread-row"][data-properties~="new"]:not([data-properties~="replied"], [data-properties~="forwarded"], [data-properties~="redirected"]) .subject-line img {
+  visibility: hidden !important;
+}
+
+/* Zusammenfassung mehrerer Mails: Ungelesen-Punkt in Akzentfarbe statt Grün */
+#messageList > li.unread::before {
+  fill: var(--mt-accent) !important;
+  stroke: var(--mt-accent) !important;
 }
 
 #threadTree tr[is="thread-card"][data-properties~="unread"] .subject {
@@ -791,6 +930,33 @@ hr[is="pane-splitter"],
   color: var(--mt-text-tertiary) !important;
 }
 
+/* Konto-Startseite (Klick auf ein Konto in der Ordnerliste): eine ruhige
+   Fläche wie die Liste statt dreier unterschiedlich getönter Bänder,
+   Abschnitte durch Haarlinien getrennt; Kacheln als graue Knöpfe mit 6 px
+   Radius (ohne Akzentfläche beim Überfahren). Das Wasserzeichen bleibt. */
+body:has(> #accountCentral),
+#accountCentral,
+#accountCentral .account-central-header,
+#accountCentral .account-central-section {
+  background-color: var(--mt-window) !important;
+  color: var(--mt-text) !important;
+}
+
+#accountCentral .account-central-section {
+  border-block-start: var(--mt-hairline) solid var(--mt-separator) !important;
+}
+
+#accountCentral .btn-hub {
+  background-color: var(--mt-control) !important;
+  color: var(--mt-text) !important;
+  border-radius: 6px !important;
+  box-shadow: none !important;
+}
+
+#accountCentral .btn-hub:not([disabled]):hover {
+  background-color: var(--mt-control-hover) !important;
+}
+
 /* ---------- Nachrichtenansicht (about:message) ---------- */
 
 #messagePane,
@@ -805,6 +971,143 @@ hr[is="pane-splitter"],
   border: none !important;
   border-bottom: 1px solid var(--mt-separator) !important;
   font-family: var(--mt-font) !important;
+}
+
+/* Thunderbird zieht unter dem Kopf eine zweite Linie (Rand der Hinweisleisten)
+   – zusammen mit der des Kopfs eine doppelt dicke, zweifarbige Kante */
+#mail-notification-top {
+  border-block-end: none !important;
+}
+
+/* Einladung (iMIP-Leiste): graue Kapsel wie der Verteiler-Hinweis statt
+   blauer bzw. lila Fläche mit Schatten; Text in einer Zeile, die Knöpfe als
+   graue Kapseln darunter (Hauptknopf und Pfeil in einer Kapsel) */
+#imip-bar.calendar-notification-bar {
+  margin: 10px 12px 2px !important;
+  padding: 6px 8px 6px 12px !important;
+  border: none !important;
+  border-radius: 12px !important;
+  box-shadow: none !important;
+  background: var(--mt-control) !important;
+  color: var(--mt-text) !important;
+  font: 12px var(--mt-font) !important;
+  flex-wrap: wrap !important;
+  align-items: center !important;
+  gap: 6px 8px !important;
+}
+
+#imip-bar > .msgNotificationBarText {
+  min-width: 0 !important;
+  margin: 0 !important;
+  font-weight: 500 !important;
+  color: var(--mt-text) !important;
+}
+
+/* (der Text hat flex="1" – Thunderbird erzwingt dafür flex: 1, deshalb
+   bekommen die Knöpfe die eigene Zeile über ihre Basis) */
+#imip-view-toolbox {
+  flex: 1 1 100% !important;
+}
+
+#imip-view-toolbox,
+#imip-view-toolbar {
+  margin: 0 !important;
+  padding: 0 !important;
+  background: transparent !important;
+}
+
+#imip-view-toolbar {
+  gap: 6px !important;
+  --imip-button-background: linear-gradient(var(--mt-control), var(--mt-control)) !important;
+  --imip-button-background-hover: linear-gradient(var(--mt-control-hover), var(--mt-control-hover)) !important;
+  --imip-button-background-active: linear-gradient(var(--mt-control-hover), var(--mt-control-hover)) !important;
+  --toolbarbutton-header-bordercolor: transparent !important;
+}
+
+#imip-view-toolbar > toolbarbutton {
+  margin: 0 !important;
+  min-height: 26px !important;
+  border-radius: 999px !important;
+  box-shadow: none !important;
+  color: var(--mt-text) !important;
+  font: 12px var(--mt-font) !important;
+}
+
+#imip-view-toolbar > toolbarbutton > .toolbarbutton-menubutton-button {
+  padding-inline-start: 8px !important;
+}
+
+#imip-view-toolbar > toolbarbutton > .toolbarbutton-menubutton-dropmarker {
+  border-inline-start: var(--mt-hairline) solid var(--mt-separator) !important;
+}
+
+/* Anhänge: auf der Fläche der Mail statt grauer Platten, eine Haarlinie
+   darüber; markierte Datei abgerundet in Akzentfarbe (unfokussiert grau) */
+#messagepanebox,
+#attachmentView,
+#attachmentBar,
+#attachmentList {
+  background: var(--mt-window) !important;
+  color: var(--mt-text) !important;
+}
+
+#attachmentView {
+  border-top: var(--mt-hairline) solid var(--mt-separator) !important;
+}
+
+#attachmentList {
+  border-top: none !important;
+}
+
+#attachmentList .attachmentItem {
+  border-radius: 6px !important;
+}
+
+#attachmentList .attachmentItem[selected] {
+  background: var(--mt-accent) !important;
+  color: var(--mt-accent-text) !important;
+  border-color: transparent !important;
+  outline: none !important;
+}
+
+#attachmentList:not(:focus-within) .attachmentItem[selected] {
+  background: var(--mt-selected-unfocused) !important;
+  color: var(--mt-text) !important;
+}
+
+/* Suchleiste (Bearbeiten → Suchen, in Mail und Verfassen): ruhige Fläche mit
+   Haarlinie, Suchfeld als graue Fläche; ist der Platz zu knapp, brechen die
+   Optionen in die nächste Zeile um statt abgeschnitten zu werden.
+   Rot (nicht gefunden) und Gelb (Treffer-Blinken) bleiben. */
+findbar {
+  background: var(--mt-window) !important;
+  color: var(--mt-text) !important;
+  border-top: var(--mt-hairline) solid var(--mt-separator) !important;
+  font-family: var(--mt-font) !important;
+}
+
+findbar .findbar-container {
+  flex-wrap: wrap !important;
+  row-gap: 4px !important;
+  height: auto !important;
+  /* Platz für den Fokusring (der Behälter schneidet ab) */
+  padding-block: 3px !important;
+}
+
+findbar .findbar-textbox {
+  border: none !important;
+  border-radius: 6px !important;
+  box-shadow: none !important;
+  color: var(--mt-text) !important;
+}
+
+findbar .findbar-textbox:not([status="notfound"], [flash="true"]) {
+  background-color: var(--mt-control) !important;
+}
+
+findbar .findbar-textbox:focus {
+  outline: 2px solid var(--mt-accent) !important;
+  outline-offset: 1px !important;
 }
 
 #messageHeader .message-header-recipient,
@@ -1189,7 +1492,31 @@ hr[is="pane-splitter"],
 
 #expandedtoBox {
   font-size: 11px !important;
+}
+
+/* Empfängerzeilen einheitlich: die Kommas zwischen den Namen erben die Farbe
+   des Felds – in Cc, Bcc und Antwort-an standen sie sonst fast schwarz
+   (dunkel fast weiß) neben grauen Namen */
+#expandedtoBox,
+#messageHeader :is(#expandedccBox, #expandedbccBox, #expandedreply-toBox) {
   color: var(--mt-text-tertiary) !important;
+}
+
+/* „Mehr“ bei vielen Empfängern: graue Kapsel in 11 px statt blauer Pille
+   mit winzigen Versalien */
+#messageHeader .show-more-recipients {
+  text-transform: none !important;
+  font-size: 11px !important;
+  font-weight: 500 !important;
+  background: var(--mt-control) !important;
+  color: var(--mt-text-secondary) !important;
+  border: none !important;
+  padding: 2px 8px !important;
+}
+
+#messageHeader .show-more-recipients:hover {
+  background: var(--mt-control-hover) !important;
+  color: var(--mt-text) !important;
 }
 
 /* ==== Icons im Apple-Mail-Stil (generiert von icons/make_icons.py) ==== */
@@ -1417,6 +1744,45 @@ hr[is="pane-splitter"],
 #folderTree li[data-folder-type="junk"] > .container .icon { mask-image: var(--mi-junk) !important; }
 #folderTree li[data-folder-type="trash"] > .container .icon { mask-image: var(--mi-trash) !important; }
 #folderTree li[data-folder-type="outbox"] > .container .icon { mask-image: var(--mi-outbox) !important; }
+
+/* Ordnermenüs („Verschieben“, „Kopieren“, Kontextmenüs von Mail und
+   Ordnerliste): dieselben Umriss-Symbole in Akzentfarbe wie Ordnerliste und
+   Toolbar-Knopf statt Thunderbirds gefüllter grauer Ordner; im markierten
+   Eintrag in der Schriftfarbe der Auswahl, deaktiviert grau. Nur in
+   Dokumenten, deren CSP data:-Bilder erlaubt (Hauptfenster, Ordner- und
+   Mailansicht) – in Dialogen mit strengerer CSP fiele die Maske aus und das
+   Symbol verschwände ganz; dort bleibt Thunderbirds Symbol. Die Variablen
+   werden je Eintrag gesetzt, sonst erbten Unterordner im Untermenü Symbol
+   und Farbe ihres (markierten) Elternordners. */
+.folderMenuItem {
+  --mt-folder-mask: var(--mi-folder);
+  --mt-folder-tint: var(--mt-accent);
+}
+.folderMenuItem[SpecialFolder="Inbox"] { --mt-folder-mask: var(--mi-inbox); }
+.folderMenuItem[SpecialFolder="Drafts"] { --mt-folder-mask: var(--mi-drafts); }
+.folderMenuItem[SpecialFolder="Templates"] { --mt-folder-mask: var(--mi-templates); }
+.folderMenuItem[SpecialFolder="Sent"] { --mt-folder-mask: var(--mi-sent); }
+.folderMenuItem[SpecialFolder="Archive"] { --mt-folder-mask: var(--mi-archive); }
+.folderMenuItem[SpecialFolder="Junk"] { --mt-folder-mask: var(--mi-junk); }
+.folderMenuItem[SpecialFolder="Trash"] { --mt-folder-mask: var(--mi-trash); }
+.folderMenuItem[SpecialFolder="Outbox"] { --mt-folder-mask: var(--mi-outbox); }
+.folderMenuItem[IsServer="true"] { --mt-folder-mask: var(--mi-server); }
+.folderMenuItem[IsServer="true"][ServerType="rss"] { --mt-folder-mask: var(--mi-rss); }
+
+menupopup > .folderMenuItem:is([_moz-menuactive]:not([disabled]), [disabled]) {
+  --mt-folder-tint: currentColor;
+}
+
+:root:has(> head > meta[http-equiv="Content-Security-Policy"][content*="data:"]) :is(menu, menuitem).folderMenuItem:not(.stub-menuitem) > .menu-icon {
+  content: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='1' height='1'/%3E") !important;
+  list-style-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='1' height='1'/%3E") !important;
+  width: 16px !important;
+  height: 16px !important;
+  background-color: var(--mt-folder-tint) !important;
+  mask: var(--mt-folder-mask) center / contain no-repeat !important;
+  fill: none !important;
+  stroke: none !important;
+}
 
 /* Knöpfe über Ordner- und Mailliste: Thunderbird zeichnet ihr Symbol als
    Hintergrundbild – das wird ausgeblendet und durch eine Masken-Ebene ersetzt */
@@ -1673,8 +2039,32 @@ menupopup > :is(menu, menuitem)[_moz-menuactive]:not([disabled]) {
   --menuitem-icon-fill: var(--mt-accent-text) !important;
 }
 
+/* Tastenkürzel neutral grau wie bei macOS statt Thunderbirds blaugrauem Ton;
+   im markierten Eintrag in der Schriftfarbe der Auswahl (deaktiviert grau
+   wie der Eintrag) */
+menupopup > menuitem:not([disabled]) .menu-accel {
+  color: var(--mt-text-secondary) !important;
+}
+
+menupopup > menuitem[_moz-menuactive]:not([disabled]) .menu-accel {
+  color: inherit !important;
+}
+
 menupopup > :is(menu, menuitem)[disabled] {
   color: var(--mt-text-tertiary) !important;
+}
+
+/* Schlagwörter in Menüs (Kontextmenü, Toolbar-Knopf, Mailkopf, Menüleiste
+   unter Linux/Windows): Thunderbird färbt den Namen per Inline-Stil in der
+   Grundfarbe (Orange auf Hellgrau 1,6:1). Mit der Textfarbe gemischt bleibt
+   der Farbton erkennbar und der Kontrast liegt hell und dunkel über 4,5:1 –
+   wie in Tabelle und Schnellfilter. currentColor ist hier die geerbte
+   Schlagwortfarbe; das Häkchen (.menu-icon) zeichnet mit currentColor und
+   folgt mit. Markierte Zeilen bleiben in der Schrift der Auswahl. */
+:is(#mailContext-tagpopup, #toolbarTagPopup, #hdrTagDropdown, #tagMenu-tagpopup, #button-tagpopup)
+  > menuitem[type="checkbox"][style*="color"]:not([_moz-menuactive], [disabled])
+  > :is(.menu-icon, .menu-text, .menu-highlightable-text) {
+  color: color-mix(in srgb, currentColor 45%, var(--mt-text)) !important;
 }
 
 menupopup > menuseparator {
@@ -1695,6 +2085,61 @@ panel {
   --panel-border-radius: 12px !important;
 }
 
+/* Panel „Kontakt bearbeiten“ aus dem Mailkopf: neutrale Fläche wie die
+   Tooltips statt Thunderbirds bläulichem Grau mit hartem Rand */
+#editContactPanel {
+  --panel-background-color: var(--mt-tooltip-bg) !important;
+  --panel-border-color: var(--mt-tooltip-border) !important;
+}
+
+/* Vorschlagsliste der Suche oben (Kalender, Chat, Inhalts-Tabs) wie die
+   übrigen Menüs: durchscheinend ohne harten Rand, 13 px, Auswahl in
+   Akzentfarbe, Adressen grau statt in Linkblau */
+#PopupGlodaAutocomplete {
+  appearance: auto !important;
+  -moz-default-appearance: menupopup !important;
+  --panel-background-color: var(--mt-menu-bg) !important;
+  --panel-border-color: transparent !important;
+  --panel-border-radius: 12px !important;
+  --panel-padding: 5px 0 !important;
+  --autocomplete-popup-highlight-background: var(--mt-accent) !important;
+  --autocomplete-popup-highlight-color: var(--mt-accent-text) !important;
+  --autocomplete-popup-url-color: var(--mt-text-secondary) !important;
+  font: 13px var(--mt-font) !important;
+}
+
+#PopupGlodaAutocomplete .autocomplete-richlistitem[type^="gloda-"] {
+  margin-inline: 5px !important;
+  padding-inline: 10px !important;
+  min-height: 22px !important;
+  border-radius: 6px !important;
+  color: var(--mt-text) !important;
+  font-size: 13px !important;
+}
+
+#PopupGlodaAutocomplete .autocomplete-richlistitem[type^="gloda-"]:hover {
+  background-color: var(--mt-hover) !important;
+}
+
+#PopupGlodaAutocomplete .autocomplete-richlistitem[type^="gloda-"][selected] {
+  background: var(--mt-accent) !important;
+  color: var(--mt-accent-text) !important;
+}
+
+/* Text der Zeilen in voller Größe (Thunderbird: 1,1em bzw. 0,95em) */
+#PopupGlodaAutocomplete :is(.ac-comment, .explanation) {
+  font-size: 13px !important;
+}
+
+#PopupGlodaAutocomplete .ac-url-text {
+  font-size: 11px !important;
+  color: var(--mt-text-secondary) !important;
+}
+
+#PopupGlodaAutocomplete [selected] .ac-url-text {
+  color: inherit !important;
+}
+
 /* Symbolzeile oben im Nachrichten-Kontextmenü: die Erweiterung macht daraus
    Textzeilen (Klasse mc-nav-list); ohne Erweiterung bleibt sie ausgeblendet */
 #mailContext-navigation:not(.mc-nav-list),
@@ -1706,12 +2151,15 @@ panel {
   flex-direction: column !important;
 }
 
+/* gleiche Zeilenhöhe wie die übrigen Einträge (Thunderbird:
+   --menu-item-padding, folgt auch der Dichte) – mit 3 px waren
+   Archivieren/Spam/Löschen 2 px niedriger */
 #mailContext-navigation.mc-nav-list > .menuitem-iconic {
   flex: none !important;
   justify-content: flex-start !important;
   margin-inline: 5px !important;
   min-height: 22px !important;
-  padding-block: 3px !important;
+  padding-block: var(--menu-item-padding, 4px) !important;
   padding-inline: 8px !important;
   border-radius: 6px !important;
 }
@@ -1776,6 +2224,18 @@ unified-toolbar {
   align-items: center !important;
   gap: 8px !important;
   z-index: 1 !important;
+}
+
+/* Mail im eigenen Tab: keine Liste, also weder Listenkopf noch das Grau der
+   Ordnerliste oben und in der Statusleiste (die Maße stammen vom Mail-Tab
+   und bleiben dort gültig) */
+:root[mc-tab="mailMessageTab"] #mcListHeader {
+  display: none !important;
+}
+
+:root[mc-tab="mailMessageTab"] :is(#unifiedToolbarContainer, #status-bar) {
+  --mc-sidebar-right: 0px !important;
+  --mc-list-right: -10px !important;
 }
 
 #mcListHeader .mc-lh-text {
@@ -1852,6 +2312,121 @@ unified-toolbar {
 /* Thunderbirds eigene Kopfzeile in der Liste ersetzt die obige */
 #threadPaneHeaderBar {
   display: none !important;
+}
+
+/* ---------- Toolbar anpassen ----------
+   Thunderbird blendet dabei nur die eigene Toolbar, Bereiche-Leiste und
+   Fensterinhalt aus und lässt die Zeile auf 22 px schrumpfen – unsere
+   Elemente der Toolbar-Zeile (Listenkopf, Today-Knöpfe) und der
+   Bereiche-Knopf unten links ragten halb abgeschnitten bzw. anklickbar über
+   das Anpassen-Fenster. visibility statt display: einige haben in ihren
+   Bereichen höher gewichtete display-Regeln. */
+html:root.customizingUnifiedToolbar :is(#mcListHeader, #mcTodayToggle, #mcTodayTop, #mcTodayNew, #mcSpacesToggle) {
+  visibility: hidden !important;
+}
+
+/* die Zeile ohne Seitenleisten-Grau und Linien (Mail, Adressbuch) */
+html:root.customizingUnifiedToolbar #unifiedToolbarContainer {
+  background: var(--mt-window) !important;
+}
+
+html:root.customizingUnifiedToolbar #unifiedToolbarContainer::before {
+  display: none !important;
+}
+
+/* ---------- Globale Suche (Ergebnis-Tab glodaFacetView) ----------
+   Flächen und Schrift wie in den übrigen Ansichten statt Thunderbirds
+   Standardfarben; Leerzustand ruhig in Grau mit kleinem Symbol statt großer
+   blauer Lupe; Suchfeld darüber als graue Kapsel wie oben in der Toolbar.
+   Die Trefferliste behält ihr Layout (hängt an Thunderbirds Größen), nur
+   Schrift, Farben und Linien folgen den übrigen Ansichten. */
+#gloda-facet-view {
+  /* Betreffs, Personen und Schlagwörter der Filterspalte in Textfarbe statt
+     Linkblau (Zeitleiste und Markierungen behalten ihre Farbe) */
+  --linkColor: var(--mt-text) !important;
+  --layout-background-0: var(--mt-window) !important;
+  --layout-background-1: var(--mt-sidebar) !important;
+  --layout-color-0: var(--mt-text) !important;
+  --layout-color-1: var(--mt-text) !important;
+  --layout-color-3: var(--mt-text-secondary) !important;
+  font-family: var(--mt-font) !important;
+}
+
+#gloda-facet-view span.empty {
+  color: var(--mt-text-secondary) !important;
+  font-size: 15px !important;
+  font-weight: 600 !important;
+}
+
+/* Füllung folgt der Schriftfarbe (currentColor) des Hinweises */
+#gloda-facet-view img.empty {
+  width: 64px !important;
+  height: 64px !important;
+  margin-block-end: 8px !important;
+  opacity: 0.6 !important;
+}
+
+#gloda-facet-view .explanation-fulltext-label {
+  font-size: 13px !important;
+  font-weight: 600 !important;
+  color: var(--mt-text) !important;
+}
+
+/* Treffer: Systemschrift statt Thunderbirds Monospace bzw. sans-serif,
+   Betreff halbfett in 13 px, Auszug in 12 px grau; Linien zwischen den
+   Treffern und beim Überfahren als Haarlinie statt hellgrau (dunkel grell) */
+#gloda-facet-view :is(.message, .message-body) {
+  font-family: var(--mt-font) !important;
+}
+
+#gloda-facet-view .message-subject {
+  font-size: 13px !important;
+  font-weight: 600 !important;
+}
+
+#gloda-facet-view .message-body {
+  font-size: 12px !important;
+  color: var(--mt-text-secondary) !important;
+}
+
+#gloda-facet-view .message:not(:last-child) {
+  border-block-end-color: var(--mt-separator) !important;
+}
+
+#gloda-facet-view .message:hover {
+  border-color: var(--mt-separator) !important;
+  box-shadow: none !important;
+  background-color: var(--mt-hover) !important;
+}
+
+/* Schlagwort als Plakette in seiner Farbe, ohne zusätzlichen Rand */
+#gloda-facet-view .message-tag {
+  border: none !important;
+  border-radius: 4px !important;
+  font-size: 11px !important;
+}
+
+.glodaTabToolbar .remote-gloda-search {
+  appearance: none !important;
+  border: none !important;
+  border-radius: 999px !important;
+  background-color: var(--mt-control) !important;
+  color: var(--mt-text) !important;
+  min-height: 28px !important;
+  /* Lupe (Hintergrundbild) mit etwas Abstand zum runden Rand */
+  padding-inline: 30px 10px !important;
+  background-position: 10px center !important;
+  font: 13px var(--mt-font) !important;
+  box-shadow: none !important;
+}
+
+.glodaTabToolbar .remote-gloda-search:-moz-locale-dir(rtl) {
+  background-position: calc(100% - 10px) center !important;
+}
+
+.glodaTabToolbar .remote-gloda-search:focus {
+  outline: none !important;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--mt-accent) 22%, transparent) !important;
 }
 
 
@@ -3893,10 +4468,17 @@ radio > .radio-check,
   border-radius: 50% !important;
 }
 
+/* Haken als chrome://-Grafik statt data:-Bild: Dialoge mit eigener CSP
+   (Editor-Dialoge, Kontoeinstellungen, Filter, Suche, Verfassen …) sperren
+   data:-Bilder – dort stand sonst nur die blaue Fläche ohne Haken.
+   overrides/check.svg ist Thunderbirds kräftiger Haken mit context-fill
+   (nicht global/icons/check.svg: das leitet Thunderbird auf einen dünnen um) */
 checkbox[checked] > .checkbox-check,
 #paneDeck input[type="checkbox"]:not(.toggle-button):checked {
   border-color: transparent !important;
-  background: var(--mt-accent) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='white' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m4 8.3 2.6 2.6L12 5.4'/%3E%3C/svg%3E") center / 12px no-repeat !important;
+  background: var(--mt-accent) url("chrome://messenger/skin/overrides/check.svg") center / 12px no-repeat !important;
+  -moz-context-properties: fill !important;
+  fill: var(--mt-accent-text) !important;
 }
 
 /* „Thunderbird als Standardprogramm“ (erscheint beim ersten Start) sperrt per
@@ -4291,6 +4873,34 @@ addon-page-header h1,
   background-color: var(--mt-control-hover) !important;
 }
 
+/* schmale Verfassen-Fenster: Symbolleiste nur mit Symbolen wie Apple Mail
+   statt gekürzter Beschriftungen („Se…“). mc-icons-only setzt die
+   Erweiterung, sobald Beschriftungen gekürzt würden – die Grenze hängt von
+   der Sprache ab, deshalb keine feste Breite. Tooltips nennen die Knöpfe;
+   die Modi „nur Text“ und „nur Symbole“ bleiben unberührt */
+#composeToolbar2[mc-icons-only] > toolbarbutton .toolbarbutton-text {
+  display: none !important;
+}
+
+#composeToolbar2[mc-icons-only] > toolbarbutton:not([type="menu-button"]),
+#composeToolbar2[mc-icons-only] > toolbarbutton > .toolbarbutton-menubutton-button {
+  padding-inline: 10px !important;
+}
+
+/* Formatleiste: bei wenig Platz enger gesetzt und notfalls in eine zweite
+   Zeile umbrochen, statt am Rand abgeschnitten zu werden (Thunderbird lässt
+   sie über das Fenster hinauslaufen) */
+#FormatToolbar {
+  flex-wrap: wrap !important;
+  row-gap: 2px !important;
+}
+
+@media (max-width: 680px) {
+  #FormatToolbar > * {
+    margin-inline: 0 !important;
+  }
+}
+
 /* Kopfzeilen: Beschriftungen bündig in einer Spalte (Thunderbird gibt dem
    Absender-Feld und den Empfänger-Zeilen unterschiedlich breite Kästen) */
 #MsgHeadersToolbar :is(#identityLabel-box, #subjectLabel-box, .address-label-container) {
@@ -4303,6 +4913,30 @@ addon-page-header h1,
   justify-content: flex-end !important;
 }
 
+/* Empfänger-Beschriftungen („An“, „Cc“, „Bcc“) auf der Höhe der ersten
+   Pille bzw. des leeren Eingabefelds statt 4 px darunter (Thunderbird:
+   padding-top 7px) – wie „Von“ und „Betreff“ */
+#MsgHeadersToolbar .address-label-container {
+  padding-top: 3px !important;
+}
+
+/* umbrochene Pillenzeilen beginnen bündig mit der ersten: alle Pillen mit
+   gleichem Abstand vorn, keinem hinten (Thunderbird gibt den Abstand vorn
+   nur der ersten Pille im Feld). Das leere Eingabefeld bleibt unverändert */
+#MsgHeadersToolbar mail-address-pill {
+  margin-inline: 4px 0 !important;
+}
+
+/* Empfänger-Pillen dunkel heller als die Fläche wie die übrigen Kapseln
+   (Thunderbird: rgba(0,0,0,.3) – die Pillen wirkten wie Löcher); hell bleibt
+   Thunderbirds Grau. Auswahl, Bearbeiten und Warnfarben (ungültige Adresse,
+   Schlüsselproblem) bleiben Thunderbirds */
+@media (prefers-color-scheme: dark) {
+  #MsgHeadersToolbar mail-address-pill:not([selected], .editing, .invalid-address, .key-issue) {
+    background-color: var(--mt-control-hover) !important;
+  }
+}
+
 /* Trennlinien über die ganze Breite */
 #MsgHeadersToolbar > * {
   margin-inline-end: 0 !important;
@@ -4311,6 +4945,97 @@ addon-page-header h1,
 #headersSplitter {
   border: none !important;
   background: transparent !important;
+}
+
+/* Nachrichtentext und Fugen auf der Fläche des Fensters: Thunderbird malt
+   den Textbereich dunkel bläulich (#2a2a2e), und durch die Fugen der
+   Teiler schien das Fenstermaterial (Textfläche selbst: compose-body.css) */
+#composeContentBox,
+#messageArea {
+  background-color: var(--mt-window) !important;
+}
+
+/* Anhänge wie in der Leseansicht: auf der Fläche des Fensters, eine
+   Haarlinie zum Nachrichtentext, markierte Datei abgerundet in Akzentfarbe
+   (unfokussiert grau), Gesamtgröße als graue Nebeninfo statt blauer
+   Plakette. Nur #attachmentArea/#attachmentBucket – die Anhangsliste der
+   Mailansicht hat eigene Regeln */
+#attachmentArea {
+  border-top: var(--mt-hairline) solid var(--mt-pane-line) !important;
+}
+
+#attachmentArea > summary {
+  background-color: var(--mt-window) !important;
+  color: var(--mt-text-secondary) !important;
+}
+
+#attachmentBucket {
+  background-color: var(--mt-window) !important;
+  border: none !important;
+  color: var(--mt-text) !important;
+  padding: 2px 6px !important;
+}
+
+#attachmentBucket > .attachmentItem {
+  border: none !important;
+  outline: none !important;
+  border-radius: 6px !important;
+}
+
+#attachmentBucket > .attachmentItem[selected] {
+  background-color: var(--mt-selected-unfocused) !important;
+  color: var(--mt-text) !important;
+}
+
+#attachmentBucket:focus > .attachmentItem[selected] {
+  background-color: var(--mt-accent) !important;
+  color: var(--mt-accent-text) !important;
+}
+
+#attachmentBucketSize {
+  background: none !important;
+  color: var(--mt-text-tertiary) !important;
+  font-weight: 400 !important;
+  padding-inline: 4px !important;
+}
+
+/* Hinweisleiste unten („Anhang vergessen?“) ohne violettgrauen Rand und
+   rund wie die übrigen Hinweise: die gelbe Fläche im Schatten-DOM hat fest
+   4 px Radius und einen eigenen Schatten – der Rand der Leiste schneidet sie
+   auf deren 12 px zu */
+#compose-notification-bottom notification-message {
+  --message-bar-border-radius: 12px !important;
+  overflow: clip !important;
+}
+
+#compose-notification-bottom .notificationbox-stack {
+  background-color: var(--mt-window) !important;
+}
+
+/* Kontakte-Seitenleiste: Kopf im Seitenleisten-Grau mit Haarlinie */
+#contactsSidebar > .sidebar-header {
+  background: var(--mt-sidebar) !important;
+  border-bottom: var(--mt-hairline) solid var(--mt-pane-line) !important;
+}
+
+/* Anpassen-Sheet der Symbolleiste: Palette als ruhige graue Fläche statt
+   heller Insel mit Rahmen, Platzhalter („Abstand“) gestrichelt und gerundet
+   (keine data:-Bilder – die CSP des Sheets sperrt sie) */
+#palette-box {
+  background: var(--mt-control) !important;
+  border: none !important;
+  border-radius: 12px !important;
+}
+
+#palette-box :is(toolbarspring, toolbarspacer) {
+  background-color: transparent !important;
+  border: var(--mt-hairline) dashed var(--mt-text-tertiary) !important;
+  border-radius: 6px !important;
+}
+
+/* Trennlinien-Vorschau als Haarlinie statt bläulicher Linie */
+#palette-box toolbarseparator {
+  background: var(--mt-pane-line) !important;
 }
 
 /* schmale Fenster: Kopfzeile des Kalenders schrumpft statt überzustehen */
@@ -4550,6 +5275,30 @@ addon-page-header h1,
 
 #booksPaneHeaderBar > button:hover {
   background-color: var(--mt-control-hover) !important;
+}
+
+/* ---------- Kontakte-Seitenleiste im Verfassen-Fenster (abContactsPanel):
+   durchgehend im Seitenleisten-Grau (dunkel war die Liste schwarz),
+   Adressbuch-Auswahl als Kapsel ohne Rahmen, Beschriftungen mit Abstand
+   zum Rand ---------- */
+#abContactsPanel {
+  background-color: var(--mt-sidebar) !important;
+  color: var(--mt-text) !important;
+}
+
+#abContactsPanel #abResultsTree {
+  background-color: transparent !important;
+}
+
+#abContactsPanel #addressbookList {
+  border: none !important;
+  background-color: var(--mt-control) !important;
+  border-radius: 999px !important;
+  box-shadow: none !important;
+}
+
+#abContactsPanel :is(label[control], #AbPickerHeader, #peopleSearchInput) {
+  margin-inline: 8px !important;
 }
 
 /* ---------- Kontakt bearbeiten / neuer Kontakt – wie Apple Kontakte:
@@ -5158,7 +5907,11 @@ dialog {
 /* Eingabefelder und Auswahllisten in Dialogen */
 dialog :is(input:not([type="checkbox"], [type="radio"], [type="color"], [type="range"]), textarea),
 dialog search-textbox {
-  min-height: 28px !important;
+  /* 28 px samt Innenabstand und Rand – so hoch wie Auswahllisten daneben;
+     content-box, weil .narrow-Felder (4em, z. B. Tabelle einfügen) sonst
+     zu schmal würden */
+  min-height: calc(28px - 8px - 2 * var(--mt-hairline)) !important;
+  padding-block: 4px !important;
   padding-inline: 8px !important;
   border: var(--mt-hairline) solid var(--mt-pane-line) !important;
   border-radius: 7px !important;
@@ -5180,9 +5933,48 @@ dialog menulist {
   box-shadow: none !important;
 }
 
+/* Listen in Dialogen (z. B. Vorschläge der Rechtschreibprüfung): ohne
+   appearance zeichnet macOS sonst seinen harten, eckigen Rahmen */
 dialog richlistbox {
+  appearance: none !important;
   border: var(--mt-hairline) solid var(--mt-pane-line) !important;
   border-radius: 8px !important;
+  background-color: var(--mt-window) !important;
+  padding: 4px !important;
+}
+
+/* Auswahl abgerundet in Akzentfarbe (unfokussiert grau) – nur in reinen
+   Textlisten: die Zeilen im Filter- und Suchdialog enthalten Menülisten
+   und Felder (searchDialog.css setzt dort bewusst color: inherit) */
+dialog richlistbox:not(:where(#searchTermList, #filterActionList)) > richlistitem {
+  border-radius: 6px !important;
+}
+
+dialog richlistbox:not(:where(#searchTermList, #filterActionList)) > richlistitem[selected] {
+  background-color: var(--mt-selected-unfocused) !important;
+  color: var(--mt-text) !important;
+}
+
+dialog richlistbox:not(:where(#searchTermList, #filterActionList)):focus > richlistitem[selected] {
+  background-color: var(--mt-accent) !important;
+  color: var(--mt-accent-text) !important;
+}
+
+/* Trennlinie über OK/Abbrechen (Link-, Tabellen-, Bild-Dialog …) als
+   Haarlinie statt kräftiger grauer Linie */
+dialog separator.groove:not([orient="vertical"]) {
+  border: none !important;
+  height: var(--mt-hairline) !important;
+  min-height: 0 !important;
+  background: var(--mt-pane-line) !important;
+}
+
+/* Rückfragen dunkel ohne violettgrauen Farbstich (Firefox-Inhaltsfarbe) –
+   neutral wie die übrigen Dialoge und NSAlert; hell bleibt die Fläche weiß */
+@media (prefers-color-scheme: dark) {
+  dialog#commonDialog {
+    background-color: transparent !important;
+  }
 }
 
 /* ---------- Termin- und Aufgaben-Fenster wie Apple Kalender ---------- */
@@ -5386,6 +6178,42 @@ vbox:has(> #keepduration-button) > :not(#keepduration-button) {
 #event-grid-tabpanels {
   border: none !important;
   background: transparent !important;
+}
+
+/* dieselben Segment-Kapseln für Reiter in allen übrigen Dialogen (Bild,
+   Tabelle, Ordner-Eigenschaften …) statt eckiger Proton-Reiter mit Strich */
+dialog tabs:not(#event-grid-tabs) {
+  gap: 4px !important;
+  border: none !important;
+  padding-bottom: 6px !important;
+}
+
+dialog tabs:not(#event-grid-tabs) > tab {
+  appearance: none !important;
+  margin: 0 !important;
+  padding: 4px 14px !important;
+  border: none !important;
+  border-radius: 999px !important;
+  background: transparent !important;
+  color: var(--mt-text) !important;
+  font-weight: 500 !important;
+  box-shadow: none !important;
+}
+
+dialog tabs:not(#event-grid-tabs) > tab:hover {
+  background: var(--mt-control-hover) !important;
+}
+
+dialog tabs:not(#event-grid-tabs) > tab[selected] {
+  background: var(--mt-control) !important;
+}
+
+dialog tabs:not(#event-grid-tabs) > tab::after {
+  display: none !important;
+}
+
+dialog tabpanels:not(#event-grid-tabpanels) {
+  border: none !important;
 }
 
 #item-description {
@@ -6788,7 +7616,7 @@ notification-message:not([type="warning"], [type="error"], [type="critical"], [t
   --message-bar-text-color: var(--mt-text) !important;
 }
 
-notification-message button.notification-button {
+notification-message :is(button, toolbarbutton).notification-button {
   appearance: none !important;
   min-height: 28px !important;
   margin-block: 4px !important;
@@ -6802,13 +7630,53 @@ notification-message button.notification-button {
   box-shadow: none !important;
 }
 
-notification-message button.notification-button:hover {
+notification-message :is(button, toolbarbutton).notification-button:hover {
   background: rgba(255, 255, 255, 0.95) !important;
 }
 
-notification-message:not([type="warning"]) button.notification-button {
+notification-message:not([type="warning"]) :is(button, toolbarbutton).notification-button {
   background: var(--mt-window) !important;
   color: var(--mt-text) !important;
+}
+
+/* „Später erinnern“ (Anhang-Hinweis im Verfassen-Fenster) ist ein
+   Menü-Knopf, den Thunderbird selbst einhängt: dieselbe Kapsel wie die
+   übrigen Knöpfe, die Innenteile tragen den Abstand */
+notification-message toolbarbutton.notification-button {
+  align-self: center !important;
+  padding: 0 !important;
+}
+
+notification-message toolbarbutton.notification-button > :is(.toolbarbutton-menubutton-button, .toolbarbutton-menubutton-dropmarker) {
+  appearance: none !important;
+  margin: 0 !important;
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  border-radius: 999px !important;
+  color: inherit !important;
+}
+
+/* Beschriftung neben statt unter dem (leeren) Symbol – sonst sitzt sie
+   höher als die der übrigen Knöpfe */
+notification-message toolbarbutton.notification-button > .toolbarbutton-menubutton-button {
+  flex-direction: row !important;
+  align-items: center !important;
+  padding: 0 6px 0 14px !important;
+}
+
+notification-message toolbarbutton.notification-button > .toolbarbutton-menubutton-button > .toolbarbutton-icon {
+  display: none !important;
+}
+
+notification-message toolbarbutton.notification-button > .toolbarbutton-menubutton-button > .toolbarbutton-text {
+  margin: 0 !important;
+}
+
+notification-message toolbarbutton.notification-button > .toolbarbutton-menubutton-dropmarker {
+  padding: 0 10px 0 6px !important;
+  border-inline-start: var(--mt-hairline) solid color-mix(in srgb, currentColor 20%, transparent) !important;
+  border-radius: 0 !important;
 }
 
 /* Hinweise über der Mail füllen den Streifen zwischen Kopf und Mail ganz aus –
@@ -7358,7 +8226,8 @@ notification-message:not([type="warning"]) button.notification-button {
 }
 
 /* lange Absendernamen mit „…“ kürzen – sonst wird die Zeile breiter als der
-   Mailbereich und der Name läuft unter Ordner und Uhrzeit */
+   Mailbereich und der Name läuft unter Ordner und Uhrzeit (auch im schmalen
+   Mailbereich unter 768 px, in dem Thunderbird den Kopf auf Spalten umstellt) */
 #messageHeader:has(#mcHdrMeta) {
   /* Thunderbirds Raster hat nur eine automatische Spalte – die wächst mit
      dem längsten Namen über den Rand hinaus */
@@ -7367,6 +8236,8 @@ notification-message:not([type="warning"]) button.notification-button {
 
 #messageHeader:has(#mcHdrMeta) :is(#headerSenderToolbarContainer, #expandedfromRow, #expandedfromBox) {
   min-width: 0 !important;
+  max-width: 100% !important;
+  box-sizing: border-box !important;
 }
 
 #messageHeader:has(#mcHdrMeta) #expandedfromBox :is(.header-recipient, .recipient-single-line, .recipient-multi-line, .recipient-multi-line-name) {
@@ -7375,9 +8246,12 @@ notification-message:not([type="warning"]) button.notification-button {
   white-space: nowrap !important;
 }
 
-/* Name in Thunderbirds Flex-Zeile: nur so breit wie der Platz, sonst kein „…“ */
+/* mehrzeilige Variante (Name über der ausgeblendeten Adresse): als Box in
+   voller Breite – sonst schneidet das Listenelement den Namen hart ab, ohne „…“ */
 #messageHeader:has(#mcHdrMeta) #expandedfromBox .recipient-multi-line {
+  display: flex !important;
   max-width: 100% !important;
+  min-width: 0 !important;
 }
 
 #messageHeader:has(#mcHdrMeta) #expandedfromBox .recipient-multi-line-name {
