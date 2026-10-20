@@ -1393,7 +1393,7 @@ def run_checks(m, version, profile, results):
             pick(c => c?.displayName == "Dora Doppel"); await wait(500);
             cards.push(add({ DisplayName: "Dora Doppel", PrimaryEmail: "dora@example.invalid", Company: "Doppel AG", JobTitle: "Leitung", WorkPhone: "+43 1 555" })); await wait(600);
             await touch(3);
-            out.dropped = { merged: list.view.rowCount == n - 1, sel: sel(), want: cards[4].UID };
+            out.dropped = { merged: list.view.rowCount == n - 1, sel: sel(), want: cards[4].UID, shown: cw.detailsPane?.currentCard?.UID };
           } finally {
             book.deleteCards(cards); await wait(300);
             tm.closeTab(abTab); await toMail();
@@ -1401,9 +1401,9 @@ def run_checks(m, version, profile, results):
           return out;""")
         nb, dr = res.get("neighbor", {}), res.get("dropped", {})
         ok = (res["tab"] and nb.get("merged") and nb.get("sel") == [nb.get("want")]
-              and dr.get("merged") and dr.get("sel") == [dr.get("want")])
+              and dr.get("merged") and dr.get("sel") == [dr.get("want")] and dr.get("shown") == dr.get("want"))
         return ok, f"{res}"
-    check("Adressbuch: Zusammenführen von Dubletten lässt die Auswahl beim gewählten Kontakt", ab_dedupe_selection, results)
+    check("Adressbuch: Zusammenführen von Dubletten lässt die Auswahl beim gewählten Kontakt, Details zeigen den verbliebenen Eintrag", ab_dedupe_selection, results)
 
     def donate():
         # „Say Thanks“ im Info-Fenster öffnet die Spendenseite (Aufruf abgefangen, kein echter Browser)

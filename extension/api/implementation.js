@@ -3604,37 +3604,59 @@ class CardEnhancer {
       }
       const orig = Adapter.prototype.sortBy;
       Adapter.prototype.sortBy = function (column, direction, resort = false) {
+        let replaced = false;
         if (Services.prefs.getBoolPref(DEDUPE_PREF, true) && this._rowMap?.length) {
           const old = this._rowMap;
           const rows = dedupeRows(old);
           if (rows.length != old.length) {
-            // Das Original liest die Auswahl über die Zeilennummern: sie wie
-            // beim Löschen mitverschieben (von hinten, damit die vorderen
-            // Nummern gültig bleiben), sonst rutscht die Markierung auf den
-            // Nachbarkontakt. War eine weggefallene Dublette gewählt, den
-            // stehen gebliebenen Eintrag wählen.
+            // Das Original liest die Auswahl über die Zeilennummern: sie über
+            // die Zeilen auf die neuen Nummern übertragen, sonst rutscht die
+            // Markierung auf den Nachbarkontakt. War eine weggefallene Dublette
+            // gewählt, den stehen gebliebenen Eintrag wählen. Einmal neu
+            // aufbauen statt Zeile für Zeile verschieben – jedes Verschieben
+            // zeichnet die Liste ab dort neu (bei hunderten Dubletten aus
+            // CardDAV fror das Adressbuch sonst sekundenlang ein).
             const sel = this.selection;
             const kept = new Set(rows);
-            const moved = [];
-            for (let i = old.length - 1; sel && i >= 0; i--) {
-              if (!kept.has(old[i])) {
-                if (sel.isSelected(i) && old[i].mcBest) {
-                  moved.push(old[i].mcBest);
+            let picked = null;
+            let current = null;
+            if (sel?.count) {
+              picked = new Set();
+              for (let i = 0; i < old.length; i++) {
+                if (sel.isSelected(i)) {
+                  if (!kept.has(old[i])) {
+                    replaced = true;
+                  }
+                  picked.add(kept.has(old[i]) ? old[i] : old[i].mcBest);
                 }
-                sel.adjustSelection(i, -1);
               }
+              const cur = old[sel.currentIndex];
+              current = cur && (kept.has(cur) ? cur : cur.mcBest);
             }
             this._rowMap = rows;
-            for (const best of moved) {
-              const j = rows.indexOf(best);
-              if (j >= 0 && !sel.isSelected(j)) {
-                sel.toggleSelect(j);
+            if (picked) {
+              const at = new Map(rows.map((r, i) => [r, i]));
+              sel.selectEventsSuppressed = true;
+              sel.clearSelection();
+              for (const r of picked) {
+                const j = at.get(r);
+                if (j !== undefined && !sel.isSelected(j)) {
+                  sel.toggleSelect(j);
+                }
               }
+              sel.currentIndex = at.get(current) ?? -1;
+              sel.selectEventsSuppressed = false;
             }
             resort = true;
           }
         }
-        return orig.call(this, column, direction, resort);
+        const result = orig.call(this, column, direction, resort);
+        // Thunderbird meldet eine so geänderte Auswahl nicht: ohne „select“
+        // zeigte die Detailansicht weiter die weggefallene Dublette
+        if (replaced) {
+          this._tree?.dispatchEvent(new this._tree.ownerDocument.defaultView.CustomEvent("select"));
+        }
+        return result;
       };
       Adapter.prototype.__mcDedupe = true;
       restorers.push(() => {
