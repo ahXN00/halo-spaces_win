@@ -122,6 +122,9 @@ pruefe_benutzer() {
   id -Gn | tr ' ' '\n' | grep -qx admin && hinweis "Testbenutzer" "$ME ist Administrator – für den Dauerbetrieb genügt ein Standardbenutzer"
 }
 
+# pmset-Minuten lesbar: 0 heißt nie
+dauer() { [[ $1 == 0 ]] && print nie || print "nach ${1:-?} min" }
+
 pruefe_ruhezustand() {
   local g sl ds ar idle lock
   g=$(pmset -g 2>/dev/null)
@@ -131,7 +134,7 @@ pruefe_ruhezustand() {
   if [[ $sl == 0 && $ds == 0 ]]; then
     ok "Ruhezustand" "aus (Rechner und Bildschirm schlafen nie)"
   else
-    offen "Ruhezustand" "Rechner schläft nach ${sl:-?} min, Bildschirm nach ${ds:-?} min (0 = nie)"
+    offen "Ruhezustand" "Rechner schläft $(dauer $sl), Bildschirm $(dauer $ds)"
     tun "als Administrator: sudo pmset -a sleep 0 displaysleep 0 disksleep 0 womp 1 autorestart 1"
   fi
   if [[ $ar == 0 ]]; then
