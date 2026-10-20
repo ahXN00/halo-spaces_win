@@ -27,6 +27,9 @@ einer Ansicht: Hover, Fokus, schmal, leer …).
 - Mails nur für einzelne Oberflächen (Einladung, Empfangsbestätigung, Betrugswarnung) legt der Rundgang mit Message-ID `halo-temp-…` an und löscht sie beim Aufräumen wieder (nur im Testprofil) – die übrigen Bilder behalten dieselbe Liste. Die Knöpfe dieser Leisten werden nie ausgelöst (sie würden antworten).
 - Modale Dialoge (z. B. Suchordner) halten die Zeitgeber des Hauptfensters an: zweite Schritte darin laufen über `then=(URL-Teil, JS)` im Dialog selbst, das Aufräumen wartet über den Zeitgeber des Moduls und schließt die neuesten Fenster zuerst.
 - Popups der HTML-Felder im Schnellfenster (Datum: `DateTimePickerPanel`, Auswahlliste: `#ContentSelectDropdown`) gehen nur nach `notifyUserGestureActivation()` auf; das Bild `-2` zeigt das Schnellfenster dazu.
+- Tooltips (`aHTMLTooltip`, `itemTooltip`) füllen sich nur bei echter Zeigerbewegung: der Rundgang fährt per Marionette über das Element (`hoverAt`, S()-Parameter `after`/`hover`) und nimmt den offenen Tooltip auf.
+- Anhang öffnen: ohne gespeicherte Aktion für den Dateityp zeigt Thunderbird nur den Dialog „Öffnen von …“ – der Rundgang prüft das vorher (sonst würde die Datei sofort mit einem Programm geöffnet) und schließt ohne OK.
+- Einige Fenster (Filterprotokoll, Junk-Protokoll, „Öffnen von …“, OpenPGP-Assistent) kamen dunkel per `WebDriver:TakeScreenshot` nur als weiße Fläche mit hellem Text heraus, obwohl das Fenster auf dem Bildschirm dunkel ist – sie werden mit `screen=True` per `screencapture -l` (mit Titelleiste) aufgenommen.
 
 ## 1. Mailliste (`mailliste`)
 
@@ -56,6 +59,10 @@ CSS/Code: chrome/userChrome.css (Thread-Liste, Karten), extension/api/implementa
 | `mail-ohne-leseansicht` | Leseansicht ausgeblendet (nur Liste) | zustand | ja |  |
 | `mail-schnellfilter` | Schnellfilter-Leiste offen | zustand | ja |  |
 | `mail-schnellfilter-aktiv` | Schnellfilter „Ungelesen“ aktiv | zustand | ja |  |
+| `mail-schnellfilter-text` | Schnellfilter mit Suchtext (Zeile „Absender / Empfänger / Betreff / Text“) | zustand | ja |  |
+| `mail-schnellfilter-ohne-treffer` | Schnellfilter ohne Treffer: Hinweis „Enter: in allen Ordnern suchen“ | popup | ja | Tooltip #qfb-text-search-upsell (Gloda aktiv, Suchfeld fokussiert) |
+| `mail-schnellfilter-schlagwoerter` | Schnellfilter „Schlagwörter“ (Zeile mit Schlagwort-Knöpfen) | zustand | ja |  |
+| `mail-schnellfilter-schlagwort-modus` | Schnellfilter „Schlagwörter“: Menü „Beliebig / Alle / Keine“ | popup | ja |  |
 | `mail-spaltenauswahl` | Tabelle: Spaltenauswahl (Listen-Spaltenmenü) | popup | ja |  |
 | `mail-ansichtsoptionen` | Listenkopf: Ansichtsoptionen (…) | popup | ja |  |
 | `mail-ansichtsoptionen-sortieren` | Listenkopf: Ansichtsoptionen → Sortieren nach | popup | ja |  |
@@ -127,6 +134,14 @@ CSS/Code: chrome/userChrome.css (Verfassen-Fenster, Adresszeilen, Format-Leiste)
 | `verfassen-anhang-erinnerung` | Hinweisleiste „Anhang vergessen?“ (Schlüsselwort im Text) | zustand | ja |  |
 | `verfassen-bild` | Verfassen: Bild einfügen | dialog | ja |  |
 | `verfassen-rechtschreibung-dialog` | Verfassen: Rechtschreibung prüfen | dialog | ja |  |
+| `verfassen-schriftgroesse-menue` | Formatleiste: Textgröße | popup | ja |  |
+| `verfassen-ausrichtung-menue` | Formatleiste: Ausrichtung (mit Symbolen) | popup | ja |  |
+| `verfassen-smiley-menue` | Formatleiste: Smileys | popup | ja |  |
+| `verfassen-suchleiste` | Verfassen: Suchleiste im Nachrichtentext (Bearbeiten → Suchen) | zustand | ja |  |
+| `verfassen-suchen-ersetzen` | Verfassen: Suchen und Ersetzen | dialog | ja |  |
+| `verfassen-anker` | Verfassen: Einfügen → Anker | dialog | ja |  |
+| `verfassen-toolbar-kontext` | Verfassen: Kontextmenü der Symbolleiste | popup | ja |  |
+| `verfassen-toolbar-anpassen` | Verfassen: Symbolleiste anpassen (Sheet) | popup | ja |  |
 | `verfassen-verschluesselung` | Verfassen: Verschlüsselungs-Panel | popup | nein | braucht einen OpenPGP-/S/MIME-Schlüssel – im Testprofil nicht vorhanden |
 
 ## 4. Ordnerliste, Toolbar, Suche, Bereiche-Leiste (`ordner`)
@@ -146,6 +161,7 @@ CSS/Code: chrome/userChrome.css (Ordnerliste, Unified Toolbar, Spaces), implemen
 | `toolbar-anpassen` | Toolbar anpassen | zustand | ja |  |
 | `suche-ergebnisse` | Suche oben: Treffer in allen Postfächern | zustand | ja |  |
 | `suche-globale-ergebnisse` | Globale Suche (Ergebnis-Tab) | bereich | ja |  |
+| `suche-vorschlaege` | Suchfeld oben außerhalb der Mailansicht: Vorschlagsliste (Kalender-Tab) | popup | ja | PopupGlodaAutocomplete; im Mail-Tab ersetzt halo.spaces die Liste durch die eigene Suche |
 | `today-pane-zu` | Mail ohne Today-Pane | zustand | ja |  |
 | `spaces-eingeklappt` | Bereiche-Leiste eingeklappt | zustand | ja |  |
 | `spaces-menue-knopf` | Bereiche-Leiste eingeklappt: Bereiche-Menü | popup | nein | von halo.spaces ersetzt: der Knopf blendet die Seitenleiste ein/aus, das Menü wird blockiert (implementation.js, hookSidebarButton) |
@@ -181,6 +197,7 @@ CSS/Code: chrome/userChrome.css (Menüs & Popups); Menüleiste nativ (macOS)
 | `kontext-einstellungen-knopf` | Kontextmenü: Einstellungen-Knopf der Bereiche-Leiste | popup | ja |  |
 | `kontext-schnellfilter` | Kontextmenü: Schnellfilter-Leiste | popup | ja |  |
 | `kontext-verfassen-adresse` | Kontextmenü: Adresse im Verfassen-Fenster | popup | ja |  |
+| `tooltip-toolbar` | Tooltip an einem Toolbar-Knopf („Verfassen“) | popup | ja | Standard-Tooltip des Dokuments (title-Attribut, anonymer Inhalt) – nicht #aHTMLTooltip; gemessen: appearance auto, grau, eckig |
 
 ## 6. Kalender und Today-Pane (`kalender`)
 
@@ -215,6 +232,8 @@ CSS/Code: chrome/spaces.css (Kalender), implementation.js (Schnellfenster, Today
 | `kal-erinnerung-anpassen` | Termin: Erinnerungen anpassen (Erinnerung → Benutzerdefiniert…) | dialog | ja |  |
 | `kal-zusammenfassung` | Termin aus schreibgeschütztem Kalender (Zusammenfassung) | fenster | ja |  |
 | `kal-erinnerung` | Erinnerungsfenster (Alarm) | fenster | ja |  |
+| `kal-erinnerung-spaeter` | Erinnerungsfenster: Menü „Später erinnern“ (Schlummern für alle) | popup | ja | nur geöffnet, kein Eintrag gewählt; Termin wird danach gelöscht |
+| `kal-termin-tooltip` | Kalender: Tooltip eines Termins (Titel, Zeit, Ort, Kalender) | popup | ja |  |
 | `kal-eigenschaften` | Kalender-Eigenschaften | dialog | ja |  |
 | `kal-neuer-kalender` | Neuer Kalender (Assistent) | dialog | ja |  |
 | `kal-wiederholung-frage` | Wiederholten Termin löschen: Nachfrage | dialog | ja |  |
@@ -328,6 +347,8 @@ CSS/Code: chrome/spaces.css (Einstellungen, Unterdialoge)
 | `einst-dlg-geraete` | Einstellungen → Kryptographie-Module | dialog | ja |  |
 | `einst-dlg-kategorie` | Einstellungen → Kalender: Neue Kategorie | dialog | ja |  |
 | `einst-dlg-systemintegration` | Einstellungen → Systemintegration (Standardprogramm) | dialog | ja |  |
+| `einst-dlg-verzeichnisse` | Einstellungen → Verfassen → LDAP-Verzeichnisse verwalten | dialog | ja | Unterdialog pref-editdirectories.xhtml; der Rundgang hakt „Verzeichnisserver“ nur dafür an |
+| `einst-dlg-junk-protokoll` | Einstellungen → Datenschutz → Junk-Protokoll anzeigen | dialog | ja | Fenster junkLog.xhtml; der Rundgang schaltet das Junk-Protokoll nur dafür ein |
 | `einst-dlg-hauptpasswort` | Einstellungen → Hauptpasswort ändern | dialog | nein | verlangt vorher eine macOS-Anmeldung (Systempasswort) – bewusst ausgelassen |
 | `einst-konfiguration` | Konfiguration bearbeiten (about:config) | bereich | ja |  |
 
@@ -363,6 +384,7 @@ CSS/Code: chrome/spaces.css (about:addons), extension/about/, extension/options/
 | `addons-detail` | Add-ons: halo.spaces (Details) | bereich | ja |  |
 | `addons-halo-einstellungen` | halo.spaces-Einstellungen (im Add-ons-Manager) | bereich | ja |  |
 | `addons-karten-menue` | Add-ons: Menü einer Erweiterung (…) | zustand | ja |  |
+| `addons-werkzeuge-menue` | Add-ons: Zahnrad-Menü (Updates, Add-on aus Datei installieren, Tastenkombinationen …) | zustand | ja |  |
 | `halo-info` | Hilfe → halo.spaces … (Info-Fenster) | fenster | ja |  |
 | `addons-empfehlungen` | Add-ons: Empfehlungen | bereich | nein | lädt Inhalte aus dem Netz (addons.thunderbird.net) – im Testprofil ausgelassen |
 
@@ -378,7 +400,7 @@ CSS/Code: chrome/userChrome.css (Dialoge, commonDialog), chrome/spaces.css
 | `dlg-suchordner` | Neuer Suchordner (gespeicherte Suche) | dialog | ja |  |
 | `dlg-filterliste` | Nachrichtenfilter (Liste) | fenster | ja |  |
 | `dlg-filter-editor` | Filterregeln bearbeiten (Filter-Editor) | dialog | ja |  |
-| `dlg-filterprotokoll` | Nachrichtenfilter → Filterprotokoll | fenster | ja |  |
+| `dlg-filterprotokoll` | Nachrichtenfilter → Filterprotokoll | fenster | ja | Bild per screencapture -l mit Titelleiste (dunkel lieferte TakeScreenshot nur eine weiße Fläche) |
 | `dlg-suchordner-ordnerwahl` | Suchordner → Ordner auswählen (Ordnerliste zum Durchsuchen) | dialog | ja |  |
 | `dlg-suche` | Nachrichten suchen (erweiterte Suche) | fenster | ja |  |
 | `dlg-lesen-nach-datum` | Nach Datum als gelesen markieren | dialog | ja |  |
@@ -388,6 +410,8 @@ CSS/Code: chrome/userChrome.css (Dialoge, commonDialog), chrome/spaces.css
 | `dlg-aktivitaeten` | Aktivitäten | fenster | ja |  |
 | `dlg-downloads` | Gespeicherte Dateien (about:downloads) | bereich | ja |  |
 | `dlg-openpgp` | OpenPGP-Schlüssel verwalten | fenster | ja |  |
+| `dlg-openpgp-schluessel-erzeugen` | OpenPGP: Neues Schlüsselpaar erzeugen (Assistent) | dialog | ja | Test-Identität halo@example.invalid; geschlossen ohne „Schlüssel erzeugen“ |
+| `dlg-ordner-komprimieren` | Rückfrage „Ordner komprimieren?“ (mit Kästchen und „Weitere Informationen“) | dialog | ja |  |
 | `dlg-verlauf-loeschen` | Neueste Chronik löschen (nur ansehen) | dialog | ja |  |
 | `dlg-fehlerbehebung` | Informationen zur Fehlerbehebung (about:support) | bereich | ja |  |
 | `dlg-import` | Importieren (about:import) | bereich | ja |  |
@@ -399,7 +423,7 @@ CSS/Code: chrome/userChrome.css (Dialoge, commonDialog), chrome/spaces.css
 | `dlg-eingabe` | Eingabe (Text) | dialog | ja |  |
 | `dlg-anmeldung` | Anmeldung (Benutzer und Passwort, leer) | dialog | ja |  |
 | `dlg-abonnieren` | Abonnieren (Newsgruppen/IMAP-Ordner) | dialog | nein | braucht ein News- oder IMAP-Konto (Netzwerk) – im Testprofil nicht vorhanden |
-| `dlg-anhang-oeffnen` | Anhang öffnen/speichern (Programmauswahl) | dialog | nein | würde eine Datei öffnen oder speichern (Systemdialog) – bewusst ausgelassen |
+| `dlg-anhang-oeffnen` | Anhang öffnen: Dialog „Öffnen von …“ (Programmauswahl) | dialog | ja | Fenster unknownContentType.xhtml; nur angesehen, nie OK – kein PDF (öffnet intern im Tab) |
 | `dlg-dateiauswahl` | Dateiauswahl (Anhängen, Kontaktbild …) | dialog | nein | nativ: macOS-Dateidialog – nicht gestaltbar |
 
-Gesamt: 283 Oberflächen, davon 260 mit Bild.
+Gesamt: 304 Oberflächen, davon 282 mit Bild.

@@ -29,6 +29,10 @@ Vorher-Bilder: `tests/shots/tour/vorher/` (hell-*/dunkel-*), Paket `tests/shots/
 - [ ] `mail-ohne-leseansicht` – Leseansicht ausgeblendet (nur Liste): offen
 - [ ] `mail-schnellfilter` – Schnellfilter-Leiste offen: offen
 - [ ] `mail-schnellfilter-aktiv` – Schnellfilter „Ungelesen“ aktiv: offen
+- [ ] `mail-schnellfilter-text` – Schnellfilter mit Suchtext (Zeile „Absender / Empfänger / Betreff / Text“): offen
+- [ ] `mail-schnellfilter-ohne-treffer` – Schnellfilter ohne Treffer: Hinweis „Enter: in allen Ordnern suchen“: offen
+- [ ] `mail-schnellfilter-schlagwoerter` – Schnellfilter „Schlagwörter“ (Zeile mit Schlagwort-Knöpfen): offen
+- [ ] `mail-schnellfilter-schlagwort-modus` – Schnellfilter „Schlagwörter“: Menü „Beliebig / Alle / Keine“: offen
 - [ ] `mail-spaltenauswahl` – Tabelle: Spaltenauswahl (Listen-Spaltenmenü): offen
 - [ ] `mail-ansichtsoptionen` – Listenkopf: Ansichtsoptionen (…): offen
 - [ ] `mail-ansichtsoptionen-sortieren` – Listenkopf: Ansichtsoptionen → Sortieren nach: offen
@@ -92,6 +96,14 @@ Vorher-Bilder: `tests/shots/tour/vorher/` (hell-*/dunkel-*), Paket `tests/shots/
 - [ ] `verfassen-anhang-erinnerung` – Hinweisleiste „Anhang vergessen?“ (Schlüsselwort im Text): offen
 - [ ] `verfassen-bild` – Verfassen: Bild einfügen: offen
 - [ ] `verfassen-rechtschreibung-dialog` – Verfassen: Rechtschreibung prüfen: offen
+- [ ] `verfassen-schriftgroesse-menue` – Formatleiste: Textgröße: offen
+- [ ] `verfassen-ausrichtung-menue` – Formatleiste: Ausrichtung (mit Symbolen): offen
+- [ ] `verfassen-smiley-menue` – Formatleiste: Smileys: offen
+- [ ] `verfassen-suchleiste` – Verfassen: Suchleiste im Nachrichtentext (Bearbeiten → Suchen): offen
+- [ ] `verfassen-suchen-ersetzen` – Verfassen: Suchen und Ersetzen: offen
+- [ ] `verfassen-anker` – Verfassen: Einfügen → Anker: offen
+- [ ] `verfassen-toolbar-kontext` – Verfassen: Kontextmenü der Symbolleiste: offen
+- [ ] `verfassen-toolbar-anpassen` – Verfassen: Symbolleiste anpassen (Sheet): offen
 - [x] `verfassen-verschluesselung` – Verfassen: Verschlüsselungs-Panel: übersprungen: braucht einen OpenPGP-/S/MIME-Schlüssel – im Testprofil nicht vorhanden
 
 ## 4. Ordnerliste, Toolbar, Suche, Bereiche-Leiste (`ordner`)
@@ -107,6 +119,7 @@ Vorher-Bilder: `tests/shots/tour/vorher/` (hell-*/dunkel-*), Paket `tests/shots/
 - [ ] `toolbar-anpassen` – Toolbar anpassen: offen
 - [ ] `suche-ergebnisse` – Suche oben: Treffer in allen Postfächern: offen
 - [ ] `suche-globale-ergebnisse` – Globale Suche (Ergebnis-Tab): offen
+- [ ] `suche-vorschlaege` – Suchfeld oben außerhalb der Mailansicht: Vorschlagsliste (Kalender-Tab): offen
 - [ ] `today-pane-zu` – Mail ohne Today-Pane: offen
 - [ ] `spaces-eingeklappt` – Bereiche-Leiste eingeklappt: offen
 - [x] `spaces-menue-knopf` – Bereiche-Leiste eingeklappt: Bereiche-Menü: übersprungen: von halo.spaces ersetzt: der Knopf blendet die Seitenleiste ein/aus, das Menü wird blockiert (implementation.js, hookSidebarButton)
@@ -138,6 +151,7 @@ Vorher-Bilder: `tests/shots/tour/vorher/` (hell-*/dunkel-*), Paket `tests/shots/
 - [ ] `kontext-einstellungen-knopf` – Kontextmenü: Einstellungen-Knopf der Bereiche-Leiste: offen
 - [ ] `kontext-schnellfilter` – Kontextmenü: Schnellfilter-Leiste: offen
 - [ ] `kontext-verfassen-adresse` – Kontextmenü: Adresse im Verfassen-Fenster: offen
+- [ ] `tooltip-toolbar` – Tooltip an einem Toolbar-Knopf („Verfassen“): offen
 
 ## 6. Kalender und Today-Pane (`kalender`)
 
@@ -168,6 +182,8 @@ Vorher-Bilder: `tests/shots/tour/vorher/` (hell-*/dunkel-*), Paket `tests/shots/
 - [ ] `kal-erinnerung-anpassen` – Termin: Erinnerungen anpassen (Erinnerung → Benutzerdefiniert…): offen
 - [ ] `kal-zusammenfassung` – Termin aus schreibgeschütztem Kalender (Zusammenfassung): offen
 - [ ] `kal-erinnerung` – Erinnerungsfenster (Alarm): offen
+- [ ] `kal-erinnerung-spaeter` – Erinnerungsfenster: Menü „Später erinnern“ (Schlummern für alle): offen
+- [ ] `kal-termin-tooltip` – Kalender: Tooltip eines Termins (Titel, Zeit, Ort, Kalender): offen
 - [ ] `kal-eigenschaften` – Kalender-Eigenschaften: offen
 - [ ] `kal-neuer-kalender` – Neuer Kalender (Assistent): offen
 - [ ] `kal-wiederholung-frage` – Wiederholten Termin löschen: Nachfrage: offen
@@ -265,6 +281,8 @@ Vorher-Bilder: `tests/shots/tour/vorher/` (hell-*/dunkel-*), Paket `tests/shots/
 - [ ] `einst-dlg-geraete` – Einstellungen → Kryptographie-Module: offen
 - [ ] `einst-dlg-kategorie` – Einstellungen → Kalender: Neue Kategorie: offen
 - [ ] `einst-dlg-systemintegration` – Einstellungen → Systemintegration (Standardprogramm): offen
+- [ ] `einst-dlg-verzeichnisse` – Einstellungen → Verfassen → LDAP-Verzeichnisse verwalten: offen
+- [ ] `einst-dlg-junk-protokoll` – Einstellungen → Datenschutz → Junk-Protokoll anzeigen: offen
 - [x] `einst-dlg-hauptpasswort` – Einstellungen → Hauptpasswort ändern: übersprungen: verlangt vorher eine macOS-Anmeldung (Systempasswort) – bewusst ausgelassen
 - [ ] `einst-konfiguration` – Konfiguration bearbeiten (about:config): offen
 
@@ -292,6 +310,7 @@ Vorher-Bilder: `tests/shots/tour/vorher/` (hell-*/dunkel-*), Paket `tests/shots/
 - [ ] `addons-detail` – Add-ons: halo.spaces (Details): offen
 - [ ] `addons-halo-einstellungen` – halo.spaces-Einstellungen (im Add-ons-Manager): offen
 - [ ] `addons-karten-menue` – Add-ons: Menü einer Erweiterung (…): offen
+- [ ] `addons-werkzeuge-menue` – Add-ons: Zahnrad-Menü (Updates, Add-on aus Datei installieren, Tastenkombinationen …): offen
 - [ ] `halo-info` – Hilfe → halo.spaces … (Info-Fenster): offen
 - [x] `addons-empfehlungen` – Add-ons: Empfehlungen: übersprungen: lädt Inhalte aus dem Netz (addons.thunderbird.net) – im Testprofil ausgelassen
 
@@ -313,6 +332,8 @@ Vorher-Bilder: `tests/shots/tour/vorher/` (hell-*/dunkel-*), Paket `tests/shots/
 - [ ] `dlg-aktivitaeten` – Aktivitäten: offen
 - [ ] `dlg-downloads` – Gespeicherte Dateien (about:downloads): offen
 - [ ] `dlg-openpgp` – OpenPGP-Schlüssel verwalten: offen
+- [ ] `dlg-openpgp-schluessel-erzeugen` – OpenPGP: Neues Schlüsselpaar erzeugen (Assistent): offen
+- [ ] `dlg-ordner-komprimieren` – Rückfrage „Ordner komprimieren?“ (mit Kästchen und „Weitere Informationen“): offen
 - [ ] `dlg-verlauf-loeschen` – Neueste Chronik löschen (nur ansehen): offen
 - [ ] `dlg-fehlerbehebung` – Informationen zur Fehlerbehebung (about:support): offen
 - [ ] `dlg-import` – Importieren (about:import): offen
@@ -324,5 +345,5 @@ Vorher-Bilder: `tests/shots/tour/vorher/` (hell-*/dunkel-*), Paket `tests/shots/
 - [ ] `dlg-eingabe` – Eingabe (Text): offen
 - [ ] `dlg-anmeldung` – Anmeldung (Benutzer und Passwort, leer): offen
 - [x] `dlg-abonnieren` – Abonnieren (Newsgruppen/IMAP-Ordner): übersprungen: braucht ein News- oder IMAP-Konto (Netzwerk) – im Testprofil nicht vorhanden
-- [x] `dlg-anhang-oeffnen` – Anhang öffnen/speichern (Programmauswahl): übersprungen: würde eine Datei öffnen oder speichern (Systemdialog) – bewusst ausgelassen
+- [ ] `dlg-anhang-oeffnen` – Anhang öffnen: Dialog „Öffnen von …“ (Programmauswahl): offen
 - [x] `dlg-dateiauswahl` – Dateiauswahl (Anhängen, Kontaktbild …): übersprungen: nativ: macOS-Dateidialog – nicht gestaltbar

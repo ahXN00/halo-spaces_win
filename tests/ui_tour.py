@@ -77,6 +77,11 @@ def S(id, area, kind, title, open=None, cap="main", close=None, **kw):
          "native" – nicht aufnehmbar/gestaltbar (Grund in skip)
     skip: Grund, warum die Oberfläche nicht besucht wird
     size: Fenstergröße des Hauptfensters (Standard 1500×900)
+    then: (URL-Teil, JS) – zweiter Schritt im (modalen) Fenster, das open geöffnet hat
+    screen: Fenster per screencapture -l (mit Titelleiste) statt TakeScreenshot aufnehmen – für Fenster,
+            deren Hintergrund macOS zeichnet (dunkel sonst nur eine weiße Fläche)
+    after: JS nach dem Öffnen (bei Popups nach der Zeigerbewegung, wenn open {pointer: [x, y]} liefert;
+           hover = Wartezeit in s), z. B. Tooltip suchen und als w.__tourPopup merken
     """
     assert area in AREA_KEYS and kind in KINDS, id
     return {"id": id, "area": area, "kind": kind, "title": title, "open": open, "cap": cap, "close": close, **kw}
@@ -244,6 +249,31 @@ const eventDialog = async () => { await toCalendar(); w.switchToView("week"); w.
 const quickPanel = async () => { await toCalendar(); w.switchToView("week"); await wait(800); const li = toolbarItem("new-event"); if (!li) throw new Error("„+“ fehlt");
   await pop("mcQuickPanel", () => li.querySelector("button").click()); const f = d.getElementById("mcQuickPanel").__mc;
   if (!f) throw new Error("Schnellfenster ohne Felder"); if (!vis(f.startDate)) { f.summary.click(); await wait(600); } return f; };
+// Mauszeiger auf die Mitte eines Elements (Rückgabe für den Rundgang: Marionette bewegt den Zeiger im Hauptfenster,
+// Rahmen wie about:3pane werden eingerechnet) – für Hover-Zustände und Tooltips. Merkt sich jeden Tooltip, der danach
+// aufgeht: Knöpfe mit title nutzen den Standard-Tooltip des Dokuments (anonymer Inhalt, per querySelector unsichtbar)
+const hoverAt = el => { el.scrollIntoView?.({ block: "nearest" }); const r = el.getBoundingClientRect(); let x = r.left + r.width / 2, y = r.top + r.height / 2;
+  for (let v = el.ownerGlobal; v && v != w; ) { const fr = v.browsingContext?.embedderElement; if (!fr) break; const o = fr.getBoundingClientRect(); x += o.left; y += o.top; v = fr.ownerGlobal; }
+  w.__tourTip = null;
+  for (const dd of new Set([d, el.ownerDocument])) if (!dd.__tourTipWatch) { dd.__tourTipWatch = true;
+    dd.addEventListener("popupshown", e => { if (e.originalTarget?.localName == "tooltip") w.__tourTip = e.originalTarget; }, true); }
+  return { pointer: [Math.round(x), Math.round(y)] }; };
+// offener Tooltip (nach dem Bewegen des Zeigers) für die Aufnahme merken
+const openTip = async (ms = 4000) => { const tip = await until(() => (w.__tourTip?.state == "open" && w.__tourTip) || [d, tm.currentAbout3Pane?.document].filter(Boolean)
+    .flatMap(x => [...x.querySelectorAll("tooltip")]).find(t => t.state == "open"), ms);
+  if (!tip) throw new Error("Tooltip nicht offen"); await wait(300); w.__tourPopup = tip; return { popup: tip.id || (tip.hasAttribute("default") ? "Standard-Tooltip" : tip.className) }; };
+// Schnellfilter: Text ins Suchfeld der Leiste tippen (Feld bleibt fokussiert)
+const qfbText = async (p, text) => { const inp = p.document.getElementById("qfb-qs-textbox")?.shadowRoot?.querySelector("input");
+  if (!inp) throw new Error("Suchfeld der Schnellfilter-Leiste fehlt"); inp.focus(); inp.value = text;
+  inp.dispatchEvent(new p.InputEvent("input", { bubbles: true, composed: true })); await wait(1500); return inp; };
+const qfbOpen = async () => { const p = await pick("Inbox", "Treffen am Donnerstag"); cmd3("cmd_toggleQuickFilterBar"); await wait(800);
+  if (!vis(p.document.getElementById("quick-filter-bar"))) throw new Error("Schnellfilter-Leiste nicht sichtbar"); return p; };
+// Termin mit fälliger Erinnerung im Kalender „Halo Test“ (öffnet das Erinnerungsfenster; beim Schließen wieder löschen)
+const addAlarm = async () => { const { CalEvent } = ChromeUtils.importESModule("resource:///modules/CalEvent.sys.mjs"); const { CalAlarm } = ChromeUtils.importESModule("resource:///modules/CalAlarm.sys.mjs");
+  const e = new CalEvent(); e.title = "Erinnerung Test"; const s = cal.dtz.now(); s.minute += 10; const en = s.clone(); en.hour += 1; e.startDate = s; e.endDate = en;
+  const a = new CalAlarm(); a.related = Ci.calIAlarm.ALARM_RELATED_START; a.offset = cal.createDuration("-PT15M"); a.action = "DISPLAY"; e.addAlarm(a);
+  w.__tourAlarm = await testCalendar().addItem(e); };
+const dropAlarm = async () => { if (w.__tourAlarm) { try { await testCalendar().deleteItem(w.__tourAlarm); } catch {} w.__tourAlarm = null; } await wait(500); };
 """
 
 # erfundene Testdaten (alle Adressen @example.invalid) – wird beim Start einmal ausgeführt
@@ -547,6 +577,17 @@ def _prefs_subdialogs():
               f'await subDialog("{pane}", "{btn}");') for k, pane, btn, t in dlgs] + [
         S("einst-dlg-systemintegration", "einstellungen", "dialog", "Einstellungen → Systemintegration (Standardprogramm)",
           'await subDialog("paneGeneral", "checkDefaultButton");'),
+        # „Verzeichnisse bearbeiten“ ist nur aktiv, wenn „Verzeichnisserver“ angehakt ist (ohne Verzeichnis, kein Netz)
+        S("einst-dlg-verzeichnisse", "einstellungen", "dialog", "Einstellungen → Verfassen → LDAP-Verzeichnisse verwalten",
+          'Services.prefs.setBoolPref("ldap_2.autoComplete.useDirectory", true); await subDialog("paneCompose", "editButton");',
+          close='Services.prefs.clearUserPref("ldap_2.autoComplete.useDirectory");',
+          note="Unterdialog pref-editdirectories.xhtml; der Rundgang hakt „Verzeichnisserver“ nur dafür an"),
+        # „Protokoll anzeigen“ ist nur mit eingeschaltetem Junk-Protokoll aktiv und öffnet ein echtes Fenster (kein Unterdialog)
+        S("einst-dlg-junk-protokoll", "einstellungen", "dialog", "Einstellungen → Datenschutz → Junk-Protokoll anzeigen",
+          'Services.prefs.setBoolPref("mail.spam.logging.enabled", true); const cw = await prefs("panePrivacy"); const b = cw.document.getElementById("openJunkLogButton");'
+          ' if (!b) throw new Error("Knopf fehlt"); if (b.disabled) throw new Error("Knopf deaktiviert"); b.scrollIntoView({ block: "center" }); later(() => b.click());',
+          cap="window", win="junkLog", screen=True, close='Services.prefs.clearUserPref("mail.spam.logging.enabled");',
+          note="Fenster junkLog.xhtml; der Rundgang schaltet das Junk-Protokoll nur dafür ein"),
         S("einst-dlg-hauptpasswort", "einstellungen", "dialog", "Einstellungen → Hauptpasswort ändern", cap="native",
           skip="verlangt vorher eine macOS-Anmeldung (Systempasswort) – bewusst ausgelassen"),
     ]
@@ -625,6 +666,23 @@ SURFACES = [
     S("mail-schnellfilter-aktiv", "mailliste", "zustand", "Schnellfilter „Ungelesen“ aktiv",
       'const p = await pick("Inbox", "Treffen am Donnerstag"); cmd3("cmd_toggleQuickFilterBar"); await wait(800);'
       ' p.document.getElementById("qfb-unread").click(); await wait(1500);',
+      close='cmd3("cmd_resetQuickFilterBar"); cmd3("cmd_toggleQuickFilterBar"); await wait(600);'),
+    # Schnellfilter mit Suchtext: Zeile „Absender / Empfänger / Betreff / Text“; ohne Treffer der Hinweis auf die globale Suche
+    S("mail-schnellfilter-text", "mailliste", "zustand", "Schnellfilter mit Suchtext (Zeile „Absender / Empfänger / Betreff / Text“)",
+      'const p = await qfbOpen(); await qfbText(p, "Planung");'
+      ' if (!vis(p.document.getElementById("quick-filter-bar-filter-text-bar"))) throw new Error("Zeile für den Suchtext fehlt"); await wait(600);',
+      close='cmd3("cmd_resetQuickFilterBar"); cmd3("cmd_toggleQuickFilterBar"); await wait(600);'),
+    S("mail-schnellfilter-ohne-treffer", "mailliste", "popup", "Schnellfilter ohne Treffer: Hinweis „Enter: in allen Ordnern suchen“",
+      'const p = await qfbOpen(); return await pop(p.document.getElementById("qfb-text-search-upsell"), () => qfbText(p, "Zebra"));', cap="popup",
+      close='cmd3("cmd_resetQuickFilterBar"); cmd3("cmd_toggleQuickFilterBar"); await wait(600);',
+      note="Tooltip #qfb-text-search-upsell (Gloda aktiv, Suchfeld fokussiert)"),
+    S("mail-schnellfilter-schlagwoerter", "mailliste", "zustand", "Schnellfilter „Schlagwörter“ (Zeile mit Schlagwort-Knöpfen)",
+      'const p = await qfbOpen(); p.document.getElementById("qfb-tags").click(); await wait(1200);'
+      ' if (!vis(p.document.getElementById("quickFilterBarTagsContainer"))) throw new Error("Schlagwort-Zeile fehlt");',
+      close='cmd3("cmd_resetQuickFilterBar"); cmd3("cmd_toggleQuickFilterBar"); await wait(600);'),
+    S("mail-schnellfilter-schlagwort-modus", "mailliste", "popup", "Schnellfilter „Schlagwörter“: Menü „Beliebig / Alle / Keine“",
+      'const p = await qfbOpen(); p.document.getElementById("qfb-tags").click(); await wait(1200);'
+      ' const ml = p.document.getElementById("qfb-tag-filter-mode"); if (!vis(ml)) throw new Error("Auswahl fehlt"); return await openBtnPop(ml.menupopup, ml);', cap="popup",
       close='cmd3("cmd_resetQuickFilterBar"); cmd3("cmd_toggleQuickFilterBar"); await wait(600);'),
     S("mail-spaltenauswahl", "mailliste", "popup", "Tabelle: Spaltenauswahl (Listen-Spaltenmenü)",
       'const p = await pick("Inbox", "Treffen am Donnerstag"); cmd3("cmd_threadPaneViewTable"); await wait(1500);'
@@ -793,6 +851,28 @@ SURFACES = [
       'const cw = await compose(); later(() => cw.goDoCommand("cmd_image"));', cap="window", win="EdImageProps"),
     S("verfassen-rechtschreibung-dialog", "verfassen", "dialog", "Verfassen: Rechtschreibung prüfen",
       'const cw = await compose({ body: "<p>Ein Tset mit Fehlrn und noch mehr Fehlren.</p>" }); later(() => cw.goDoCommand("cmd_spelling"));', cap="window", win="EdSpellCheck"),
+    # Formatleiste: weitere Menüs
+    S("verfassen-schriftgroesse-menue", "verfassen", "popup", "Formatleiste: Textgröße",
+      'const cw = await compose(); return await openBtnPop(cw.document.getElementById("AbsoluteFontSizeButtonPopup"), cw.document.getElementById("AbsoluteFontSizeButton"));', cap="popup"),
+    S("verfassen-ausrichtung-menue", "verfassen", "popup", "Formatleiste: Ausrichtung (mit Symbolen)",
+      'const cw = await compose(); return await openBtnPop(cw.document.getElementById("AlignPopup"), cw.document.getElementById("AlignPopupButton"));', cap="popup"),
+    S("verfassen-smiley-menue", "verfassen", "popup", "Formatleiste: Smileys",
+      'const cw = await compose(); return await openBtnPop(cw.document.getElementById("smileyPopup"), cw.document.getElementById("smileButtonMenu"));', cap="popup"),
+    S("verfassen-suchleiste", "verfassen", "zustand", "Verfassen: Suchleiste im Nachrichtentext (Bearbeiten → Suchen)",
+      'const cw = await compose(); cw.goDoCommand("cmd_find"); const fb = await until(() => { const f = cw.document.getElementById("FindToolbar"); return f && !f.hidden && f; }, 4000);'
+      ' if (!fb) throw new Error("Suchleiste ging nicht auf"); fb._findField.value = "Liste"; fb._find?.(); await wait(800);', cap="window", win="messengercompose"),
+    S("verfassen-suchen-ersetzen", "verfassen", "dialog", "Verfassen: Suchen und Ersetzen",
+      'const cw = await compose(); later(() => cw.goDoCommand("cmd_findReplace"));', cap="window", win="EdReplace"),
+    S("verfassen-anker", "verfassen", "dialog", "Verfassen: Einfügen → Anker",
+      'const cw = await compose(); later(() => cw.goDoCommand("cmd_anchor"));', cap="window", win="EdNamedAnchorProps"),
+    S("verfassen-toolbar-kontext", "verfassen", "popup", "Verfassen: Kontextmenü der Symbolleiste",
+      'const cw = await compose(); return await ctxPop("toolbar-context-menu", cw.document.getElementById("composeToolbar2"));', cap="popup"),
+    # „Anpassen…“ öffnet unter macOS ein Sheet (Panel) im Verfassen-Fenster – nichts verschieben, beim Schließen „Fertig“
+    S("verfassen-toolbar-anpassen", "verfassen", "popup", "Verfassen: Symbolleiste anpassen (Sheet)",
+      'const cw = await compose(); const p = cw.document.getElementById("customizeToolbarSheetPopup"); if (!p) throw new Error("Sheet fehlt");'
+      ' const r = await pop(p, () => cw.CustomizeMailToolbar("compose-toolbox", "CustomizeComposeToolbar"));'
+      ' await until(() => p.style.visibility != "hidden", 6000); await wait(1500); return r;', cap="popup",
+      close='const cw = Services.wm.getMostRecentWindow("msgcompose"); try { cw?.document.getElementById("customizeToolbarSheetIFrame")?.contentWindow?.onClose?.(); } catch {} await wait(800);'),
 
     # ------------------------------------------------------------ Ordnerliste, Toolbar, Suche, Spaces
     S("ordner-mehr-menue", "ordner", "popup", "Ordnerliste: „…“-Menü (Ordner-Modi)",
@@ -827,6 +907,15 @@ SURFACES = [
       close='d.querySelector("#unifiedToolbarContent global-search-bar")?.dispatchEvent(new CustomEvent("autocomplete", { detail: "", cancelable: true })); await wait(1200);'),
     S("suche-globale-ergebnisse", "ordner", "bereich", "Globale Suche (Ergebnis-Tab)",
       'w.openGlodaSearchTab?.(); await wait(3000); if (tm.tabInfo.length < 2) throw new Error("kein Such-Tab");'),
+    # im Mail-Tab fängt halo.spaces die Vorschläge ab – in Kalender, Aufgaben, Chat … erscheint weiter die Gloda-Liste
+    S("suche-vorschlaege", "ordner", "popup", "Suchfeld oben außerhalb der Mailansicht: Vorschlagsliste (Kalender-Tab)",
+      'await toCalendar(); const bar = [...d.querySelectorAll("#unifiedToolbarContent global-search-bar")].find(vis); const inp = bar?.shadowRoot?.querySelector("input");'
+      ' if (!inp) throw new Error("Suchfeld fehlt"); return await pop("PopupGlodaAutocomplete", async () => { inp.focus(); inp.value = "Anna";'
+      ' inp.dispatchEvent(new w.InputEvent("input", { bubbles: true, composed: true })); });', cap="popup",
+      close='const inp = [...d.querySelectorAll("#unifiedToolbarContent global-search-bar")].find(vis)?.shadowRoot?.querySelector("input");'
+            ' if (inp) { inp.value = ""; inp.dispatchEvent(new w.InputEvent("input", { bubbles: true, composed: true })); inp.blur(); }'
+            ' d.getElementById("PopupGlodaAutocomplete")?.hidePopup?.(); await wait(500);',
+      note="PopupGlodaAutocomplete; im Mail-Tab ersetzt halo.spaces die Liste durch die eigene Suche"),
     S("today-pane-zu", "ordner", "zustand", "Mail ohne Today-Pane",
       'await pick("Inbox", "Treffen am Donnerstag"); if (w.TodayPane.isVisible) d.getElementById("calendar_toggle_todaypane_command").doCommand(); await wait(1500);',
       close='if (!w.TodayPane.isVisible) d.getElementById("calendar_toggle_todaypane_command").doCommand(); await wait(1000);'),
@@ -888,6 +977,11 @@ SURFACES = [
       close='cmd3("cmd_toggleQuickFilterBar"); await wait(500);'),
     S("kontext-verfassen-adresse", "menues", "popup", "Kontextmenü: Adresse im Verfassen-Fenster",
       'const cw = await compose(); const pill = cw.document.querySelector("mail-address-pill"); if (!pill) throw new Error("keine Adresse"); return await ctxPop("emailAddressPillPopup", pill);', cap="popup"),
+    # Tooltip: nur echte Zeigerbewegung füllt ihn (openPopup reicht nicht) – Marionette fährt über „Verfassen“ und wartet
+    S("tooltip-toolbar", "menues", "popup", "Tooltip an einem Toolbar-Knopf („Verfassen“)",
+      'await toMail(); const b = toolbarItem("write-message")?.querySelector("button"); if (!b) throw new Error("Knopf fehlt"); return hoverAt(b);',
+      cap="popup", after="return await openTip();", hover=1.4,
+      note="Standard-Tooltip des Dokuments (title-Attribut, anonymer Inhalt) – nicht #aHTMLTooltip; gemessen: appearance auto, grau, eckig"),
 
     # ------------------------------------------------------------ Kalender
     S("kal-tag", "kalender", "bereich", "Kalender: Tag",
@@ -967,11 +1061,17 @@ SURFACES = [
     S("kal-zusammenfassung", "kalender", "fenster", "Termin aus schreibgeschütztem Kalender (Zusammenfassung)",
       'await toCalendar(); const it = await anyItem("Nationalfeiertag"); w.modifyEventWithDialog(it, true);', cap="window", win="calendar-summary-dialog"),
     S("kal-erinnerung", "kalender", "fenster", "Erinnerungsfenster (Alarm)",
-      'const { CalEvent } = ChromeUtils.importESModule("resource:///modules/CalEvent.sys.mjs"); const { CalAlarm } = ChromeUtils.importESModule("resource:///modules/CalAlarm.sys.mjs");'
-      ' const e = new CalEvent(); e.title = "Erinnerung Test"; const s = cal.dtz.now(); s.minute += 10; const en = s.clone(); en.hour += 1; e.startDate = s; e.endDate = en;'
-      ' const a = new CalAlarm(); a.related = Ci.calIAlarm.ALARM_RELATED_START; a.offset = cal.createDuration("-PT15M"); a.action = "DISPLAY"; e.addAlarm(a);'
-      ' w.__tourAlarm = await testCalendar().addItem(e);', cap="window", win="calendar-alarm-dialog",
-      close='if (w.__tourAlarm) { try { await testCalendar().deleteItem(w.__tourAlarm); } catch {} w.__tourAlarm = null; } await wait(500);'),
+      'await addAlarm();', cap="window", win="calendar-alarm-dialog", close='await dropAlarm();'),
+    S("kal-erinnerung-spaeter", "kalender", "popup", "Erinnerungsfenster: Menü „Später erinnern“ (Schlummern für alle)",
+      'await addAlarm(); const aw = await winUrl("calendar-alarm-dialog", 15000); if (!aw) throw new Error("Erinnerungsfenster nicht offen"); await wait(1500);'
+      ' const b = aw.document.getElementById("alarm-snooze-all-button"); if (!vis(b)) throw new Error("Knopf „Später erinnern“ fehlt");'
+      ' return await pop(aw.document.getElementById("alarm-snooze-all-popup"), p => p.openPopup(b, "after_start"));', cap="popup",
+      close='await dropAlarm();', note="nur geöffnet, kein Eintrag gewählt; Termin wird danach gelöscht"),
+    # Tooltip eines Termins: Marionette fährt mit dem Zeiger über die Terminbox (tooltip="itemTooltip")
+    S("kal-termin-tooltip", "kalender", "popup", "Kalender: Tooltip eines Termins (Titel, Zeit, Ort, Kalender)",
+      'await toCalendar(); w.switchToView("week"); w.currentView().goToDay(cal.dtz.now()); await wait(1200);'
+      ' const b = [...d.querySelectorAll("#week-view calendar-event-box")].find(x => x.occurrence?.title == "Teamrunde" && vis(x)); if (!b) throw new Error("Termin fehlt");'
+      ' return hoverAt(b);', cap="popup", after="return await openTip();", hover=1.4),
     S("kal-eigenschaften", "kalender", "dialog", "Kalender-Eigenschaften",
       'w.openDialog("chrome://calendar/content/calendar-properties-dialog.xhtml", "_blank", "centerscreen,chrome,titlebar,resizable", { calendar: testCalendar() });', cap="window", win="calendar-properties-dialog"),
     S("kal-neuer-kalender", "kalender", "dialog", "Neuer Kalender (Assistent)",
@@ -1141,6 +1241,9 @@ SURFACES = [
     S("addons-karten-menue", "addons", "zustand", "Add-ons: Menü einer Erweiterung (…)",
       'w.openAddonsMgr("addons://list/extension"); await wait(3000); const ad = tabDoc(); const b = ad.querySelector("addon-card .more-options-button");'
       ' if (!b) throw new Error("Knopf fehlt"); b.click(); await wait(900);'),
+    S("addons-werkzeuge-menue", "addons", "zustand", "Add-ons: Zahnrad-Menü (Updates, Add-on aus Datei installieren, Tastenkombinationen …)",
+      'w.openAddonsMgr("addons://list/extension"); await wait(3000); const ad = tabDoc(); const b = ad.querySelector("addon-page-header .page-options-menu .more-options-button");'
+      ' if (!b) throw new Error("Knopf fehlt"); b.click(); await wait(900); if (!ad.getElementById("page-options-panel-list")?.open) throw new Error("Menü ging nicht auf");'),
     S("halo-info", "addons", "fenster", "Hilfe → halo.spaces … (Info-Fenster)",
       'await toMail(); d.getElementById("mcHaloSpaces").doCommand();', cap="window", win="halo.html"),
 
@@ -1159,7 +1262,8 @@ SURFACES = [
       'await show("Inbox"); w.MsgFilters(null, fld("Inbox")); const fw = await winUrl("FilterListDialog"); await wait(1000); later(() => fw.onNewFilter());', cap="window", win="FilterEditor"),
     S("dlg-filterprotokoll", "dialoge", "fenster", "Nachrichtenfilter → Filterprotokoll",
       'await show("Inbox"); w.MsgFilters(null, fld("Inbox")); const fw = await winUrl("FilterListDialog"); if (!fw) throw new Error("Filterliste nicht offen"); await wait(1000);'
-      ' const b = fw.document.getElementById("filterLogButton"); if (!vis(b)) throw new Error("Knopf fehlt"); fw.setTimeout(() => b.click(), 0);', cap="window", win="viewLog"),
+      ' const b = fw.document.getElementById("filterLogButton"); if (!vis(b)) throw new Error("Knopf fehlt"); fw.setTimeout(() => b.click(), 0);', cap="window", win="viewLog", screen=True,
+      note="Bild per screencapture -l mit Titelleiste (dunkel lieferte TakeScreenshot nur eine weiße Fläche)"),
     S("dlg-suchordner-ordnerwahl", "dialoge", "dialog", "Suchordner → Ordner auswählen (Ordnerliste zum Durchsuchen)",
       # der Suchordner-Dialog ist modal (Zeitgeber des Hauptfensters ruhen) – Knopf daher im Dialog selbst auslösen (then)
       'await show("Inbox"); later(() => cmd3("cmd_newVirtualFolder"));', cap="window", win="virtualFolderListEdit",
@@ -1180,6 +1284,15 @@ SURFACES = [
       'await toMail(); await w.openSavedFilesWnd(); await wait(2500); if (tm.tabInfo.length < 2) throw new Error("kein Tab");'),
     S("dlg-openpgp", "dialoge", "fenster", "OpenPGP-Schlüssel verwalten",
       'later(() => w.openKeyManager());', cap="window", win="KeyManager"),
+    # Assistent ist modal zur Schlüsselverwaltung – daher im Fenster selbst öffnen (then); nur ansehen, nichts erzeugen
+    S("dlg-openpgp-schluessel-erzeugen", "dialoge", "dialog", "OpenPGP: Neues Schlüsselpaar erzeugen (Assistent)",
+      'later(() => w.openKeyManager());', cap="window", win="keyWizard", screen=True,
+      then=("KeyManager", 'if (typeof openKeyWizard != "function") throw new Error("openKeyWizard fehlt"); setTimeout(() => openKeyWizard(), 0); return 1;'),
+      note="Test-Identität halo@example.invalid; geschlossen ohne „Schlüssel erzeugen“"),
+    # Rückfrage der automatischen Komprimierung (sonst aus C++): nicht modal öffnen, nie „Jetzt komprimieren“ drücken
+    S("dlg-ordner-komprimieren", "dialoge", "dialog", "Rückfrage „Ordner komprimieren?“ (mit Kästchen und „Weitere Informationen“)",
+      'const bag = Cc["@mozilla.org/hash-property-bag;1"].createInstance(Ci.nsIWritablePropertyBag2); bag.setPropertyAsAString("compactSize", "120 MB");'
+      ' w.openDialog("chrome://messenger/content/compactFoldersDialog.xhtml", "", "chrome,dialog,centerscreen", bag);', cap="window", win="compactFoldersDialog"),
     S("dlg-verlauf-loeschen", "dialoge", "dialog", "Neueste Chronik löschen (nur ansehen)",
       'later(() => w.toSanitize());', cap="window", win="sanitize"),
     S("dlg-fehlerbehebung", "dialoge", "bereich", "Informationen zur Fehlerbehebung (about:support)",
@@ -1203,8 +1316,16 @@ SURFACES = [
       'prompt((ps, bc, t) => ps.asyncPromptUsernameAndPassword(bc, t, "Anmeldung", "Bitte melden Sie sich bei mail.example.invalid an.", "", "", null, false));', cap="window", win="commonDialog", prompt=True),
     S("dlg-abonnieren", "dialoge", "dialog", "Abonnieren (Newsgruppen/IMAP-Ordner)", cap="native",
       skip="braucht ein News- oder IMAP-Konto (Netzwerk) – im Testprofil nicht vorhanden"),
-    S("dlg-anhang-oeffnen", "dialoge", "dialog", "Anhang öffnen/speichern (Programmauswahl)", cap="native",
-      skip="würde eine Datei öffnen oder speichern (Systemdialog) – bewusst ausgelassen"),
+    # ohne gespeicherte Aktion für den Dateityp zeigt Thunderbird nur diesen Dialog – geschrieben/geöffnet wird erst nach OK
+    S("dlg-anhang-oeffnen", "dialoge", "dialog", "Anhang öffnen: Dialog „Öffnen von …“ (Programmauswahl)",
+      'await pick("Inbox", "Bilder vom Ausflug"); const mw = msgDoc().defaultView;'
+      ' const a = await until(() => mw.currentAttachments?.find(x => x.name == "Notizen.txt"), 4000); if (!a) throw new Error("Anhang Notizen.txt fehlt");'
+      # Sicherheit: mit gespeicherter Aktion würde Thunderbird die Datei sofort mit einem Programm öffnen
+      ' const mi = Cc["@mozilla.org/mime;1"].getService(Ci.nsIMIMEService).getFromTypeAndExtension(a.contentType, "txt");'
+      ' if (Cc["@mozilla.org/uriloader/handler-service;1"].getService(Ci.nsIHandlerService).exists(mi) && !mi.alwaysAskBeforeHandling)'
+      ' throw new Error("gespeicherte Aktion für " + a.contentType + " – der Dialog käme nicht, Datei würde geöffnet");'
+      ' later(() => a.open(mw.browsingContext));', cap="window", win="unknownContentType", screen=True,
+      note="Fenster unknownContentType.xhtml; nur angesehen, nie OK – kein PDF (öffnet intern im Tab)"),
     S("dlg-dateiauswahl", "dialoge", "dialog", "Dateiauswahl (Anhängen, Kontaktbild …)", cap="native",
       skip="nativ: macOS-Dateidialog – nicht gestaltbar"),
     S("addons-empfehlungen", "addons", "bereich", "Add-ons: Empfehlungen", cap="native",
@@ -1390,9 +1511,17 @@ class Tour:
             wdt, hgt = s.get("size", MAIN_SIZE)
             self.js(f"if (w.outerWidth != {wdt} || w.outerHeight != {hgt}) {{ w.resizeTo({wdt}, {hgt}); await wait(1200); }} return 1;")
             before = set(self.handles())
-            before_wins = {w["id"] for w in windows_of(self.pid)} if s.get("prompt") else set()
+            before_wins = {w["id"] for w in windows_of(self.pid)} if s.get("prompt") or s.get("screen") else set()
             res = self.js(s["open"] + "\n;return null;")
             res = res if isinstance(res, dict) else {}
+            if res.get("pointer") and s["cap"] == "popup":
+                # Tooltips: echte Zeigerbewegung (Marionette) über das Element, dann ruhen lassen;
+                # after merkt den offenen Tooltip für die Aufnahme
+                x, y = res["pointer"]
+                self.m.pointer([{"type": "pointerMove", "x": x, "y": y, "origin": "viewport"}])
+                time.sleep(s.get("hover", 0.8))
+            if s.get("after"):
+                self.js(s["after"] + "\n;return null;")
             if s["cap"] == "popup":
                 files = self.capture_popups(sid)
                 self.do_probe(sid)
@@ -1400,7 +1529,7 @@ class Tour:
             if s.get("prompt"):
                 return self.capture_prompt(s, before_wins)
             if s["cap"] == "window":
-                return self.capture_new_window(s, before)
+                return self.capture_new_window(s, before, before_wins)
             if s.get("size"):
                 # Mindestbreite hängt vom Bereich ab – nach dem Öffnen noch einmal anpassen
                 self.js(f"w.resizeTo({wdt}, {hgt}); await wait(1500); return 1;")
@@ -1503,7 +1632,19 @@ class Tour:
         time.sleep(1.0)
         self.win_js(script)
 
-    def capture_new_window(self, s, before):
+    def capture_screen_window(self, s, before_wins):
+        """Fenster per screencapture -l (mit Titelleiste) statt WebDriver:TakeScreenshot – für Fenster, deren
+        Hintergrund macOS zeichnet (dunkel kam per TakeScreenshot nur eine weiße Fläche). Nur Fenster der Test-PID."""
+        title = self.win_sync("return document.title;") or ""
+        # Ebene 0: normale Fenster, Ebene 8: modale Fenster (z. B. OpenPGP-Assistent, ohne Titel)
+        new = [w for w in windows_of(self.pid) if w["id"] not in before_wins and w["layer"] in (0, 8) and w["w"] > 80 and w["h"] > 40]
+        win = max((w for w in new if title and w["name"] == title), key=lambda w: w["id"], default=None) \
+            or max(new, key=lambda w: w["id"], default=None)
+        if not win:
+            raise RuntimeError(f"Fenster „{title}“ der Test-PID nicht gefunden")
+        return capture_window(self.pid, win["id"], self.path(s["id"]))
+
+    def capture_new_window(self, s, before, before_wins=frozenset()):
         sid, want = s["id"], s.get("win")
         if s.get("then"):
             self.run_then(s, before)
@@ -1533,7 +1674,7 @@ class Tour:
         time.sleep(s.get("settle", 1.4))
         if s.get("inwin"):
             self.win_js(s["inwin"])
-        path = self.screenshot(self.path(sid))
+        path = self.capture_screen_window(s, before_wins) if s.get("screen") else self.screenshot(self.path(sid))
         self.do_probe(sid, in_window=True)
         return self.report(s, True, [path])
 
@@ -1621,6 +1762,13 @@ BESONDERHEITEN = [
     "die neuesten Fenster zuerst.",
     "Popups der HTML-Felder im Schnellfenster (Datum: `DateTimePickerPanel`, Auswahlliste: `#ContentSelectDropdown`) "
     "gehen nur nach `notifyUserGestureActivation()` auf; das Bild `-2` zeigt das Schnellfenster dazu.",
+    "Tooltips (`aHTMLTooltip`, `itemTooltip`) füllen sich nur bei echter Zeigerbewegung: der Rundgang fährt per "
+    "Marionette über das Element (`hoverAt`, S()-Parameter `after`/`hover`) und nimmt den offenen Tooltip auf.",
+    "Anhang öffnen: ohne gespeicherte Aktion für den Dateityp zeigt Thunderbird nur den Dialog „Öffnen von …“ – "
+    "der Rundgang prüft das vorher (sonst würde die Datei sofort mit einem Programm geöffnet) und schließt ohne OK.",
+    "Einige Fenster (Filterprotokoll, Junk-Protokoll, „Öffnen von …“, OpenPGP-Assistent) kamen dunkel per "
+    "`WebDriver:TakeScreenshot` nur als weiße Fläche mit hellem Text heraus, obwohl das Fenster auf dem Bildschirm "
+    "dunkel ist – sie werden mit `screen=True` per `screencapture -l` (mit Titelleiste) aufgenommen.",
 ]
 
 
