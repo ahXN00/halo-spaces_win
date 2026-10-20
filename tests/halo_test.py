@@ -1639,8 +1639,8 @@ def run_checks(m, version, profile, results):
           await step("calendar", () => toCalendar());
           await step("tasks", async () => { tm.openTab("tasks", {}); await wait(1500); });
           await step("addressbook", async () => { tm.openTab("addressBookTab", {}); await wait(1500); });
-          const abDoc = tm.currentTabInfo.browser?.contentDocument;
-          out.books = (await until(() => abDoc?.getElementById("mcBooksHeader"), 6000))?.textContent;
+          // Dokument bei jedem Versuch neu lesen: unter Last ist nach 1,5 s noch das leere Startdokument geladen
+          out.books = (await until(() => tm.currentTabInfo.browser?.contentDocument?.getElementById("mcBooksHeader"), 8000))?.textContent;
           await step("settings", async () => { w.openPreferencesTab(); await wait(1500); });
           out.attr = bar?.getAttribute("placeholder");
           out.today = [d.getElementById("mcTodayTitle")?.textContent, d.getElementById("today-pane-header")?.dataset.mcTitle];
