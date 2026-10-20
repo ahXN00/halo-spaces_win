@@ -7,37 +7,37 @@ Vorher-Bilder: `tests/shots/tour/vorher/` (hell-*/dunkel-*), Paket `tests/shots/
 
 ## 1. Mailliste (`mailliste`)
 
-- [ ] `mail-karten` – Mailliste als Karten, Posteingang mit ausgewählter Mail: offen
-- [ ] `mail-karten-ohne-auswahl` – Posteingang ohne Auswahl (leere Leseansicht): offen
-- [ ] `mail-tabelle` – Mailliste als Tabelle: offen
-- [ ] `mail-tabelle-threads` – Tabelle nach Threads gruppiert, Threads aufgeklappt: offen
-- [ ] `mail-karten-threads` – Karten nach Threads gruppiert, Thread aufgeklappt: offen
-- [ ] `mail-hover` – Karte unter dem Mauszeiger (Hover mit Aktionen): offen
-- [ ] `mail-fokusring` – Tastaturfokus in der Liste (Fokusring): offen
-- [ ] `mail-auswahl-unfokussiert` – Ausgewählte Mail, Fokus in der Ordnerliste (ausgewählt-unfokussiert): offen
-- [ ] `mail-mehrfachauswahl` – Mehrere Mails ausgewählt (Zusammenfassung): offen
-- [ ] `mail-leerer-ordner` – Leerer Ordner: offen
-- [ ] `mail-entwuerfe` – Ordner Entwürfe: offen
-- [ ] `mail-gesendet` – Ordner Gesendet (Empfänger statt Absender): offen
-- [ ] `mail-alle-posteingaenge` – Alle Posteingänge (Sammelordner): offen
-- [ ] `mail-konto-startseite` – Konto-Startseite (Local Folders ausgewählt): offen
-- [ ] `mail-schmal-1100` – Schmales Fenster (1100 px bzw. kleinste mögliche Breite): offen
-- [ ] `mail-dichte-kompakt` – Dichte „kompakt“: offen
-- [ ] `mail-dichte-gross` – Dichte „Touch“ (groß): offen
-- [ ] `mail-layout-klassisch` – Layout „klassisch“ (Liste oben, Mail unten): offen
-- [ ] `mail-layout-breit` – Layout „breit“: offen
-- [ ] `mail-ohne-leseansicht` – Leseansicht ausgeblendet (nur Liste): offen
-- [ ] `mail-schnellfilter` – Schnellfilter-Leiste offen: offen
-- [ ] `mail-schnellfilter-aktiv` – Schnellfilter „Ungelesen“ aktiv: offen
-- [ ] `mail-schnellfilter-text` – Schnellfilter mit Suchtext (Zeile „Absender / Empfänger / Betreff / Text“): offen
-- [ ] `mail-schnellfilter-ohne-treffer` – Schnellfilter ohne Treffer: Hinweis „Enter: in allen Ordnern suchen“: offen
-- [ ] `mail-schnellfilter-schlagwoerter` – Schnellfilter „Schlagwörter“ (Zeile mit Schlagwort-Knöpfen): offen
-- [ ] `mail-schnellfilter-schlagwort-modus` – Schnellfilter „Schlagwörter“: Menü „Beliebig / Alle / Keine“: offen
-- [ ] `mail-spaltenauswahl` – Tabelle: Spaltenauswahl (Listen-Spaltenmenü): offen
-- [ ] `mail-ansichtsoptionen` – Listenkopf: Ansichtsoptionen (…): offen
-- [ ] `mail-ansichtsoptionen-sortieren` – Listenkopf: Ansichtsoptionen → Sortieren nach: offen
-- [ ] `mail-gruppiert` – Karten gruppiert nach Sortierung (Gruppenköpfe Heute, Gestern, Letzte 7 Tage …): offen
-- [ ] `mail-gruppiert-tabelle` – Tabelle gruppiert nach Sortierung (Gruppenköpfe): offen
+- [x] `mail-karten` – Mailliste als Karten, Posteingang mit ausgewählter Mail: erledigt (Commit „Mailliste: …“ (Runde 1)) – Datum ungelesener Karten normal statt fett; zugeklappte Konversation mit Ungelesenem hat den Akzent-Punkt, Thread-Knopf als graue Kapsel ohne Stern/Akzentrahmen
+- [x] `mail-karten-ohne-auswahl` – Posteingang ohne Auswahl (leere Leseansicht): erledigt (Runde 1: geprüft, kein eigener Befund; Datum/Thread-Knopf wie bei mail-karten)
+- [x] `mail-tabelle` – Mailliste als Tabelle: erledigt (Commit „Mailliste: …“ (Runde 1)) – Schrift 13 px wie Karten und Spaltenkopf; Ungelesen-Punkt in Akzentfarbe statt Grün/Ring; kein Funkelstern vor neuen Mails; Schlagwortfarben hell abgedunkelt, dunkel aufgehellt (Kontrast ≥ 4,5:1)
+- [x] `mail-tabelle-threads` – Tabelle nach Threads gruppiert, Threads aufgeklappt: erledigt (Commit „Mailliste: …“ (Runde 1)) – wie mail-tabelle (13 px, Akzent-Punkt auch für zugeklappte Konversation mit Ungelesenem, kein Stern)
+- [x] `mail-karten-threads` – Karten nach Threads gruppiert, Thread aufgeklappt: erledigt (Commit „Mailliste: …“ (Runde 1)) – Thread-Knopf ohne Stern/grünen Punkt und Akzentrahmen, 4 px Abstand zum Betreff; ausgewählt mit Fokus durchscheinend auf Akzent
+- [x] `mail-hover` – Karte unter dem Mauszeiger (Hover mit Aktionen): erledigt (Runde 1: geprüft, kein Befund)
+- [x] `mail-fokusring` – Tastaturfokus in der Liste (Fokusring): erledigt (Runde 1: geprüft, kein Befund)
+- [x] `mail-auswahl-unfokussiert` – Ausgewählte Mail, Fokus in der Ordnerliste (ausgewählt-unfokussiert): erledigt (Runde 1: geprüft, kein Befund)
+- [x] `mail-mehrfachauswahl` – Mehrere Mails ausgewählt (Zusammenfassung): erledigt (Commit „Mailliste: …“ (Runde 1)) – Ungelesen-Punkt der Zusammenfassung in Akzentfarbe statt Grün (übrige Zusammenfassungsseite gehört zur Leseansicht)
+- [x] `mail-leerer-ordner` – Leerer Ordner: erledigt (Runde 1: geprüft, kein Befund)
+- [x] `mail-entwuerfe` – Ordner Entwürfe: erledigt (Commit „Mailliste: …“ (Runde 1)) – in Ordnern mit Entwurfs-Merkmal zeigt die Karte jetzt Bild und Namen des Empfängers wie Thunderbird; der Rundgang-Ordner „Drafts“ hat kein Merkmal, daher im Bild unverändert
+- [x] `mail-gesendet` – Ordner Gesendet (Empfänger statt Absender): erledigt (Commit „Mailliste: …“ (Runde 1)) – Bild des Empfängers statt der eigenen Initialen, Empfänger nur mit Namen (Adresse im Tooltip); Mailkopf zeigt weiter den Absender. Der Rundgang-Ordner „Sent“ hat kein Gesendet-Merkmal (DATA_JS bewusst nicht geändert, sonst ändern sich Ordnerliste/Favoriten in allen Bildern) – geprüft in halo_test.py mit „Gesendet-Test“
+- [x] `mail-alle-posteingaenge` – Alle Posteingänge (Sammelordner): erledigt (Runde 1: geprüft, kein Befund)
+- [x] `mail-konto-startseite` – Konto-Startseite (Local Folders ausgewählt): erledigt (Commit „Mailliste: …“ (Runde 1)) – eine ruhige Fläche (--mt-window) statt dreier getönter Bänder, Abschnitte mit Haarlinie, Kacheln als graue Knöpfe mit 6 px Radius ohne Akzentfläche beim Überfahren; Texte, Logo, Links, Wasserzeichen unverändert
+- [x] `mail-schmal-1100` – Schmales Fenster (1100 px bzw. kleinste mögliche Breite): erledigt (Runde 1: geprüft, kein Befund)
+- [x] `mail-dichte-kompakt` – Dichte „kompakt“: erledigt (Runde 1: geprüft; Thread-Knopf und Datum wie bei mail-karten)
+- [x] `mail-dichte-gross` – Dichte „Touch“ (groß): erledigt (Runde 1: geprüft; Thread-Knopf und Datum wie bei mail-karten)
+- [x] `mail-layout-klassisch` – Layout „klassisch“ (Liste oben, Mail unten): erledigt (Commit „Mailliste: …“ (Runde 1)) – Haarlinie (--mt-pane-line) oben an der Leseansicht statt gar keiner Trennung
+- [x] `mail-layout-breit` – Layout „breit“: erledigt (Commit „Mailliste: …“ (Runde 1)) – Haarlinie oben an der Leseansicht über die volle Breite (trennt auch die Ordnerliste ab)
+- [x] `mail-ohne-leseansicht` – Leseansicht ausgeblendet (nur Liste): erledigt (Runde 1: geprüft, kein Befund; keine Linie ohne Leseansicht)
+- [x] `mail-schnellfilter` – Schnellfilter-Leiste offen: erledigt (Commit „Mailliste: …“ (Runde 1)) – toter Selektor #quickFilterBar durch #quick-filter-bar ersetzt: Leiste auf der Listenfläche mit Haarlinie statt abgesetztem Band, Pin-Knopf bündig mit den Karten (8 px)
+- [x] `mail-schnellfilter-aktiv` – Schnellfilter „Ungelesen“ aktiv: erledigt (Commit „Mailliste: …“ (Runde 1)) – Leiste wie mail-schnellfilter; zugeklappte Konversation zeigt Name passend zum Bild (neueste Mail)
+- [x] `mail-schnellfilter-text` – Schnellfilter mit Suchtext (Zeile „Absender / Empfänger / Betreff / Text“): erledigt (Commit „Mailliste: …“ (Runde 1)) – Leiste wie mail-schnellfilter
+- [x] `mail-schnellfilter-ohne-treffer` – Schnellfilter ohne Treffer: Hinweis „Enter: in allen Ordnern suchen“: erledigt (Runde 1: geprüft, kein Befund)
+- [x] `mail-schnellfilter-schlagwoerter` – Schnellfilter „Schlagwörter“ (Zeile mit Schlagwort-Knöpfen): erledigt (Commit „Mailliste: …“ (Runde 1)) – Zeile „Any of“ bündig mit den Karten; Schlagwort-Knöpfe hell/dunkel mit Kontrast ≥ 4,5:1
+- [x] `mail-schnellfilter-schlagwort-modus` – Schnellfilter „Schlagwörter“: Menü „Beliebig / Alle / Keine“: erledigt (Runde 1: geprüft, kein Befund)
+- [x] `mail-spaltenauswahl` – Tabelle: Spaltenauswahl (Listen-Spaltenmenü): erledigt (Runde 1: geprüft, kein Befund)
+- [x] `mail-ansichtsoptionen` – Listenkopf: Ansichtsoptionen (…): erledigt (Runde 1: geprüft, kein Befund)
+- [x] `mail-ansichtsoptionen-sortieren` – Listenkopf: Ansichtsoptionen → Sortieren nach: erledigt (Runde 1: geprüft, kein Befund)
+- [x] `mail-gruppiert` – Karten gruppiert nach Sortierung (Gruppenköpfe Heute, Gestern, Letzte 7 Tage …): erledigt (Commit „Mailliste: …“ (Runde 1)) – Gruppenköpfe nicht mehr abgeschnitten („Yesterd“, „Last 7 D“): eine Spalte ohne Bild/Vorschau, unten direkt über der ersten Mail, Titel halbfett, Anzahl 11 px sekundärgrau
+- [x] `mail-gruppiert-tabelle` – Tabelle gruppiert nach Sortierung (Gruppenköpfe): erledigt (Commit „Mailliste: …“ (Runde 1)) – wie mail-tabelle (13 px, Akzent-Punkt, kein Stern)
 
 ## 2. Leseansicht und Mailkopf (`lesen`)
 

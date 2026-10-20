@@ -497,6 +497,13 @@ body.layout-vertical #threadPane {
   border-inline-end: var(--mt-hairline) solid var(--mt-pane-line) !important;
 }
 
+/* Layout „klassisch“ und „breit“ (Mail unter der Liste): waagerechte Linie
+   oben an der Leseansicht – bei „breit“ über die volle Breite, trennt also
+   auch die Ordnerliste ab; ohne Leseansicht verschwindet sie mit */
+body:is(.layout-classic, .layout-wide) #messagePane {
+  border-block-start: var(--mt-hairline) solid var(--mt-pane-line) !important;
+}
+
 /* Thunderbirds eigene Trennbalken unsichtbar (die Linie oben ersetzt sie) */
 hr[is="pane-splitter"],
 #folderPaneSplitter,
@@ -516,11 +523,19 @@ hr[is="pane-splitter"],
   border: none !important;
 }
 
-#threadPaneHeaderBar,
-#quickFilterBar {
+#threadPaneHeaderBar {
   background: var(--mt-window) !important;
   border: none !important;
   padding-inline: 12px !important;
+}
+
+/* Schnellfilter-Leiste: dieselbe Fläche wie die Liste, nur eine Haarlinie
+   darunter; Inhalt bündig mit den Karten (8 px Einzug wie .card-container) */
+#quick-filter-bar {
+  background: var(--mt-window) !important;
+  border: none !important;
+  border-block-end: var(--mt-hairline) solid var(--mt-separator) !important;
+  padding-inline: 8px !important;
 }
 
 #threadPaneFolderName {
@@ -626,11 +641,11 @@ hr[is="pane-splitter"],
   color: var(--mc-pill-icon) !important;
 }
 
-/* Tabellenansicht: dieselbe Schriftgröße wie in der Kartenansicht
-   (sonst erbt sie Thunderbirds kleinere Grundschrift) */
+/* Tabellenansicht: wie Absender und Betreff in der Kartenansicht und der
+   Spaltenkopf 13 px (Apple-Listenschrift; sonst erbt sie Thunderbirds Grundschrift) */
 #threadTree tr[is="thread-row"],
 #threadTree tr[is="thread-row"] td {
-  font-size: 14px !important;
+  font-size: 13px !important;
 }
 
 #threadTree thead th,
@@ -694,6 +709,30 @@ hr[is="pane-splitter"],
   background-color: var(--mt-control) !important;
 }
 
+/* Schlagwortfarben als Schrift (Tabellenzeilen, Schnellfilter-Knöpfe): die
+   Grundfarben (#FF9900, #3333FF …) sind auf Weiß bzw. Dunkelgrau kaum lesbar –
+   hell abgedunkelt, dunkel aufgehellt (Kontrast mind. 4,5:1). Ausgewählte
+   Zeilen (Schrift in Akzentkontrast) und gedrückte Knöpfe bleiben, wie sie sind. */
+#threadTree tr[is="thread-row"][data-properties~="tagged"] {
+  color: color-mix(in srgb, var(--tag-color) 60%, black) !important;
+}
+
+#quick-filter-bar button.qfb-tag-button:not([aria-pressed="true"]) {
+  color: color-mix(in srgb, var(--tag-color) 60%, black) !important;
+  border-color: color-mix(in srgb, var(--tag-color) 60%, black) !important;
+}
+
+@media (prefers-color-scheme: dark) {
+  #threadTree tr[is="thread-row"][data-properties~="tagged"] {
+    color: color-mix(in srgb, var(--tag-color) 55%, white) !important;
+  }
+
+  #quick-filter-bar button.qfb-tag-button:not([aria-pressed="true"]) {
+    color: color-mix(in srgb, var(--tag-color) 55%, white) !important;
+    border-color: color-mix(in srgb, var(--tag-color) 55%, white) !important;
+  }
+}
+
 /* Typografie in der Karte: Absender fett, Betreff normal, Rest grau */
 #threadTree tr[is="thread-card"] .sender {
   font-size: 13px !important;
@@ -709,7 +748,21 @@ hr[is="pane-splitter"],
 
 #threadTree tr[is="thread-card"] .date {
   font-size: 12px !important;
+  /* auch bei ungelesenen Mails normal (Thunderbird setzt die ganze Zeile fett) */
+  font-weight: 400 !important;
   color: var(--mt-text-tertiary) !important;
+}
+
+/* Gruppenköpfe („Heute“, „Gestern“ … bei „Gruppiert nach Sortierung“) als
+   Abschnittstitel: Titel halbfett, Anzahl klein und grau */
+#threadTree tr[is="thread-card"][data-properties~="dummy"] .subject {
+  font-weight: 600 !important;
+  color: var(--mt-text) !important;
+}
+
+#threadTree tr[is="thread-card"][data-properties~="dummy"] .sort-header-details {
+  font-size: 11px !important;
+  color: var(--mt-text-secondary) !important;
 }
 
 /* Kein „Mehr“-Knopf (⋯) oben rechts in der Karte – Apple Mail hat dort
@@ -721,7 +774,8 @@ hr[is="pane-splitter"],
 
 /* Ungelesen und neu: derselbe blaue Punkt wie in Apple Mail
    (Thunderbird zeigt bei neuen Mails sonst einen Stern) */
-#threadTree tr:is([data-properties~="unread"], [data-properties~="new"]) .read-status {
+#threadTree tr:is([data-properties~="unread"], [data-properties~="new"]) .read-status,
+#threadTree tr[is="thread-card"].children.collapsed[data-properties~="hasUnread"]:not([data-properties~="dummy"]) .read-status {
   /* leeres Bild statt Stern/Punkt-Symbol, der Punkt ist die Fläche selbst */
   content: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10'/%3E") !important;
   background-color: var(--mt-accent) !important;
@@ -729,6 +783,12 @@ hr[is="pane-splitter"],
   width: 10px !important;
   height: 10px !important;
   opacity: 1 !important;
+}
+
+/* zugeklappte Konversation mit Ungelesenem: derselbe Punkt (Thunderbird
+   blendet ihn dort aus und zeigt stattdessen einen Stern am Thread-Knopf) */
+#threadTree tr[is="thread-card"].children.collapsed[data-properties~="hasUnread"]:not([data-properties~="dummy"]) .read-status {
+  display: inline-block !important;
 }
 
 /* Karten: Punkt wie in Apple Mail links neben dem Absenderbild, auf
@@ -754,8 +814,63 @@ hr[is="pane-splitter"],
 }
 
 /* Ausgewählte Mail mit Fokus: weißer Punkt auf Blau */
-#threadTree:focus-within tr:is([data-properties~="unread"], [data-properties~="new"]):is(.selected, [aria-selected="true"]) .read-status {
+#threadTree:focus-within tr:is([data-properties~="unread"], [data-properties~="new"]):is(.selected, [aria-selected="true"]) .read-status,
+#threadTree:focus-within tr[is="thread-card"].children.collapsed[data-properties~="hasUnread"]:not([data-properties~="dummy"]):is(.selected, [aria-selected="true"]) .read-status {
   background-color: var(--mt-accent-text) !important;
+}
+
+/* Thread-Knopf (Pfeil zum Auf-/Zuklappen) als ruhige graue Kapsel: ohne
+   Thunderbirds Akzentrahmen und ohne Stern bzw. grünen Punkt darüber –
+   Ungelesenes zeigt der Punkt links wie bei einzelnen Mails */
+#threadTree tr[is="thread-card"] button.twisty {
+  background-color: var(--mt-control) !important;
+  border-color: transparent !important;
+  color: var(--mt-text-secondary) !important;
+  margin-inline-end: 4px !important;
+}
+
+#threadTree tr[is="thread-card"] button.twisty:hover {
+  background-color: var(--mt-control-hover) !important;
+  border-color: transparent !important;
+}
+
+#threadTree tr[is="thread-card"] button.twisty::before {
+  content: none !important;
+}
+
+#threadTree:focus-within tr[is="thread-card"]:is(.selected, [aria-selected="true"]) button.twisty {
+  background-color: color-mix(in srgb, var(--mt-accent-text) 22%, transparent) !important;
+  color: var(--mt-accent-text) !important;
+}
+
+/* Tabelle: Ungelesen als voller Punkt in Akzentfarbe statt Thunderbirds
+   grünem Punkt bzw. blauem Ring (zugeklappte Konversation mit Ungelesenem);
+   ausgewählt mit Fokus weiß auf Akzent */
+#threadTree {
+  --thread-pane-unread-fill: var(--mt-accent) !important;
+  --thread-pane-unread-stroke: var(--mt-accent) !important;
+}
+
+#threadTree tr[is="thread-row"]:is([data-properties~="unread"], .children.collapsed[data-properties~="hasUnread"]) .tree-button-unread > img {
+  fill: var(--mt-accent) !important;
+  stroke: var(--mt-accent) !important;
+}
+
+#threadTree:focus-within tr[is="thread-row"]:is([data-properties~="unread"], .children.collapsed[data-properties~="hasUnread"]):is(.selected, [aria-selected="true"]) .tree-button-unread > img {
+  fill: currentColor !important;
+  stroke: currentColor !important;
+}
+
+/* Tabelle: kein Stern vor dem Betreff neuer Mails (wie in den Karten) – die
+   Symbole für beantwortet/weitergeleitet bleiben */
+#threadTree tr[is="thread-row"][data-properties~="new"]:not([data-properties~="replied"], [data-properties~="forwarded"], [data-properties~="redirected"]) .subject-line img {
+  visibility: hidden !important;
+}
+
+/* Zusammenfassung mehrerer Mails: Ungelesen-Punkt in Akzentfarbe statt Grün */
+#messageList > li.unread::before {
+  fill: var(--mt-accent) !important;
+  stroke: var(--mt-accent) !important;
 }
 
 #threadTree tr[is="thread-card"][data-properties~="unread"] .subject {
@@ -789,6 +904,33 @@ hr[is="pane-splitter"],
   background: var(--mt-window) !important;
   border: none !important;
   color: var(--mt-text-tertiary) !important;
+}
+
+/* Konto-Startseite (Klick auf ein Konto in der Ordnerliste): eine ruhige
+   Fläche wie die Liste statt dreier unterschiedlich getönter Bänder,
+   Abschnitte durch Haarlinien getrennt; Kacheln als graue Knöpfe mit 6 px
+   Radius (ohne Akzentfläche beim Überfahren). Das Wasserzeichen bleibt. */
+body:has(> #accountCentral),
+#accountCentral,
+#accountCentral .account-central-header,
+#accountCentral .account-central-section {
+  background-color: var(--mt-window) !important;
+  color: var(--mt-text) !important;
+}
+
+#accountCentral .account-central-section {
+  border-block-start: var(--mt-hairline) solid var(--mt-separator) !important;
+}
+
+#accountCentral .btn-hub {
+  background-color: var(--mt-control) !important;
+  color: var(--mt-text) !important;
+  border-radius: 6px !important;
+  box-shadow: none !important;
+}
+
+#accountCentral .btn-hub:not([disabled]):hover {
+  background-color: var(--mt-control-hover) !important;
 }
 
 /* ---------- Nachrichtenansicht (about:message) ---------- */

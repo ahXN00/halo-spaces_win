@@ -894,6 +894,14 @@ const CSS = `
      Rest der festen Zeilenhöhe landet unten (bei kompakter Dichte deutlich) */
   align-content: center !important;
 }
+/* Gruppenköpfe („Heute“, „Gestern“ … bei „Gruppiert nach Sortierung“): nur
+   eine Spalte wie bei Thunderbird – sonst landet der Text in der 46-px-Spalte
+   des Absenderbilds und wird abgeschnitten („Yesterd“). Unten an der Zeile,
+   direkt über der ersten Mail der Gruppe, wie ein Abschnittstitel. */
+#threadTree tr[is="thread-card"]:is(.dummy, [data-properties~="dummy"]) .card-container {
+  grid-template-columns: minmax(0, 1fr) !important;
+  align-content: end !important;
+}
 /* ohne Thunderbirds Innenabstand (nur bei normaler Dichte): das Mitteln
    übernimmt align-content, und das Bild sitzt bei jeder Dichte gleich zum Absender */
 #threadTree tr[is="thread-card"] .card-container > .thread-card-column:not(.read-status-column) {
@@ -1005,10 +1013,9 @@ const CSS = `
 #folderTree > li[data-mode] {
   border: none !important;
 }
-#threadTree tr[is="thread-card"].dummy .mc-avatar,
-#threadTree tr[is="thread-card"][data-properties~="dummy"] .mc-avatar,
-#threadTree tr[is="thread-card"][data-properties~="dummy"] .mc-preview {
-  visibility: hidden;
+/* Gruppenköpfe ohne Absenderbild und Vorschau (auch ohne deren Platz) */
+#threadTree tr[is="thread-card"]:is(.dummy, [data-properties~="dummy"]) :is(.mc-avatar, .mc-preview) {
+  display: none !important;
 }
 /* Aktionen beim Überfahren: rechts unten in der Karte */
 #threadTree tr[is="thread-card"] .mc-actions {
@@ -1158,6 +1165,22 @@ function senderLabel(name, email) {
   }
   const label = org.split(".")[0];
   return label.charAt(0).toUpperCase() + label.slice(1);
+}
+
+// Wer in der Karte steht: der Absender – in Gesendet, Entwürfen, Vorlagen und
+// Postausgang wie bei Thunderbird die Empfänger (ohne Empfänger der Absender)
+function personsFor(hdr, outgoing = false) {
+  const parse = header => {
+    try {
+      return MailServices.headerParser.parseDecodedHeader(header || "")
+        .filter(p => p?.email || p?.name)
+        .map(p => ({ name: p.name || "", email: (p.email || "").toLowerCase() }));
+    } catch {
+      return [];
+    }
+  };
+  const list = outgoing ? parse(hdr.mime2DecodedRecipients || hdr.recipients) : [];
+  return list.length ? list : parse(hdr.mime2DecodedAuthor || hdr.author);
 }
 
 function initialsFor(name, email) {
@@ -7583,8 +7606,9 @@ class CardEnhancer {
       }
     }
 
-    this.fillAvatar(avatar, hdr);
-    this.fillSender(row, hdr);
+    const outgoing = this.isOutgoingView(win, row);
+    this.fillAvatar(avatar, hdr, outgoing);
+    this.fillSender(row, hdr, outgoing);
     const dateEl = row.querySelector(".thread-card-row .date");
     if (dateEl && hdr.date) {
       dateEl.textContent = appleListDate(hdr.date / 1000);
@@ -7592,25 +7616,47 @@ class CardEnhancer {
     this.markSearchHits(win, row);
   }
 
-  // Zeigt Thunderbird nur die Adresse des Absenders (kein Name im Kopf),
-  // stattdessen den Namen aus der Domain. Im Gesendet-Ordner steht dort der
-  // Empfänger – dann bleibt alles, wie es ist.
-  fillSender(row, hdr) {
+  // Zeigt die Karte Empfänger statt Absender? Wie Thunderbird: in Ordnern für
+  // Ausgehendes, ohne Ordner (Suchergebnisse) je Mail
+  isOutgoingView(win, row) {
+    try {
+      if (win.gFolder) {
+        const F = Ci.nsMsgFolderFlags;
+        return win.gFolder.isSpecialFolder(F.SentMail | F.Drafts | F.Queue | F.Templates, true);
+      }
+    } catch {}
+    return (row.dataset.properties || "").split(" ").includes("outgoing");
+  }
+
+  // Zugeklappte Konversation: Bild, Vorschau und Datum stammen von der neuesten
+  // Mail (hdrForRow) – dann auch der Name, sonst stünde dort der Absender der
+  // ersten Mail neben dem Bild eines anderen. Sonst schreibt Thunderbird den
+  // Namen; zeigt es Adressen (Person nicht im Adressbuch, „Anna <anna@…>“ oder
+  // nur die Adresse), stehen wie in Apple Mail nur die Namen da – ohne Namen
+  // der aus der Domain („rueckgabe@amazon.de“ → „Amazon“). Die Adressen bleiben
+  // im Tooltip. Gilt ebenso für die Empfänger in Gesendet, Entwürfen …
+  fillSender(row, hdr, outgoing = false) {
     const el = row.querySelector(".thread-card-row .sender");
     if (!el) {
       return;
     }
-    let name = "";
-    let email = "";
+    let own = null;
     try {
-      const parsed = MailServices.headerParser.parseDecodedHeader(hdr.mime2DecodedAuthor || hdr.author)[0];
-      name = parsed?.name || "";
-      email = (parsed?.email || "").toLowerCase();
+      own = row.view.getMsgHdrAt(row._index);
     } catch {}
-    if (!email || !el.textContent.toLowerCase().includes(email)) {
+    const persons = personsFor(hdr, outgoing);
+    const label = persons.map(p => senderLabel(p.name, p.email)).filter(Boolean).join(", ");
+    if (own && own != hdr && (own.messageKey != hdr.messageKey || own.folder?.URI != hdr.folder?.URI)) {
+      if (label && el.textContent != label) {
+        el.textContent = label;
+        el.title = label;
+      }
       return;
     }
-    const label = senderLabel(name, email);
+    const text = el.textContent.toLowerCase();
+    if (!label || !persons.some(p => p.email && text.includes(p.email))) {
+      return;
+    }
     if (label != el.textContent) {
       el.textContent = label;
     }
@@ -8228,16 +8274,10 @@ class CardEnhancer {
     (view || header).before(banner);
   }
 
-  fillAvatar(avatar, hdr) {
-    let name = "";
-    let email = "";
-    try {
-      const parsed = MailServices.headerParser.parseDecodedHeader(
-        hdr.mime2DecodedAuthor || hdr.author
-      )[0];
-      name = parsed?.name || "";
-      email = (parsed?.email || "").toLowerCase();
-    } catch {}
+  // outgoing: Bild des (ersten) Empfängers wie der Name in der Karte (im
+  // Mailkopf bleibt es der Absender)
+  fillAvatar(avatar, hdr, outgoing = false) {
+    const { name = "", email = "" } = personsFor(hdr, outgoing)[0] || {};
 
     avatar.dataset.email = email;
     const initials = initialsFor(name, email);

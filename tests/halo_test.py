@@ -369,6 +369,305 @@ def compare_shots(m, before, after):
             print(f"  geändert  {name}: {res['changed'] * 100:.2f} % der Fläche, Bereich x {l}–{r}, y {t}–{b} → {os.path.basename(diff)}", flush=True)
 
 
+# Mailliste: eigene Ordner mit erfundenen Mails (example.invalid) – Konversation
+# (Wurzel gelesen, neuere Antwort ungelesen), Schlagwörter, verschiedene Tage,
+# „Gesendet-Test“ mit Gesendet-Merkmal; dazu Hilfen für Farben und Kontrast
+MAILLIST_JS = r"""
+  const { MailServices } = ChromeUtils.importESModule("resource:///modules/MailServices.sys.mjs");
+  try { MailServices.accounts.localFoldersServer; } catch { MailServices.accounts.createLocalMailAccount(); await wait(500); }
+  const root = MailServices.accounts.localFoldersServer.rootFolder;
+  const pad = n => String(n).padStart(2, "0");
+  const DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"], MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+  const rfc = dt => { const o = -dt.getTimezoneOffset();
+    return `${DAYS[dt.getDay()]}, ${pad(dt.getDate())} ${MONTHS[dt.getMonth()]} ${dt.getFullYear()} ${pad(dt.getHours())}:${pad(dt.getMinutes())}:00 ${o >= 0 ? "+" : "-"}${pad(Math.floor(Math.abs(o) / 60))}${pad(Math.abs(o) % 60)}`; };
+  // vor „days“ Tagen um h Uhr (heute höchstens 10 Minuten vor jetzt)
+  const ago = (days, h) => { const dt = new Date(); dt.setDate(dt.getDate() - days); dt.setHours(h, 0, 0, 0); if (dt > new Date()) dt.setTime(Date.now() - 600000); return dt; };
+  const raw = o => unescape(encodeURIComponent([`From: ${o.from}`, `To: ${o.to || "Halo Test <halo@example.invalid>"}`, `Subject: ${o.subject}`,
+    `Date: ${rfc(o.date)}`, `Message-ID: <${o.id}@example.invalid>`, ...(o.ref ? [`In-Reply-To: <${o.ref}@example.invalid>`, `References: <${o.ref}@example.invalid>`] : []),
+    "Content-Type: text/plain; charset=UTF-8", "", "Erfundene Testnachricht.", ""].join("\r\n")));
+  const folder = async (name, mails, flag = 0) => {
+    if (!root.containsChildNamed(name)) { root.createSubfolder(name, null); await wait(800); }
+    const f = root.getChildNamed(name);
+    if (flag) f.setFlag(flag);
+    if (!f.getTotalMessages(false)) {
+      const lf = f.QueryInterface(Ci.nsIMsgLocalMailFolder);
+      for (const o of mails) lf.addMessage(raw(o));
+      await wait(800);
+      for (const o of mails) { const h = f.msgDatabase.getMsgHdrForMessageID(`${o.id}@example.invalid`); if (!h) continue;
+        if (o.read) f.markMessagesRead([h], true); if (o.tag) f.addKeywordsToMessages([h], o.tag); }
+      await wait(300);
+    }
+    return f;
+  };
+  const list = await folder("Mailliste", [
+    { id: "halo-ml-1", from: "Ben Muster <ben@example.invalid>", subject: "Halo Faden", date: ago(3, 9), read: true },
+    { id: "halo-ml-2", from: "Carla Ölmann <carla@example.invalid>", subject: "Re: Halo Faden", date: ago(2, 9), ref: "halo-ml-1" },
+    { id: "halo-ml-3", from: "Dana Zöllner <dana@example.invalid>", subject: "Halo Schlagwort To Do", date: ago(0, 8), read: true, tag: "$label4" },
+    { id: "halo-ml-4", from: "Frieda Lang <frieda@example.invalid>", subject: "Halo Schlagwort Work", date: ago(1, 9), read: true, tag: "$label2" },
+    { id: "halo-ml-5", from: "Emil Kurz <emil@example.invalid>", subject: "Halo Ungelesen", date: ago(5, 9) },
+    { id: "halo-ml-6", from: "Gustav Weit <gustav@example.invalid>", subject: "Halo Alt", date: ago(20, 9), read: true },
+  ]);
+  const sent = await folder("Gesendet-Test", [{ id: "halo-ml-sent", from: "Halo Test <halo@example.invalid>", to: "Anna Beispiel <anna@example.invalid>",
+    subject: "Halo Gesendet", date: ago(1, 10), read: true }], Ci.nsMsgFolderFlags.SentMail);
+  const a3 = await toMail(); const ad = a3.document;
+  const cmd = name => a3.commandController.doCommand(name);
+  const cs = (el, pseudo) => a3.getComputedStyle(el, pseudo);
+  const showFolder = async (f = list) => { if (a3.gFolder?.URI != f.URI) { a3.displayFolder(f.URI); await until(() => a3.gFolder?.URI == f.URI && a3.gDBView, 6000); await wait(900); } };
+  const cards = () => [...ad.querySelectorAll('#threadTree tr[is="thread-card"]')];
+  const tableRows = () => [...ad.querySelectorAll('#threadTree tr[is="thread-row"]')];
+  const props = r => (r.dataset.properties || "").split(" ");
+  const subjectOf = r => r.querySelector(".subject, .subject-line span")?.textContent || "";
+  // Farben: rgb()/rgba() und color(srgb …) auf 0–255, dazu die Deckkraft
+  const rgba = c => { const v = (String(c).match(/-?[\d.]+(?:e-?\d+)?/g) || []).map(Number); const k = String(c).startsWith("color(") ? 255 : 1;
+    return [v[0] * k, v[1] * k, v[2] * k, v.length > 3 ? v[3] : 1]; };
+  const over = (fg, bg) => fg.slice(0, 3).map((x, i) => x * fg[3] + bg[i] * (1 - fg[3])).concat(1);
+  const lum = c => { const [r, g, b] = c.slice(0, 3).map(x => { x /= 255; return x <= 0.03928 ? x / 12.92 : ((x + 0.055) / 1.055) ** 2.4; }); return 0.2126 * r + 0.7152 * g + 0.0722 * b; };
+  const contrast = (a, b) => { const [x, y] = [lum(a), lum(b)].sort((p, q) => q - p); return Math.round((x + 0.05) / (y + 0.05) * 100) / 100; };
+  const same = (a, b) => { const [x, y] = [rgba(a), rgba(b)]; return x.every((v, i) => Math.abs(v - y[i]) <= (i == 3 ? 0.02 : 2)); };
+  const accent = (() => { const e = ad.createElement("div"); e.style.color = "AccentColor"; ad.body.append(e); const c = cs(e).color; e.remove(); return c; })();
+  const asCards = async () => { if (Services.prefs.getIntPref("mail.threadpane.listview", 0) != 0) { cmd("cmd_threadPaneViewCards"); await wait(1000); } };
+  const asTable = async () => { if (Services.prefs.getIntPref("mail.threadpane.listview", 0) != 1) { cmd("cmd_threadPaneViewTable"); await wait(1200); } };"""
+
+
+def maillist_checks(m, results):
+    """Mailliste: Gruppenköpfe, Konversationen, Gesendet, Tabelle, Schlagwörter, Schnellfilter, Layouts, Konto-Startseite."""
+
+    def group_headers():
+        res = m.js(MAILLIST_JS + r"""
+          await showFolder(); await asCards();
+          const v = a3.gViewWrapper; v.sort(Ci.nsMsgViewSortType.byDate, Ci.nsMsgViewSortOrder.descending);
+          v.showGroupedBySort = true; await wait(1200);
+          const heads = await until(() => { const h = cards().filter(r => props(r).includes("dummy")); return h.length >= 2 && h; }, 8000) || [];
+          const out = heads.map(r => {
+            const c = r.querySelector(".card-container").getBoundingClientRect();
+            const main = r.querySelector(".card-container > .thread-card-column:not(.read-status-column)");
+            const box = r.querySelector(".thread-card-subject-container"), sub = r.querySelector(".subject"), det = r.querySelector(".sort-header-details");
+            return { title: sub.textContent, cut: box.scrollWidth > box.clientWidth + 1 || sub.getBoundingClientRect().right > box.getBoundingClientRect().right + 1,
+                     main: Math.round(main.getBoundingClientRect().width / c.width * 100), avatar: cs(r.querySelector(".mc-avatar")).display,
+                     detailsInside: det.getBoundingClientRect().right <= c.right + 1, weight: cs(sub).fontWeight, detailSize: cs(det).fontSize };
+          });
+          v.showGroupedBySort = false; v.showThreaded = true; await wait(800);
+          return out;""")
+        ok = len(res) >= 2 and all(not h["cut"] and h["main"] >= 60 and h["avatar"] == "none" and h["detailsInside"]
+                                   and int(h["weight"]) >= 600 and h["detailSize"] == "11px" for h in res)
+        return ok, f"{res}"
+    check("Mailliste: Gruppenköpfe (Heute, Gestern …) ganz lesbar, halbfett, ohne Absenderbild", group_headers, results)
+
+    def thread_sender():
+        # zugeklappt: Name und Bild der neuesten Mail (Carla), aufgeklappt die Wurzel (Ben)
+        res = m.js(MAILLIST_JS + r"""
+          await showFolder(); await asCards(); a3.gViewWrapper.showThreaded = true; await wait(800);
+          const info = r => r && { sender: r.querySelector(".sender").textContent, avatar: r.querySelector(".mc-avatar").textContent,
+                                   email: r.querySelector(".mc-avatar").dataset.email, img: !!r.querySelector(".mc-avatar img") };
+          cmd("cmd_collapseAllThreads"); await wait(800);
+          const closed = await until(() => cards().find(r => r.classList.contains("children") && r.classList.contains("collapsed") && subjectOf(r).includes("Halo Faden")
+                                                           && r.querySelector(".mc-avatar")?.dataset.email), 6000);
+          const out = { closed: info(closed) };
+          cmd("cmd_expandAllThreads"); await wait(800);
+          const open = await until(() => cards().find(r => r.classList.contains("children") && !r.classList.contains("collapsed") && subjectOf(r).includes("Halo Faden")), 6000);
+          out.open = info(open);
+          cmd("cmd_collapseAllThreads"); await wait(500);
+          return out;""")
+        c, o = res.get("closed") or {}, res.get("open") or {}
+        ok = (c.get("sender") == "Carla Ölmann" and c.get("email") == "carla@example.invalid" and (c.get("img") or c.get("avatar") == "CÖ")
+              and o.get("sender") == "Ben Muster" and o.get("email") == "ben@example.invalid" and (o.get("img") or o.get("avatar") == "BM"))
+        return ok, f"{res}"
+    check("Mailliste: zugeklappte Konversation zeigt Name und Bild der neuesten Mail", thread_sender, results)
+
+    def thread_button():
+        # Thread-Knopf ohne Stern und Akzentrahmen, Abstand zum Betreff; Ungelesen-Punkt
+        # bei zugeklappter Konversation mit ungelesener Antwort
+        res = m.js(MAILLIST_JS + r"""
+          await showFolder(); await asCards(); a3.gViewWrapper.showThreaded = true; await wait(600); cmd("cmd_collapseAllThreads"); await wait(800);
+          const row = () => cards().find(r => r.classList.contains("children") && r.classList.contains("collapsed") && subjectOf(r).includes("Halo Faden"));
+          const out = { gaps: {} };
+          for (const density of [1, 0]) {
+            Services.prefs.setIntPref("mail.uidensity", density); await wait(1200);
+            const r = await until(row, 5000); const t = r.querySelector("button.twisty");
+            out.gaps[density] = Math.round(r.querySelector(".subject").getBoundingClientRect().left - t.getBoundingClientRect().right);
+          }
+          Services.prefs.clearUserPref("mail.uidensity"); await wait(1000);
+          const r = row(), t = r.querySelector("button.twisty"), dot = r.querySelector(".read-status");
+          Object.assign(out, { props: r.dataset.properties, before: cs(t, "::before").content, border: cs(t).borderTopColor,
+                               dot: cs(dot).display, dotColor: cs(dot).backgroundColor, accent });
+          // ausgewählt mit Fokus: durchscheinende Kapsel auf der Akzentfarbe
+          const i = [...Array(a3.gDBView.rowCount).keys()].find(k => a3.gDBView.getMsgHdrAt(k)?.messageId == "halo-ml-1@example.invalid");
+          a3.threadTree.selectedIndex = i; a3.threadTree.focus(); await wait(800);
+          const sel = await until(() => cards().find(x => x.classList.contains("selected") && subjectOf(x).includes("Halo Faden")), 4000);
+          out.selected = sel ? cs(sel.querySelector("button.twisty")).backgroundColor : null;
+          a3.threadTree.selectedIndex = -1; await wait(300);
+          return out;""")
+        ok = (res["before"] == "none" and rgba_alpha(res["border"]) == 0 and res["dot"] != "none" and same_color(res["dotColor"], res["accent"])
+              and all(g >= 2 for g in res["gaps"].values()) and res["selected"] and rgba_alpha(res["selected"]) < 1)
+        return ok, f"{res}"
+    check("Mailliste: Thread-Knopf ohne Stern und Akzentrahmen, Ungelesen-Punkt an zugeklappter Konversation", thread_button, results)
+
+    def date_weight():
+        res = m.js(MAILLIST_JS + r"""
+          await showFolder(); await asCards();
+          const r = await until(() => cards().find(x => props(x).includes("unread") && !props(x).includes("dummy")), 5000);
+          return r ? { date: cs(r.querySelector(".date")).fontWeight, sender: cs(r.querySelector(".sender")).fontWeight } : {};""")
+        return res.get("date") == "400" and res.get("sender") == "600", f"ungelesene Karte {res}"
+    check("Mailliste: Datum ungelesener Karten normal, Absender halbfett", date_weight, results)
+
+    def sent_avatar():
+        # Gesendet: Name und Bild des Empfängers; im Mailkopf bleibt der Absender
+        res = m.js(MAILLIST_JS + r"""
+          await showFolder(sent); await asCards();
+          const r = await until(() => cards().find(x => x.querySelector(".mc-avatar")?.dataset.email), 6000);
+          if (!r) return {};
+          const av = r.querySelector(".mc-avatar");
+          const out = { sender: r.querySelector(".sender").textContent, avatar: av.textContent, email: av.dataset.email, img: !!av.querySelector("img") };
+          a3.threadTree.selectedIndex = 0; await wait(1500);
+          const md = a3.messageBrowser.contentWindow.document;
+          const hav = await until(() => md.querySelector("#fromRecipient0 .mc-hdr-avatar")?.dataset.email && md.querySelector("#fromRecipient0 .mc-hdr-avatar"), 6000);
+          out.header = hav ? { email: hav.dataset.email, text: hav.textContent } : null;
+          a3.threadTree.selectedIndex = -1; await wait(300);
+          return out;""")
+        h = res.get("header") or {}
+        ok = (res.get("sender") == "Anna Beispiel" and res.get("email") == "anna@example.invalid" and (res.get("img") or res.get("avatar") == "AB")
+              and h.get("email") == "halo@example.invalid")
+        return ok, f"{res}"
+    check("Mailliste: Gesendet zeigt Bild des Empfängers, Mailkopf weiter den Absender", sent_avatar, results)
+
+    def table_font():
+        res = m.js(MAILLIST_JS + r"""
+          await showFolder(); await asCards();
+          const card = await until(() => cards().find(x => !props(x).includes("dummy")), 5000);
+          const out = { card: cs(card.querySelector(".sender")).fontSize };
+          await asTable();
+          const row = await until(() => tableRows()[0], 5000);
+          out.row = cs(row.querySelector("td")).fontSize; out.head = cs(ad.querySelector("#threadTree thead th")).fontSize;
+          await asCards(); return out;""")
+        return res["card"] == res["row"] == res["head"] == "13px", f"Karte/Tabelle/Spaltenkopf {res}"
+    check("Mailliste: Tabelle in 13 px wie Karten und Spaltenkopf", table_font, results)
+
+    def table_unread():
+        # Ungelesen als Punkt in Akzentfarbe (kein Grün), kein Stern vor neuen Mails;
+        # Zusammenfassung mehrerer Mails ebenso
+        res = m.js(MAILLIST_JS + r"""
+          await showFolder(); await asTable(); a3.threadTree.selectedIndex = -1; await wait(500);
+          if (!tableRows().some(r => props(r).includes("new"))) {
+            // neue Mail, solange der Ordner angezeigt wird (sonst setzt Thunderbird „neu“ zurück)
+            list.QueryInterface(Ci.nsIMsgLocalMailFolder).addMessage(raw({ id: "halo-ml-new-" + Date.now(), from: "Ida Viel <ida@example.invalid>", subject: "Halo Neu", date: ago(0, 7) }));
+            await wait(1200);
+          }
+          const unread = await until(() => tableRows().find(r => props(r).includes("unread") && !r.classList.contains("selected")), 5000);
+          const fresh = tableRows().find(r => props(r).includes("new") && !["replied", "forwarded", "redirected"].some(p => props(r).includes(p)));
+          const img = unread?.querySelector(".tree-button-unread > img");
+          const out = { fill: img && cs(img).fill, accent, newStar: fresh ? cs(fresh.querySelector(".subject-line img")).visibility : "keine neue Mail" };
+          await asCards();
+          // Zusammenfassung: eine ungelesene und eine gelesene Mail auswählen
+          const v = a3.gDBView, ids = ["halo-ml-5@example.invalid", "halo-ml-6@example.invalid"];
+          a3.threadTree.selectedIndices = [...Array(v.rowCount).keys()].filter(k => ids.includes(v.getMsgHdrAt(k)?.messageId)); await wait(1500);
+          const md = a3.multiMessageBrowser?.contentDocument;
+          const li = await until(() => md?.querySelector("#messageList > li.unread"), 5000);
+          out.summary = li ? md.defaultView.getComputedStyle(li, "::before").fill : null;
+          a3.threadTree.selectedIndex = -1; await wait(300);
+          return out;""")
+        ok = same_color(res["fill"], res["accent"]) and res["newStar"] == "hidden" and same_color(res["summary"], res["accent"])
+        return ok, f"{res}"
+    check("Mailliste: Tabelle und Zusammenfassung mit Ungelesen-Punkt in Akzentfarbe, ohne Stern", table_unread, results)
+
+    def tag_contrast():
+        # Schlagwortfarben als Schrift (Tabelle, Schnellfilter-Knöpfe) mit Kontrast ≥ 4,5:1
+        res = m.js(MAILLIST_JS + r"""
+          await showFolder(); await asTable(); a3.threadTree.selectedIndex = -1; await wait(600);
+          const treeBg = rgba(cs(ad.getElementById("threadTree")).backgroundColor);
+          const out = { rows: {}, buttons: {} };
+          for (const r of tableRows().filter(x => subjectOf(x).includes("Halo Schlagwort")))
+            out.rows[subjectOf(r)] = contrast(over(rgba(cs(r).color), treeBg), over(rgba(cs(r).backgroundColor), treeBg));
+          await asCards();
+          if (ad.getElementById("quick-filter-bar")?.hidden !== false) { cmd("cmd_toggleQuickFilterBar"); await wait(900); }
+          ad.getElementById("qfb-tags").click(); await wait(1200);
+          const bar = ad.getElementById("quick-filter-bar"), barBg = over(rgba(cs(bar).backgroundColor), treeBg);
+          for (const b of ad.querySelectorAll('#quick-filter-bar button.qfb-tag-button:not([aria-pressed="true"])'))
+            if (b.getClientRects().length) out.buttons[b.textContent.trim()] = contrast(rgba(cs(b).color), barBg);
+          cmd("cmd_resetQuickFilterBar"); cmd("cmd_toggleQuickFilterBar"); await wait(600);
+          return out;""")
+        values = list(res["rows"].values()) + list(res["buttons"].values())
+        ok = len(res["rows"]) == 2 and len(res["buttons"]) >= 2 and all(v >= 4.5 for v in values)
+        return ok, f"Kontrast {res}"
+    check("Mailliste: Schlagwortfarben in Tabelle und Schnellfilter lesbar (Kontrast ≥ 4,5:1)", tag_contrast, results)
+
+    def quick_filter():
+        res = m.js(MAILLIST_JS + r"""
+          await showFolder(); await asCards();
+          if (ad.getElementById("quick-filter-bar")?.hidden !== false) { cmd("cmd_toggleQuickFilterBar"); await wait(900); }
+          const bar = ad.getElementById("quick-filter-bar");
+          const card = cards().find(x => !props(x).includes("dummy"))?.querySelector(".card-container");
+          const left = el => el ? Math.round(el.getBoundingClientRect().left) : null;
+          const out = { bg: cs(bar).backgroundColor, tree: cs(ad.getElementById("threadTree")).backgroundColor, line: parseFloat(cs(bar).borderBottomWidth),
+                        card: left(card), pin: left(ad.getElementById("qfb-sticky")) };
+          ad.getElementById("qfb-tags").click(); await wait(1200);
+          out.mode = left(ad.getElementById("qfb-tag-filter-mode"));
+          cmd("cmd_resetQuickFilterBar"); cmd("cmd_toggleQuickFilterBar"); await wait(600);
+          return out;""")
+        ok = (res["bg"] == res["tree"] and res["line"] <= 1 and res["card"] is not None
+              and abs(res["pin"] - res["card"]) <= 4 and abs(res["mode"] - res["card"]) <= 4)
+        return ok, f"{res}"
+    check("Mailliste: Schnellfilter-Leiste auf der Listenfläche, bündig mit den Karten", quick_filter, results)
+
+    def layout_lines():
+        res = m.js(MAILLIST_JS + r"""
+          await showFolder(); await asCards();
+          const before = Services.prefs.getIntPref("mail.pane_config.dynamic", 2);
+          const line = () => { const p = ad.getElementById("messagePane"); return { width: parseFloat(cs(p).borderTopWidth), style: cs(p).borderTopStyle,
+            left: Math.round(p.getBoundingClientRect().left), folders: Math.round(ad.getElementById("folderPane").getBoundingClientRect().left) }; };
+          const out = {};
+          cmd("cmd_viewClassicMailLayout"); await wait(1200); out.classic = line();
+          cmd("cmd_viewWideMailLayout"); await wait(1200); out.wide = line();
+          cmd("cmd_viewVerticalMailLayout"); await wait(1200); out.vertical = line();
+          Services.prefs.setIntPref("mail.pane_config.dynamic", before); await wait(800);
+          return out;""")
+        c, w_, v = res["classic"], res["wide"], res["vertical"]
+        ok = (c["width"] > 0 and c["style"] == "solid" and w_["width"] > 0 and w_["style"] == "solid"
+              and w_["left"] <= w_["folders"] + 1 and v["width"] == 0)
+        return ok, f"{res}"
+    check("Mailliste: Layout „klassisch“ und „breit“ mit Linie über der Leseansicht, „vertikal“ ohne", layout_lines, results)
+
+    def account_central():
+        res = m.js(MAILLIST_JS + r"""
+          a3.displayFolder(root.URI);
+          const doc = await until(() => { const x = ad.getElementById("accountCentralBrowser")?.contentDocument; return x?.getElementById("accountCentral") && x; }, 8000);
+          if (!doc) return {};
+          const vis = e => e.getClientRects().length && e.getBoundingClientRect().height > 0;
+          const parts = () => [doc.body, ...[...doc.querySelectorAll(".account-central-header, .account-central-section")].filter(vis)];
+          const bgs = () => [...new Set(parts().map(e => doc.defaultView.getComputedStyle(e).backgroundColor))];
+          await until(() => bgs().length == 1, 4000);
+          const btn = [...doc.querySelectorAll(".btn-hub")].find(vis);
+          const out = { backgrounds: bgs(), radius: btn ? doc.defaultView.getComputedStyle(btn).borderTopLeftRadius : null };
+          await showFolder(); return out;""")
+        ok = len(res.get("backgrounds", [])) == 1 and res.get("radius") == "6px"
+        return ok, f"{res}"
+    check("Mailliste: Konto-Startseite in einer ruhigen Fläche, Kacheln als Knöpfe", account_central, results)
+
+    # aufräumen: Testmails endgültig löschen (sonst fänden spätere Prüfungen wie
+    # die Suche sie mit), Gesendet-Merkmal wieder entfernen
+    m.js(MAILLIST_JS + r"""
+      a3.threadTree.selectedIndex = -1; await asCards();
+      for (const f of [list, sent]) { const hs = [...f.messages]; if (hs.length) f.deleteMessages(hs, null, true, false, null, false); }
+      sent.clearFlag(Ci.nsMsgFolderFlags.SentMail); await wait(800); return 1;""")
+
+
+def rgba_alpha(c):
+    """Deckkraft aus rgb()/rgba()/color(srgb …) – 1, wenn keine angegeben ist."""
+    import re
+    v = re.findall(r"-?[\d.]+(?:e-?\d+)?", c or "")
+    return float(v[3]) if len(v) > 3 else 1.0
+
+
+def same_color(a, b, tol=2):
+    """Gleiche Farbe (rgb() und color(srgb …) gleichwertig), Abweichung höchstens tol je Kanal."""
+    import re
+    def norm(c):
+        v = [float(x) for x in re.findall(r"-?[\d.]+(?:e-?\d+)?", c or "")]
+        k = 255 if (c or "").startswith("color(") else 1
+        return [x * k for x in v[:3]] + [v[3] if len(v) > 3 else 1.0]
+    x, y = norm(a), norm(b)
+    return len(x) == 4 and len(y) == 4 and all(abs(p - q) <= (0.02 if i == 3 else tol) for i, (p, q) in enumerate(zip(x, y)))
+
+
 def run_checks(m, version, profile, results):
     # Vorbereitung: Fenstergröße, Testkalender, Fenster ohne Dialoge
     m.js("""
@@ -631,6 +930,8 @@ def run_checks(m, version, profile, results):
         ok = res["header"] == "Amazon" and all(v["sender"] == "Amazon" and "2026" in v["date"] and 0 <= v["bottom"] - v["top"] <= 3 and abs(v["dot"]) <= 2 for v in res["cards"].values())
         return ok, f"{res}"
     check("Mailkarte und Mailkopf: Absendername aus der Domain, ganzes Datum, Abstände oben/unten gleich", card_sender_date, results)
+
+    maillist_checks(m, results)
 
     def reading():
         res = m.js(MESSAGE_JS + '''
