@@ -4564,7 +4564,12 @@ class CardEnhancer {
             box.appendChild(more);
           }
           box.setAttribute("mc-has-more", "true");
-          more.textContent = tr("+{n} more", { n: hidden });
+          // nur bei neuem Text setzen – sonst ersetzt Gecko den Textknoten, der
+          // Beobachter unten meldet das, und update() liefe in jedem Bild erneut
+          const label = tr("+{n} more", { n: hidden });
+          if (more.textContent != label) {
+            more.textContent = label;
+          }
         }
       };
       // nur messen, wenn der Kalender vorne ist – sonst liefe das bei jeder
@@ -4589,7 +4594,8 @@ class CardEnhancer {
       };
       const mo = new w.MutationObserver(records => {
         // eigene Änderungen (die „+N“-Knöpfe) lösen keine neue Runde aus
-        if (records.some(r => ![...r.addedNodes, ...r.removedNodes].every(n => n.classList?.contains("mc-more")) || r.type == "attributes")) {
+        if (records.some(r => !r.target.closest?.(".mc-more") &&
+            (![...r.addedNodes, ...r.removedNodes].every(n => n.classList?.contains("mc-more")) || r.type == "attributes"))) {
           schedule();
         }
       });

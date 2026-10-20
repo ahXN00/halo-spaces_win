@@ -1092,6 +1092,32 @@ def run_checks(m, version, profile, results):
         return joined and res["icon"].startswith("url(") and not res["emoji"], f"{res}"
     check("Kalender: mehrtägige Termine als Balken, Kalendersymbol ohne Emoji", month_spans, results)
 
+    def month_more():
+        # volle Tage zeigen „+N weitere“ – danach bleibt die Ansicht ruhig (früher setzte
+        # update() den Text in jedem Bild neu und lief so endlos, Dauerlast auf der CPU)
+        res = m.js(r'''
+          w.resizeTo(1500, 900);
+          const c = testCalendar(); const made = [];
+          for (let i = 0; i < 9; i++) { const e = new CalEvent(); e.title = "Halo Voll " + i; e.calendar = c;
+            const s = cal.createDateTime(); s.resetTo(2026, 9, 14, 8 + i, 0, 0, cal.dtz.defaultTimezone); const en = s.clone(); en.hour += 1;
+            e.startDate = s; e.endDate = en; made.push(await c.addItem(e)); }
+          await toCalendar(); w.switchToView("month"); w.currentView().goToDay(cal.createDateTime("20261014"));
+          const more = await until(() => d.querySelector("#month-view .mc-more"));
+          let changes = null;
+          if (more) {
+            await wait(600); changes = 0;
+            const mo = new w.MutationObserver(rs => { changes += rs.filter(r => (r.target.closest ? r.target : r.target.parentElement)?.closest(".mc-more")).length; });
+            mo.observe(d.getElementById("month-view"), { childList: true, subtree: true, characterData: true });
+            await wait(1500); mo.disconnect();
+          }
+          const text = more?.textContent;
+          for (const e of made) { try { await c.deleteItem(e); } catch {} }
+          return { text, changes, visibility: d.visibilityState };''')
+        if res["text"] is None and res["visibility"] == "hidden":
+            return True, f"Testfenster verdeckt – übersprungen {res}"
+        return bool(res["text"]) and res["text"].startswith("+") and res["changes"] == 0, f"{res}"
+    check("Kalender: „+N weitere“ in der Monatsansicht ohne Endlosschleife", month_more, results)
+
     def mail_search():
         # Suchfeld oben: alle Postfächer, Datum („12.10“), Trefferzahl, gelbe Markierung, zurück beim Leeren
         res = m.js(r"""
