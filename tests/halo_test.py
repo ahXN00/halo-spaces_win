@@ -1221,6 +1221,23 @@ def run_checks(m, version, profile, results):
         return ok, f"{res}"
     check("Bereiche-Leiste: Tooltips nur mit Namen", space_tips, results)
 
+    def system_integration_check():
+        # der Dialog sperrt per CSP alle Bilder außer chrome: – Haken muss trotzdem erscheinen
+        res = m.js('''
+          const dlg = w.openDialog("chrome://messenger/content/systemIntegrationDialog.xhtml", "_blank", "chrome,dialog=no,centerscreen");
+          await wait(2000);
+          const box = dlg.document.getElementById("checkMail"); box.checked = true; await wait(600);
+          const cs = dlg.getComputedStyle(box.querySelector(".checkbox-check"));
+          const iw = dlg.windowGlobalChild.innerWindowId;
+          const blocked = (Services.console.getMessageArray() || []).filter(x => x instanceof Ci.nsIScriptError
+            && x.innerWindowID == iw && /Content-Security-Policy/.test(x.errorMessage)).length;
+          const out = { img: cs.backgroundImage.slice(0, 40), fill: cs.fill, bg: cs.backgroundColor, blocked };
+          dlg.close(); await wait(300);
+          return out;''')
+        ok = res["img"].startswith('url("chrome:') and res["fill"] == "rgb(255, 255, 255)" and res["blocked"] == 0
+        return ok, f"{res}"
+    check("Standardprogramm-Dialog: Haken im Kästchen trotz Bildsperre", system_integration_check, results)
+
     def search_prefs():
         res = m.js('''
           return { gloda: Services.prefs.getBoolPref("mailnews.database.global.indexer.enabled"),
