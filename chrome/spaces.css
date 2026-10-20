@@ -2431,6 +2431,34 @@ addon-page-header h1,
   background-color: var(--mt-control-hover) !important;
 }
 
+/* schmale Verfassen-Fenster: Symbolleiste nur mit Symbolen wie Apple Mail
+   statt gekürzter Beschriftungen („Se…“). mc-icons-only setzt die
+   Erweiterung, sobald Beschriftungen gekürzt würden – die Grenze hängt von
+   der Sprache ab, deshalb keine feste Breite. Tooltips nennen die Knöpfe;
+   die Modi „nur Text“ und „nur Symbole“ bleiben unberührt */
+#composeToolbar2[mc-icons-only] > toolbarbutton .toolbarbutton-text {
+  display: none !important;
+}
+
+#composeToolbar2[mc-icons-only] > toolbarbutton:not([type="menu-button"]),
+#composeToolbar2[mc-icons-only] > toolbarbutton > .toolbarbutton-menubutton-button {
+  padding-inline: 10px !important;
+}
+
+/* Formatleiste: bei wenig Platz enger gesetzt und notfalls in eine zweite
+   Zeile umbrochen, statt am Rand abgeschnitten zu werden (Thunderbird lässt
+   sie über das Fenster hinauslaufen) */
+#FormatToolbar {
+  flex-wrap: wrap !important;
+  row-gap: 2px !important;
+}
+
+@media (max-width: 680px) {
+  #FormatToolbar > * {
+    margin-inline: 0 !important;
+  }
+}
+
 /* Kopfzeilen: Beschriftungen bündig in einer Spalte (Thunderbird gibt dem
    Absender-Feld und den Empfänger-Zeilen unterschiedlich breite Kästen) */
 #MsgHeadersToolbar :is(#identityLabel-box, #subjectLabel-box, .address-label-container) {
@@ -2441,6 +2469,30 @@ addon-page-header h1,
   max-width: 92px !important;
   padding-inline: 0 !important;
   justify-content: flex-end !important;
+}
+
+/* Empfänger-Beschriftungen („An“, „Cc“, „Bcc“) auf der Höhe der ersten
+   Pille bzw. des leeren Eingabefelds statt 4 px darunter (Thunderbird:
+   padding-top 7px) – wie „Von“ und „Betreff“ */
+#MsgHeadersToolbar .address-label-container {
+  padding-top: 3px !important;
+}
+
+/* umbrochene Pillenzeilen beginnen bündig mit der ersten: alle Pillen mit
+   gleichem Abstand vorn, keinem hinten (Thunderbird gibt den Abstand vorn
+   nur der ersten Pille im Feld). Das leere Eingabefeld bleibt unverändert */
+#MsgHeadersToolbar mail-address-pill {
+  margin-inline: 4px 0 !important;
+}
+
+/* Empfänger-Pillen dunkel heller als die Fläche wie die übrigen Kapseln
+   (Thunderbird: rgba(0,0,0,.3) – die Pillen wirkten wie Löcher); hell bleibt
+   Thunderbirds Grau. Auswahl, Bearbeiten und Warnfarben (ungültige Adresse,
+   Schlüsselproblem) bleiben Thunderbirds */
+@media (prefers-color-scheme: dark) {
+  #MsgHeadersToolbar mail-address-pill:not([selected], .editing, .invalid-address, .key-issue) {
+    background-color: var(--mt-control-hover) !important;
+  }
 }
 
 /* Trennlinien über die ganze Breite */

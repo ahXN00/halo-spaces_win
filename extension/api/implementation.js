@@ -2767,6 +2767,98 @@ class CardEnhancer {
       chromeURLs: ["chrome://messenger/content/messenger.xhtml"],
       onLoadWindow: w => this.watchMainWindow(w),
     });
+    // Verfassen-Fenster: Symbolleiste nur mit Symbolen, sobald Beschriftungen
+    // gekürzt würden (siehe watchComposeToolbar)
+    const composeCleanups = new Set();
+    ExtensionSupport.registerWindowListener("mail-cards-compose", {
+      chromeURLs: ["chrome://messenger/content/messengercompose/messengercompose.xhtml"],
+      onLoadWindow: w => this.watchComposeToolbar(w, composeCleanups),
+    });
+    this.restorers.push(() => {
+      ExtensionSupport.unregisterWindowListener("mail-cards-compose");
+      for (const cleanup of [...composeCleanups]) {
+        try {
+          cleanup();
+        } catch {}
+      }
+    });
+  }
+
+  // Schmale Verfassen-Fenster: Thunderbird kürzt die Beschriftungen der
+  // Symbolleiste („Se…“, sehr schmal mitten im Buchstaben). Wie Apple Mail
+  // zeigt die Leiste dann nur Symbole (Attribut „mc-icons-only“, spaces.css;
+  // Tooltips nennen die Knöpfe). Die Grenze hängt von der Sprache ab
+  // („Verschlüsseln“ ist breiter als „Encrypt“), deshalb wird gemessen statt
+  // eine feste Breite zu nehmen: nur Symbole, sobald eine Beschriftung oder
+  // die Leiste überläuft; Beschriftungen zurück, sobald die Leiste so breit
+  // ist, wie sie dafür sein muss.
+  watchComposeToolbar(w, cleanups) {
+    const d = w.document;
+    const bar = d.getElementById("composeToolbar2");
+    const box = d.getElementById("compose-toolbox");
+    if (!bar || bar.__mcIconsWatched) {
+      return;
+    }
+    bar.__mcIconsWatched = true;
+    const ATTR = "mc-icons-only";
+    let need = 0; // nötige Breite der Leiste für die Beschriftungen
+    const update = () => {
+      if (w.closed || !bar.isConnected) {
+        return;
+      }
+      // Modus „nur Text“ bzw. „nur Symbole“ aus „Anpassen“ bleibt unberührt
+      const mode = box?.getAttribute("mode");
+      if (mode == "text" || mode == "icons") {
+        bar.removeAttribute(ATTR);
+        need = 0;
+        return;
+      }
+      if (bar.hasAttribute(ATTR)) {
+        if (bar.clientWidth >= need) {
+          bar.removeAttribute(ATTR);
+          // im nächsten Bild neu messen, falls es doch nicht passt
+          w.requestAnimationFrame(update);
+        }
+        return;
+      }
+      let short = Math.max(0, bar.scrollWidth - bar.clientWidth);
+      for (const button of bar.querySelectorAll(":scope > toolbarbutton")) {
+        const text = button.querySelector(".toolbarbutton-text");
+        if (!text?.getClientRects().length) {
+          continue;
+        }
+        short += Math.max(0, text.scrollWidth - text.clientWidth, button.scrollWidth - button.clientWidth);
+      }
+      if (short > 1) {
+        need = bar.clientWidth + short + 8;
+        bar.setAttribute(ATTR, "true");
+      }
+    };
+    const reset = () => {
+      bar.removeAttribute(ATTR);
+      need = 0;
+      update();
+    };
+    const ro = new w.ResizeObserver(() => update());
+    ro.observe(bar);
+    // andere Knöpfe („Anpassen“) oder anderer Modus: neu messen
+    const mo = new w.MutationObserver(reset);
+    mo.observe(bar, { childList: true });
+    if (box) {
+      mo.observe(box, { attributes: true, attributeFilter: ["mode"] });
+    }
+    const cleanup = () => {
+      ro.disconnect();
+      mo.disconnect();
+      cleanups.delete(cleanup);
+      if (!w.closed) {
+        bar.removeAttribute(ATTR);
+        delete bar.__mcIconsWatched;
+      }
+    };
+    cleanups.add(cleanup);
+    w.addEventListener("unload", cleanup, { once: true });
+    update();
   }
 
   // Kleinste Fensterbreite je Space: beim Verkleinern schrumpft nur ein

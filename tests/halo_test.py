@@ -931,6 +931,10 @@ COMPOSE_CHECK_JS = r"""
   const vis = el => !!el && el.getClientRects().length > 0 && el.getBoundingClientRect().width > 0;
   const rgba = c => { const v = (String(c).match(/-?[\d.]+(?:e-?\d+)?/g) || []).map(Number); const k = String(c).startsWith("color(") ? 255 : 1;
     return [v[0] * k, v[1] * k, v[2] * k, v.length > 3 ? v[3] : 1]; };
+  // Farbe über einem Grund gemischt, relative Leuchtdichte, senkrechte Mitte eines Elements
+  const over = (fg, bg) => fg.slice(0, 3).map((x, i) => x * fg[3] + bg[i] * (1 - fg[3])).concat(1);
+  const lum = c => { const [r, g, b] = c.slice(0, 3).map(x => { x /= 255; return x <= 0.03928 ? x / 12.92 : ((x + 0.055) / 1.055) ** 2.4; }); return 0.2126 * r + 0.7152 * g + 0.0722 * b; };
+  const mid = el => { if (!el) return null; const r = el.getBoundingClientRect(); return Math.round((r.top + r.height / 2) * 10) / 10; };
   const dark = w.matchMedia("(prefers-color-scheme: dark)").matches;
   const testFolder = async () => { const root = MailServices.accounts.localFoldersServer.rootFolder;
     if (!root.containsChildNamed("Lesen")) { root.createSubfolder("Lesen", null); await pause(800); } return root.getChildNamed("Lesen"); };"""
@@ -938,7 +942,7 @@ COMPOSE_CHECK_JS = r"""
 
 def compose_checks(m, results):
     """Verfassen-Fenster und Editor-Dialoge: Kästchen, Anhänge, Textfläche, Hinweisleiste, Felder, Kontakte, Rückfragen,
-    Listen, Reiter, Anpassen, Trennlinie."""
+    Listen, Reiter, Anpassen, Trennlinie, Empfängerzeilen, schmale Symbolleiste."""
 
     def checkboxes():
         # angehakt mit Haken: data:-Bilder sperrt die CSP der Dialoge (default-src chrome:) – nur die blaue Fläche blieb
@@ -1164,6 +1168,85 @@ def compose_checks(m, results):
         ok = res["border"] == "0px" and res["height"] <= 1 and same_color(res["bg"], res["line"])
         return ok, f"{res}"
     check("Dialoge: Trennlinie über OK/Abbrechen als Haarlinie (Link einfügen)", separator, results)
+
+    # Empfängerzeilen: vier Empfänger in An (bricht bei 860 px um), einer in Cc, Bcc leer eingeblendet – ein Fenster für drei Prüfungen
+    rcpt = {}
+
+    def recipients():
+        if not rcpt:
+            rcpt.update(m.js(COMPOSE_CHECK_JS + r"""
+              const to = "Anna Beispiel <anna@example.invalid>, Ben Muster <ben@example.invalid>, Carla Ölmann <carla@example.invalid>, "
+                + "Dr. Maximilian Alexander von Langenname-Überlänge <maximilian.von.langenname@example.invalid>";
+              return await withCompose({ to, cc: "Projektteam <team@example.invalid>", width: 860 }, async (cw, cd) => {
+                const pills = () => [...cd.querySelectorAll("#toAddrContainer mail-address-pill")];
+                const top = p => Math.round(p.getBoundingClientRect().top), left = p => Math.round(p.getBoundingClientRect().left * 10) / 10;
+                const rows = () => new Set(pills().map(top)).size;
+                for (const width of [760, 680]) { if (rows() >= 2) break; cw.resizeTo(width, 760); await pause(800); }
+                cw.showAndFocusAddressRow("addressRowBcc"); await pause(500);
+                const all = pills(), first = all[0], textLeft = el => el.getBoundingClientRect().left + parseFloat(csOf(el).paddingLeft);
+                const bar = csOf(cd.getElementById("MsgHeadersToolbar")).backgroundColor, bcc = cd.querySelector("#bccAddrContainer .address-input");
+                const out = { dark, rows: rows(), bar, pill: csOf(first).backgroundColor,
+                  to: [mid(cd.getElementById("toAddrLabel")), mid(first)],
+                  cc: [mid(cd.getElementById("ccAddrLabel")), mid(cd.querySelector("#ccAddrContainer mail-address-pill"))],
+                  bcc: [mid(cd.getElementById("bccAddrLabel")), mid(bcc)],
+                  first: left(first), wrapped: all.filter(p => top(p) > top(first) + 4).map(left),
+                  bccText: textLeft(bcc), subjectText: textLeft(cd.getElementById("msgSubject")) };
+                out.pillLum = lum(over(rgba(out.pill), rgba(bar))); out.barLum = lum(rgba(bar));
+                // Zustände ohne Übergang messen (verdeckte Testfenster halten Übergänge an)
+                const p = all[1]; p.style.transition = "none";
+                p.setAttribute("selected", "selected"); await pause(150); out.selected = csOf(p).backgroundColor; p.removeAttribute("selected");
+                p.classList.add("invalid-address"); await pause(150); out.invalid = csOf(p).backgroundColor; p.classList.remove("invalid-address");
+                p.style.transition = ""; out.accent = colorOf(cd, "AccentColor");
+                return out; });"""))
+        return rcpt
+
+    def labels():
+        r = recipients()
+        ok = all(a is not None and b is not None and abs(a - b) <= 1.5 for a, b in (r["to"], r["cc"], r["bcc"]))
+        return ok, f"Mitte Beschriftung/Pille: An {r['to']}, Cc {r['cc']}, Bcc leer (Eingabefeld) {r['bcc']}"
+    check("Verfassen: „An“, „Cc“ und „Bcc“ auf der Höhe der ersten Pille bzw. des leeren Eingabefelds", labels, results)
+
+    def wrap():
+        r = recipients()
+        ok = (r["rows"] >= 2 and r["wrapped"] and all(abs(x - r["first"]) <= 0.5 for x in r["wrapped"])
+              and abs(r["bccText"] - r["subjectText"]) <= 1)
+        return ok, (f"{r['rows']} Zeilen, erste Pille links {r['first']}, umbrochene {r['wrapped']}; "
+                    f"Text leeres Bcc {r['bccText']} gegen Betreff {r['subjectText']}")
+    check("Verfassen: umbrochene Empfänger-Pillen beginnen bündig mit der ersten, leeres Feld bündig mit dem Betreff", wrap, results)
+
+    def pill_color():
+        r = recipients()
+        # dunkel heller als die Fläche (vorher dunkler: „Löcher“), hell weiter Thunderbirds Grau (dunkler als die Fläche)
+        lighter = r["pillLum"] > r["barLum"] if r["dark"] else r["pillLum"] < r["barLum"]
+        ok = lighter and same_color(r["selected"], r["accent"]) and same_color(r["invalid"], "rgb(215, 0, 34)")
+        return ok, (f"Pille {r['pill']} auf {r['bar']} (Leuchtdichte {r['pillLum']:.4f} gegen {r['barLum']:.4f}), "
+                    f"ausgewählt {r['selected']} (Akzent {r['accent']}), ungültige Adresse {r['invalid']}")
+    check("Verfassen: Empfänger-Pillen dunkel heller als die Fläche; Auswahl und Warnfarbe ungültiger Adressen bleiben", pill_color, results)
+
+    def narrow_toolbar():
+        # schmales Fenster: nur Symbole statt gekürzter Beschriftungen, Formatleiste innerhalb des Fensters; breit wieder mit Beschriftung
+        res = m.js(COMPOSE_CHECK_JS + r"""
+          return await withCompose({}, async (cw, cd) => {
+            const bar = cd.getElementById("composeToolbar2"), fmt = cd.getElementById("FormatToolbar"), box = cd.getElementById("compose-toolbox");
+            const state = () => { const texts = [...bar.querySelectorAll(":scope > toolbarbutton .toolbarbutton-text")].filter(vis);
+              return { width: cw.innerWidth, icons: bar.hasAttribute("mc-icons-only"), labels: texts.length,
+                       cut: texts.filter(t => t.scrollWidth > t.clientWidth + 1).map(t => t.value || t.textContent),
+                       overflow: bar.scrollWidth - bar.clientWidth, fmt: [fmt.scrollWidth, fmt.clientWidth],
+                       outside: [...fmt.children].filter(c => vis(c) && c.getBoundingClientRect().right > cw.innerWidth + 0.5).map(c => c.id || c.localName) }; };
+            const size = async width => { cw.resizeTo(width, 700); await till(() => cw.innerWidth == width, 3000); await pause(900); return state(); };
+            const out = { mode: box.getAttribute("mode") };
+            out.narrow = await size(640); out.tiny = await size(560); out.wide = await size(1000);
+            // Modus „nur Text“: Beschriftungen bleiben auch schmal (sonst leere Knöpfe)
+            box.setAttribute("mode", "text"); out.text = await size(640);
+            box.setAttribute("mode", out.mode || "full"); await pause(300);
+            return out; });""")
+        n, t, wd, tx = res["narrow"], res["tiny"], res["wide"], res["text"]
+        fits = lambda s: not s["cut"] and s["overflow"] <= 1 and s["fmt"][0] <= s["fmt"][1] + 1 and not s["outside"]
+        ok = (n["icons"] and n["labels"] == 0 and fits(n) and t["icons"] and fits(t)
+              and not wd["icons"] and wd["labels"] >= 3 and fits(wd)
+              and not tx["icons"] and tx["labels"] >= 3)
+        return ok, f"{res}"
+    check("Verfassen: schmales Fenster zeigt nur Symbole statt gekürzter Beschriftungen, Formatleiste bleibt im Fenster; breit wieder mit Beschriftung", narrow_toolbar, results)
 
 
 def rgba_alpha(c):
