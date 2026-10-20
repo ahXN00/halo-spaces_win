@@ -2324,8 +2324,9 @@ const EMOJI_RULES = [
   ["🎬", { stems: ["kino", "movie"] }],
   ["🎭", { stems: ["theater", "musical"], words: ["oper"] }],
   ["⚖️", { stems: ["gericht", "anwalt", "verhandlung", "notar"] }],
-  // „Steuer“ auch in „Einkommensteuer“, aber nicht „Steuerung(sgruppe)“
-  ["💰", { stems: ["finanzamt", "steuerberat"], words: ["bank"], re: /steuer(?!ung)/u }],
+  // „Steuer“ auch in „Einkommensteuer“, aber nicht in Lenkungsgremien
+  // („Steuerung(sgruppe)“, „Steuerkreis“, „Steuergruppe“)
+  ["💰", { stems: ["finanzamt", "steuerberat"], words: ["bank"], re: /steuer(?!ung|kreis|gruppe)/u }],
   ["🛒", { stems: ["einkauf", "shopping", "supermarkt"] }],
   ["📦", { stems: ["umzug", "paket", "lieferung"] }],
   ["🚗", { stems: ["werkstatt", "pickerl", "reifenwechsel", "autoservice"], words: ["auto"] }],

@@ -682,13 +682,14 @@ def run_checks(m, version, profile, results):
           const f = Cu.evalInSandbox("emojiFor", ExtensionParent.GlobalManager.getExtension("%s").experimentAPIManager.global);
           const out = {};
           for (const t of ["Ordination Dr. Muster", "Ordinationszeiten", "Koordination Projekt X", "Koordinationsmeeting",
-                           "Einkommensteuer", "Steuererklärung", "Steuerungsgruppe"]) out[t] = f(t);
+                           "Einkommensteuer", "Steuererklärung", "Steuerungsgruppe", "Steuerkreissitzung", "Steuergruppe", "Steuerunterlagen"]) out[t] = f(t);
           return out;''' % ADDON_ID)
         expected = {"Ordination Dr. Muster": "🩺", "Ordinationszeiten": "🩺", "Koordination Projekt X": "", "Koordinationsmeeting": "👥",
-                    "Einkommensteuer": "💰", "Steuererklärung": "💰", "Steuerungsgruppe": ""}
+                    "Einkommensteuer": "💰", "Steuererklärung": "💰", "Steuerungsgruppe": "", "Steuerkreissitzung": "",
+                    "Steuergruppe": "", "Steuerunterlagen": "💰"}
         bad = [f"„{k}“ → {res.get(k)!r}" for k, v in expected.items() if res.get(k) != v]
         return not bad, "; ".join(bad) or f"{len(expected)} Titel richtig"
-    check("Emoji: „Koordination“ ohne Arzt, „Steuerung“ ohne Geld", emoji_rules, results)
+    check("Emoji: „Koordination“ ohne Arzt, „Steuerung“, „Steuerkreis“, „Steuergruppe“ ohne Geld", emoji_rules, results)
 
     def readstatus():
         res = m.js("""
