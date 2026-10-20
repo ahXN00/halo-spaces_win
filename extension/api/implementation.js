@@ -1833,6 +1833,19 @@ class AvatarResolver {
     if (url?.startsWith("data:")) {
       return url;
     }
+    if (url?.startsWith("file:")) {
+      // Foto im lokalen Adressbuch: Thunderbird legt es als Datei in <Profil>/Photos ab
+      const win = this.getWindow();
+      if (win) {
+        try {
+          const path = Services.io.newURI(url).QueryInterface(Ci.nsIFileURL).file.path;
+          const buf = await IOUtils.read(path, { maxBytes: 2 * 1024 * 1024 });
+          if (buf.length >= 100) {
+            return `data:image/jpeg;base64,${bytesToBase64(win, buf)}`;
+          }
+        } catch {}
+      }
+    }
     // Foto aus der macOS-Kontakte-App (iCloud-Fotos sind nur als Link hinterlegt)
     const local = MacPhotos.lookup([email, ...(card?.emailAddresses || [])], card?.displayName);
     if (local) {
@@ -8483,6 +8496,8 @@ this.mailCards = class extends ExtensionCommon.ExtensionAPI {
           for (const [key, spec] of Object.entries(SETTINGS)) {
             out[key] = readSetting(spec);
           }
+          // wie im Hilfe-Fenster: eingerichtete Fotos gelten auch ohne Pref als an
+          out.macContactPhotos = await MacPhotos.enabled();
           return out;
         },
         async setSetting(key, value) {
@@ -8491,7 +8506,9 @@ this.mailCards = class extends ExtensionCommon.ExtensionAPI {
             throw new Error(`unknown setting ${key}`);
           }
           const [pref, type, def] = spec;
-          if (value === null || value === def) {
+          // Kontaktfotos immer ausdrücklich speichern: ohne Wert gälten sie als
+          // an, sobald es mail-cards-photos/index.json gibt (MacPhotos.enabled)
+          if ((value === null || value === def) && key != "macContactPhotos") {
             Services.prefs.clearUserPref(pref); // Standard: nichts im Profil speichern
           } else if (type == "bool") {
             Services.prefs.setBoolPref(pref, !!value);

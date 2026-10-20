@@ -1265,6 +1265,58 @@ def run_checks(m, version, profile, results):
         return ok, f"{res}"
     check("Geburtstage aus dem Adressbuch als Kalender", birthdays, results)
 
+    def mac_photos_off():
+        # Einstellungsseite (setSetting) direkt über das Experiment-Modul; den
+        # Abgleich mit den macOS-Kontakten (osascript, echte Kontakte) dabei abklemmen
+        res = m.js('''
+          const { ExtensionParent } = ChromeUtils.importESModule("resource://gre/modules/ExtensionParent.sys.mjs");
+          const g = ExtensionParent.GlobalManager.getExtension("%s").experimentAPIManager.global;
+          const MP = Cu.evalInSandbox("MacPhotos", g); const api = Cu.evalInSandbox("mailCards.prototype.getAPI({})", g).mailCards;
+          const PREF = "extensions.mailcards.macContactPhotos"; const dir = PathUtils.join(PathUtils.profileDir, "mail-cards-photos");
+          const sync = MP.sync; MP.sync = async () => {};
+          try {
+            // schon einmal eingerichtet: index.json vorhanden, Pref ohne Wert
+            await IOUtils.makeDirectory(dir, { ignoreExisting: true }); await IOUtils.writeUTF8(PathUtils.join(dir, "index.json"), "[]");
+            Services.prefs.clearUserPref(PREF);
+            const before = (await api.getSettings()).macContactPhotos;
+            await api.setSetting("macContactPhotos", false);
+            return { before, hasValue: Services.prefs.prefHasUserValue(PREF), enabled: await MP.enabled(), shown: (await api.getSettings()).macContactPhotos };
+          } finally {
+            await IOUtils.remove(dir, { recursive: true }).catch(() => {}); Services.prefs.clearUserPref(PREF); MP.sync = sync;
+          }''' % ADDON_ID)
+        ok = res["before"] is True and res["hasValue"] and res["enabled"] is False and res["shown"] is False
+        return ok, f"{res}"
+    check("Kontaktfotos: Ausschalten auf der Einstellungsseite bleibt aus (trotz vorhandener Fotoliste)", mac_photos_off, results)
+
+    def local_ab_photo():
+        # Foto im lokalen Adressbuch liegt als Datei in <Profil>/Photos (file:-Adresse)
+        res = m.js('''
+          const { MailServices } = ChromeUtils.importESModule("resource:///modules/MailServices.sys.mjs");
+          const canvas = d.createElementNS("http://www.w3.org/1999/xhtml", "canvas"); canvas.width = canvas.height = 64;
+          const ctx = canvas.getContext("2d"); ctx.fillStyle = "#fff"; ctx.fillRect(0, 0, 64, 64);
+          ctx.fillStyle = "#c33"; ctx.beginPath(); ctx.arc(32, 32, 22, 0, 7); ctx.fill();
+          const blob = await new Promise(r => canvas.toBlob(r, "image/jpeg"));
+          await IOUtils.makeDirectory(PathUtils.join(PathUtils.profileDir, "Photos"), { ignoreExisting: true });
+          await IOUtils.write(PathUtils.join(PathUtils.profileDir, "Photos", "halo-foto.jpg"), new Uint8Array(await blob.arrayBuffer()));
+          const book = MailServices.ab.getDirectory("jsaddrbook://abook.sqlite");
+          let card = Cc["@mozilla.org/addressbook/cardproperty;1"].createInstance(Ci.nsIAbCard);
+          card.displayName = "Fiona Foto"; card.primaryEmail = "fiona.foto@example.invalid"; card.setProperty("PhotoName", "halo-foto.jpg");
+          card = book.addCard(card);
+          try { MailServices.accounts.localFoldersServer; } catch { MailServices.accounts.createLocalMailAccount(); await wait(500); }
+          const root = MailServices.accounts.localFoldersServer.rootFolder;
+          if (!root.containsChildNamed("Fotos")) { root.createSubfolder("Fotos", null); await wait(800); }
+          const f = root.getChildNamed("Fotos");
+          f.QueryInterface(Ci.nsIMsgLocalMailFolder).addMessage("From - Sat Oct 17 10:00:00 2026\\r\\nFrom: Fiona Foto <fiona.foto@example.invalid>\\r\\nSubject: Halo Foto\\r\\nDate: Sat, 17 Oct 2026 10:00:00 +0200\\r\\nMessage-ID: <halo-foto@example.invalid>\\r\\n\\r\\nTest\\r\\n");
+          const a3 = await toMail(); a3.displayFolder(f.URI);
+          const img = await until(() => a3.document.querySelector('#threadTree tr[is="thread-card"] .mc-avatar img[src^="data:"]'), 10000);
+          const av = a3.document.querySelector('#threadTree tr[is="thread-card"] .mc-avatar');
+          const out = { photoURL: card.photoURL.slice(0, 8), img: !!img, avatar: av ? (av.querySelector("img")?.getAttribute("src") || "").slice(0, 16) || av.textContent : null };
+          book.deleteCards([card]);
+          return out;''')
+        ok = res["photoURL"].startswith("file:") and res["img"]
+        return ok, f"{res}"
+    check("Kontaktfotos: Foto aus dem lokalen Adressbuch (Datei im Profil) in der Mailliste", local_ab_photo, results)
+
     def keyboard():
         res = m.js('''
           await toMail(); await wait(300);
