@@ -113,6 +113,97 @@ def wait_port(port, timeout=60):
     return False
 
 
+def local_https(host):
+    """Lokaler HTTPS-Server (selbst signiert, für host) für die Netzprüfung der
+    Absenderbilder, dazu ein „Gerät im lokalen Netz“ (http auf 127.0.0.1), das
+    jeden Zugriff mitschreibt. Liefert Port, Zertifikat (DER, Base64), die
+    Zugriffe aufs Gerät, die empfangenen POSTs und eine Funktion zum Beenden."""
+    import base64
+    import http.server
+    import ssl
+    import threading
+    tmp = tempfile.mkdtemp(prefix="halo-netz-")
+    key, crt = os.path.join(tmp, "key.pem"), os.path.join(tmp, "cert.pem")
+    subprocess.run(["openssl", "req", "-x509", "-newkey", "rsa:2048", "-nodes", "-keyout", key, "-out", crt, "-days", "2",
+                    "-subj", f"/CN={host}", "-addext", f"subjectAltName=DNS:{host}",
+                    "-addext", "basicConstraints=critical,CA:FALSE"], check=True, capture_output=True)
+    hits, posts, stop = [], [], threading.Event()
+
+    class Device(http.server.BaseHTTPRequestHandler):
+        def do_GET(self):
+            hits.append(self.path)
+            self.send_response(200)
+            self.end_headers()
+
+        def log_message(self, *args):
+            pass
+
+    class Sender(http.server.BaseHTTPRequestHandler):
+        def do_GET(self):
+            if self.path == "/umleitung":  # Absender leitet auf ein Gerät im lokalen Netz um
+                self.send_response(302)
+                self.send_header("Location", f"http://127.0.0.1:{device.server_port}/geraet")
+                self.end_headers()
+            elif self.path == "/weiter":  # Umleitung auf eine öffentliche Adresse bleibt erlaubt
+                self.send_response(302)
+                self.send_header("Location", f"https://{host}:{server.server_port}/ziel")
+                self.end_headers()
+            elif self.path == "/ziel":
+                self.send_response(200)
+                self.send_header("Content-Type", "text/html; charset=utf-8")
+                self.end_headers()
+                self.wfile.write("<head></head>Grüße".encode())
+            elif self.path == "/anmelden":  # wie iCloud-Fotos: 401 ohne Anmeldedialog
+                self.send_response(401)
+                self.send_header("WWW-Authenticate", 'Basic realm="Halo"')
+                self.end_headers()
+            elif self.path == "/endlos":  # Daten ohne Ende (höchstens 20 MB)
+                self.send_response(200)
+                self.send_header("Content-Type", "image/png")
+                self.end_headers()
+                try:
+                    for _ in range(320):
+                        self.wfile.write(b"x" * 65536)
+                except OSError:
+                    pass
+            elif self.path == "/stumm":  # nach den Kopfzeilen kommt nichts mehr
+                self.send_response(200)
+                self.send_header("Content-Type", "image/png")
+                self.end_headers()
+                self.wfile.write(b"x" * 10)
+                self.wfile.flush()
+                stop.wait(30)
+            else:
+                self.send_response(404)
+                self.end_headers()
+
+        def do_POST(self):
+            posts.append(self.rfile.read(int(self.headers.get("Content-Length") or 0)).decode())
+            self.send_response(200)
+            self.end_headers()
+
+        def log_message(self, *args):
+            pass
+
+    device = http.server.ThreadingHTTPServer(("127.0.0.1", 0), Device)
+    server = http.server.ThreadingHTTPServer(("127.0.0.1", 0), Sender)
+    ctx = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+    ctx.load_cert_chain(crt, key)
+    server.socket = ctx.wrap_socket(server.socket, server_side=True)
+    for s in (device, server):
+        s.daemon_threads = True
+        threading.Thread(target=s.serve_forever, daemon=True).start()
+    der = base64.b64encode(ssl.PEM_cert_to_DER_cert(open(crt).read())).decode()
+
+    def close():
+        stop.set()
+        for s in (device, server):
+            s.shutdown()
+            s.server_close()
+        shutil.rmtree(tmp, ignore_errors=True)
+    return server.server_port, der, hits, posts, close
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--xpi", help="Paket (Standard: neuestes dist/halo-spaces-*.xpi)")
@@ -123,6 +214,7 @@ def main():
     ap.add_argument("--shots", help="Ordner für Screenshots aller Bereiche")
     ap.add_argument("--eval", help="nur dieses JavaScript ausführen (Chrome-Kontext, mit den Hilfen aus PRELUDE) und das Ergebnis ausgeben – zum Untersuchen")
     ap.add_argument("--perf", action="store_true", help="nur die Geschwindigkeit messen (5000 Mails, mit und ohne halo.spaces)")
+    ap.add_argument("--port", type=int, default=PORT, help=f"Marionette-Port (Standard {PORT}; eigener Port erlaubt mehrere Testläufe gleichzeitig)")
     ap.add_argument("--compare", help="Ordner mit früheren Screenshots: zeigt, wo sich etwas verändert hat (braucht --shots)")
     args = ap.parse_args()
 
@@ -143,7 +235,7 @@ def main():
     with open(os.path.join(profile, "user.js"), "w") as f:
         for pref, value in {
             "extensions.autoDisableScopes": 0,
-            "marionette.port": PORT,
+            "marionette.port": args.port,
             "mail.shell.checkDefaultClient": False,
             "mail.provider.suppress_dialog_on_startup": True,
             "mail.rights.version": 1,
@@ -169,10 +261,10 @@ def main():
                             env={**os.environ, "MOZ_REMOTE_ALLOW_SYSTEM_ACCESS": "1"})
     results = []
     try:
-        if not wait_port(PORT):
+        if not wait_port(args.port):
             sys.exit("Thunderbird hat Marionette nicht geöffnet")
         time.sleep(8)  # Erweiterung und Fenster fertig aufbauen lassen
-        m = Marionette(PORT)
+        m = Marionette(args.port)
         if args.perf:
             args.eval = open(os.path.join(ROOT, "tests", "perf.js")).read()
         if args.eval:
@@ -186,7 +278,7 @@ def main():
                 compare_shots(m, args.compare, args.shots)
     finally:
         try:
-            Marionette(PORT).js("Services.startup.quit(Ci.nsIAppStartup.eForceQuit); return 1;")
+            Marionette(args.port).js("Services.startup.quit(Ci.nsIAppStartup.eForceQuit); return 1;")
         except Exception:
             pass
         try:
@@ -458,6 +550,111 @@ def run_checks(m, version, profile, results):
         return ok, f"{res}"
     check("Schnellfenster: natürliche Eingabe („morgen 12:30 für 90 min“)", natural, results)
 
+    def natural_rules():
+        # parseNatural direkt über das Experiment-Modul, „jetzt“ = Di 20.10.2026 15:00
+        res = m.js('''
+          const { ExtensionParent } = ChromeUtils.importESModule("resource://gre/modules/ExtensionParent.sys.mjs");
+          const g = ExtensionParent.GlobalManager.getExtension("%s").experimentAPIManager.global;
+          const parse = Cu.evalInSandbox("parseNatural", g);
+          const p = n => String(n).padStart(2, "0");
+          const f = x => x ? `${p(x.getDate())}.${p(x.getMonth() + 1)}.${x.getFullYear()} ${p(x.getHours())}:${p(x.getMinutes())}` : "-";
+          const out = {};
+          for (const t of ["Lunch für 2h um 12 Uhr", "Workshop für 1.5h morgen um 10 Uhr", "Meeting 14:00 für 2h", "Arzt Freitag morgen 8 Uhr",
+                           "Arzt morgen 8 Uhr", "Termin 1.3.25", "Call 11-1pm", "Call 2-4pm", "Party 22-2 Uhr", "Arbeit 9-5",
+                           "Schicht 18-7 Uhr", "Standup 11-12am", "Gottesdienst Karfreitag morgen 10 Uhr"]) {
+            const r = parse(t, new Date(2026, 9, 20, 15, 0));
+            out[t] = `${r.title} | ${f(r.start)} – ${f(r.end)}`;
+          }
+          return out;''' % ADDON_ID)
+        expected = {
+            "Lunch für 2h um 12 Uhr": "Lunch | 20.10.2026 12:00 – 20.10.2026 14:00",
+            "Workshop für 1.5h morgen um 10 Uhr": "Workshop | 21.10.2026 10:00 – 21.10.2026 11:30",
+            "Meeting 14:00 für 2h": "Meeting | 20.10.2026 14:00 – 20.10.2026 16:00",
+            "Arzt Freitag morgen 8 Uhr": "Arzt | 23.10.2026 08:00 – 23.10.2026 09:00",
+            "Arzt morgen 8 Uhr": "Arzt | 21.10.2026 08:00 – 21.10.2026 09:00",
+            "Termin 1.3.25": "Termin | 01.03.2025 00:00 – -",
+            "Call 11-1pm": "Call | 20.10.2026 11:00 – 20.10.2026 13:00",
+            "Call 2-4pm": "Call | 20.10.2026 14:00 – 20.10.2026 16:00",
+            "Party 22-2 Uhr": "Party | 20.10.2026 22:00 – 21.10.2026 02:00",
+            "Arbeit 9-5": "Arbeit | 20.10.2026 09:00 – 20.10.2026 17:00",
+            "Schicht 18-7 Uhr": "Schicht | 20.10.2026 18:00 – 21.10.2026 07:00",
+            "Standup 11-12am": "Standup | 20.10.2026 11:00 – 20.10.2026 12:00",
+            "Gottesdienst Karfreitag morgen 10 Uhr": "Gottesdienst Karfreitag | 21.10.2026 10:00 – 21.10.2026 11:00",
+        }
+        bad = [f"„{k}“ → {res.get(k)}" for k, v in expected.items() if res.get(k) != v]
+        return not bad, "; ".join(bad) or f"{len(expected)} Eingaben richtig (Dauer, „Freitag morgen“, „Karfreitag morgen“, Jahr „25“, am/pm, „12am“, über Mitternacht)"
+    check("Schnellfenster: Dauer, Wochentag mit „morgen“, zweistelliges Jahr, Zeiträume", natural_rules, results)
+
+    def quick_late_allday():
+        # Doppelklick auf einen Tag um 23:15: der Termin bleibt an diesem Tag
+        # (Uhrzeit im Experiment-Modul kurz auf 23:15 gestellt)
+        res = m.js('''
+          const { ExtensionParent } = ChromeUtils.importESModule("resource://gre/modules/ExtensionParent.sys.mjs");
+          const g = ExtensionParent.GlobalManager.getExtension("%s").experimentAPIManager.global;
+          await toCalendar();
+          let out;
+          Cu.evalInSandbox("globalThis.__mcRealDate = Date; Date = class extends __mcRealDate { constructor(...a) { if (a.length) super(...a); else super(2026, 9, 20, 23, 15); } };", g);
+          try {
+            Cu.evalInSandbox("enhancer", g).openQuickCreate(w, "event", null, { start: new Date(2026, 9, 21), allDay: true });
+            const p = d.getElementById("mcQuickPanel"); const f = p.__mc;
+            out = { start: f.startDate.value, time: f.startTime.value, end: f.endDate.value, allDay: f.allDay.checked };
+            p.hidePopup();
+            // „+“ der Today-Pane mit heute als Tag: 0:00 am Folgetag statt 23:00 heute (Beginn in der Vergangenheit)
+            const tp = w.TodayPane; const origStart = tp.start;
+            tp.start = { year: 2026, month: 9, day: 20 };
+            try {
+              Cu.evalInSandbox("enhancer", g).openQuickCreate(w, "event", d.getElementById("todaypane-new-event-button"));
+              out.todayPane = { start: f.startDate.value, time: f.startTime.value };
+            } finally {
+              tp.start = origStart;
+            }
+          } finally {
+            Cu.evalInSandbox("Date = globalThis.__mcRealDate; delete globalThis.__mcRealDate;", g);
+          }
+          d.getElementById("mcQuickPanel").hidePopup(); await wait(400);
+          return out;''' % ADDON_ID)
+        ok = res == {"start": "2026-10-21", "time": "23:00", "end": "2026-10-21", "allDay": True,
+                     "todayPane": {"start": "2026-10-21", "time": "00:00"}}
+        return ok, f"{res}"
+    check("Schnellfenster: ganztägig um 23 Uhr bleibt am angeklickten Tag, „+“ der Today-Pane um 23 Uhr beginnt morgen 0 Uhr", quick_late_allday, results)
+
+    def quick_checks():
+        # ganztägig mit Ende vor dem Beginn → ein Tag; Aufgabe mit Erinnerung bekommt eine Fälligkeit
+        res = m.js('''
+          const { ExtensionParent } = ChromeUtils.importESModule("resource://gre/modules/ExtensionParent.sys.mjs");
+          const enh = Cu.evalInSandbox("enhancer", ExtensionParent.GlobalManager.getExtension("%s").experimentAPIManager.global);
+          await toCalendar();
+          const open = mode => {
+            enh.openQuickCreate(w, mode);
+            const p = d.getElementById("mcQuickPanel"); const f = p.__mc;
+            f.calendar.value = testCalendar().id; f.calendar.dispatchEvent(new w.Event("change"));
+            return [p, f];
+          };
+          const set = (input, v) => { if (typeof v == "boolean") input.checked = v; else input.value = v; input.dispatchEvent(new w.Event("change")); };
+          const find = async t => { for (let i = 0; i < 40; i++) { const x = (await items(t))[0]; if (x) return x; await wait(100); } return null; };
+          let [p, f] = open("event");
+          f.title.value = "Halo Ganztag rückwärts"; f.title.dispatchEvent(new w.Event("input", { bubbles: true }));
+          set(f.allDay, true); set(f.startDate, "2026-11-12"); set(f.endDate, "2026-11-10");
+          f.add.click();
+          const ev = await find("Halo Ganztag rückwärts");
+          await until(() => p.state == "closed", 3000);
+          [p, f] = open("task");
+          f.title.value = "Halo Aufgabe Erinnerung"; f.title.dispatchEvent(new w.Event("input", { bubbles: true }));
+          const before = f.hasDue.checked;
+          set(f.alert, "PT15M"); const due = f.hasDue.checked;
+          set(f.hasDue, false); const cleared = f.alert.value;
+          set(f.alert, "PT15M");
+          f.add.click();
+          const td = await find("Halo Aufgabe Erinnerung");
+          await until(() => p.state == "closed", 3000);
+          const out = { ev: ev ? [ev.startDate.icalString, ev.endDate.icalString] : null,
+                        task: { before, due, cleared, hasDue: !!td?.dueDate, alarms: td ? td.getAlarms().length : null } };
+          for (const it of [ev, td].filter(Boolean)) await testCalendar().deleteItem(it);
+          return out;''' % ADDON_ID)
+        ok = (res["ev"] == ["20261112", "20261113"] and res["task"] == {"before": False, "due": True, "cleared": "", "hasDue": True, "alarms": 1})
+        return ok, f"{res}"
+    check("Schnellfenster: ganztägiges Ende vor Beginn, Erinnerung bei Aufgabe", quick_checks, results)
+
     def emoji():
         res = m.js("""
           const { CalEvent } = ChromeUtils.importESModule("resource:///modules/CalEvent.sys.mjs");
@@ -476,6 +673,23 @@ def run_checks(m, version, profile, results):
           return [builtin, custom, label?.getAttribute("data-mc-emoji") || null];""")
         return res == ["🎂", "⚽", "🎂"], f"eingebaut {res[0]}, eigenes Stichwort {res[1]}, wieder {res[2]}"
     check("Emoji vor Termintitel", emoji, results)
+
+    def emoji_rules():
+        # emojiFor direkt über das Experiment-Modul: „Ordination“ nicht in
+        # „Koordination“, „Steuer“ nicht in „Steuerung“
+        res = m.js('''
+          const { ExtensionParent } = ChromeUtils.importESModule("resource://gre/modules/ExtensionParent.sys.mjs");
+          const f = Cu.evalInSandbox("emojiFor", ExtensionParent.GlobalManager.getExtension("%s").experimentAPIManager.global);
+          const out = {};
+          for (const t of ["Ordination Dr. Muster", "Ordinationszeiten", "Koordination Projekt X", "Koordinationsmeeting",
+                           "Einkommensteuer", "Steuererklärung", "Steuerungsgruppe", "Steuerkreissitzung", "Steuergruppe", "Steuerunterlagen"]) out[t] = f(t);
+          return out;''' % ADDON_ID)
+        expected = {"Ordination Dr. Muster": "🩺", "Ordinationszeiten": "🩺", "Koordination Projekt X": "", "Koordinationsmeeting": "👥",
+                    "Einkommensteuer": "💰", "Steuererklärung": "💰", "Steuerungsgruppe": "", "Steuerkreissitzung": "",
+                    "Steuergruppe": "", "Steuerunterlagen": "💰"}
+        bad = [f"„{k}“ → {res.get(k)!r}" for k, v in expected.items() if res.get(k) != v]
+        return not bad, "; ".join(bad) or f"{len(expected)} Titel richtig"
+    check("Emoji: „Koordination“ ohne Arzt, „Steuerung“, „Steuerkreis“, „Steuergruppe“ ohne Geld", emoji_rules, results)
 
     def readstatus():
         res = m.js("""
@@ -511,7 +725,7 @@ def run_checks(m, version, profile, results):
           // Tag ohne Termine – frühere Prüfungen legen heute/morgen welche an, ein
           // Treffer öffnet den Termin statt des Schnellfensters (je nach Wochentag)
           const col = [...d.querySelectorAll("#week-view calendar-event-column")].filter(c => c.getBoundingClientRect().width && ![...c.querySelectorAll("calendar-event-box")].some(b => !b.hidden && b.occurrence))[1];
-          const lbl = [...d.querySelectorAll("#week-view .multiday-timebar-time")].find(l => /^\s*(14[:.]00|0?2:00\s*PM)\s*$/i.test(l.textContent));
+          const lbl = [...d.querySelectorAll("#week-view .multiday-timebar-time")].find(l => /^\\s*(14[:.]00|0?2:00\\s*PM)\\s*$/i.test(l.textContent));
           lbl.scrollIntoView({ block: "center" }); await wait(500);
           // Aufgehen und Zugehen mitzählen – unter xvfb ohne Fenstermanager klappt
           // das Fenster teils sofort wieder zu
@@ -561,14 +775,30 @@ def run_checks(m, version, profile, results):
           const buttons = rows[0]?.querySelectorAll(".mc-action") || [];
           rows[0].querySelector(".mc-act-flag").click(); await wait(500);
           const flagged = a3.gDBView.getMsgHdrAt(0).isFlagged; const selected = a3.gDBView.selection.count;
+          // Löschen per Knopf landet in Thunderbirds Rückgängig-Liste (früher ohne msgWindow: nicht)
+          const txn = w.messenger.transactionManager; const undo0 = txn.numberOfUndoItems;
           rows[0].querySelector(".mc-act-delete").click(); await wait(1200);
           const trash = root.getFolderWithFlags(Ci.nsMsgFolderFlags.Trash);
-          return { buttons: buttons.length, flagged, selected, inbox: inbox.getTotalMessages(false), trash: trash?.getTotalMessages(false) };''')
+          const out = { buttons: buttons.length, flagged, selected, inbox: inbox.getTotalMessages(false), trash: trash?.getTotalMessages(false),
+                        undoItems: txn.numberOfUndoItems - undo0 };
+          if (out.undoItems > 0) { w.messenger.undo(w.msgWindow); out.undone = await until(() => inbox.getTotalMessages(false) == 2 && 2, 6000); }
+          // Archivieren per Knopf ebenso rückgängig (ohne Identität: Lokale Ordner/Archives)
+          if (out.undone) {
+            const btn = await until(() => a3.document.querySelector('#threadTree tr[is="thread-card"] .mc-act-archive'), 6000);
+            const undoA = txn.numberOfUndoItems;
+            btn?.click();
+            out.archived = await until(() => inbox.getTotalMessages(false) == 1 && 1, 8000);
+            out.archiveUndo = txn.numberOfUndoItems - undoA;
+            if (out.archiveUndo > 0) { w.messenger.undo(w.msgWindow); out.unarchived = await until(() => inbox.getTotalMessages(false) == 2 && 2, 6000); }
+          }
+          return out;''')
         if res.get("diag"):
             return False, f"keine Knöpfe auf der Karte – Diagnose {res}"
-        ok = res["buttons"] == 3 and res["flagged"] and res["selected"] == 0 and res["inbox"] == 1 and res["trash"] == 1
+        ok = (res["buttons"] == 3 and res["flagged"] and res["selected"] == 0 and res["inbox"] == 1 and res["trash"] == 1
+              and res["undoItems"] == 1 and res.get("undone") == 2
+              and res.get("archived") == 1 and res.get("archiveUndo") == 1 and res.get("unarchived") == 2)
         return ok, f"{res}"
-    check("Mailkarte: Aktionen beim Überfahren (Markieren, Löschen)", hover_actions, results)
+    check("Mailkarte: Aktionen beim Überfahren (Markieren, Löschen, Archivieren, Rückgängig)", hover_actions, results)
 
     def selected_actions():
         res = m.js('''
@@ -584,6 +814,87 @@ def run_checks(m, version, profile, results):
           return { found: true, icon: cs(b).color, pill: cs(box).backgroundColor, diff };''')
         return res.get("found") and res["diff"] >= 60, f"{res}"
     check("Ausgewählte Karte: Aktions-Symbole sichtbar", selected_actions, results)
+
+    def list_date_future():
+        # Datum in der Mailliste: heute nur die Uhrzeit, in der Zukunft (falsche Uhr,
+        # Spam „oben halten“) das ganze Datum statt nur der Uhrzeit; „jetzt“ = Di 20.10.2026 15:00
+        res = m.js('''
+          const { ExtensionParent } = ChromeUtils.importESModule("resource://gre/modules/ExtensionParent.sys.mjs");
+          const g = ExtensionParent.GlobalManager.getExtension("%s").experimentAPIManager.global;
+          const f = Cu.evalInSandbox("appleListDate", g); const now = new Date(2026, 9, 20, 15, 0);
+          return { today: f(new Date(2026, 9, 20, 10, 15).getTime(), now), tomorrow: f(new Date(2026, 9, 21, 10, 15).getTime(), now),
+                   nextYear: f(new Date(2027, 2, 1, 10, 15).getTime(), now), older: f(new Date(2026, 9, 17, 10, 15).getTime(), now) };''' % ADDON_ID)
+        ok = ("2026" not in res["today"] and "2026" in res["tomorrow"] and "21" in res["tomorrow"]
+              and "2027" in res["nextYear"] and "2026" in res["older"])
+        return ok, f"{res}"
+    check("Mailliste: Datum in der Zukunft zeigt das ganze Datum", list_date_future, results)
+
+    def smart_folder_names():
+        # Favoriten: nur das Postfach je Konto unter „Alle Eingänge“ heißt wie das Konto –
+        # Unterordner darunter und Ordner unter den Kontozeilen behalten ihren Namen
+        res = m.js('''
+          const { MailServices } = ChromeUtils.importESModule("resource:///modules/MailServices.sys.mjs");
+          try { MailServices.accounts.localFoldersServer; } catch { MailServices.accounts.createLocalMailAccount(); await wait(500); }
+          const root = MailServices.accounts.localFoldersServer.rootFolder;
+          if (!root.containsChildNamed("Inbox")) { root.createSubfolder("Inbox", null); await wait(800); }
+          const inbox = root.getChildNamed("Inbox");
+          if (!inbox.containsChildNamed("Rechnungen")) { inbox.createSubfolder("Rechnungen", null); await wait(800); }
+          if (!root.containsChildNamed("Projekte")) { root.createSubfolder("Projekte", null); await wait(800); }
+          const sub = inbox.getChildNamed("Rechnungen"), own = root.getChildNamed("Projekte");
+          const a3 = await toMail(); const ad = a3.document;
+          const smart = () => [...ad.querySelectorAll(\'#folderTree > li[data-mode="smart"] li[is="folder-tree-row"]\')];
+          const nameOf = li => li?.querySelector(":scope > .container .name")?.textContent;
+          const find = (f, underServer) => smart().find(li => li.uri == f.URI &&
+            !!li.parentElement?.closest("li")?.hasAttribute("data-server-type") == underServer);
+          await until(() => find(sub, false) && find(own, true), 8000);
+          // erst prüfen, wenn die Dekoration nach dem Einfügen der Zeilen gelaufen ist
+          // (sie läuft im nächsten Bild) – sonst stünden hier Thunderbirds eigene
+          // Namen, und die Prüfung bestünde auch ohne Korrektur
+          const frames = await Promise.race([new Promise(r => a3.requestAnimationFrame(() => a3.requestAnimationFrame(() => r(true)))), wait(5000).then(() => false)]);
+          const { ExtensionParent } = ChromeUtils.importESModule("resource://gre/modules/ExtensionParent.sys.mjs");
+          const L = Cu.evalInSandbox("appleLabels", ExtensionParent.GlobalManager.getExtension("%s").experimentAPIManager.global)();
+          const top = ad.querySelector('#folderTree > li[data-mode="smart"] > ul > li[is="folder-tree-row"][data-folder-type="inbox"]');
+          return { modes: a3.folderPane?.activeModes, frames, visibility: d.visibilityState, inbox: nameOf(find(inbox, false)), account: root.server.prettyName,
+                   sub: nameOf(find(sub, false)), underAccount: nameOf(find(own, true)), top: nameOf(top), allInboxes: L.native ? null : L.allInboxes };''' % ADDON_ID)
+        if not res.get("modes") or "smart" not in res["modes"]:
+            return False, f"Favoriten nicht eingeschaltet {res}"
+        if not res["frames"]:
+            return True, f"Testfenster verdeckt (kein Bild gezeichnet) – übersprungen {res}"
+        ok = (res["sub"] == "Rechnungen" and res["underAccount"] == "Projekte" and res["inbox"] == res["account"]
+              and (res["allInboxes"] is None or res["top"] == res["allInboxes"]))
+        return ok, f"{res}"
+    check("Favoriten: Unterordner behalten ihren eigenen Namen statt des Kontonamens", smart_folder_names, results)
+
+    def account_dot_rename():
+        # Farbpunkt vor dem Kontonamen: neue und umbenannte Konten bekommen ihn
+        # sofort (früher nur die Konten vom Start). Feed-Konto ohne Abos – kein
+        # Netzzugriff –, wird danach wieder entfernt
+        res = m.js('''
+          const { MailServices } = ChromeUtils.importESModule("resource:///modules/MailServices.sys.mjs");
+          const { ExtensionParent } = ChromeUtils.importESModule("resource://gre/modules/ExtensionParent.sys.mjs");
+          const color = Cu.evalInSandbox("accountColor", ExtensionParent.GlobalManager.getExtension("%s").experimentAPIManager.global);
+          const a3 = await toMail(); const ad = a3.document;
+          const srv = MailServices.accounts.createIncomingServer("nobody", "halo-feeds.invalid", "rss");
+          srv.prettyName = "Halo Feeds"; srv.doBiff = false;
+          const acc = MailServices.accounts.createAccount(); acc.incomingServer = srv;
+          const row = () => ad.querySelector(`#folderTree > li[data-mode="all"] li[is="folder-tree-row"][data-server-type][data-server-key="${srv.key}"]`);
+          const dot = () => row()?.style.getPropertyValue("--mc-acc") || "";
+          const out = { row: false };
+          try {
+            out.row = !!(await until(() => row(), 8000));
+            out.added = await until(() => dot(), 6000);
+            out.addedWant = color("Halo Feeds");
+            srv.prettyName = "Halo Feeds Neu";
+            out.renamedWant = color("Halo Feeds Neu");
+            out.renamed = await until(() => dot() == out.renamedWant && dot(), 6000) || dot();
+            out.name = row()?.querySelector(":scope > .container .name")?.textContent;
+          } finally {
+            MailServices.accounts.removeAccount(acc, true); await wait(800);
+          }
+          return out;''' % ADDON_ID)
+        ok = res["row"] and res["added"] == res["addedWant"] and res["renamed"] == res["renamedWant"]
+        return ok, f"{res}"
+    check("Ordnerliste: neue und umbenannte Konten bekommen ihren Farbpunkt sofort", account_dot_rename, results)
 
     def card_sender_date():
         # Absender nur als Adresse → Name aus der Domain; Datum vor gestern ganz;
@@ -639,6 +950,22 @@ def run_checks(m, version, profile, results):
               and not res["listIdRow"] and res["banner"] and res["unsub"] and "Lesen" in (res["folder"] or "") and res["date"])
         return ok, f"{res}"
     check("Leseansicht wie Apple: Absenderbild, Ordner, Verteiler-Hinweis statt List-ID", reading, results)
+
+    def header_avatar_refresh():
+        # Adressbuch-Änderung (Stern im Mailkopf, CardDAV): Thunderbird setzt sein
+        # Bild neu (ein Buchstabe) – danach steht wieder das eigene Absenderbild
+        res = m.js(MESSAGE_JS + '''
+          const am = a3.messageBrowser.contentWindow; const md = am.document;
+          const box = await until(() => md.querySelector("#fromRecipient0 .recipient-avatar.mc-hdr-avatar"));
+          const foreign = () => !!box?.querySelector(":scope > span, :scope > img[data-l10n-id]");
+          const before = box?.textContent.trim();
+          md.getElementById("fromRecipient0").updateRecipient();
+          const replaced = foreign();
+          await until(() => !foreign(), 3000); await wait(200);
+          return { before, replaced, after: box?.textContent.trim(), foreign: foreign() };''')
+        ok = res["before"] == "AB" and res["replaced"] and not res["foreign"] and res["after"] == "AB"
+        return ok, f"{res}"
+    check("Mailkopf: Absenderbild bleibt nach einer Adressbuch-Änderung (nicht Thunderbirds Buchstabe)", header_avatar_refresh, results)
 
     def unsubscribe():
         res = m.js(MESSAGE_JS + '''
@@ -734,6 +1061,52 @@ def run_checks(m, version, profile, results):
         ok = "no longer" in text and after_cancel is None and accepted and after_accept == "https://example.invalid/ein-klick?id=7"
         return ok, f"{res}"
     check("Verteiler-Hinweis: Ein-Klick-Abmeldung fragt nach und sendet statt Browser", one_click_unsubscribe, results)
+
+    def unsubscribe_identity():
+        # nur Abmelde-Mail (mailto, z. B. LISTSERV): Absender ist die Identität,
+        # an die die Mail ging, nicht die erste/Standard-Identität. Das
+        # Verfassen-Fenster wird nur geöffnet und ungesendet wieder geschlossen;
+        # die zweite Test-Identität wird danach wieder entfernt (die erste wie
+        # in COMPOSE_JS bleibt – die letzte lässt Thunderbird nicht entfernen).
+        res = m.js(r"""
+          const { MailServices } = ChromeUtils.importESModule("resource:///modules/MailServices.sys.mjs");
+          try { MailServices.accounts.localFoldersServer; } catch { MailServices.accounts.createLocalMailAccount(); await wait(500); }
+          const acc = MailServices.accounts.findAccountForServer(MailServices.accounts.localFoldersServer);
+          const ensure = (name, email) => { if (acc.identities.some(i => i.email == email)) return null; const id = MailServices.accounts.createIdentity(); id.fullName = name; id.email = email; acc.addIdentity(id); return id; };
+          if (!acc.identities.length) ensure("Halo Test", "halo@example.invalid");
+          const added = ensure("Halo Arbeit", "arbeit@example.invalid");
+          const first = acc.identities[0]?.email;
+          let cw = null; let from = null; let to = ""; let button = false;
+          try {
+            const root = MailServices.accounts.localFoldersServer.rootFolder;
+            if (!root.containsChildNamed("Liste")) { root.createSubfolder("Liste", null); await wait(800); }
+            const f = root.getChildNamed("Liste");
+            if (!f.getTotalMessages(false)) {
+              f.QueryInterface(Ci.nsIMsgLocalMailFolder).addMessage("From - Sat Oct 17 10:00:00 2026\r\nFrom: Halo Liste <liste@example.invalid>\r\nTo: Halo Arbeit <arbeit@example.invalid>\r\nSubject: Rundbrief\r\nDate: Sat, 17 Oct 2026 09:41:00 +0200\r\nMessage-ID: <halo-listserv@example.invalid>\r\nList-Id: <rundbrief.example.invalid>\r\nList-Unsubscribe: <mailto:listserv@example.invalid?body=SIGNOFF%20RUNDBRIEF>\r\n\r\nTest\r\n");
+              await wait(800);
+            }
+            const a3 = await toMail(); a3.displayFolder(f.URI); await wait(800);
+            a3.threadTree.selectedIndex = 0; await wait(1500);
+            const am = a3.messageBrowser.contentWindow;
+            // about:message bleibt beim Mailwechsel geladen: erst klicken, wenn der Hinweis
+            // zur Rundbrief-Mail gehört, nicht noch der der vorigen Ein-Klick-Mail ist
+            const btn = await until(() => { const b = am.document.querySelector("#mcListBanner .mc-lb-unsub");
+              return (am.gMessage?.messageId == "halo-listserv@example.invalid" && b?.title.startsWith("listserv@example.invalid") && b) || null; }, 10000);
+            button = !!btn;
+            const before = new Set(Services.wm.getEnumerator("msgcompose"));
+            btn?.click();
+            cw = await until(() => [...Services.wm.getEnumerator("msgcompose")].find(x => !before.has(x)), 8000);
+            from = await until(() => cw?.gCurrentIdentity?.email, 8000);
+            to = cw?.gMsgCompose?.compFields?.to || [...(cw?.document.querySelectorAll("mail-address-pill") || [])].map(p => p.emailAddress).join(",");
+          } finally {
+            cw?.close(); await wait(500);
+            try { if (added) acc.removeIdentity(added); } catch {}
+          }
+          return { button, compose: !!cw, first, from, to };""")
+        ok = (res["button"] and res["compose"] and res["first"] != "arbeit@example.invalid"
+              and res["from"] == "arbeit@example.invalid" and "listserv@example.invalid" in (res["to"] or ""))
+        return ok, f"{res}"
+    check("Verteiler-Hinweis: Abmelde-Mail geht von der Identität, an die die Mail ging", unsubscribe_identity, results)
 
     def html_font():
         res = m.js(r"""
@@ -903,7 +1276,7 @@ def run_checks(m, version, profile, results):
           const out = { start: Math.round(panel.getBoundingClientRect().width), animating: !!panel.__mcAnimating, tpVisible: w.TodayPane?.isVisible, tab: d.documentElement.getAttribute("mc-tab"), popups: [...d.querySelectorAll("panel, menupopup")].filter(p => p.state == "open").map(p => p.id) };
           if (!out.start) return { skipped: true };
           const errs = []; const onErr = e => errs.push(String(e.message || e.error).slice(0, 200)); w.addEventListener("error", onErr);
-          const cons = []; const listener = { observe: m => { if (m instanceof Ci.nsIScriptError && /implementation\.js/.test(m.sourceName)) cons.push(m.errorMessage.slice(0, 200) + " @" + m.lineNumber); } };
+          const cons = []; const listener = { observe: m => { if (m instanceof Ci.nsIScriptError && /implementation\\.js/.test(m.sourceName)) cons.push(m.errorMessage.slice(0, 200) + " @" + m.lineNumber); } };
           Services.console.registerListener(listener);
           out.errs = errs; out.cons = cons; out.visibility = d.visibilityState;
           // Bildtakt ohne Animation als Maßstab (60 oder 120 Hz)
@@ -1033,6 +1406,98 @@ def run_checks(m, version, profile, results):
         return ok, f"{res}"
     check("Adressbuch: Kontakt bearbeiten in Systemschrift, Überschriften über den Feldern, Wichtiges zuerst, Weiteres auf Wunsch, Initialen mittig über dem Namen", contact_edit, results)
 
+    OPEN_BOOKS_JS = r"""
+          tm.openTab("addressBookTab", {});
+          const cw = await until(() => { const c = tm.currentTabInfo?.browser?.contentWindow; return c?.document?.getElementById("mcBooksHeader") && c; }, 8000);
+          const abTab = tm.currentTabInfo;"""
+
+    def ab_background_header():
+        # Adressbuch im Hintergrund: Änderungen an Kontakten (gesammelte Adressen,
+        # CardDAV) überschreiben nicht die Kopfzeile über der Mailliste
+        res = m.js(MESSAGE_JS + OPEN_BOOKS_JS + r"""
+          const book = MailServices.ab.getDirectory("jsaddrbook://abook.sqlite");
+          const title = () => d.querySelector("#mcListHeader .mc-lh-title")?.textContent;
+          await wait(800);
+          const abTitle = title();
+          await toMail();
+          const before = title(); const seen = new Set([before]);
+          const iv = w.setInterval(() => seen.add(title()), 20);
+          let c = Cc["@mozilla.org/addressbook/cardproperty;1"].createInstance(Ci.nsIAbCard);
+          c.displayName = "Hinter Grund"; c.primaryEmail = "hinter.grund@example.invalid";
+          try {
+            c = book.addCard(c); await wait(1500);
+            c.setProperty("PopularityIndex", 3); book.modifyCard(c); await wait(1500);
+          } finally {
+            book.deleteCards([c]); await wait(1500);
+            w.clearInterval(iv);
+            tm.closeTab(abTab); await toMail();
+          }
+          return { tab: !!cw, abTitle, before, seen: [...seen] };""")
+        ok = res["tab"] and res["before"] and res["abTitle"] != res["before"] and res["seen"] == [res["before"]]
+        return ok, f"{res}"
+    check("Adressbuch im Hintergrund: Kopfzeile der Mailliste bleibt, wenn sich Kontakte ändern", ab_background_header, results)
+
+    def ab_avatar_recycle():
+        # Kontaktzeilen werden beim Scrollen wiederverwendet: lädt das Foto des
+        # neuen Kontakts nicht, erscheinen seine Initialen (nicht die des vorigen)
+        res = m.js(OPEN_BOOKS_JS + r"""
+          const ad = cw.document;
+          const el = ad.createElement("contact-avatar"); ad.body.append(el);
+          const img = el.shadowRoot.querySelector("img"), letters = el.shadowRoot.querySelector("span");
+          const svg = "data:image/svg+xml," + encodeURIComponent("<svg xmlns='http://www.w3.org/2000/svg' width='8' height='8'><rect width='8' height='8' fill='red'/></svg>");
+          el.setData({ card: { displayName: "Anna Alt", primaryEmail: "anna.alt@example.invalid", photoURL: svg, emailAddresses: [] } });
+          const loaded = await until(() => img.complete && img.naturalWidth > 0, 3000);
+          el.setData({ card: { displayName: "Ben Neu", primaryEmail: "ben.neu@example.invalid", photoURL: "data:image/png;base64,AAAA", emailAddresses: [] } });
+          await until(() => img.hidden, 3000); await wait(200);
+          const out = { loaded, hidden: img.hidden, letters: letters.textContent };
+          el.remove(); tm.closeTab(abTab); await toMail();
+          return out;""")
+        return res["loaded"] and res["hidden"] and res["letters"] == "BN", f"{res}"
+    check("Adressbuch: wiederverwendete Kontaktzeile zeigt bei defektem Foto die eigenen Initialen", ab_avatar_recycle, results)
+
+    def ab_dedupe_selection():
+        # Dubletten, die per Sync dazukommen, werden beim nächsten Sortieren
+        # zusammengeführt: die Auswahl bleibt beim gewählten Kontakt statt auf den
+        # Nachbarn zu rutschen; fällt die gewählte Dublette weg, ist der verbliebene Eintrag gewählt
+        res = m.js(r"""
+          const { MailServices } = ChromeUtils.importESModule("resource:///modules/MailServices.sys.mjs");
+          const book = MailServices.ab.getDirectory("jsaddrbook://abook.sqlite");
+          const add = props => { const c = Cc["@mozilla.org/addressbook/cardproperty;1"].createInstance(Ci.nsIAbCard);
+            for (const [k, v] of Object.entries(props)) c.setProperty(k, v);
+            c.displayName = props.DisplayName; c.primaryEmail = props.PrimaryEmail; return book.addCard(c); };
+          const cards = [add({ DisplayName: "Dora Doppel", PrimaryEmail: "dora@example.invalid" }),
+                         add({ DisplayName: "Ella Eins", PrimaryEmail: "ella@example.invalid" }),
+                         add({ DisplayName: "Zeno Ziel", PrimaryEmail: "zeno@example.invalid" })];
+          """ + OPEN_BOOKS_JS + r"""
+          const out = { tab: !!cw };
+          try {
+            const list = cw.document.getElementById("cards");
+            const rows = () => [...Array(list.view.rowCount).keys()];
+            const sel = () => rows().filter(i => list.view.selection.isSelected(i)).map(i => list.view.getCardFromRow(i)?.UID);
+            const pick = test => { list.selectedIndex = rows().find(i => test(list.view.getCardFromRow(i))); };
+            // eine Änderung an einem anderen Kontakt sortiert neu (und führt zusammen)
+            const touch = async n => { cards[2].setProperty("PopularityIndex", n); book.modifyCard(cards[2]); await wait(800); };
+            await until(() => list.view?.rowCount >= 3); await wait(500);
+            pick(c => c?.UID == cards[1].UID); await wait(500);
+            cards.push(add({ DisplayName: "Dora Doppel", PrimaryEmail: "dora@example.invalid" })); await wait(600);
+            const n = list.view.rowCount;
+            await touch(2);
+            out.neighbor = { merged: list.view.rowCount == n - 1, sel: sel(), want: cards[1].UID };
+            pick(c => c?.displayName == "Dora Doppel"); await wait(500);
+            cards.push(add({ DisplayName: "Dora Doppel", PrimaryEmail: "dora@example.invalid", Company: "Doppel AG", JobTitle: "Leitung", WorkPhone: "+43 1 555" })); await wait(600);
+            await touch(3);
+            out.dropped = { merged: list.view.rowCount == n - 1, sel: sel(), want: cards[4].UID, shown: cw.detailsPane?.currentCard?.UID };
+          } finally {
+            book.deleteCards(cards); await wait(300);
+            tm.closeTab(abTab); await toMail();
+          }
+          return out;""")
+        nb, dr = res.get("neighbor", {}), res.get("dropped", {})
+        ok = (res["tab"] and nb.get("merged") and nb.get("sel") == [nb.get("want")]
+              and dr.get("merged") and dr.get("sel") == [dr.get("want")] and dr.get("shown") == dr.get("want"))
+        return ok, f"{res}"
+    check("Adressbuch: Zusammenführen von Dubletten lässt die Auswahl beim gewählten Kontakt, Details zeigen den verbliebenen Eintrag", ab_dedupe_selection, results)
+
     def donate():
         # „Say Thanks“ im Info-Fenster öffnet die Spendenseite (Aufruf abgefangen, kein echter Browser)
         res = m.js('''
@@ -1129,6 +1594,37 @@ def run_checks(m, version, profile, results):
         return joined and res["icon"].startswith("url(") and not res["emoji"], f"{res}"
     check("Kalender: mehrtägige Termine als Balken, Kalendersymbol ohne Emoji", month_spans, results)
 
+    def month_more():
+        # volle Tage zeigen „+N weitere“ – danach bleibt die Ansicht ruhig (früher setzte
+        # update() den Text in jedem Bild neu und lief so endlos, Dauerlast auf der CPU)
+        res = m.js(r'''
+          w.resizeTo(1500, 900);
+          const c = testCalendar(); const made = [];
+          for (let i = 0; i < 9; i++) { const e = new CalEvent(); e.title = "Halo Voll " + i; e.calendar = c;
+            const s = cal.createDateTime(); s.resetTo(2026, 9, 14, 8 + i, 0, 0, cal.dtz.defaultTimezone); const en = s.clone(); en.hour += 1;
+            e.startDate = s; e.endDate = en; made.push(await c.addItem(e)); }
+          await toCalendar(); w.switchToView("month"); w.currentView().goToDay(cal.createDateTime("20261014"));
+          const more = await until(() => d.querySelector("#month-view .mc-more"));
+          let changes = null;
+          if (more) {
+            await wait(600); changes = 0;
+            const mo = new w.MutationObserver(rs => { changes += rs.filter(r => (r.target.closest ? r.target : r.target.parentElement)?.closest(".mc-more")).length; });
+            mo.observe(d.getElementById("month-view"), { childList: true, subtree: true, characterData: true });
+            await wait(1500); mo.disconnect();
+          }
+          const text = more?.textContent;
+          // der volle Tag rollt nicht selbst (ab Thunderbird 159 liegt die Liste in
+          // einem eigenen Rollbereich, den macOS sonst ans Mausrad bindet)
+          const day = d.querySelector("#month-view calendar-month-day-box[mc-has-more]");
+          const scroll = day && w.getComputedStyle(day.querySelector(".calendar-month-day-box-scroll") || day.querySelector(".calendar-month-day-box-list")).overflowY;
+          for (const e of made) { try { await c.deleteItem(e); } catch {} }
+          return { text, changes, scroll, visibility: d.visibilityState };''')
+        if res["text"] is None and res["visibility"] == "hidden":
+            return True, f"Testfenster verdeckt – übersprungen {res}"
+        return (bool(res["text"]) and res["text"].startswith("+") and res["changes"] == 0
+                and res["scroll"] == "hidden"), f"{res}"
+    check("Kalender: „+N weitere“ in der Monatsansicht ohne Endlosschleife, volle Tage rollen nicht", month_more, results)
+
     def mail_search():
         # Suchfeld oben: alle Postfächer, Datum („12.10“), Trefferzahl, gelbe Markierung, zurück beim Leeren
         res = m.js(r"""
@@ -1167,6 +1663,52 @@ def run_checks(m, version, profile, results):
             ok = ok and any(t.lower() == "rechnung" for t in res["marks"])
         return ok, f"{res}"
     check("Suche: alle Postfächer, Datum, Trefferzahl, Markierung, zurück zum Ordner", mail_search, results)
+
+    def search_placeholder():
+        # Suchfeld oben: Platzhalter je Bereich steht im eigenen <span slot="placeholder">
+        # (das placeholder-Attribut wäre unsichtbar) und in der Sprache der Oberfläche;
+        # Überschrift über der Adressbuchliste und Today-Pane-Titel ebenso übersetzt
+        res = m.js(r'''
+          const before = new Set(tm.tabInfo);
+          const bar = d.querySelector("#unifiedToolbarContent global-search-bar");
+          const ph = () => bar?.querySelector('[slot="placeholder"]');
+          const text = () => ph()?.textContent;
+          const out = { locale: Services.locale.appLocaleAsBCP47, attr: null };
+          const step = async (key, open, expectChange = true) => {
+            const prev = text(); await open();
+            out[key] = await until(() => (!expectChange || text() != prev) && text(), 4000) || text();
+          };
+          await toMail(); await wait(300); out.mail = text();
+          out.slotted = !!ph()?.assignedSlot; out.l10n = !!ph()?.hasAttribute("data-l10n-id");
+          // zu langer Platzhalter endet mit „…“ im Feld statt darüber hinaus
+          const box = bar?.shadowRoot?.querySelector("div")?.getBoundingClientRect();
+          out.ellipsis = ph() && [w.getComputedStyle(ph()).textOverflow, Math.round(ph().getBoundingClientRect().width) <= Math.round(box?.width || 0)];
+          await step("calendar", () => toCalendar());
+          await step("tasks", async () => { tm.openTab("tasks", {}); await wait(1500); });
+          await step("addressbook", async () => { tm.openTab("addressBookTab", {}); await wait(1500); });
+          // Dokument bei jedem Versuch neu lesen: unter Last ist nach 1,5 s noch das leere Startdokument geladen
+          out.books = (await until(() => tm.currentTabInfo.browser?.contentDocument?.getElementById("mcBooksHeader"), 8000))?.textContent;
+          await step("settings", async () => { w.openPreferencesTab(); await wait(1500); });
+          out.attr = bar?.getAttribute("placeholder");
+          out.today = [d.getElementById("mcTodayTitle")?.textContent, d.getElementById("today-pane-header")?.dataset.mcTitle];
+          for (const t of [...tm.tabInfo]) { if (!before.has(t)) tm.closeTab(t); }
+          await toMail(); await wait(300); out.back = text();
+          return out;''')
+        expect = {
+            "de": ["Alle Postfächer durchsuchen", "Suchen", "Aufgaben durchsuchen", "Kontakte durchsuchen",
+                   "Einstellungen durchsuchen", "Adressbücher", "Heute-Leiste"],
+            "en": ["Search All Mailboxes", "Search", "Search Tasks", "Search Contacts", "Find in Settings",
+                   "Address Books", "Today Pane"],
+        }.get(res["locale"].split("-")[0])
+        got = [res["mail"], res["calendar"], res["tasks"], res["addressbook"], res["settings"], res["books"]]
+        ok = (res["slotted"] and not res["l10n"] and not res["attr"] and res["back"] == res["mail"]
+              and res["ellipsis"] == ["ellipsis", True])
+        if expect:
+            ok = ok and got == expect[:6] and all(t in (None, expect[6]) for t in res["today"]) and expect[6] in res["today"]
+        else:  # andere Sprache: Thunderbirds eigener Platzhalter, nur Überschrift prüfen
+            ok = bool(res["books"])
+        return ok, f"{res}"
+    check("Suche: Platzhalter je Bereich sichtbar und übersetzt, Überschrift „Adressbücher“, Today-Pane-Titel", search_placeholder, results)
 
     def settings_style():
         # Einstellungen: Inhalt mittig (max. 800 px), Kästchen/Optionsfelder im macOS-Stil,
@@ -1258,6 +1800,23 @@ def run_checks(m, version, profile, results):
         return ok, f"{res}"
     check("Bereiche-Leiste: Tooltips nur mit Namen", space_tips, results)
 
+    def system_integration_check():
+        # der Dialog sperrt per CSP alle Bilder außer chrome: – Haken muss trotzdem erscheinen
+        res = m.js('''
+          const dlg = w.openDialog("chrome://messenger/content/systemIntegrationDialog.xhtml", "_blank", "chrome,dialog=no,centerscreen");
+          await wait(2000);
+          const box = dlg.document.getElementById("checkMail"); box.checked = true; await wait(600);
+          const cs = dlg.getComputedStyle(box.querySelector(".checkbox-check"));
+          const iw = dlg.windowGlobalChild.innerWindowId;
+          const blocked = (Services.console.getMessageArray() || []).filter(x => x instanceof Ci.nsIScriptError
+            && x.innerWindowID == iw && /Content-Security-Policy/.test(x.errorMessage)).length;
+          const out = { img: cs.backgroundImage.slice(0, 40), fill: cs.fill, bg: cs.backgroundColor, blocked };
+          dlg.close(); await wait(300);
+          return out;''')
+        ok = res["img"].startswith('url("chrome:') and res["fill"] == "rgb(255, 255, 255)" and res["blocked"] == 0
+        return ok, f"{res}"
+    check("Standardprogramm-Dialog: Haken im Kästchen trotz Bildsperre", system_integration_check, results)
+
     def search_prefs():
         res = m.js('''
           return { gloda: Services.prefs.getBoolPref("mailnews.database.global.indexer.enabled"),
@@ -1266,6 +1825,31 @@ def run_checks(m, version, profile, results):
         return all(res.values()), f"{res}"
     check("Suche: alle Konten und einfache Liste voreingestellt", search_prefs, results)
 
+    def search_date():
+        # Datum im Suchbegriff ohne Jahr: letztes vergangenes Vorkommen, auch
+        # für den 29.2. („jetzt“ im Experiment-Modul kurz umgestellt)
+        res = m.js('''
+          const { ExtensionParent } = ChromeUtils.importESModule("resource://gre/modules/ExtensionParent.sys.mjs");
+          const g = ExtensionParent.GlobalManager.getExtension("%s").experimentAPIManager.global;
+          const sd = Cu.evalInSandbox("searchDate", g);
+          const p = n => String(n).padStart(2, "0");
+          const f = x => x ? `${p(x.getDate())}.${p(x.getMonth() + 1)}.${x.getFullYear()}` : "-";
+          const out = {};
+          for (const [now, terms] of [["2026, 9, 20, 15", ["29.2", "12.10", "21.10", "31.4", "29.2.2026", "1.3.25"]], ["2028, 0, 15, 12", ["29.2"]]]) {
+            Cu.evalInSandbox(`globalThis.__mcRealDate = Date; Date = class extends __mcRealDate { constructor(...a) { if (a.length) super(...a); else super(${now}); } };`, g);
+            try {
+              for (const t of terms) out[`${now.split(",")[0]}: ${t}`] = f(sd(t));
+            } finally {
+              Cu.evalInSandbox("Date = globalThis.__mcRealDate; delete globalThis.__mcRealDate;", g);
+            }
+          }
+          return out;''' % ADDON_ID)
+        expected = {"2026: 29.2": "29.02.2024", "2026: 12.10": "12.10.2026", "2026: 21.10": "21.10.2025", "2026: 31.4": "-",
+                    "2026: 29.2.2026": "-", "2026: 1.3.25": "01.03.2025", "2028: 29.2": "29.02.2024"}
+        bad = [f"„{k}“ → {res.get(k)}" for k, v in expected.items() if res.get(k) != v]
+        return not bad, "; ".join(bad) or f"{len(expected)} Suchbegriffe richtig (29.2. ohne Jahr, ungültige Tage)"
+    check("Suche: Datum ohne Jahr („29.2“) findet das letzte Vorkommen", search_date, results)
+
     def birthdays():
         res = m.js('''
           const { MailServices } = ChromeUtils.importESModule("resource:///modules/MailServices.sys.mjs");
@@ -1273,17 +1857,140 @@ def run_checks(m, version, profile, results):
           const book = MailServices.ab.getDirectory("jsaddrbook://abook.sqlite");
           const card = VCardUtils.vCardToAbCard("BEGIN:VCARD\\r\\nVERSION:4.0\\r\\nFN:Halo Testkontakt\\r\\nBDAY:1990-03-15\\r\\nEND:VCARD\\r\\n");
           book.addCard(card);
+          // Apple (Kontakte/iCloud): Geburtstag ohne Jahr als 1604 mit X-APPLE-OMIT-YEAR
+          book.addCard(VCardUtils.vCardToAbCard("BEGIN:VCARD\\r\\nVERSION:3.0\\r\\nFN:Halo Applekontakt\\r\\nBDAY;X-APPLE-OMIT-YEAR=1604:1604-08-15\\r\\nEND:VCARD\\r\\n"));
           // der Kalender wird 3 s nach der Änderung neu gefüllt
           let c = null;
           for (let i = 0; i < 30 && !c; i++) { await wait(500); c = cal.manager.getCalendarById(Services.prefs.getStringPref("extensions.mailcards.birthdayCalendarId", "")); }
           if (!c) return { calendar: false };
-          await wait(800);
-          const all = await c.getItemsAsArray(Ci.calICalendar.ITEM_FILTER_ALL_ITEMS, 0, null, null);
+          let all = [];
+          for (let i = 0; i < 20; i++) {
+            await wait(400);
+            all = await c.getItemsAsArray(Ci.calICalendar.ITEM_FILTER_ALL_ITEMS, 0, null, null);
+            if (all.some(i => /Halo Testkontakt/.test(i.title)) && all.some(i => /Halo Applekontakt/.test(i.title))) break;
+          }
           const it = all.find(i => /Halo Testkontakt/.test(i.title));
-          return { calendar: true, name: c.name, readOnly: c.readOnly, title: it?.title, yearly: it?.recurrenceInfo?.getRecurrenceItems()[0]?.type, allDay: it?.startDate.isDate };''')
-        ok = res.get("calendar") and res.get("readOnly") and res.get("yearly") == "YEARLY" and res.get("allDay") and "Halo Testkontakt" in (res.get("title") or "")
+          const apple = all.find(i => /Halo Applekontakt/.test(i.title));
+          return { calendar: true, name: c.name, readOnly: c.readOnly, title: it?.title, yearly: it?.recurrenceInfo?.getRecurrenceItems()[0]?.type, allDay: it?.startDate.isDate,
+                   born: it?.getProperty("DESCRIPTION") || null, apple: apple ? { year: apple.startDate.year, desc: apple.getProperty("DESCRIPTION") || null } : null };''')
+        ok = res.get("calendar") and res.get("readOnly") and res.get("yearly") == "YEARLY" and res.get("allDay") and "Halo Testkontakt" in (res.get("title") or "") \
+            and "1990" in (res.get("born") or "") and res.get("apple") == {"year": 2000, "desc": None}
         return ok, f"{res}"
-    check("Geburtstage aus dem Adressbuch als Kalender", birthdays, results)
+    check("Geburtstage aus dem Adressbuch als Kalender (Apple ohne Jahr ohne „Geboren 1604“)", birthdays, results)
+
+    def mac_photos_off():
+        # Einstellungsseite (setSetting) direkt über das Experiment-Modul; den
+        # Abgleich mit den macOS-Kontakten (osascript, echte Kontakte) dabei abklemmen
+        res = m.js('''
+          const { ExtensionParent } = ChromeUtils.importESModule("resource://gre/modules/ExtensionParent.sys.mjs");
+          const g = ExtensionParent.GlobalManager.getExtension("%s").experimentAPIManager.global;
+          const MP = Cu.evalInSandbox("MacPhotos", g); const api = Cu.evalInSandbox("mailCards.prototype.getAPI({})", g).mailCards;
+          const PREF = "extensions.mailcards.macContactPhotos"; const dir = PathUtils.join(PathUtils.profileDir, "mail-cards-photos");
+          const sync = MP.sync; MP.sync = async () => {};
+          try {
+            // schon einmal eingerichtet: index.json vorhanden, Pref ohne Wert
+            await IOUtils.makeDirectory(dir, { ignoreExisting: true }); await IOUtils.writeUTF8(PathUtils.join(dir, "index.json"), "[]");
+            Services.prefs.clearUserPref(PREF);
+            const before = (await api.getSettings()).macContactPhotos;
+            await api.setSetting("macContactPhotos", false);
+            return { before, hasValue: Services.prefs.prefHasUserValue(PREF), enabled: await MP.enabled(), shown: (await api.getSettings()).macContactPhotos };
+          } finally {
+            await IOUtils.remove(dir, { recursive: true }).catch(() => {}); Services.prefs.clearUserPref(PREF); MP.sync = sync;
+          }''' % ADDON_ID)
+        ok = res["before"] is True and res["hasValue"] and res["enabled"] is False and res["shown"] is False
+        return ok, f"{res}"
+    check("Kontaktfotos: Ausschalten auf der Einstellungsseite bleibt aus (trotz vorhandener Fotoliste)", mac_photos_off, results)
+
+    def local_ab_photo():
+        # Foto im lokalen Adressbuch liegt als Datei in <Profil>/Photos (file:-Adresse)
+        res = m.js('''
+          const { MailServices } = ChromeUtils.importESModule("resource:///modules/MailServices.sys.mjs");
+          const canvas = d.createElementNS("http://www.w3.org/1999/xhtml", "canvas"); canvas.width = canvas.height = 64;
+          const ctx = canvas.getContext("2d"); ctx.fillStyle = "#fff"; ctx.fillRect(0, 0, 64, 64);
+          ctx.fillStyle = "#c33"; ctx.beginPath(); ctx.arc(32, 32, 22, 0, 7); ctx.fill();
+          const blob = await new Promise(r => canvas.toBlob(r, "image/jpeg"));
+          await IOUtils.makeDirectory(PathUtils.join(PathUtils.profileDir, "Photos"), { ignoreExisting: true });
+          await IOUtils.write(PathUtils.join(PathUtils.profileDir, "Photos", "halo-foto.jpg"), new Uint8Array(await blob.arrayBuffer()));
+          // zu große Fotodatei (über 2 MB): nicht abgeschnitten verwenden
+          const big = new Uint8Array(2.5 * 1024 * 1024); big.set([0xFF, 0xD8, 0xFF, 0xE0]);
+          await IOUtils.write(PathUtils.join(PathUtils.profileDir, "Photos", "halo-gross.jpg"), big);
+          const book = MailServices.ab.getDirectory("jsaddrbook://abook.sqlite");
+          const newCard = (name, email, photo) => { const c = Cc["@mozilla.org/addressbook/cardproperty;1"].createInstance(Ci.nsIAbCard);
+            c.displayName = name; c.primaryEmail = email; c.setProperty("PhotoName", photo); return book.addCard(c); };
+          const card = newCard("Fiona Foto", "fiona.foto@example.invalid", "halo-foto.jpg");
+          const bigCard = newCard("Gustav Gross", "gustav.gross@example.invalid", "halo-gross.jpg");
+          try {
+            const { ExtensionParent } = ChromeUtils.importESModule("resource://gre/modules/ExtensionParent.sys.mjs");
+            const enh = Cu.evalInSandbox("enhancer", ExtensionParent.GlobalManager.getExtension("%s").experimentAPIManager.global);
+            const bigSrc = await enh.avatars.fromAddressBook("gustav.gross@example.invalid");
+            try { MailServices.accounts.localFoldersServer; } catch { MailServices.accounts.createLocalMailAccount(); await wait(500); }
+            const root = MailServices.accounts.localFoldersServer.rootFolder;
+            if (!root.containsChildNamed("Fotos")) { root.createSubfolder("Fotos", null); await wait(800); }
+            const f = root.getChildNamed("Fotos");
+            f.QueryInterface(Ci.nsIMsgLocalMailFolder).addMessage("From - Sat Oct 17 10:00:00 2026\\r\\nFrom: Fiona Foto <fiona.foto@example.invalid>\\r\\nSubject: Halo Foto\\r\\nDate: Sat, 17 Oct 2026 10:00:00 +0200\\r\\nMessage-ID: <halo-foto@example.invalid>\\r\\n\\r\\nTest\\r\\n");
+            const a3 = await toMail(); a3.displayFolder(f.URI);
+            const img = await until(() => a3.document.querySelector('#threadTree tr[is="thread-card"] .mc-avatar img[src^="data:"]'), 10000);
+            const av = a3.document.querySelector('#threadTree tr[is="thread-card"] .mc-avatar');
+            return { photoURL: card.photoURL.slice(0, 8), img: !!img, avatar: av ? (av.querySelector("img")?.getAttribute("src") || "").slice(0, 16) || av.textContent : null,
+                     big: bigSrc ? bigSrc.length : null, visibility: d.visibilityState, rows: a3.gDBView?.rowCount };
+          } finally {
+            book.deleteCards([card, bigCard]);
+          }''' % ADDON_ID)
+        # ohne gezeichnete Karten (verdecktes Testfenster) lässt sich das Bild nicht prüfen
+        if not res["img"] and res.get("visibility") == "hidden":
+            return res["big"] is None, f"Testfenster verdeckt (Karten nicht gezeichnet) – Mailliste übersprungen {res}"
+        ok = res["photoURL"].startswith("file:") and res["img"] and res["big"] is None
+        return ok, f"{res}"
+    check("Kontaktfotos: Foto aus dem lokalen Adressbuch (Datei im Profil) in der Mailliste", local_ab_photo, results)
+
+    def net_guard():
+        # Absenderbilder kommen von Adressen, die der Absender bestimmt (BIMI,
+        # Startseite): eine Umleitung ins lokale Netz darf gar nicht erst
+        # verbunden werden; Zeitlimit und Größengrenze gelten für die ganze
+        # Antwort. Lokaler Server unter einem öffentlichen Namen (localDomains)
+        if not shutil.which("openssl"):
+            return True, "kein openssl – übersprungen"
+        host = "halo-netz.example.org"
+        port, der, hits, posts, close = local_https(host)
+        try:
+            res = m.js('''
+              const HOST = %s, PORT = %d;
+              const { ExtensionParent } = ChromeUtils.importESModule("resource://gre/modules/ExtensionParent.sys.mjs");
+              const g = ExtensionParent.GlobalManager.getExtension("%s").experimentAPIManager.global;
+              const get = Cu.evalInSandbox("fetchWithTimeout", g);
+              const cert = Cc["@mozilla.org/security/x509certdb;1"].getService(Ci.nsIX509CertDB).constructX509FromBase64(%s);
+              const co = Cc["@mozilla.org/security/certoverride;1"].getService(Ci.nsICertOverrideService);
+              co.rememberValidityOverride(HOST, PORT, {}, cert, true);
+              Services.prefs.setStringPref("network.dns.localDomains", HOST);
+              const run = async (path, opts) => {
+                const t = Date.now();
+                try {
+                  const r = await get(w, `https://${HOST}:${PORT}${path}`, opts);
+                  const text = await r.text();
+                  return { ok: r.ok, status: r.status, url: r.url, len: text.length, text: text.slice(-5), ms: Date.now() - t };
+                } catch (e) { return { error: String(e?.message || e), ms: Date.now() - t }; }
+              };
+              try {
+                return { redirect: await run("/umleitung"), follow: await run("/weiter"), auth: await run("/anmelden"),
+                         endless: await run("/endlos", { max: 512 * 1024 }), head: await run("/endlos", { max: 200000, truncate: true }),
+                         stall: await run("/stumm"),
+                         post: await run("/abmelden", { method: "POST", headers: { "Content-Type": "application/x-www-form-urlencoded" },
+                                                        body: "List-Unsubscribe=One-Click", max: 0, truncate: true }) };
+              } finally {
+                co.clearValidityOverride(HOST, PORT, {});
+                Services.prefs.clearUserPref("network.dns.localDomains");
+              }''' % (json.dumps(host), port, ADDON_ID, json.dumps(der)))
+        finally:
+            close()
+        res["device"], res["posts"] = hits, posts
+        ok = (res["redirect"].get("error") == "blocked redirect" and not hits
+              and res["follow"].get("ok") and res["follow"].get("url", "").endswith("/ziel") and res["follow"].get("text") == "Grüße"
+              and res["auth"].get("status") == 401
+              and res["endless"].get("error") == "too large" and res["head"].get("len") == 200000
+              and res["stall"].get("error") == "timeout" and res["stall"]["ms"] < 15000
+              and res["post"].get("ok") and posts == ["List-Unsubscribe=One-Click"])
+        return ok, f"{res}"
+    check("Absenderbilder: Umleitung ins lokale Netz gesperrt, bevor verbunden wird; Zeitlimit und Größengrenze für die ganze Antwort", net_guard, results)
 
     def keyboard():
         res = m.js('''
@@ -1306,6 +2013,70 @@ def run_checks(m, version, profile, results):
           return { last, ageSec: last ? Math.round(Date.now() / 1000 - last) : null };''')
         return bool(res["last"]) and res["ageSec"] < 600, f"Update-Prüfung beim Start gelaufen: {res}"
     check("Updates: Prüfung beim Start", auto_update, results)
+
+    ENH_JS = '''
+          const { ExtensionParent } = ChromeUtils.importESModule("resource://gre/modules/ExtensionParent.sys.mjs");
+          const g = ExtensionParent.GlobalManager.getExtension("%s").experimentAPIManager.global;
+          const enh = Cu.evalInSandbox("enhancer", g);
+          const openBooks = async () => { tm.openTab("addressBookTab", {});
+            return until(() => { const c = tm.currentTabInfo?.browser?.contentWindow; return c?.document?.getElementById("mcBooksHeader") && c; }, 8000); };''' % ADDON_ID
+
+    def window_callbacks():
+        # Seitenleisten-Tooltip, Popover „Neu“ und Today-Pane-Sync gehören dem Fenster, nicht dem gemeinsamen Enhancer
+        res = m.js(ENH_JS + '''
+          await toMail();
+          return { onEnhancer: ["openNewPopupAbove", "openNewPopupBelow", "lastNewAnchor", "todayTopSync", "sidebarTip", "sideHidden", "toggleSpaceSidebar"].filter(k => k in enh),
+                   sync: typeof w.__mcTodayTopSync };''')
+        return not res["onEnhancer"] and res["sync"] == "function", f"{res}"
+    check("Erweiterung: Fenster-Callbacks je Hauptfenster statt am gemeinsamen Enhancer", window_callbacks, results)
+
+    def books_leak():
+        # Restorer eines geschlossenen Adressbuch-Tabs werden verworfen (halten das Fenster nicht fest);
+        # nach dem ersten Öffnen (einmalige Hooks) wächst die Liste aller Restorer je Öffnen und Schließen nicht mehr
+        res = m.js(ENH_JS + '''
+          const cw = await openBooks();
+          const fns = cw ? [...(enh.winRestorers.get(cw) || [])] : [];
+          const held = fns.filter(f => enh.restorers.includes(f)).length;
+          tm.closeTab(tm.currentTabInfo);
+          const freed = await until(() => fns.every(f => !enh.restorers.includes(f)), 6000);
+          await toMail(); await wait(800);
+          const n1 = enh.restorers.length;
+          const cw2 = await openBooks(); await wait(800);
+          const open2 = enh.restorers.length;
+          tm.closeTab(tm.currentTabInfo); await toMail();
+          const n2 = await until(() => enh.restorers.length == n1 && n1, 6000) || enh.restorers.length;
+          return { tab: !!cw && !!cw2, fns: fns.length, held, freed, n1, open2, n2 };''')
+        ok = res["tab"] and res["fns"] > 0 and res["held"] == res["fns"] and res["freed"] and res["n2"] == res["n1"]
+        return ok, f"{res}"
+    check("Erweiterung: Restorer geschlossener Adressbuch-Tabs werden verworfen", books_leak, results)
+
+    def restart_cycle():
+        # wie bei einem Update: stop() räumt auf (Breiten-Merkmal, Adressbuch-Überschrift, Ordnernamen),
+        # ein neuer Start hängt alles wieder an
+        res = m.js(ENH_JS + '''
+          await toMail();
+          const ad = tm.currentAbout3Pane.document;
+          const fp = ad.getElementById("folderPane");
+          const local = () => ad.querySelector('#folderTree > li[data-mode="all"] li[is="folder-tree-row"][data-server-type="none"]');
+          const nameOf = li => li?.querySelector(":scope > .container .name")?.textContent;
+          const cw = await openBooks();
+          const out = { tab: !!cw, watch0: !!fp.__mcWidthWatch, local0: nameOf(local()) };
+          enh.stop();
+          out.watch1 = !!fp.__mcWidthWatch;
+          // wie nach 3.2.0: deren stop() ließ das Merkmal als „true“ stehen
+          fp.__mcWidthWatch = true;
+          out.header1 = !!cw?.document.getElementById("mcBooksHeader");
+          out.local1 = nameOf(local()); out.server = local()?._serverName;
+          Cu.evalInSandbox("enhancer = new CardEnhancer({}); enhancer.start();", g);
+          out.header2 = !!(await until(() => cw?.document.getElementById("mcBooksHeader"), 8000));
+          out.watch2 = await until(() => typeof fp.__mcWidthWatch == "object", 8000);
+          out.local2 = await until(() => nameOf(local()) == out.local0 && out.local0, 6000);
+          tm.closeTab(tm.currentTabInfo); await toMail();
+          return out;''')
+        ok = (res["tab"] and res["watch0"] and not res["watch1"] and res["watch2"] and not res["header1"] and res["header2"]
+              and res["local0"] != res["server"] and res["local1"] == res["server"] and res["local2"])
+        return ok, f"{res}"
+    check("Erweiterung: Aus- und Einschalten setzt Ordnernamen und Einfügungen zurück und hängt sie wieder an", restart_cycle, results)
 
     def errors():
         res = m.js("""

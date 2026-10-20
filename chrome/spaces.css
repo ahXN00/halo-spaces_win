@@ -2042,6 +2042,16 @@ checkbox[checked] > .checkbox-check,
   background: var(--mt-accent) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='white' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m4 8.3 2.6 2.6L12 5.4'/%3E%3C/svg%3E") center / 12px no-repeat !important;
 }
 
+/* „Thunderbird als Standardprogramm“ (erscheint beim ersten Start) sperrt per
+   Content-Security-Policy alle Bilder außer chrome: – dort den Haken von
+   Thunderbird selbst, weiß eingefärbt, sonst bliebe nur ein blaues Quadrat */
+#systemIntegrationDialog checkbox[checked] > .checkbox-check {
+  background-image: url("chrome://global/skin/icons/check.svg") !important;
+  background-size: 11px !important;
+  -moz-context-properties: fill !important;
+  fill: white !important;
+}
+
 radio[selected] > .radio-check,
 #paneDeck input[type="radio"]:checked {
   border: 4.5px solid var(--mt-accent) !important;
@@ -4134,7 +4144,7 @@ calendar-month-day-box .calendar-month-day-box-list > li[data-mc-cut] {
   visibility: hidden !important;
 }
 
-calendar-month-day-box[mc-has-more] .calendar-month-day-box-list {
+calendar-month-day-box[mc-has-more] :is(.calendar-month-day-box-list, .calendar-month-day-box-scroll) {
   overflow: hidden !important;
 }
 
@@ -4559,8 +4569,9 @@ body:has(> #booksPane.mc-side-anim) {
 
 /* Tage selbst nicht scrollbar: sonst bindet macOS das Mausrad für ~1,5 s an
    den vollen Tag, und nach dem Blättern kommt nichts mehr an (Verzögerung);
-   was nicht hineinpasst, zeigt „+N weitere“ */
-#month-view ol.calendar-month-day-box-list {
+   was nicht hineinpasst, zeigt „+N weitere“ (ab Thunderbird 159 rollt ein
+   eigener Bereich um die Liste) */
+#month-view :is(ol.calendar-month-day-box-list, .calendar-month-day-box-scroll) {
   overflow: hidden !important;
 }
 

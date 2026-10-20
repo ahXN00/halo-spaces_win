@@ -174,6 +174,13 @@ const DE = {
   "All Mailboxes": "Alle Postfächer",
   "{n} result": "{n} Treffer",
   "{n} results": "{n} Treffer",
+  "Address Books": "Adressbücher",
+  "Today Pane": "Heute-Leiste",
+  "Search": "Suchen",
+  "Search Contacts": "Kontakte durchsuchen",
+  "Search Tasks": "Aufgaben durchsuchen",
+  "Search All Mailboxes": "Alle Postfächer durchsuchen",
+  "Find in Settings": "Einstellungen durchsuchen",
 };
 const FR = {
   "Install version {v}": "Installer la version {v}",
@@ -319,6 +326,13 @@ const FR = {
   "All Mailboxes": "Toutes les boîtes",
   "{n} result": "{n} résultat",
   "{n} results": "{n} résultats",
+  "Address Books": "Carnets d’adresses",
+  "Today Pane": "Volet Aujourd’hui",
+  "Search": "Rechercher",
+  "Search Contacts": "Rechercher des contacts",
+  "Search Tasks": "Rechercher des tâches",
+  "Search All Mailboxes": "Rechercher dans toutes les boîtes",
+  "Find in Settings": "Rechercher dans les réglages",
 };
 const ES = {
   "Install version {v}": "Instalar la versión {v}",
@@ -464,6 +478,13 @@ const ES = {
   "All Mailboxes": "Todos los buzones",
   "{n} result": "{n} resultado",
   "{n} results": "{n} resultados",
+  "Address Books": "Libretas de direcciones",
+  "Today Pane": "Panel Hoy",
+  "Search": "Buscar",
+  "Search Contacts": "Buscar contactos",
+  "Search Tasks": "Buscar tareas",
+  "Search All Mailboxes": "Buscar en todos los buzones",
+  "Find in Settings": "Buscar en Ajustes",
 };
 const IT = {
   "Install version {v}": "Installa la versione {v}",
@@ -609,6 +630,13 @@ const IT = {
   "All Mailboxes": "Tutte le caselle",
   "{n} result": "{n} risultato",
   "{n} results": "{n} risultati",
+  "Address Books": "Rubriche",
+  "Today Pane": "Pannello Oggi",
+  "Search": "Cerca",
+  "Search Contacts": "Cerca contatti",
+  "Search Tasks": "Cerca attività",
+  "Search All Mailboxes": "Cerca in tutte le caselle",
+  "Find in Settings": "Cerca nelle impostazioni",
 };
 const TRANSLATIONS = { de: DE, fr: FR, es: ES, it: IT };
 // tr("+{n} more", { n: 3 }) – Platzhalter in geschweiften Klammern
@@ -686,15 +714,17 @@ function accountColor(name) {
 // Farbpunkt vor Konto- und Adressbuchnamen (Ordnerliste, Adressbuchliste):
 // --mc-acc an der Zeile, gezeichnet von userChrome.css
 function colorAccountRows(doc, restorers = null) {
-  const names = new Set();
-  try {
-    for (const server of MailServices.accounts.allServers) {
-      if (server.type != "none") {
-        names.add(server.prettyName); // „Lokale Ordner“ bleibt ohne Farbe
-      }
-    }
-  } catch {}
   const paint = () => {
+    // Kontonamen bei jedem Lauf frisch lesen: umbenannte oder neue Konten
+    // sollen ihren Punkt sofort bekommen, nicht erst nach einem Neustart
+    const names = new Set();
+    try {
+      for (const server of MailServices.accounts.allServers) {
+        if (server.type != "none") {
+          names.add(server.prettyName); // „Lokale Ordner“ bleibt ohne Farbe
+        }
+      }
+    } catch {}
     for (const li of doc.querySelectorAll("#folderTree li, #books li.bookRow")) {
       const name = (li.querySelector(":scope > .container .name, .bookRow-name")?.textContent || "").trim();
       if (names.has(name)) {
@@ -793,7 +823,7 @@ const APPEARANCE_THEMES = {
 };
 // Adressbuch: kleine Überschrift über der Liste wie „Favoriten“ in der Mail
 // und „Kalender“ im Kalender
-function hookBooksHeader(cw) {
+function hookBooksHeader(cw, restorers = null) {
   const doc = cw.document;
   const books = doc.getElementById("books");
   if (!books || doc.getElementById("mcBooksHeader")) {
@@ -801,11 +831,12 @@ function hookBooksHeader(cw) {
   }
   const header = doc.createElement("div");
   header.id = "mcBooksHeader";
-  header.textContent = Services.locale.appLocaleAsBCP47.startsWith("de") ? "Adressbücher" : "Address Books";
+  header.textContent = tr("Address Books");
   books.before(header);
+  restorers?.push(() => header.remove());
 }
 
-function hookAppearanceChoice(cw) {
+function hookAppearanceChoice(cw, restorers = null) {
   const doc = cw.document;
   const colorGroup = doc.getElementById("colorGroup");
   if (!colorGroup) {
@@ -843,6 +874,7 @@ function hookAppearanceChoice(cw) {
   row.append(label, list);
   group.append(legend, row);
   colorGroup.before(group);
+  restorers?.push(() => group.remove());
   const { AddonManager } = ChromeUtils.importESModule("resource://gre/modules/AddonManager.sys.mjs");
   const sync = async () => {
     const themes = await AddonManager.getAddonsByTypes(["theme"]);
@@ -1133,7 +1165,9 @@ function appleListDate(ms, now = new Date()) {
   const d = new Date(ms);
   const startOfDay = x => new Date(x.getFullYear(), x.getMonth(), x.getDate()).getTime();
   const days = Math.round((startOfDay(now) - startOfDay(d)) / 86400000);
-  if (days <= 0) {
+  // nur heute die Uhrzeit – Datum in der Zukunft (falsche Uhr beim Absender,
+  // Spam „oben halten“) zeigt das ganze Datum
+  if (days == 0) {
     return new Intl.DateTimeFormat(locale, { timeStyle: "short" }).format(d);
   }
   if (days == 1) {
@@ -1241,12 +1275,20 @@ function searchDate(text) {
   const day = Number(m[1]);
   const month = Number(m[2]);
   const now = new Date();
-  let year = m[3] ? (m[3].length == 2 ? 2000 + Number(m[3]) : Number(m[3])) : now.getFullYear();
-  let date = new Date(year, month - 1, day);
-  if (!m[3] && date > now) {
-    date = new Date(--year, month - 1, day);
+  if (m[3]) {
+    const year = m[3].length == 2 ? 2000 + Number(m[3]) : Number(m[3]);
+    const date = new Date(year, month - 1, day);
+    return date.getMonth() == month - 1 && date.getDate() == day ? date : null;
   }
-  return date.getMonth() == month - 1 && date.getDate() == day ? date : null;
+  // ohne Jahr: letztes vergangenes Vorkommen, auch für den 29.2. (8 Jahre
+  // reichen auch über Jahrhundertjahre ohne Schalttag; „31.4“ gibt es nie)
+  for (let year = now.getFullYear(), i = 0; i < 8; i++, year--) {
+    const date = new Date(year, month - 1, day);
+    if (date.getMonth() == month - 1 && date.getDate() == day && date <= now) {
+      return date;
+    }
+  }
+  return null;
 }
 
 // Suchbegriff in einem Element gelb hinterlegen (nur Text, per DOM)
@@ -1317,19 +1359,6 @@ function readHeader(hdr, name) {
   });
 }
 
-// Netzwerkzugriffe laufen in einer eigenen Sandbox: about:3pane verbietet
-// per Content-Security-Policy Verbindungen ins Internet.
-let netSandbox = null;
-function sandboxFetch() {
-  if (!netSandbox) {
-    netSandbox = Components.utils.Sandbox(
-      Services.scriptSecurityManager.getSystemPrincipal(),
-      { wantGlobalProperties: ["fetch"], sandboxName: "mail-cards-net" }
-    );
-  }
-  return netSandbox.fetch;
-}
-
 // Nur öffentliche https-Adressen – Absender bestimmen die Adresse (BIMI,
 // Kontaktfotos), damit darf kein Zugriff auf lokale Geräte oder Firmennetze
 // ausgelöst werden
@@ -1354,28 +1383,143 @@ function isPublicHttps(url) {
 // Zeitüberschreitungen zählen: dann kein „kein Logo“ merken (nur langsames Netz)
 let fetchTimeouts = 0;
 
-async function fetchWithTimeout(win, url, opts = {}) {
-  if (!isPublicHttps(url)) {
-    throw new Error("blocked url");
-  }
-  const request = sandboxFetch()(url, {
-    credentials: "omit",
-    redirect: "follow",
-    ...opts,
-  });
-  let timer;
-  const timeout = new Promise((_, reject) => {
-    timer = setTimeout(() => {
+// Abruf über einen eigenen Kanal statt fetch: fetch folgt Umleitungen, bevor
+// sich ihr Ziel prüfen lässt – der Absender könnte so auf Geräte im lokalen
+// Netz umleiten. Hier wird jedes Umleitungsziel vor dem Verbinden geprüft.
+// Zeitlimit und Größengrenze (max Bytes) gelten für die ganze Antwort, danach
+// wird abgebrochen; mit truncate liefert eine längere Antwort nur ihren Anfang.
+// Ergebnis wie bei fetch: ok, status, url, headers.get(), text(), arrayBuffer()
+function fetchWithTimeout(win, url, { method = "GET", headers = {}, body = null, max = 2 * 1024 * 1024, truncate = false } = {}) {
+  return new Promise((resolve, reject) => {
+    if (!isPublicHttps(url)) {
+      reject(new Error("blocked url"));
+      return;
+    }
+    const channel = NetUtil.newChannel({ uri: url, loadUsingSystemPrincipal: true })
+      .QueryInterface(Ci.nsIHttpChannel);
+    // ohne Cookies und Anmeldedaten (wie credentials: "omit")
+    channel.loadFlags |= Ci.nsIRequest.LOAD_ANONYMOUS;
+    if (body != null) {
+      const stream = Cc["@mozilla.org/io/string-input-stream;1"].createInstance(Ci.nsIStringInputStream);
+      // setUTF8Data statt setByteStringData: das gibt es in Thunderbird 128 ESR
+      // noch nicht, dort scheiterte sonst jeder POST (Ein-Klick-Abmeldung); der
+      // Body ist reines ASCII („List-Unsubscribe=One-Click“)
+      stream.setUTF8Data(body);
+      channel.QueryInterface(Ci.nsIUploadChannel2).explicitSetUploadStream(stream, null, -1, method, false);
+    } else {
+      channel.requestMethod = method;
+    }
+    for (const [name, value] of Object.entries(headers)) {
+      channel.setRequestHeader(name, value, false);
+    }
+    let current = channel;
+    let settled = false;
+    const parts = [];
+    let size = 0;
+    const finish = request => {
+      if (settled) {
+        return;
+      }
+      settled = true;
+      clearTimeout(timer);
+      const bytes = new Uint8Array(size);
+      let at = 0;
+      for (const part of parts) {
+        bytes.set(part, at);
+        at += part.length;
+      }
+      try {
+        const http = request.QueryInterface(Ci.nsIHttpChannel);
+        resolve({
+          ok: http.requestSucceeded,
+          status: http.responseStatus,
+          url: http.URI.spec,
+          headers: {
+            get(name) {
+              try {
+                return http.getResponseHeader(name);
+              } catch {
+                return null;
+              }
+            },
+          },
+          arrayBuffer: async () => bytes.buffer,
+          text: async () => new win.TextDecoder().decode(bytes),
+        });
+      } catch (e) {
+        reject(e);
+      }
+    };
+    const fail = error => {
+      if (!settled) {
+        settled = true;
+        clearTimeout(timer);
+        reject(error);
+      }
+      try {
+        current.cancel(Cr.NS_BINDING_ABORTED);
+      } catch {}
+    };
+    const timer = setTimeout(() => {
       fetchTimeouts++;
-      reject(new Error("timeout"));
+      fail(new Error("timeout"));
     }, FETCH_TIMEOUT);
+    channel.notificationCallbacks = {
+      QueryInterface: ChromeUtils.generateQI(["nsIInterfaceRequestor", "nsIChannelEventSink"]),
+      getInterface(iid) {
+        return this.QueryInterface(iid);
+      },
+      asyncOnChannelRedirect(oldChannel, newChannel, flags, callback) {
+        // das Ziel muss ebenfalls öffentlich sein – sonst gar nicht erst verbinden
+        if (!isPublicHttps(newChannel.URI.spec)) {
+          callback.onRedirectVerifyCallback(Cr.NS_ERROR_ABORT);
+          fail(new Error("blocked redirect"));
+          return;
+        }
+        current = newChannel;
+        callback.onRedirectVerifyCallback(Cr.NS_OK);
+      },
+    };
+    try {
+      channel.asyncOpen({
+        QueryInterface: ChromeUtils.generateQI(["nsIStreamListener", "nsIRequestObserver"]),
+        onStartRequest(request) {
+          current = request;
+        },
+        onDataAvailable(request, stream, offset, count) {
+          const input = Cc["@mozilla.org/binaryinputstream;1"].createInstance(Ci.nsIBinaryInputStream);
+          input.setInputStream(stream);
+          const chunk = new Uint8Array(count);
+          input.readArrayBuffer(count, chunk.buffer);
+          if (size + count > max) {
+            if (!truncate) {
+              fail(new Error("too large"));
+              return;
+            }
+            parts.push(chunk.subarray(0, max - size));
+            size = max;
+            finish(request);
+            request.cancel(Cr.NS_BINDING_ABORTED);
+            return;
+          }
+          parts.push(chunk);
+          size += count;
+        },
+        onStopRequest(request, status) {
+          if (request != current) {
+            return; // alter Kanal nach einer Umleitung
+          }
+          if (Components.isSuccessCode(status)) {
+            finish(request);
+          } else {
+            fail(new Error(`network error 0x${(status >>> 0).toString(16)}`));
+          }
+        },
+      });
+    } catch (e) {
+      fail(e);
+    }
   });
-  const res = await Promise.race([request, timeout]).finally(() => clearTimeout(timer));
-  // Umleitungen folgt fetch selbst – das Ziel muss ebenfalls öffentlich sein
-  if (res.url && !isPublicHttps(res.url)) {
-    throw new Error("blocked redirect");
-  }
-  return res;
 }
 
 // Zeitkurve wie CSS cubic-bezier(x1, y1, x2, y2)
@@ -1833,6 +1977,23 @@ class AvatarResolver {
     if (url?.startsWith("data:")) {
       return url;
     }
+    if (url?.startsWith("file:")) {
+      // Foto im lokalen Adressbuch: Thunderbird legt es als Datei in <Profil>/Photos ab
+      const win = this.getWindow();
+      if (win) {
+        try {
+          const path = Services.io.newURI(url).QueryInterface(Ci.nsIFileURL).file.path;
+          // nur ganze Dateien bis 2 MB – größere (alte Profile: Kamerafoto
+          // unverändert kopiert) nicht abgeschnitten anzeigen, sondern wie im
+          // Netz-Zweig überspringen
+          const { size } = await IOUtils.stat(path);
+          if (size >= 100 && size <= 2 * 1024 * 1024) {
+            const buf = await IOUtils.read(path);
+            return `data:image/jpeg;base64,${bytesToBase64(win, buf)}`;
+          }
+        } catch {}
+      }
+    }
     // Foto aus der macOS-Kontakte-App (iCloud-Fotos sind nur als Link hinterlegt)
     const local = MacPhotos.lookup([email, ...(card?.emailAddresses || [])], card?.displayName);
     if (local) {
@@ -1932,7 +2093,7 @@ class AvatarResolver {
         continue;
       }
       try {
-        const res = await fetchWithTimeout(win, m[1]);
+        const res = await fetchWithTimeout(win, m[1], { max: 256 * 1024 });
         if (!res.ok) {
           continue;
         }
@@ -1959,8 +2120,11 @@ class AvatarResolver {
     ];
     // Icons aus dem <head> der Startseite (apple-touch-icon bevorzugt)
     for (const home of [`https://www.${org}/`, `https://${org}/`]) try {
+      // nur der Anfang mit dem <head> wird gebraucht
       const res = await fetchWithTimeout(win, home, {
         headers: { Accept: "text/html" },
+        max: 200000,
+        truncate: true,
       });
       if (res.ok) {
         const html = (await res.text()).slice(0, 200000);
@@ -1999,7 +2163,7 @@ class AvatarResolver {
         continue;
       }
       try {
-        const res = await fetchWithTimeout(win, url);
+        const res = await fetchWithTimeout(win, url, { max: 512 * 1024 });
         const type = (res.headers.get("content-type") || "").split(";")[0];
         if (!res.ok || !type.startsWith("image/")) {
           continue;
@@ -2134,7 +2298,8 @@ const EMOJI_RULES = [
   ["🦷", { stems: ["zahnarzt", "zahnärzt", "kieferchirurg", "kieferorthop", "dentist", "zahnreinigung"] }],
   ["💉", { stems: ["impfung", "vaccin", "blutabnahme"] }],
   ["🏥", { stems: ["krankenhaus", "spital", "hospital"] }],
-  ["🩺", { stems: ["arzt", "ärztin", "doctor", "ordination", "therapie", "physio", "untersuchung", "befund"] }],
+  // „Ordination“ nur am Wortanfang (nicht in „Koordination“)
+  ["🩺", { stems: ["arzt", "ärztin", "doctor", "therapie", "physio", "untersuchung", "befund"], re: /(?<![\p{L}\p{N}])ordination/u }],
   ["💇", { stems: ["friseur", "frisör", "haircut", "beauty", "kosmetik", "maniküre", "pediküre"] }],
   ["✈️", { stems: ["flughafen", "airport", "abflug", "rückflug", "flight"], words: ["flug"] }],
   ["🚆", { stems: ["bahnhof"], words: ["zug", "bahn", "train", "öbb"] }],
@@ -2159,7 +2324,9 @@ const EMOJI_RULES = [
   ["🎬", { stems: ["kino", "movie"] }],
   ["🎭", { stems: ["theater", "musical"], words: ["oper"] }],
   ["⚖️", { stems: ["gericht", "anwalt", "verhandlung", "notar"] }],
-  ["💰", { stems: ["steuer", "finanzamt", "steuerberat"], words: ["bank"] }],
+  // „Steuer“ auch in „Einkommensteuer“, aber nicht in Lenkungsgremien
+  // („Steuerung(sgruppe)“, „Steuerkreis“, „Steuergruppe“)
+  ["💰", { stems: ["finanzamt", "steuerberat"], words: ["bank"], re: /steuer(?!ung|kreis|gruppe)/u }],
   ["🛒", { stems: ["einkauf", "shopping", "supermarkt"] }],
   ["📦", { stems: ["umzug", "paket", "lieferung"] }],
   ["🚗", { stems: ["werkstatt", "pickerl", "reifenwechsel", "autoservice"], words: ["auto"] }],
@@ -2169,9 +2336,11 @@ const EMOJI_RULES = [
   ["🧹", { stems: ["putzen", "reinigung", "putzfrau"] }],
   ["👶", { stems: ["baby", "kindergarten", "kita"] }],
   ["🐶", { stems: ["hund", "gassi"] }],
-].map(([emoji, { stems = [], words = [] }]) => ({
+].map(([emoji, { stems = [], words = [], re = null }]) => ({
   emoji,
   stems,
+  // eigener Ausdruck (auf den kleingeschriebenen Titel) für Sonderfälle
+  re,
   // ganze Wörter: davor und danach kein Buchstabe und keine Ziffer
   word: words.length ? new RegExp(`(?<![\\p{L}\\p{N}])(?:${words.join("|")})(?![\\p{L}\\p{N}])`, "iu") : null,
 }));
@@ -2208,7 +2377,7 @@ function emojiFor(title) {
   // eigene Stichwörter zuerst
   let found = customEmojiRules().find(r => lower.includes(r.stem))?.emoji || "";
   for (const rule of found ? [] : EMOJI_RULES) {
-    if (rule.stems.some(st => lower.includes(st)) || rule.word?.test(text)) {
+    if (rule.stems.some(st => lower.includes(st)) || rule.word?.test(text) || rule.re?.test(lower)) {
       found = rule.emoji;
       break;
     }
@@ -2254,11 +2423,13 @@ function parseNatural(text, now = new Date()) {
   if (take(new RegExp(`${B}(ganztägig|ganztags|den ganzen tag|all[ -]?day)${E}`, "iu"))) {
     allDay = true;
   }
-  // relative Tage
+  const dayNames = Object.keys(NL_WEEKDAYS).filter(k => k.length > 3).join("|");
+  // relative Tage („morgen“ nach einem Wochentag ist der Vormittag: „Freitag
+  // morgen 8 Uhr“ – nur nach dem ganzen Wort, nach „Karfreitag“ bleibt es morgen)
   let m = take(new RegExp(`${B}(übermorgen|day after tomorrow)${E}`, "iu"));
   if (m) {
     day = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 2);
-  } else if ((m = take(new RegExp(`${B}(heute|today|morgen|tomorrow)${E}`, "iu")))) {
+  } else if ((m = take(new RegExp(`${B}(heute|today|(?<!${B}(?:${dayNames})\\s+)morgen|tomorrow)${E}`, "iu")))) {
     const plus = /^(morgen|tomorrow)$/i.test(m[1]) ? 1 : 0;
     day = new Date(now.getFullYear(), now.getMonth(), now.getDate() + plus);
   }
@@ -2280,18 +2451,23 @@ function parseNatural(text, now = new Date()) {
   } else if (!day && (m = take(new RegExp(`${B}(${monthNames})\\.?\\s+(\\d{1,2})(?:st|nd|rd|th)?(?:,?\\s+(\\d{4}))?${E}`, "iu")))) {
     day = new Date(m[3] ? Number(m[3]) : now.getFullYear(), NL_MONTHS[m[1].toLowerCase()], Number(m[2]));
   }
-  if (day && !/\d{4}/.test(m?.[0] || "") && day < new Date(now.getFullYear(), now.getMonth(), now.getDate()) && !/heute|today/i.test(m?.[0] || "")) {
+  if (day && !m?.[3] && day < new Date(now.getFullYear(), now.getMonth(), now.getDate()) && !/heute|today/i.test(m?.[0] || "")) {
     day.setFullYear(day.getFullYear() + 1);
   }
   // Wochentag (nächstes Vorkommen; „nächsten Montag“ = in der nächsten Woche)
-  const dayNames = Object.keys(NL_WEEKDAYS).filter(k => k.length > 3).join("|");
-  if (!day && (m = take(new RegExp(`${B}(?:(am|on|nächsten|nächste[rn]?|next)\\s+)?(${dayNames})${E}`, "iu")))) {
+  if (!day && (m = take(new RegExp(`${B}(?:(am|on|nächsten|nächste[rn]?|next)\\s+)?(${dayNames})(?:\\s+morgens?)?${E}`, "iu")))) {
     const target = NL_WEEKDAYS[m[2].toLowerCase()];
     let diff = (target - now.getDay() + 7) % 7;
     if (diff == 0 || /^(nächst|next)/i.test(m[1] || "")) {
       diff += diff == 0 ? 7 : 0;
     }
     day = new Date(now.getFullYear(), now.getMonth(), now.getDate() + diff);
+  }
+  // Dauer (vor den Uhrzeiten, sonst wird „für 2h“ als 02:00 gelesen)
+  let duration = null;
+  if ((m = take(new RegExp(`${B}(?:für|for)\\s+(\\d+(?:[.,]5)?)\\s*(stunden?|std\\.?|hours?|hrs?|h|minuten|min\\.?|minutes?|mins?)${E}`, "iu")))) {
+    const n = Number(m[1].replace(",", "."));
+    duration = /^m/i.test(m[2]) ? n : n * 60;
   }
   // Uhrzeit: Zeitraum oder Einzelzeit
   const T = "(\\d{1,2})(?:[:.](\\d{2}))?\\s*(am|pm|a\\.m\\.|p\\.m\\.)?";
@@ -2303,10 +2479,19 @@ function parseNatural(text, now = new Date()) {
   };
   let startMin = null;
   let endMin = null;
-  m = take(new RegExp(`${B}(?:von\\s+|from\\s+|um\\s+|at\\s+)?${T}\\s*(?:-|–|bis|to|until)\\s*${T}\\s*(?:uhr|h)?${E}`, "iu"));
-  if (m) {
-    startMin = toMinutes(m[1], m[2], m[3] || m[6]);
-    endMin = toMinutes(m[4], m[5], m[6]);
+  const range = take(new RegExp(`${B}(?:von\\s+|from\\s+|um\\s+|at\\s+)?${T}\\s*(?:-|–|bis|to|until)\\s*${T}\\s*(?:uhr|h)?${E}`, "iu"));
+  if (range) {
+    startMin = toMinutes(range[1], range[2], range[3]);
+    endMin = toMinutes(range[4], range[5], range[6]);
+    // „11-12am“ meint umgangssprachlich bis Mittag, nicht bis Mitternacht
+    if (!range[3] && /^a/i.test(range[6]) && endMin == 0) {
+      endMin = 12 * 60;
+    }
+    // nur das Ende hat am/pm: der Beginn übernimmt es, wenn er dann vor dem Ende
+    // liegt („2-4pm“ → 14–16 Uhr, aber „11-1pm“ → 11–13 Uhr)
+    if (!range[3] && range[6] && toMinutes(range[1], range[2], range[6]) < endMin) {
+      startMin = toMinutes(range[1], range[2], range[6]);
+    }
   } else if ((m = take(new RegExp(`${B}(?:um\\s+|at\\s+)?(\\d{1,2})(?:[:.](\\d{2}))?\\s*(?:uhr|h)${E}`, "iu")))) {
     startMin = toMinutes(m[1], m[2]);
   } else if ((m = take(new RegExp(`${B}(?:um\\s+|at\\s+)?(\\d{1,2})(?:[:.](\\d{2}))?\\s*(am|pm)${E}`, "iu")))) {
@@ -2319,12 +2504,6 @@ function parseNatural(text, now = new Date()) {
   if (startMin != null && (startMin >= 24 * 60 || (endMin != null && endMin >= 24 * 60))) {
     return { title: text.trim() }; // keine gültige Uhrzeit – nichts erkannt
   }
-  // Dauer
-  let duration = null;
-  if ((m = take(new RegExp(`${B}(?:für|for)\\s+(\\d+(?:[.,]5)?)\\s*(stunden?|std\\.?|hours?|hrs?|h|minuten|min\\.?|minutes?|mins?)${E}`, "iu")))) {
-    const n = Number(m[1].replace(",", "."));
-    duration = /^m/i.test(m[2]) ? n : n * 60;
-  }
   if (day == null && startMin == null && !allDay) {
     return { title: text.trim() };
   }
@@ -2335,7 +2514,12 @@ function parseNatural(text, now = new Date()) {
   const result = { title: title || text.trim(), allDay: allDay || (startMin == null && !!day) };
   if (!result.allDay && startMin != null) {
     result.start = new Date(base.getFullYear(), base.getMonth(), base.getDate(), Math.floor(startMin / 60), startMin % 60);
-    const end = endMin != null ? endMin : startMin + (duration ?? 60);
+    let end = endMin != null ? endMin : startMin + (duration ?? 60);
+    if (endMin != null && end <= startMin) {
+      // Ende vor dem Beginn: „9-5“ → 17:00, „22-2 Uhr“ → 02:00 am Folgetag;
+      // 12-Stunden-Lesart nur bei Beginn bis Mittag („18-7 Uhr“ endet um 7 Uhr früh)
+      end += !range[6] && startMin < 13 * 60 && end < 12 * 60 && end + 12 * 60 > startMin ? 12 * 60 : 24 * 60;
+    }
     result.end = new Date(base.getFullYear(), base.getMonth(), base.getDate(), Math.floor(end / 60), end % 60);
     if (result.end <= result.start) {
       result.end = new Date(result.start.getTime() + 3600 * 1000);
@@ -2519,6 +2703,7 @@ class CardEnhancer {
     this.previewLines = Math.max(0, Math.min(4, lines));
     this.windows = new Set();
     this.restorers = [];
+    this.winRestorers = new WeakMap();
     this.requested = new Set();
     this.pendingPreview = new Map();
     this.previewTimer = null;
@@ -2812,11 +2997,34 @@ class CardEnhancer {
     });
   }
 
+  // Restorer, der nur so lange lebt wie sein (Inhalts-)Fenster: beim Schließen
+  // verworfen – sonst hielte this.restorers das tote Fenster bis zum Beenden fest
+  addWinRestorer(win, fn) {
+    this.restorers.push(fn);
+    if (!win) {
+      return;
+    }
+    let set = this.winRestorers.get(win);
+    if (!set) {
+      set = new Set();
+      this.winRestorers.set(win, set);
+      win.addEventListener("unload", () => {
+        this.winRestorers.delete(win);
+        this.restorers = this.restorers.filter(f => !set.has(f));
+      }, { once: true });
+    }
+    set.add(fn);
+  }
+
   watchMainWindow(w) {
     if (this.mainWindows.has(w)) {
       return;
     }
     this.mainWindows.add(w);
+    // je Fenster (nicht am gemeinsamen Enhancer, sonst wirkt der Knopf im zuletzt
+    // geöffneten Fenster): Tooltip des Seitenleisten-Knopfs und Popover „Neu“
+    let sidebarTip = null;
+    let newPopup = null;
     this.hookMinWindowWidth(w);
     log("main window", { tabs: w.document.getElementById("tabmail")?.tabInfo?.length ?? null });
     // Attribut „mc-mail“ am Hauptfenster, solange ein Mail-Tab vorne ist –
@@ -2888,7 +3096,9 @@ class CardEnhancer {
           ro.observe(el); // Adressbuchliste ein-/ausgeblendet: Kontaktliste rückt
           el.ownerDocument.getElementById("booksSplitter") && ro.observe(el.ownerDocument.getElementById("booksSplitter"));
           cards.__mcObserver = { owner: this, ro };
-          this.restorers.push(() => {
+          // am Adressbuch-Fenster: beim Schließen des Tabs verworfen (hielte sonst
+          // das geschlossene Adressbuch samt Kontaktliste bis zum Beenden fest)
+          this.addWinRestorer(el.ownerDocument.defaultView, () => {
             ro.disconnect();
             delete cards.__mcObserver;
           });
@@ -2931,7 +3141,7 @@ class CardEnhancer {
           };
           shared.addEventListener("splitter-resizing", onResizing);
           shared.addEventListener("splitter-resized", onResized);
-          this.restorers.push(() => {
+          this.addWinRestorer(el.ownerDocument.defaultView, () => {
             shared._updateSize = origUpdate;
             shared.removeEventListener("splitter-resizing", onResizing);
             shared.removeEventListener("splitter-resized", onResized);
@@ -3066,6 +3276,13 @@ class CardEnhancer {
     const fixAvatar = (el, name, card) => {
       const img = el.shadowRoot?.querySelector("img");
       const letters = el.shadowRoot?.querySelector("span");
+      // Zeilen der Kontaktliste werden beim Scrollen für andere Kontakte
+      // wiederverwendet: den Handler des vorigen Kontakts zuerst entfernen,
+      // sonst schreibt er dessen Initialen in diese Zeile
+      if (img && el.__mcFallback) {
+        img.removeEventListener("error", el.__mcFallback);
+        el.__mcFallback = null;
+      }
       if (!img || !letters || !img.getAttribute("src") || el.classList.contains("is-mail-list")) {
         return;
       }
@@ -3084,10 +3301,12 @@ class CardEnhancer {
       if (img.complete && img.naturalWidth == 0) {
         fallback();
       } else {
+        el.__mcFallback = fallback;
         img.addEventListener("error", fallback, { once: true });
       }
     };
     const hookAvatars = cw => {
+      const restorers = { push: fn => this.addWinRestorer(cw, fn) };
       const Avatar = cw.customElements?.get("contact-avatar");
       if (!Avatar || Avatar.prototype.__mcFix) {
         return;
@@ -3126,7 +3345,7 @@ class CardEnhancer {
         return result;
       };
       Avatar.prototype.__mcFix = true;
-      this.restorers.push(() => {
+      restorers.push(() => {
         Avatar.prototype.setData = orig;
         delete Avatar.prototype.__mcFix;
       });
@@ -3171,7 +3390,7 @@ class CardEnhancer {
         const mo = new cw.MutationObserver(fixPhoto);
         mo.observe(photo, { attributes: true, attributeFilter: ["src"] });
         fixPhoto();
-        this.restorers.push(() => {
+        restorers.push(() => {
           mo.disconnect();
           photo.removeEventListener("error", onError);
         });
@@ -3191,7 +3410,7 @@ class CardEnhancer {
       if (fixEditPhoto && editHeading) {
         const mo = new cw.MutationObserver(fixEditPhoto);
         mo.observe(editHeading, { childList: true, characterData: true, subtree: true });
-        this.restorers.push(() => mo.disconnect());
+        restorers.push(() => mo.disconnect());
       }
       // Bearbeiten wie Apple Kontakte: sichtbar sind Vor- und Nachname, E-Mail,
       // Telefon und Adressen; leere seltene Felder erst nach „Weitere Felder“,
@@ -3292,7 +3511,7 @@ class CardEnhancer {
           return result;
         };
         EditCard.prototype.__mcLayout = true;
-        this.restorers.push(() => {
+        restorers.push(() => {
           EditCard.prototype.updateView = origUpdate;
           delete EditCard.prototype.__mcLayout;
           for (const el of cw.document.querySelectorAll(".mc-more-button")) {
@@ -3367,6 +3586,10 @@ class CardEnhancer {
       for (const clusters of groups.values()) {
         for (const c of clusters) {
           keep.add(c.best);
+          // welcher Eintrag stehen bleibt (Auswahl beim Zusammenführen übertragen)
+          for (const r of c.rows) {
+            r.mcBest = c.best;
+          }
           // in welchen Adressbüchern es diesen Kontakt gibt (für die Labels)
           c.best.mcSources = [...new Set(c.rows.map(r => r.directory?.dirName).filter(Boolean))];
         }
@@ -3374,6 +3597,7 @@ class CardEnhancer {
       return rows.filter(r => keep.has(r));
     };
     const hookDedupe = cw => {
+      const restorers = { push: fn => this.addWinRestorer(cw, fn) };
       const view = cw.cardsPane?.cardsList?.view;
       const Adapter = view?.constructor;
       if (!Adapter?.prototype?.sortBy || Adapter.prototype.__mcDedupe) {
@@ -3381,17 +3605,62 @@ class CardEnhancer {
       }
       const orig = Adapter.prototype.sortBy;
       Adapter.prototype.sortBy = function (column, direction, resort = false) {
+        let replaced = false;
         if (Services.prefs.getBoolPref(DEDUPE_PREF, true) && this._rowMap?.length) {
-          const before = this._rowMap.length;
-          this._rowMap = dedupeRows(this._rowMap);
-          if (this._rowMap.length != before) {
+          const old = this._rowMap;
+          const rows = dedupeRows(old);
+          if (rows.length != old.length) {
+            // Das Original liest die Auswahl über die Zeilennummern: sie über
+            // die Zeilen auf die neuen Nummern übertragen, sonst rutscht die
+            // Markierung auf den Nachbarkontakt. War eine weggefallene Dublette
+            // gewählt, den stehen gebliebenen Eintrag wählen. Einmal neu
+            // aufbauen statt Zeile für Zeile verschieben – jedes Verschieben
+            // zeichnet die Liste ab dort neu (bei hunderten Dubletten aus
+            // CardDAV fror das Adressbuch sonst sekundenlang ein).
+            const sel = this.selection;
+            const kept = new Set(rows);
+            let picked = null;
+            let current = null;
+            if (sel?.count) {
+              picked = new Set();
+              for (let i = 0; i < old.length; i++) {
+                if (sel.isSelected(i)) {
+                  if (!kept.has(old[i])) {
+                    replaced = true;
+                  }
+                  picked.add(kept.has(old[i]) ? old[i] : old[i].mcBest);
+                }
+              }
+              const cur = old[sel.currentIndex];
+              current = cur && (kept.has(cur) ? cur : cur.mcBest);
+            }
+            this._rowMap = rows;
+            if (picked) {
+              const at = new Map(rows.map((r, i) => [r, i]));
+              sel.selectEventsSuppressed = true;
+              sel.clearSelection();
+              for (const r of picked) {
+                const j = at.get(r);
+                if (j !== undefined && !sel.isSelected(j)) {
+                  sel.toggleSelect(j);
+                }
+              }
+              sel.currentIndex = at.get(current) ?? -1;
+              sel.selectEventsSuppressed = false;
+            }
             resort = true;
           }
         }
-        return orig.call(this, column, direction, resort);
+        const result = orig.call(this, column, direction, resort);
+        // Thunderbird meldet eine so geänderte Auswahl nicht: ohne „select“
+        // zeigte die Detailansicht weiter die weggefallene Dublette
+        if (replaced) {
+          this._tree?.dispatchEvent(new this._tree.ownerDocument.defaultView.CustomEvent("select"));
+        }
+        return result;
       };
       Adapter.prototype.__mcDedupe = true;
-      this.restorers.push(() => {
+      restorers.push(() => {
         Adapter.prototype.sortBy = orig;
         delete Adapter.prototype.__mcDedupe;
       });
@@ -3439,7 +3708,7 @@ class CardEnhancer {
           return result;
         };
         pane.__mcBooks = true;
-        this.restorers.push(() => {
+        restorers.push(() => {
           pane.displayContact = origDisplay;
           delete pane.__mcBooks;
           cw.document.getElementById("mcDetailBooks")?.remove();
@@ -3462,7 +3731,7 @@ class CardEnhancer {
         try {
           cw.cardsPane?.cardsList?.reset?.();
         } catch {}
-        this.restorers.push(() => {
+        restorers.push(() => {
           delete Row.ROW_HEIGHT;
           Row.ROW_HEIGHT = 52;
         });
@@ -3496,7 +3765,7 @@ class CardEnhancer {
           return result;
         };
         Row.prototype.__mcBooks = true;
-        this.restorers.push(() => {
+        restorers.push(() => {
           Row.prototype.fillRow = origFill;
           delete Row.prototype.__mcBooks;
         });
@@ -3527,7 +3796,7 @@ class CardEnhancer {
           return result;
         };
         TableRow.prototype.__mcBooks = true;
-        this.restorers.push(() => {
+        restorers.push(() => {
           TableRow.prototype.fillRow = origTableFill;
           delete TableRow.prototype.__mcBooks;
         });
@@ -3558,7 +3827,7 @@ class CardEnhancer {
           c.className = "mc-caption";
           c.setAttribute("label", label);
           before.before(c);
-          this.restorers.push(() => c.remove());
+          restorers.push(() => c.remove());
         };
         caption(tr("Show Names As"), menu.querySelector('menuitem[name="format"]'));
         caption(tr("Sort"), menu.querySelector('menuitem[name="sort"]'));
@@ -3579,7 +3848,7 @@ class CardEnhancer {
           cw.booksList?.dispatchEvent(new cw.CustomEvent("select"));
         });
         menu.append(sep, item);
-        this.restorers.push(() => {
+        restorers.push(() => {
           sep.remove();
           item.remove();
         });
@@ -3598,9 +3867,11 @@ class CardEnhancer {
       for (const tab of tabmail.tabInfo) {
         const cw = tab.browser?.contentWindow;
         const url = cw?.document?.documentURI || "";
+        // Restorer dieses Tabs verfallen mit seinem Fenster
+        const winRestorers = { push: fn => this.addWinRestorer(cw, fn) };
         if (cw && url.startsWith("about:preferences")) {
           try {
-            hookAppearanceChoice(cw);
+            hookAppearanceChoice(cw, winRestorers);
           } catch (e) {
             log("appearance choice error", e);
           }
@@ -3608,15 +3879,15 @@ class CardEnhancer {
         if (cw && url.startsWith("about:addressbook")) {
           try {
             hookAvatars(cw);
-            hookBooksHeader(cw);
+            hookBooksHeader(cw, winRestorers);
             hookSplitterReset(cw.document);
           } catch (e) {
             log("avatar fix error", e);
           }
           try {
             hookDedupe(cw);
-            colorAccountRows(cw.document, this.restorers);
-            cacheCardCount(cw.document, this.restorers);
+            colorAccountRows(cw.document, winRestorers);
+            cacheCardCount(cw.document, winRestorers);
           } catch (e) {
             log("dedupe error", e);
           }
@@ -3708,10 +3979,12 @@ class CardEnhancer {
     };
     const watchWidth = tab => {
       const [el, splitter, win] = sidebarFor(tab);
-      if (!el || el.__mcWidthWatch) {
+      // Merkmal gehört dieser Fassung: ein liegengebliebenes „true“ einer älteren
+      // (3.2.0 räumte es beim Update ohne Neustart nicht weg) blockiert nicht
+      if (!el || el.__mcWidthWatch === this) {
         return;
       }
-      el.__mcWidthWatch = true;
+      el.__mcWidthWatch = this;
       // Startwert: die Breite der Ordnerliste in der Mail
       if (!Services.prefs.getIntPref(WIDTH_PREF, 0) && tab.mode?.name == "mail3PaneTab") {
         const width = Math.round(el.getBoundingClientRect().width);
@@ -3735,7 +4008,12 @@ class CardEnhancer {
           }, 300), { once: true });
         };
         splitter.addEventListener("pointerdown", onDown);
-        this.restorers.push(() => splitter.removeEventListener("pointerdown", onDown));
+        this.addWinRestorer(win, () => {
+          splitter.removeEventListener("pointerdown", onDown);
+          if (el.__mcWidthWatch === this) {
+            delete el.__mcWidthWatch;
+          }
+        });
       }
     };
     // Doppelklick auf eine Trennlinie stellt ihre Standardbreite wieder her:
@@ -3798,7 +4076,7 @@ class CardEnhancer {
       };
       doc.addEventListener("mousedown", onDown, true);
       doc.addEventListener("dblclick", onDblClick, true);
-      this.restorers.push(() => {
+      this.addWinRestorer(doc.defaultView, () => {
         doc.removeEventListener("mousedown", onDown, true);
         doc.removeEventListener("dblclick", onDblClick, true);
         delete doc.__mcSplitterReset;
@@ -3855,11 +4133,11 @@ class CardEnhancer {
       el.classList.toggle("mc-side-hidden", hidden);
       splitter?.classList.toggle("mc-side-hidden", hidden);
     };
-    this.sideHidden = () => {
+    const sideHidden = () => {
       const { mode, el } = currentSide();
       return el ? !!sideState()[mode] : false;
     };
-    this.toggleSpaceSidebar = () => {
+    const toggleSpaceSidebar = () => {
       const { mode, el, splitter } = currentSide();
       if (!el || el.__mcAnimating) {
         return;
@@ -3939,7 +4217,7 @@ class CardEnhancer {
         el.classList.remove("mc-side-anim");
         el.__mcAnimating = false;
         updateSideEdge();
-        this.sidebarTip?.();
+        sidebarTip?.();
       };
       win.requestAnimationFrame(() => win.requestAnimationFrame(step));
     };
@@ -3949,12 +4227,12 @@ class CardEnhancer {
     // Mail-Volltextsuche) – die Suchfelder in diesen Seiten entfallen.
     const SEARCH_TARGETS = {
       addressBookTab: {
-        de: "Kontakte durchsuchen", en: "Search Contacts",
+        label: "Search Contacts",
         input: cw => cw?.cardsPane?.searchInput,
         set: (input, text) => input.overrideSearchTerm(text), // löst dort selbst die Suche aus
       },
       tasks: {
-        de: "Aufgaben durchsuchen", en: "Search Tasks",
+        label: "Search Tasks",
         input: () => w.document.getElementById("task-text-filter-field"),
         set: (input, text) => {
           input.value = text;
@@ -3963,12 +4241,12 @@ class CardEnhancer {
       },
       // Mail: alle Postfächer (Suchordner), Tippen sucht kurz verzögert
       mail3PaneTab: {
-        de: "Alle Postfächer durchsuchen", en: "Search All Mailboxes",
+        label: "Search All Mailboxes",
         input: () => ({ value: this.mailSearchTerm || "" }),
         mail: true,
       },
       preferencesTab: {
-        de: "Einstellungen durchsuchen", en: "Find in Settings",
+        label: "Find in Settings",
         input: cw => cw?.document.getElementById("searchInput"),
         set: (input, text) => {
           input.value = text;
@@ -3996,13 +4274,20 @@ class CardEnhancer {
         bar.reset(); // leert dabei auch die Suche der verlassenen Seite
       }
       w.__mcSearchMode = target ? mode : null;
-      const de = Services.locale.appLocaleAsBCP47.startsWith("de");
+      // Platzhalter je Bereich: Thunderbird gibt dem Suchfeld einen eigenen
+      // <span slot="placeholder"> – das placeholder-Attribut (nur Ersatzinhalt
+      // des Slots) bliebe unsichtbar. Erst nachdem styleSearch Thunderbirds
+      // Text abgekoppelt hat (sonst bleibt dessen Übersetzung stehen).
+      const placeholder = bar.querySelector('[slot="placeholder"]');
+      if (placeholder && !placeholder.hasAttribute("data-l10n-id")) {
+        const text = tr(target ? target.label : "Search");
+        if (placeholder.textContent != text) {
+          placeholder.textContent = text;
+        }
+      }
       if (target) {
-        bar.setAttribute("placeholder", de ? target.de : target.en);
         const term = target.input(currentTarget()?.cw)?.value || "";
         bar.overrideSearchTerm?.(term);
-      } else {
-        bar.removeAttribute("placeholder");
       }
     };
     const hookSearchForwarding = () => {
@@ -4153,7 +4438,7 @@ class CardEnhancer {
         if (!hooked.has(target)) {
           hooked.add(target);
           target.addEventListener("keydown", onEscape);
-          this.restorers.push(() => target.removeEventListener("keydown", onEscape));
+          this.addWinRestorer(target == w ? null : target, () => target.removeEventListener("keydown", onEscape));
         }
       }
     };
@@ -4168,11 +4453,11 @@ class CardEnhancer {
         const ab = tab.chromeBrowser?.contentWindow;
         const splitter = ab?.paneLayout?.folderPaneSplitter;
         if (splitter) {
-          this.animateSidebar(ab, splitter);
+          this.animateSidebar(ab, splitter, () => sidebarTip?.());
         }
       } else {
         // in allen anderen Bereichen deren Seitenleiste ein-/ausblenden
-        this.toggleSpaceSidebar?.();
+        toggleSpaceSidebar();
       }
     };
     const hookSidebarButton = () => {
@@ -4208,14 +4493,14 @@ class CardEnhancer {
             ? (tr("Show Sidebar"))
             : (tr("Hide Sidebar"));
         } else {
-          text = this.sideHidden?.()
+          text = sideHidden()
             ? (tr("Show Sidebar"))
             : (tr("Hide Sidebar"));
         }
         button.setAttribute("tooltiptext", text);
       };
       updateTip();
-      this.sidebarTip = updateTip; // nach der Animation erneut aufrufen
+      sidebarTip = updateTip; // nach der Animation erneut aufrufen
       button.addEventListener("mouseenter", updateTip);
       this.restorers.push(() => {
         popup?.removeEventListener("popupshowing", blockPopup);
@@ -4223,6 +4508,7 @@ class CardEnhancer {
         button.removeEventListener("keydown", onPress, true);
         button.removeEventListener("mouseenter", updateTip);
         delete button.dataset.mcSidebar;
+        sidebarTip = null;
         if (oldTooltip) {
           button.setAttribute("tooltiptext", oldTooltip);
         } else {
@@ -4327,7 +4613,7 @@ class CardEnhancer {
       btn.addEventListener("click", () => this.animateTodayPane(w, command, updateTip));
       const mo = panel ? new w.MutationObserver(() => {
         updateTip();
-        this.todayTopSync?.();
+        w.__mcTodayTopSync?.();
       }) : null;
       mo?.observe(panel, { attributes: true, attributeFilter: ["collapsed", "hidden", "collapsedinmodes"] });
       // in die Toolbar-Zeile; darüber reicht die Today-Pane bis ganz oben
@@ -4338,7 +4624,7 @@ class CardEnhancer {
       // Überschrift „Today Pane“ oben in der Toolbar-Zeile, neben dem Knopf
       const title = d.createElementNS("http://www.w3.org/1999/xhtml", "span");
       title.id = "mcTodayTitle";
-      title.textContent = Services.locale.appLocaleAsBCP47.startsWith("de") ? "Heute-Leiste" : "Today Pane";
+      title.textContent = tr("Today Pane");
       top.append(title);
       row?.prepend(top);
       (row || d.body).append(btn);
@@ -4351,7 +4637,7 @@ class CardEnhancer {
       plus.setAttribute("aria-label", plus.title);
       plus.addEventListener("click", event => {
         event.stopPropagation();
-        this.openNewPopupBelow?.(plus);
+        newPopup?.below(plus);
       });
       btn.after(plus);
       this.restorers.push(() => {
@@ -4412,7 +4698,7 @@ class CardEnhancer {
         // links Today-Knopf (12 + 40 + 8), rechts „+“ (8 + 40 + 12) und ggf. Fensterknöpfe
         title.toggleAttribute("data-narrow", width - 60 - (60 + caption) < 110);
       };
-      this.todayTopSync = sync;
+      w.__mcTodayTopSync = sync;
       const ro = panel ? new w.ResizeObserver(sync) : null;
       ro?.observe(panel);
       sync();
@@ -4422,7 +4708,7 @@ class CardEnhancer {
         btn.remove();
         top.remove();
         row?.style.removeProperty("--mc-tp-w");
-        delete this.todayTopSync;
+        delete w.__mcTodayTopSync;
       });
     };
 
@@ -4517,7 +4803,10 @@ class CardEnhancer {
           if (!list) {
             continue;
           }
-          const lr = list.getBoundingClientRect();
+          // ab Thunderbird 159 steckt die Liste in einem eigenen Rollbereich
+          // (.calendar-month-day-box-scroll) und ist selbst so hoch wie alle
+          // Termine – gemessen wird am sichtbaren Bereich
+          const lr = (list.closest(".calendar-month-day-box-scroll") || list).getBoundingClientRect();
           const items = [...list.children];
           // Platz für die Zeile „+N weitere“ freihalten, sobald etwas fehlt
           for (const i of items) {
@@ -4551,7 +4840,12 @@ class CardEnhancer {
             box.appendChild(more);
           }
           box.setAttribute("mc-has-more", "true");
-          more.textContent = tr("+{n} more", { n: hidden });
+          // nur bei neuem Text setzen – sonst ersetzt Gecko den Textknoten, der
+          // Beobachter unten meldet das, und update() liefe in jedem Bild erneut
+          const label = tr("+{n} more", { n: hidden });
+          if (more.textContent != label) {
+            more.textContent = label;
+          }
         }
       };
       // nur messen, wenn der Kalender vorne ist – sonst liefe das bei jeder
@@ -4576,7 +4870,8 @@ class CardEnhancer {
       };
       const mo = new w.MutationObserver(records => {
         // eigene Änderungen (die „+N“-Knöpfe) lösen keine neue Runde aus
-        if (records.some(r => ![...r.addedNodes, ...r.removedNodes].every(n => n.classList?.contains("mc-more")) || r.type == "attributes")) {
+        if (records.some(r => !r.target.closest?.(".mc-more") &&
+            (![...r.addedNodes, ...r.removedNodes].every(n => n.classList?.contains("mc-more")) || r.type == "attributes"))) {
           schedule();
         }
       });
@@ -5118,6 +5413,7 @@ class CardEnhancer {
         return;
       }
       bar.__mcNewHooked = true;
+      let lastAnchor = null;
       // Popover wie in Apple Kalender: zwei runde Symbole mit Beschriftung
       const popup = d.createXULElement("panel");
       popup.id = "mcNewPopup";
@@ -5153,7 +5449,7 @@ class CardEnhancer {
         btn.append(circle, text);
         btn.addEventListener("click", () => {
           popup.hidePopup();
-          this.openQuickCreate(w, command == "calendar_new_todo_command" ? "task" : "event", this.lastNewAnchor);
+          this.openQuickCreate(w, command == "calendar_new_todo_command" ? "task" : "event", lastAnchor);
         });
         box.append(btn);
       }
@@ -5173,26 +5469,27 @@ class CardEnhancer {
       };
       bar.addEventListener("click", onClick, true);
       // dasselbe Popover über einem Knopf unten (Today-Pane): nach oben, mittig
-      this.openNewPopupAbove = anchor => {
+      const above = anchor => {
         if (popup.state == "open" || popup.state == "showing") {
           popup.hidePopup();
           return;
         }
         popup.classList.add("mc-up");
-        this.lastNewAnchor = anchor;
+        lastAnchor = anchor;
         const width = 294; // Breite des Popovers samt Rand für den Schatten
         popup.openPopup(anchor, "before_start", Math.round(anchor.getBoundingClientRect().width / 2 - width / 2), 12);
       };
       // dasselbe Popover unter dem „+“ oben rechts in der Today-Pane
-      this.openNewPopupBelow = anchor => {
+      const below = anchor => {
         if (popup.state == "open" || popup.state == "showing") {
           popup.hidePopup();
           return;
         }
         popup.classList.remove("mc-up");
-        this.lastNewAnchor = anchor;
+        lastAnchor = anchor;
         popup.openPopup(anchor, "after_end", 0, 6);
       };
+      newPopup = { above, below };
       const onHidden = () => popup.classList.remove("mc-up");
       popup.addEventListener("popuphidden", onHidden);
       this.restorers.push(() => {
@@ -5200,8 +5497,7 @@ class CardEnhancer {
         popup.removeEventListener("popuphidden", onHidden);
         popup.remove();
         delete bar.__mcNewHooked;
-        delete this.openNewPopupAbove;
-        delete this.openNewPopupBelow;
+        newPopup = null;
       });
     };
 
@@ -5214,7 +5510,7 @@ class CardEnhancer {
       if (!header || header.dataset.mcTitle) {
         return;
       }
-      header.dataset.mcTitle = Services.locale.appLocaleAsBCP47.startsWith("de") ? "Heute-Leiste" : "Today Pane";
+      header.dataset.mcTitle = tr("Today Pane");
       const home = button?.parentElement;
       const next = button?.nextSibling;
       // ganz unten in der Today-Pane, unter den Einträgen: ein „+“ wie im
@@ -5224,7 +5520,7 @@ class CardEnhancer {
       const onPlus = event => {
         event.preventDefault();
         event.stopPropagation();
-        this.openNewPopupAbove?.(button);
+        newPopup?.above(button);
       };
       if (button && panel) {
         panel.append(button);
@@ -5335,6 +5631,7 @@ class CardEnhancer {
     };
 
     const scan = () => {
+      this.styleSearch(w); // vor markTab, damit der Platzhalter des Bereichs gleich gilt
       markTab();
       decorateAgenda();
       hookMonthView();
@@ -5356,7 +5653,6 @@ class CardEnhancer {
       hookSplitterReset(w.document);
       hookListHeader();
       this.updateListHeader(w);
-      this.styleSearch(w);
       const tabmail = w.document.getElementById("tabmail");
       for (const tab of tabmail?.tabInfo || []) {
         const cw = tab.chromeBrowser?.contentWindow;
@@ -5409,22 +5705,29 @@ class CardEnhancer {
     if (!bar?.shadowRoot || bar.shadowRoot.getElementById("mail-cards-search")) {
       return;
     }
+    // eigener Text nur in Sprachen mit eigener Übersetzung (und Englisch) –
+    // sonst bleibt Thunderbirds übersetzter Platzhalter
+    const own = uiLanguage() != "en" || Services.locale.appLocaleAsBCP47.startsWith("en");
+    // langer eigener Platzhalter („Alle Postfächer durchsuchen“) endet bei
+    // schmalem Feld mit „…“ statt mitten im Wort
+    const ellipsis = own
+      ? `::slotted([slot="placeholder"]) { display: block !important; overflow: hidden !important; text-overflow: ellipsis !important; }`
+      : "";
     const style = w.document.createElementNS("http://www.w3.org/1999/xhtml", "style");
     style.id = "mail-cards-search";
     style.textContent = `
       .button { inset-inline-start: 4px !important; inset-inline-end: auto !important; }
       input { padding-inline: 30px 10px !important; }
       div { inset-inline-start: 30px !important; inset-inline-end: 10px !important; }
+      ${ellipsis}
     `;
     bar.shadowRoot.appendChild(style);
 
     const placeholder = bar.querySelector('[slot="placeholder"]');
     const l10nId = placeholder?.getAttribute("data-l10n-id");
-    if (placeholder) {
+    if (placeholder && own) {
       placeholder.removeAttribute("data-l10n-id");
-      placeholder.textContent = Services.locale.appLocaleAsBCP47.startsWith("de")
-        ? "Suchen"
-        : "Search";
+      placeholder.textContent = tr("Search");
     }
     this.restorers.push(() => {
       style.remove();
@@ -5440,7 +5743,7 @@ class CardEnhancer {
   // darüber und decken sie zu (beim Einblenden umgekehrt). Dauer und Kurve sind die macOS-Standardwerte für
   // Seitenleisten: 0,25 s, cubic-bezier(0.25, 0.1, 0.25, 1).
   // Thunderbird steuert die Breite über --folderPaneSplitter-width am Raster.
-  animateSidebar(ab, splitter) {
+  animateSidebar(ab, splitter, onDone) {
     if (ab.__mcAnimating) {
       return;
     }
@@ -5512,7 +5815,7 @@ class CardEnhancer {
         grid.style.removeProperty(prop);
       }
       ab.__mcAnimating = false;
-      this.sidebarTip?.();
+      onDone?.();
       ab.setTimeout(() => this.offsetUpdaters?.forEach(fn => fn()), 30);
     };
     // erstes Bild sofort setzen, damit nichts aufblitzt
@@ -5570,13 +5873,21 @@ class CardEnhancer {
     }
     if (!cw.__mcHeaderHook) {
       cw.__mcHeaderHook = true;
-      const update = () => cw.setTimeout(() => this.updateAbHeader(box, cw), 0);
+      // nur solange das Adressbuch vorne ist: die Kopfzeile steht auch über der
+      // Mailliste, und die Kontaktliste ändert sich im Hintergrund (gesammelte
+      // Adressen, CardDAV). Beim Zurückwechseln füllt updateListHeader sie neu.
+      const update = () => cw.setTimeout(() => {
+        const tab = box.ownerDocument.getElementById("tabmail")?.currentTabInfo;
+        if (tab?.browser?.contentWindow == cw) {
+          this.updateAbHeader(box, cw);
+        }
+      }, 0);
       const search = cw.cardsPane.searchInput;
       books.addEventListener("select", update);
       search?.addEventListener("autocomplete", update);
       const mo = new cw.MutationObserver(update);
       mo.observe(list, { childList: true, subtree: true });
-      this.restorers.push(() => {
+      this.addWinRestorer(cw, () => {
         books.removeEventListener("select", update);
         search?.removeEventListener("autocomplete", update);
         mo.disconnect();
@@ -5825,6 +6136,11 @@ class CardEnhancer {
       const updateColor = () => root.style.setProperty("--mc-qc-color", color(selectedCalendar()));
       const updateSummary = () => {
         if (state.mode == "task") {
+          // Erinnerung braucht eine Fälligkeit (sonst ginge sie beim Anlegen verloren)
+          if (f.alert.value && !f.hasDue.checked) {
+            f.hasDue.checked = true;
+            root.toggleAttribute("data-due", true);
+          }
           const due = f.hasDue.checked ? parse(f.dueDate.value, f.dueTime.value) : null;
           f.line1.textContent = due ? `${tr("Due")} ${fmtDate.format(due)} ${fmtTime.format(due)}` : tr("No Due Date");
           f.line2.textContent = f.alert.value ? chosen(f.alert) : tr("Add Due Date or Alert");
@@ -5900,6 +6216,9 @@ class CardEnhancer {
       }
       f.hasDue.addEventListener("change", () => {
         root.toggleAttribute("data-due", f.hasDue.checked);
+        if (!f.hasDue.checked) {
+          f.alert.value = "";
+        }
         updateSummary();
       });
       f.calendar.addEventListener("change", updateColor);
@@ -6008,7 +6327,9 @@ class CardEnhancer {
           let s = parse(f.startDate.value, f.allDay.checked ? "00:00" : f.startTime.value) || new Date();
           let e = parse(f.endDate.value, f.allDay.checked ? "00:00" : f.endTime.value);
           if (f.allDay.checked) {
-            e = new Date((e || s).getFullYear(), (e || s).getMonth(), (e || s).getDate() + 1);
+            // Ende vor dem Beginn: ein Tag am Beginn
+            const last = e && e >= s ? e : s;
+            e = new Date(last.getFullYear(), last.getMonth(), last.getDate() + 1);
           } else if (!e || e <= s) {
             e = new Date(s.getTime() + 3600 * 1000);
           }
@@ -6105,10 +6426,16 @@ class CardEnhancer {
         day = new Date(ts.year, ts.month, ts.day, now.getHours(), now.getMinutes());
       }
     } catch {}
-    let start = new Date(day.getFullYear(), day.getMonth(), day.getDate(), now.getHours() + 1, 0);
+    // ein anderer Tag als heute bleibt auch nach 23 Uhr dieser Tag (23:00 statt
+    // 0:00 am Folgetag); heute – auch per „+“ der Today-Pane – wie bisher 0:00 am
+    // Folgetag statt eines Beginns in der Vergangenheit (Datum vergleichen, die
+    // Today-Pane liefert ein eigenes Date-Objekt)
+    const nextHour = Math.min(now.getHours() + 1, 23);
+    const isToday = day.getFullYear() == now.getFullYear() && day.getMonth() == now.getMonth() && day.getDate() == now.getDate();
+    let start = new Date(day.getFullYear(), day.getMonth(), day.getDate(), isToday ? now.getHours() + 1 : nextHour, 0);
     if (preset?.start) {
       start = preset.allDay
-        ? new Date(preset.start.getFullYear(), preset.start.getMonth(), preset.start.getDate(), now.getHours() + 1, 0)
+        ? new Date(preset.start.getFullYear(), preset.start.getMonth(), preset.start.getDate(), nextHour, 0)
         : new Date(preset.start);
     }
     const end = new Date(start.getTime() + 3600 * 1000);
@@ -6289,7 +6616,7 @@ class CardEnhancer {
       const k = Math.min(1, (now - start) / DURATION);
       const value = full * (showing ? curve(k) : 1 - curve(k));
       setW(value);
-      this.todayTopSync?.(value);
+      w.__mcTodayTopSync?.(value);
       if (k < 1) {
         w.requestAnimationFrame(step);
         return;
@@ -6312,7 +6639,7 @@ class CardEnhancer {
       }
       panel.__mcAnimating = false;
       panel.removeAttribute("data-mc-anim");
-      this.todayTopSync?.();
+      w.__mcTodayTopSync?.();
       // Toolbar einmal neu anordnen (während der Animation ausgesetzt)
       for (const f of this.offsetUpdaters || []) {
         try {
@@ -7412,7 +7739,9 @@ class CardEnhancer {
     const localIsEmpty = () => {
       try {
         const root = MailServices.accounts.localFoldersServer?.rootFolder;
-        return !root || root.subFolders.every(f => !f.hasSubFolders && f.getTotalMessages(false) == 0);
+        // der eigene Suchordner zählt nicht – er behält nach einer Suche die
+        // Trefferzahl; gespeicherte Suchen des Nutzers zählen weiter
+        return !root || root.subFolders.every(f => this.isSearchFolder(f) || (!f.hasSubFolders && f.getTotalMessages(false) == 0));
       } catch {
         return false;
       }
@@ -7453,8 +7782,15 @@ class CardEnhancer {
             setAttr(li, "data-mc-hide", allShown && type != "inbox" && type != "sent");
             if (type == "inbox") setText(label, L.allInboxes);
             if (type == "sent") setText(label, L.allSent);
-          } else if (folder?.server) {
-            setText(label, folder.server.prettyName); // „Google“, „iCloud“
+          } else {
+            // nur das Postfach je Konto direkt unter „Alle Eingänge“/„Alle
+            // gesendeten“ heißt wie das Konto – tiefere Zeilen (Unterordner)
+            // und Ordner unter den Kontozeilen behalten ihren eigenen Namen
+            const parentRow = li.parentElement?.closest("li");
+            if (folder?.server && parentRow?.parentElement?.parentElement === modeLi &&
+                !parentRow.hasAttribute("data-server-type")) {
+              setText(label, folder.server.prettyName); // „Google“, „iCloud“
+            }
           }
           continue;
         }
@@ -7531,7 +7867,20 @@ class CardEnhancer {
         li.removeAttribute("data-mc-hide");
         li.removeAttribute("data-mc-flatten");
       }
-      win.folderPane?.activeModes && (win.folderPane.activeModes = win.folderPane.activeModes); // Namen neu aufbauen
+      // Namen, Reihenfolge und Einrückung direkt zurücksetzen (activeModes neu
+      // zuweisen baut nichts neu auf, solange die Modi gleich bleiben)
+      for (const li of tree.querySelectorAll('li[is="folder-tree-row"]')) {
+        li.style.removeProperty("order");
+        if (li.childList && li.depth) {
+          li.childList.style.setProperty("--depth", li.depth);
+        }
+        try {
+          li._setName?.();
+        } catch {}
+      }
+      for (const header of tree.querySelectorAll(":scope > li[data-mode] > .mode-container .mode-name")) {
+        doc.l10n?.setAttributes(header, `folder-pane-mode-header-${header.closest("li[data-mode]").dataset.mode}`);
+      }
     });
   }
 
@@ -7829,21 +8178,26 @@ class CardEnhancer {
         if (card.isMailList) {
           continue;
         }
-        let value = "";
+        let entry = null;
         try {
-          value = String(card.vCardProperties?.getFirstValue("bday") || "");
+          entry = card.vCardProperties?.getFirstEntry("bday");
         } catch {}
+        const value = String(entry?.value || "");
         const m = value.match(/^(?:(\d{4})|--)-?(\d{2})-?(\d{2})/);
         if (!m) {
           continue;
         }
+        // Apple (Kontakte/iCloud) speichert Geburtstage ohne Jahr als 1604 mit
+        // X-APPLE-OMIT-YEAR – das ist kein Geburtsjahr (auch ohne den Parameter)
+        const omit = entry.params?.["x-apple-omit-year"];
+        const year = m[1] && m[1] != omit && Number(m[1]) > 1604 ? Number(m[1]) : null;
         const name = (card.displayName || `${card.firstName || ""} ${card.lastName || ""}`).trim() || card.primaryEmail;
         if (!name) {
           continue;
         }
         const key = `${name.toLocaleLowerCase()}|${m[2]}${m[3]}`;
-        if (!found.has(key) || (!found.get(key).year && m[1])) {
-          found.set(key, { name, year: m[1] ? Number(m[1]) : null, month: Number(m[2]), day: Number(m[3]) });
+        if (!found.has(key) || (!found.get(key).year && year)) {
+          found.set(key, { name, year, month: Number(m[2]), day: Number(m[3]) });
         }
       }
     }
@@ -7929,7 +8283,11 @@ class CardEnhancer {
     act("mc-act-flag", tr("Flag"), hdr => hdr.folder.markMessagesFlagged([hdr], !hdr.isFlagged));
     act("mc-act-archive", tr("Archive"), hdr => {
       const { MessageArchiver } = ChromeUtils.importESModule("resource:///modules/MessageArchiver.sys.mjs");
-      new MessageArchiver().archiveMessages([hdr]);
+      const archiver = new MessageArchiver();
+      // wie Thunderbirds cmd_archive: ohne msgWindow kein Rückgängig (Cmd+Z);
+      // msgWindow liegt im Hauptfenster, nicht in about:3pane
+      archiver.msgWindow = win.top.msgWindow;
+      archiver.archiveMessages([hdr]);
     });
     act("mc-act-delete", tr("Delete"), hdr => {
       // nur in den Papierkorb verschieben – im Papierkorb selbst (dort wäre es
@@ -7937,7 +8295,7 @@ class CardEnhancer {
       if (hdr.folder.getFlag(Ci.nsMsgFolderFlags.Trash)) {
         return;
       }
-      hdr.folder.deleteMessages([hdr], win.msgWindow, false, false, null, true);
+      hdr.folder.deleteMessages([hdr], win.top.msgWindow, false, false, null, true);
     });
     return box;
   }
@@ -7980,14 +8338,24 @@ class CardEnhancer {
     const run = () => {
       const box = doc.querySelector("#fromRecipient0 .recipient-avatar");
       const hdr = win.gMessage;
-      if (!box || !hdr || box.dataset.mcFor == hdr.messageId) {
+      // Thunderbird befüllt das Bild bei Adressbuch-Änderungen (Stern im
+      // Mailkopf, CardDAV) neu – mit seinem Buchstaben (<span>) oder Foto
+      // (<img data-l10n-id>); fillAvatar erzeugt beides nie. Dann neu befüllen.
+      const foreign = box?.querySelector(":scope > span, :scope > img[data-l10n-id]");
+      if (!box || !hdr || (box.dataset.mcFor == hdr.messageId && !foreign)) {
         return;
+      }
+      const same = box.dataset.mcFor == hdr.messageId;
+      if (foreign) {
+        box.replaceChildren();
       }
       box.dataset.mcFor = hdr.messageId;
       box.classList.add("mc-hdr-avatar");
       try {
         this.fillAvatar(box, hdr);
-        this.decorateHeader(doc, hdr);
+        if (!same) {
+          this.decorateHeader(doc, hdr);
+        }
       } catch (e) {
         log("header avatar error", e);
       }
@@ -8029,7 +8397,7 @@ class CardEnhancer {
     shorten();
     run();
     this.hookNotificationLayout(doc);
-    this.restorers.push(() => {
+    this.addWinRestorer(win, () => {
       mo.disconnect();
       delete doc.__mcHdrAvatar;
       // Datum zurück an seinen Platz, eigene Elemente entfernen
@@ -8038,6 +8406,7 @@ class CardEnhancer {
       if (meta && date && doc.__mcDateHome) {
         doc.__mcDateHome.parent.insertBefore(date, doc.__mcDateHome.next?.parentNode == doc.__mcDateHome.parent ? doc.__mcDateHome.next : null);
       }
+      meta?.__mcResize?.disconnect();
       meta?.remove();
       doc.getElementById("mcListBanner")?.remove();
       for (const box of doc.querySelectorAll(".mc-hdr-avatar")) {
@@ -8080,7 +8449,7 @@ class CardEnhancer {
     const mo = new win.MutationObserver(() => win.setTimeout(apply, 0));
     mo.observe(box, { childList: true, subtree: true });
     apply();
-    this.restorers.push(() => {
+    this.addWinRestorer(win, () => {
       mo.disconnect();
       delete box.__mcLayout;
       for (const n of box.querySelectorAll("notification-message")) {
@@ -8171,8 +8540,20 @@ class CardEnhancer {
             .loadURI(Services.io.newURI(web), Services.scriptSecurityManager.getSystemPrincipal());
         }
       };
-      // Abmelde-Mail nur vorbereiten – gesendet wird erst durch den Nutzer
-      const composeMail = () => MailServices.compose.OpenComposeWindowWithURI(null, Services.io.newURI(mail));
+      // Abmelde-Mail nur vorbereiten – gesendet wird erst durch den Nutzer.
+      // Absender ist die Identität, an die die Mail ging (wie Thunderbird bei
+      // mailto-Links in Mails), nicht die Standard-Identität: Verteiler melden
+      // nach Absender ab, und die private Adresse ginge sonst an den Betreiber
+      const composeMail = () => {
+        let identity = null;
+        try {
+          const { MailUtils } = ChromeUtils.importESModule("resource:///modules/MailUtils.sys.mjs");
+          [identity] = MailUtils.getIdentityForHeader(hdr);
+        } catch (e) {
+          debugLog("unsubscribe identity", String(e).slice(0, 120));
+        }
+        MailServices.compose.OpenComposeWindowWithURI(null, Services.io.newURI(mail), identity);
+      };
       const unsubscribeOneClick = async () => {
         let name = "";
         try {
@@ -8196,6 +8577,9 @@ class CardEnhancer {
             method: "POST",
             headers: { "Content-Type": "application/x-www-form-urlencoded" },
             body: "List-Unsubscribe=One-Click",
+            // die Antwortseite selbst wird nicht gebraucht
+            max: 0,
+            truncate: true,
           });
           if (!res.ok) {
             throw new Error(`status ${res.status}`);
@@ -8310,7 +8694,8 @@ class CardEnhancer {
     this.pendingPreview.get(folder).push(hdr);
     this.stats.quick++;
     if (!this.previewTimer) {
-      this.previewTimer = win.setTimeout(() => this.flushPreviews(), 150);
+      // Modul-Timer: ein Fenster-Timer verfällt, wenn der Tab/das Fenster vorher geschlossen wird
+      this.previewTimer = setTimeout(() => this.flushPreviews(), 150);
     }
   }
 
@@ -8493,6 +8878,8 @@ this.mailCards = class extends ExtensionCommon.ExtensionAPI {
           for (const [key, spec] of Object.entries(SETTINGS)) {
             out[key] = readSetting(spec);
           }
+          // wie im Hilfe-Fenster: eingerichtete Fotos gelten auch ohne Pref als an
+          out.macContactPhotos = await MacPhotos.enabled();
           return out;
         },
         async setSetting(key, value) {
@@ -8501,7 +8888,9 @@ this.mailCards = class extends ExtensionCommon.ExtensionAPI {
             throw new Error(`unknown setting ${key}`);
           }
           const [pref, type, def] = spec;
-          if (value === null || value === def) {
+          // Kontaktfotos immer ausdrücklich speichern: ohne Wert gälten sie als
+          // an, sobald es mail-cards-photos/index.json gibt (MacPhotos.enabled)
+          if ((value === null || value === def) && key != "macContactPhotos") {
             Services.prefs.clearUserPref(pref); // Standard: nichts im Profil speichern
           } else if (type == "bool") {
             Services.prefs.setBoolPref(pref, !!value);
