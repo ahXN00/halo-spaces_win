@@ -2529,6 +2529,14 @@ function parseNatural(text, now = new Date()) {
     if (!range[3] && range[6] && toMinutes(range[1], range[2], range[6]) < endMin) {
       startMin = toMinutes(range[1], range[2], range[6]);
     }
+    // nur das Ende hat „am“ und liegt nach Mitternacht: der Beginn ist am
+    // Abend davor („11-1am“ → 23–1 Uhr, nicht 11 Uhr bis 1 Uhr nachts)
+    if (!range[3] && /^a/i.test(range[6] || "") && startMin > endMin) {
+      const pm = toMinutes(range[1], range[2], "pm");
+      if (pm > endMin) {
+        startMin = pm;
+      }
+    }
   } else if ((m = take(new RegExp(`${B}(?:um\\s+|at\\s+)?(\\d{1,2})(?:[:.](\\d{2}))?\\s*(?:uhr|h)${E}`, "iu")))) {
     startMin = toMinutes(m[1], m[2]);
   } else if ((m = take(new RegExp(`${B}(?:um\\s+|at\\s+)?(\\d{1,2})(?:[:.](\\d{2}))?\\s*(am|pm)${E}`, "iu")))) {
@@ -2548,7 +2556,12 @@ function parseNatural(text, now = new Date()) {
   const title = rest.replace(new RegExp(`${B}(am|um|on|at|von|from)\\s*$`, "iu"), "")
     .replace(/\s+/g, " ").replace(/\s+([,.;:!?])/g, "$1").replace(/^[\s,–-]+|[\s,–-]+$/g, "").trim();
   const base = day || new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  const result = { title: title || text.trim(), allDay: allDay || (startMin == null && !!day) };
+  // Dauer ohne Uhrzeit („Meeting morgen für 2h“): nicht ganztägig, die
+  // Uhrzeit kommt aus der Vorbelegung des Schnellfensters
+  const result = { title: title || text.trim(), allDay: allDay || (startMin == null && !!day && duration == null) };
+  if (duration != null) {
+    result.duration = duration;
+  }
   if (!result.allDay && startMin != null) {
     result.start = new Date(base.getFullYear(), base.getMonth(), base.getDate(), Math.floor(startMin / 60), startMin % 60);
     let end = endMin != null ? endMin : startMin + (duration ?? 60);
@@ -6434,8 +6447,13 @@ class CardEnhancer {
         const r = parseNatural(f.title.value);
         const def = panel.__mcDefaults;
         panel.__mcParsed = r.start ? r : null;
-        const start = r.start || def.start;
-        const end = r.end || (r.allDay ? start : new Date(start.getTime() + 3600 * 1000));
+        let start = r.start || def.start;
+        let end = r.end || (r.allDay ? start : new Date(start.getTime() + 3600 * 1000));
+        // nur Tag und Dauer erkannt: Uhrzeit wie vorbelegt, Ende nach der Dauer
+        if (r.start && !r.allDay && !r.end && r.duration != null) {
+          start = new Date(r.start.getFullYear(), r.start.getMonth(), r.start.getDate(), def.start.getHours(), def.start.getMinutes());
+          end = new Date(start.getTime() + r.duration * 60000);
+        }
         const allDay = r.start ? !!r.allDay : def.allDay;
         if (state.mode == "task") {
           f.hasDue.checked = !!r.start || def.hasDue;

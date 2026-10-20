@@ -2096,10 +2096,20 @@ def run_checks(m, version, profile, results):
           const it = (await items("Halo NL Essen"))[0];
           if (!it) return null;
           const s = cal.dtz.dateTimeToJsDate(it.startDate), e = cal.dtz.dateTimeToJsDate(it.endDate), tm2 = new Date(); tm2.setDate(tm2.getDate() + 1);
-          return { tomorrow: s.getDate() == tm2.getDate(), start: s.getHours() * 60 + s.getMinutes(), minutes: (e - s) / 60000 };''')
-        ok = bool(res) and res["tomorrow"] and res["start"] == 750 and res["minutes"] == 90
+          // nur Tag und Dauer („morgen für 2h“): nicht ganztägig, 2 Stunden lang
+          li.querySelector("button").click(); await wait(900);
+          const t2 = p.querySelector(".mc-qc-title");
+          p.querySelector(".mc-qc-calsel").value = testCalendar().id; p.querySelector(".mc-qc-calsel").dispatchEvent(new w.Event("change"));
+          t2.value = "Halo NL Dauer morgen für 2h"; t2.dispatchEvent(new w.Event("input", { bubbles: true })); await wait(300);
+          p.querySelector(".mc-qc-primary").click(); await wait(1200);
+          const it2 = (await items("Halo NL Dauer"))[0];
+          const dur = it2 ? { allDay: it2.startDate.isDate, minutes: (cal.dtz.dateTimeToJsDate(it2.endDate) - cal.dtz.dateTimeToJsDate(it2.startDate)) / 60000,
+                              tomorrow: cal.dtz.dateTimeToJsDate(it2.startDate).getDate() == tm2.getDate() } : null;
+          return { tomorrow: s.getDate() == tm2.getDate(), start: s.getHours() * 60 + s.getMinutes(), minutes: (e - s) / 60000, dur };''')
+        ok = (bool(res) and res["tomorrow"] and res["start"] == 750 and res["minutes"] == 90
+              and bool(res["dur"]) and res["dur"]["allDay"] is False and res["dur"]["minutes"] == 120 and res["dur"]["tomorrow"])
         return ok, f"{res}"
-    check("Schnellfenster: natürliche Eingabe („morgen 12:30 für 90 min“)", natural, results)
+    check("Schnellfenster: natürliche Eingabe („morgen 12:30 für 90 min“, „morgen für 2h“ nicht ganztägig)", natural, results)
 
     def natural_rules():
         # parseNatural direkt über das Experiment-Modul, „jetzt“ = Di 20.10.2026 15:00
@@ -2112,9 +2122,10 @@ def run_checks(m, version, profile, results):
           const out = {};
           for (const t of ["Lunch für 2h um 12 Uhr", "Workshop für 1.5h morgen um 10 Uhr", "Meeting 14:00 für 2h", "Arzt Freitag morgen 8 Uhr",
                            "Arzt morgen 8 Uhr", "Termin 1.3.25", "Call 11-1pm", "Call 2-4pm", "Party 22-2 Uhr", "Arbeit 9-5",
-                           "Schicht 18-7 Uhr", "Standup 11-12am", "Gottesdienst Karfreitag morgen 10 Uhr"]) {
+                           "Schicht 18-7 Uhr", "Standup 11-12am", "Gottesdienst Karfreitag morgen 10 Uhr", "Party 11-1am", "Party 10-2am",
+                           "Meeting morgen für 2h"]) {
             const r = parse(t, new Date(2026, 9, 20, 15, 0));
-            out[t] = `${r.title} | ${f(r.start)} – ${f(r.end)}`;
+            out[t] = `${r.title} | ${f(r.start)} – ${f(r.end)}` + (!r.end && !r.allDay ? ` | ohne Uhrzeit, ${r.duration} min` : "");
           }
           return out;''' % ADDON_ID)
         expected = {
@@ -2131,9 +2142,12 @@ def run_checks(m, version, profile, results):
             "Schicht 18-7 Uhr": "Schicht | 20.10.2026 18:00 – 21.10.2026 07:00",
             "Standup 11-12am": "Standup | 20.10.2026 11:00 – 20.10.2026 12:00",
             "Gottesdienst Karfreitag morgen 10 Uhr": "Gottesdienst Karfreitag | 21.10.2026 10:00 – 21.10.2026 11:00",
+            "Party 11-1am": "Party | 20.10.2026 23:00 – 21.10.2026 01:00",
+            "Party 10-2am": "Party | 20.10.2026 22:00 – 21.10.2026 02:00",
+            "Meeting morgen für 2h": "Meeting | 21.10.2026 00:00 – - | ohne Uhrzeit, 120 min",
         }
         bad = [f"„{k}“ → {res.get(k)}" for k, v in expected.items() if res.get(k) != v]
-        return not bad, "; ".join(bad) or f"{len(expected)} Eingaben richtig (Dauer, „Freitag morgen“, „Karfreitag morgen“, Jahr „25“, am/pm, „12am“, über Mitternacht)"
+        return not bad, "; ".join(bad) or f"{len(expected)} Eingaben richtig (Dauer, Dauer ohne Uhrzeit, „Freitag morgen“, „Karfreitag morgen“, Jahr „25“, am/pm, „12am“, „11-1am“, über Mitternacht)"
     check("Schnellfenster: Dauer, Wochentag mit „morgen“, zweistelliges Jahr, Zeiträume", natural_rules, results)
 
     def quick_late_allday():
