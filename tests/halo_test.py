@@ -1249,6 +1249,204 @@ def compose_checks(m, results):
     check("Verfassen: schmales Fenster zeigt nur Symbole statt gekürzter Beschriftungen, Formatleiste bleibt im Fenster; breit wieder mit Beschriftung", narrow_toolbar, results)
 
 
+FOLDER_JS = r"""
+  const { MailServices } = ChromeUtils.importESModule("resource:///modules/MailServices.sys.mjs");
+  try { MailServices.accounts.localFoldersServer; } catch { MailServices.accounts.createLocalMailAccount(); await wait(500); }
+  const csOf = (el, pseudo) => el.ownerDocument.defaultView.getComputedStyle(el, pseudo);
+  // berechnete Farbe eines Werts (var(--mt-…)) im Dokument
+  const colorOf = (doc, value, prop = "color") => { const e = doc.createElementNS("http://www.w3.org/1999/xhtml", "div"); e.style[prop] = value;
+    doc.documentElement.append(e); const c = csOf(e)[prop]; e.remove(); return c; };
+  const rgba = c => { const v = (String(c).match(/-?[\d.]+(?:e-?\d+)?/g) || []).map(Number); const k = String(c).startsWith("color(") ? 255 : 1;
+    return [v[0] * k, v[1] * k, v[2] * k, v.length > 3 ? v[3] : 1]; };
+  const lum = c => { const [r, g, b] = c.slice(0, 3).map(x => { x /= 255; return x <= 0.03928 ? x / 12.92 : ((x + 0.055) / 1.055) ** 2.4; }); return 0.2126 * r + 0.7152 * g + 0.0722 * b; };
+  const contrast = (a, b) => { const [x, y] = [lum(a), lum(b)].sort((p, q) => q - p); return Math.round((x + 0.05) / (y + 0.05) * 100) / 100; };
+  // ausgeblendet (display oder visibility) bzw. gar nicht vorhanden
+  const gone = el => !el || csOf(el).display == "none" || csOf(el).visibility == "hidden";"""
+
+
+def folder_checks(m, results):
+    """Ordnerliste, Toolbar und Suche: neue Mails, Platz für den Bereiche-Knopf, Abschnitte ohne Linien, globale Suche
+    (Suchfeld, Ergebnis-Tab, Vorschläge), Toolbar anpassen, „Anpassen…“ der Bereiche-Leiste."""
+
+    def new_messages():
+        res = m.js(FOLDER_JS + r"""
+          const a3 = await toMail(); const ad = a3.document; const tree = ad.getElementById("folderTree");
+          const li = await until(() => [...tree.querySelectorAll("li:not([data-server-type], [data-mode], .unselectable)")]
+            .find(x => x.querySelector(":scope > .container > .name")?.getBoundingClientRect().width));
+          if (!li) return { folder: null };
+          li.classList.add("new-messages"); await wait(150);
+          const name = li.querySelector(":scope > .container > .name"), star = li.querySelector(":scope > .container > .new-icon");
+          const out = { folder: name.textContent, color: csOf(name).color, text: colorOf(ad, "var(--mt-text)"), weight: csOf(name).fontWeight,
+                        star: star ? csOf(star).visibility : "fehlt" };
+          li.classList.remove("new-messages");
+          // Kontozeile bleibt grauer Abschnittstitel
+          const srv = tree.querySelector("li[data-server-type] > .container > .name");
+          if (srv) { const sl = srv.closest("li"); const had = sl.classList.contains("new-messages"); sl.classList.add("new-messages"); await wait(100);
+            out.server = csOf(srv).color; out.tertiary = colorOf(ad, "var(--mt-text-tertiary)"); if (!had) sl.classList.remove("new-messages"); }
+          return out;""")
+        ok = (res.get("folder") is not None and same_color(res["color"], res["text"]) and res["weight"] == "400" and res["star"] == "hidden"
+              and ("server" not in res or same_color(res["server"], res["tertiary"])))
+        return ok, f"{res}"
+    check("Ordnerliste: Ordner mit neuen Mails ohne Funkelstern, Name in Textfarbe wie die übrigen", new_messages, results)
+
+    def toggle_room():
+        # Bereiche-Leiste aus: der Knopf unten links schwebt über der Ordnerliste – ganz nach unten gescrollt endet die
+        # letzte Zeile darüber (auch ohne Statusleiste); Liste künstlich kurz, damit sie im leeren Testprofil scrollt
+        res = m.js(FOLDER_JS + r"""
+          const a3 = await toMail(); const ad = a3.document; const tree = ad.getElementById("folderTree");
+          const wasHidden = w.gSpacesToolbar.isHidden;
+          w.gSpacesToolbar.toggleToolbar(true); await wait(900);
+          try {
+            const btn = d.getElementById("mcSpacesToggle").getBoundingClientRect();
+            const off = a3.browsingContext.embedderElement.getBoundingClientRect();
+            const pane = ad.getElementById("folderPane").getBoundingClientRect();
+            const pad = parseFloat(csOf(tree).paddingBottom);
+            tree.style.maxHeight = "120px"; await wait(200);
+            tree.scrollTop = tree.scrollHeight; await wait(200);
+            const t = tree.getBoundingClientRect();
+            const rows = [...tree.querySelectorAll("li > .container")].filter(c => c.getBoundingClientRect().height > 0);
+            const last = rows.at(-1)?.getBoundingClientRect();
+            return { pad, btnTop: Math.round(btn.top), btnW: Math.round(btn.width), btnLeft: Math.round(btn.left), paneBottom: Math.round(off.top + pane.bottom),
+                     paneLeft: Math.round(off.left + pane.left), win: w.innerHeight, scrolls: tree.scrollHeight > tree.clientHeight,
+                     lastGap: last ? Math.round(t.bottom - last.bottom) : null };
+          } finally {
+            tree.style.maxHeight = ""; tree.scrollTop = 0;
+            if (!wasHidden) w.gSpacesToolbar.toggleToolbar(false);
+            await wait(600);
+          }""")
+        ok = (res["btnW"] > 0 and res["btnLeft"] >= res["paneLeft"] and res["pad"] >= 46
+              and res["paneBottom"] - res["pad"] <= res["btnTop"] - 4 and res["win"] - res["pad"] <= res["btnTop"]
+              and res["scrolls"] and res["lastGap"] is not None and res["lastGap"] >= res["pad"] - 1)
+        return ok, f"{res}"
+    check("Ordnerliste: letzte Zeile lässt sich über den Bereiche-Knopf hinaus scrollen (Leiste ausgeblendet)", toggle_room, results)
+
+    def mode_lines():
+        res = m.js(FOLDER_JS + r"""
+          const a3 = await toMail(); const ad = a3.document; const fp = a3.folderPane; const old = fp.activeModes;
+          fp.activeModes = ["smart", "all", "unread", "recent"]; await wait(1200);
+          const out = [...ad.querySelectorAll("#folderTree > li[data-mode] > .mode-container")].filter(c => csOf(c).display != "none")
+            .map(c => [c.parentNode.dataset.mode, csOf(c).borderTopStyle, csOf(c).borderTopWidth]);
+          fp.activeModes = old; await wait(800);
+          return out;""")
+        ok = len(res) >= 3 and all(s == "none" or wd == "0px" for _, s, wd in res)
+        return ok, f"{res}"
+    check("Ordnerliste: Abschnitte (Favoriten, Ungelesen, Zuletzt) einheitlich ohne Linie darüber", mode_lines, results)
+
+    # globale Suche im eigenen Tab: ein Tab für zwei Prüfungen
+    gloda = {}
+
+    def gloda_tab():
+        if not gloda:
+            gloda.update(m.js(FOLDER_JS + r"""
+              const { GlodaMsgSearcher } = ChromeUtils.importESModule("resource:///modules/gloda/GlodaMsgSearcher.sys.mjs");
+              await toMail();
+              const measure = () => { const p = d.getElementById("spacesPinnedButton").getBoundingClientRect();
+                const s = d.querySelector('#unifiedToolbarContent > li[item-id="search-bar"]')?.getBoundingClientRect();
+                return { pinned: Math.round(p.right), search: s?.width ? Math.round(s.left) : null }; };
+              const fits = () => { const x = measure(); return x.search !== null && x.search >= x.pinned + 11 && x; };
+              const tab = tm.openTab("glodaFacet", { searcher: new GlodaMsgSearcher(null, "halo") });
+              const out = {};
+              try {
+                await wait(1500);
+                out.first = await until(fits, 4000) || measure();
+                // nach einem Bereich mit anderer Kante (Kalender) wieder zum Such-Tab
+                await toCalendar(); tm.switchToTab(tab); await wait(1200);
+                out.again = await until(fits, 4000) || measure();
+                const gd = await until(() => { const x = tab.browser?.contentDocument; return x?.readyState == "complete" && x.getElementById("gloda-facet-view") && x; }, 6000);
+                if (gd) {
+                  const view = gd.getElementById("gloda-facet-view"), empty = gd.querySelector("span.empty"), img = gd.querySelector("img.empty");
+                  out.view = { bg: csOf(view).backgroundColor, window: colorOf(gd, "var(--mt-window)", "backgroundColor"),
+                    side: csOf(gd.querySelector(".facets-sidebar")).backgroundColor, sidebar: colorOf(gd, "var(--mt-sidebar)", "backgroundColor"),
+                    empty: csOf(empty).color, secondary: colorOf(gd, "var(--mt-text-secondary)"), img: csOf(img).width };
+                  out.view.contrast = contrast(rgba(out.view.empty), rgba(out.view.bg));
+                }
+                const rs = tab.panel?.querySelector(".remote-gloda-search");
+                out.field = rs && { border: csOf(rs).borderTopStyle, radius: parseFloat(csOf(rs).borderTopLeftRadius), height: Math.round(rs.getBoundingClientRect().height),
+                                    bg: csOf(rs).backgroundColor, control: colorOf(d, "var(--mt-control)", "backgroundColor") };
+              } finally { tm.closeTab(tab); await wait(600); await toMail(); }
+              return out;"""))
+        return gloda
+
+    def gloda_search_field():
+        g = gloda_tab()
+        ok = all(g.get(k, {}).get("search") is not None and g[k]["search"] >= g[k]["pinned"] + 11 for k in ("first", "again"))
+        return ok, f"Suchfeld links / Seitenleisten-Knopf rechts: zuerst {g.get('first')}, nach dem Kalender {g.get('again')}"
+    check("Globale Suche: Suchfeld oben rechts vom Seitenleisten-Knopf, auch nach dem Wechsel aus dem Kalender", gloda_search_field, results)
+
+    def gloda_page():
+        g = gloda_tab()
+        v, f = g.get("view") or {}, g.get("field") or {}
+        ok = (bool(v) and same_color(v["bg"], v["window"]) and same_color(v["side"], v["sidebar"]) and same_color(v["empty"], v["secondary"])
+              and v["contrast"] >= 4.5 and v["img"].endswith("px") and float(v["img"][:-2]) <= 64
+              and bool(f) and f["border"] == "none" and f["radius"] >= 14 and f["height"] >= 26 and same_color(f["bg"], f["control"]))
+        return ok, f"Seite {v}; Suchfeld {f}"
+    check("Globale Suche: Ergebnis-Tab in den Flächen der übrigen Ansichten, Leerhinweis grau (Kontrast ≥ 4,5:1), Suchfeld als Kapsel", gloda_page, results)
+
+    def suggestions():
+        res = m.js(FOLDER_JS + r"""
+          const p = d.getElementById("PopupGlodaAutocomplete"); if (!p) return null; const s = csOf(p);
+          return { font: s.fontSize, border: colorOf(d, s.getPropertyValue("--panel-border-color").trim() || "red"),
+                   bg: colorOf(d, s.getPropertyValue("--panel-background-color").trim() || "red"), menu: colorOf(d, "var(--mt-menu-bg)"),
+                   url: colorOf(d, s.getPropertyValue("--autocomplete-popup-url-color").trim() || "red"), secondary: colorOf(d, "var(--mt-text-secondary)") };""")
+        ok = (res is not None and res["font"] == "13px" and rgba_alpha(res["border"]) == 0 and same_color(res["bg"], res["menu"])
+              and same_color(res["url"], res["secondary"]))
+        return ok, f"{res}"
+    check("Suche: Vorschlagsliste wie die übrigen Menüs (13 px, ohne harten Rand, Adressen grau)", suggestions, results)
+
+    def customize_toolbar():
+        res = m.js(FOLDER_JS + r"""
+          await toMail();
+          d.querySelector("unified-toolbar").showCustomization();
+          const out = { on: !!await until(() => d.documentElement.classList.contains("customizingUnifiedToolbar")) };
+          try {
+            await wait(800);
+            const IDS = ["mcListHeader", "mcTodayToggle", "mcTodayTop", "mcTodayNew", "mcSpacesToggle"];
+            const row = d.getElementById("unifiedToolbarContainer");
+            out.shown = IDS.filter(id => !gone(d.getElementById(id)));
+            out.hits = [[w.innerWidth - 50, 10], [30, w.innerHeight - 20], [400, 10]]
+              .map(([x, y]) => d.elementFromPoint(x, y)?.closest?.('[id^="mc"]')?.id).filter(Boolean);
+            out.row = [csOf(row).backgroundImage, csOf(row).backgroundColor, colorOf(d, "var(--mt-window)", "backgroundColor"), csOf(row, "::before").display];
+          } finally {
+            d.querySelector("unified-toolbar-customization").toggle(false);
+            out.off = !!await until(() => !d.documentElement.classList.contains("customizingUnifiedToolbar"));
+            await wait(600);
+          }
+          out.back = ["mcListHeader", "mcSpacesToggle"].filter(id => gone(d.getElementById(id)));
+          return out;""")
+        r = res.get("row") or ["?", "", "", ""]
+        ok = (res["on"] and res["off"] and not res["shown"] and not res["hits"] and r[0] == "none" and same_color(r[1], r[2])
+              and r[3] == "none" and not res["back"])
+        return ok, f"{res}"
+    check("Toolbar anpassen: Listenkopf, Today- und Bereiche-Knopf ausgeblendet, Zeile einfarbig; danach wieder da", customize_toolbar, results)
+
+    def spaces_customize():
+        res = m.js(FOLDER_JS + r"""
+          await toMail();
+          const item = id => d.getElementById(id);
+          const sep = item("settingsContextOpenCustomizeItem")?.previousElementSibling;
+          const out = { hidden: ["spacesToolbarContextCustomize", "settingsContextOpenCustomizeItem"].map(id => item(id)?.hidden ?? "fehlt"),
+                        sep: sep?.localName == "menuseparator" ? sep.hidden : "fehlt" };
+          const pop = async (menu, target) => { const r = target.getBoundingClientRect();
+            target.dispatchEvent(new w.MouseEvent("contextmenu", { bubbles: true, cancelable: true, clientX: r.left + r.width / 2, clientY: r.top + r.height / 2,
+              screenX: w.screenX + r.left + r.width / 2, screenY: w.screenY + r.top + r.height / 2 }));
+            await wait(700); const state = menu.state;
+            const visible = [...menu.children].filter(c => !c.hidden && c.localName == "menuitem").length;
+            if (state != "closed") { menu.hidePopup(); await wait(400); } return { state, visible }; };
+          // Rechtsklick auf die leere Leiste: kein (leeres) Menü
+          out.bar = await pop(item("spacesToolbarContextMenu"), item("spacesToolbar"));
+          out.customizing = w.gSpacesToolbar.isCustomizing;
+          // Gegenprobe: das Menü am Einstellungen-Knopf geht weiter auf (Einstellungen, Konten, Add-ons)
+          out.settings = await pop(item("settingsContextMenu"), item("settingsButton"));
+          const before = w.gSpacesToolbar.isHidden;
+          w.gSpacesToolbar.toggleToolbar(!before); await wait(300); out.toggled = w.gSpacesToolbar.isHidden != before;
+          w.gSpacesToolbar.toggleToolbar(before); await wait(500); out.restored = w.gSpacesToolbar.isHidden == before;
+          return out;""")
+        ok = (res["hidden"] == [True, True] and res["sep"] is True and res["bar"]["state"] == "closed" and res["customizing"] is False
+              and res["settings"]["state"] in ("open", "showing") and res["settings"]["visible"] == 3 and res["toggled"] and res["restored"])
+        return ok, f"{res}"
+    check("Bereiche-Leiste: „Anpassen…“ (öffnete nicht, sperrte das Ausblenden) entfernt, leere Leiste ohne leeres Menü", spaces_customize, results)
+
+
 def rgba_alpha(c):
     """Deckkraft aus rgb()/rgba()/color(srgb …) – 1, wenn keine angegeben ist."""
     import re
@@ -1679,6 +1877,7 @@ def run_checks(m, version, profile, results):
 
     reading_checks(m, results)
     compose_checks(m, results)
+    folder_checks(m, results)
 
     def min_widths():
         res = m.js('''

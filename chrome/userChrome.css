@@ -372,6 +372,14 @@ body.layout-wide {
   padding: 8px 10px 4px !important;
 }
 
+/* unten Platz für den Bereiche-Knopf: bei ausgeblendeter Leiste sitzt
+   #mcSpacesToggle fest unten links über der Ordnerliste (8 px Rand + 38 px
+   Knopf + 8 px Luft) – ganz nach unten gescrollt endet die letzte Zeile
+   darüber, auch ohne Statusleiste */
+#folderTree {
+  padding-block-end: 54px !important;
+}
+
 /* Ordnerkategorien („Postfächer“, Kontoname) wie die Abschnittstitel in Apple Mail */
 #folderTree > li > .container .name,
 #folderPane .mode-name {
@@ -430,6 +438,18 @@ body.layout-wide {
   font-weight: 400 !important;
 }
 
+/* Ordner mit neuen Mails wie in Apple Mail: Name in Textfarbe statt
+   Thunderbirds Blau, kein gelber Funkelstern auf dem Symbol – die Zahl rechts
+   genügt (Kontozeilen bleiben graue Abschnittstitel) */
+#folderTree li.new-messages:not([data-server-type]) > .container > .name {
+  color: var(--mt-text) !important;
+  font-weight: 400 !important;
+}
+
+#folderTree .container > .new-icon {
+  visibility: hidden !important;
+}
+
 #folderTree .account-indicator {
   display: none !important;
 }
@@ -440,6 +460,10 @@ body.layout-wide {
   min-height: 22px !important;
   margin: 10px 8px 2px 18px !important;
   padding: 0 !important;
+  /* keine Linie über den Abschnitten (Thunderbird zeichnet sie über jedem
+     außer dem ersten – mit ausgeblendetem „Alle Ordner“ stand sie nur
+     teilweise); gegliedert wird wie in Apple Mail durch den Abstand */
+  border-block-start: none !important;
 }
 
 #folderTree .mode-name {
@@ -2005,6 +2029,54 @@ panel {
   --panel-border-color: var(--mt-tooltip-border) !important;
 }
 
+/* Vorschlagsliste der Suche oben (Kalender, Chat, Inhalts-Tabs) wie die
+   übrigen Menüs: durchscheinend ohne harten Rand, 13 px, Auswahl in
+   Akzentfarbe, Adressen grau statt in Linkblau */
+#PopupGlodaAutocomplete {
+  appearance: auto !important;
+  -moz-default-appearance: menupopup !important;
+  --panel-background-color: var(--mt-menu-bg) !important;
+  --panel-border-color: transparent !important;
+  --panel-border-radius: 12px !important;
+  --panel-padding: 5px 0 !important;
+  --autocomplete-popup-highlight-background: var(--mt-accent) !important;
+  --autocomplete-popup-highlight-color: var(--mt-accent-text) !important;
+  --autocomplete-popup-url-color: var(--mt-text-secondary) !important;
+  font: 13px var(--mt-font) !important;
+}
+
+#PopupGlodaAutocomplete .autocomplete-richlistitem[type^="gloda-"] {
+  margin-inline: 5px !important;
+  padding-inline: 10px !important;
+  min-height: 22px !important;
+  border-radius: 6px !important;
+  color: var(--mt-text) !important;
+  font-size: 13px !important;
+}
+
+#PopupGlodaAutocomplete .autocomplete-richlistitem[type^="gloda-"]:hover {
+  background-color: var(--mt-hover) !important;
+}
+
+#PopupGlodaAutocomplete .autocomplete-richlistitem[type^="gloda-"][selected] {
+  background: var(--mt-accent) !important;
+  color: var(--mt-accent-text) !important;
+}
+
+/* Text der Zeilen in voller Größe (Thunderbird: 1,1em bzw. 0,95em) */
+#PopupGlodaAutocomplete :is(.ac-comment, .explanation) {
+  font-size: 13px !important;
+}
+
+#PopupGlodaAutocomplete .ac-url-text {
+  font-size: 11px !important;
+  color: var(--mt-text-secondary) !important;
+}
+
+#PopupGlodaAutocomplete [selected] .ac-url-text {
+  color: inherit !important;
+}
+
 /* Symbolzeile oben im Nachrichten-Kontextmenü: die Erweiterung macht daraus
    Textzeilen (Klasse mc-nav-list); ohne Erweiterung bleibt sie ausgeblendet */
 #mailContext-navigation:not(.mc-nav-list),
@@ -2174,6 +2246,83 @@ unified-toolbar {
 /* Thunderbirds eigene Kopfzeile in der Liste ersetzt die obige */
 #threadPaneHeaderBar {
   display: none !important;
+}
+
+/* ---------- Toolbar anpassen ----------
+   Thunderbird blendet dabei nur die eigene Toolbar, Bereiche-Leiste und
+   Fensterinhalt aus und lässt die Zeile auf 22 px schrumpfen – unsere
+   Elemente der Toolbar-Zeile (Listenkopf, Today-Knöpfe) und der
+   Bereiche-Knopf unten links ragten halb abgeschnitten bzw. anklickbar über
+   das Anpassen-Fenster. visibility statt display: einige haben in ihren
+   Bereichen höher gewichtete display-Regeln. */
+html:root.customizingUnifiedToolbar :is(#mcListHeader, #mcTodayToggle, #mcTodayTop, #mcTodayNew, #mcSpacesToggle) {
+  visibility: hidden !important;
+}
+
+/* die Zeile ohne Seitenleisten-Grau und Linien (Mail, Adressbuch) */
+html:root.customizingUnifiedToolbar #unifiedToolbarContainer {
+  background: var(--mt-window) !important;
+}
+
+html:root.customizingUnifiedToolbar #unifiedToolbarContainer::before {
+  display: none !important;
+}
+
+/* ---------- Globale Suche (Ergebnis-Tab glodaFacetView) ----------
+   Flächen und Schrift wie in den übrigen Ansichten statt Thunderbirds
+   Standardfarben; Leerzustand ruhig in Grau mit kleinem Symbol statt großer
+   blauer Lupe; Suchfeld darüber als graue Kapsel wie oben in der Toolbar.
+   Die Trefferliste behält ihr Layout (hängt an Thunderbirds Größen). */
+#gloda-facet-view {
+  --layout-background-0: var(--mt-window) !important;
+  --layout-background-1: var(--mt-sidebar) !important;
+  --layout-color-0: var(--mt-text) !important;
+  --layout-color-1: var(--mt-text) !important;
+  --layout-color-3: var(--mt-text-secondary) !important;
+  font-family: var(--mt-font) !important;
+}
+
+#gloda-facet-view span.empty {
+  color: var(--mt-text-secondary) !important;
+  font-size: 15px !important;
+  font-weight: 600 !important;
+}
+
+/* Füllung folgt der Schriftfarbe (currentColor) des Hinweises */
+#gloda-facet-view img.empty {
+  width: 64px !important;
+  height: 64px !important;
+  margin-block-end: 8px !important;
+  opacity: 0.6 !important;
+}
+
+#gloda-facet-view .explanation-fulltext-label {
+  font-size: 13px !important;
+  font-weight: 600 !important;
+  color: var(--mt-text) !important;
+}
+
+.glodaTabToolbar .remote-gloda-search {
+  appearance: none !important;
+  border: none !important;
+  border-radius: 999px !important;
+  background-color: var(--mt-control) !important;
+  color: var(--mt-text) !important;
+  min-height: 28px !important;
+  /* Lupe (Hintergrundbild) mit etwas Abstand zum runden Rand */
+  padding-inline: 30px 10px !important;
+  background-position: 10px center !important;
+  font: 13px var(--mt-font) !important;
+  box-shadow: none !important;
+}
+
+.glodaTabToolbar .remote-gloda-search:-moz-locale-dir(rtl) {
+  background-position: calc(100% - 10px) center !important;
+}
+
+.glodaTabToolbar .remote-gloda-search:focus {
+  outline: none !important;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--mt-accent) 22%, transparent) !important;
 }
 
 

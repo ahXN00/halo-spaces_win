@@ -109,21 +109,21 @@ Vorher-Bilder: `tests/shots/tour/vorher/` (hell-*/dunkel-*), Paket `tests/shots/
 ## 4. Ordnerliste, Toolbar, Suche, Bereiche-Leiste (`ordner`)
 
 - [ ] `ordner-mehr-menue` – Ordnerliste: „…“-Menü (Ordner-Modi): offen
-- [ ] `ordner-modi` – Ordnerliste mit Modi „Ungelesen“ und „Markiert“: offen
+- [x] `ordner-modi` – Ordnerliste mit Modi „Ungelesen“ und „Markiert“: erledigt (Commit „Ordnerliste: …“ (Runde 1)) – Abschnitte („Unread Folders“, „Favorite Folders“, „Recent Folders“) einheitlich ohne Linie darüber, gegliedert durch den Abstand; Ordner mit neuen Mails ohne gelben Funkelstern, Name in Textfarbe statt Blau (gilt in allen Ansichten der Ordnerliste); Abschnittstitel-Versatz (Kontozeile 7 px weiter rechts als Ansichtstitel) übersprungen: der Versatz folgt der Baumtiefe (Ordner unter dem Konto eine Stufe tiefer) – bündig gerückt stünde der Kontotitel 14 px links seiner Ordner, nur ein Tausch der Unstimmigkeit; verworfen: Kontrast der grauen Abschnittstitel (bewusste Entscheidung, --mt-text-tertiary projektweit)
 - [ ] `ordner-kompakt` – Ordnerliste kompakt (ohne Kopf/Abrufen-Knöpfe): offen
 - [ ] `ordner-ausgeblendet` – Ordnerliste ausgeblendet: offen
 - [x] `ordner-abrufen-menue` – Ordnerliste: Abrufen-Knopf (Kontextmenü): übersprungen: nicht erreichbar – Knopf deaktiviert: kein Konto mit Server im Testprofil
 - [ ] `toolbar-verschieben` – Toolbar: „Verschieben“ (Ordnerauswahl): offen
 - [ ] `toolbar-markieren` – Toolbar: „Markieren“: offen
 - [x] `toolbar-abrufen` – Toolbar: „Abrufen“ (Kontomenü): übersprungen: nicht erreichbar – Knopf deaktiviert: kein Konto mit Server im Testprofil
-- [ ] `toolbar-anpassen` – Toolbar anpassen: offen
+- [x] `toolbar-anpassen` – Toolbar anpassen: erledigt (Commit „Ordnerliste: …“ (Runde 1)) – Listenkopf („Inbox – On My Mac“ samt Filter/…), Today-Knöpfe und der Bereiche-Knopf unten links ragen nicht mehr halb abgeschnitten bzw. anklickbar über das Anpassen-Fenster, Zeile darüber einfarbig in der Fensterfläche; verworfen: Thunderbird-Symbole und -Optik in Vorschau/Palette (Schatten-DOM, Umbau mit Wirkung auf alle Toolbar-Knöpfe, selten genutzt) – bleibt als offener Punkt
 - [ ] `suche-ergebnisse` – Suche oben: Treffer in allen Postfächern: offen
-- [ ] `suche-globale-ergebnisse` – Globale Suche (Ergebnis-Tab): offen
-- [ ] `suche-vorschlaege` – Suchfeld oben außerhalb der Mailansicht: Vorschlagsliste (Kalender-Tab): offen
+- [x] `suche-globale-ergebnisse` – Globale Suche (Ergebnis-Tab): erledigt (Commit „Ordnerliste: …“ (Runde 1)) – Suchfeld oben liegt nicht mehr unter dem Seitenleisten-Knopf und springt nicht je nach zuvor besuchtem Bereich; Seite in --mt-Flächen (Filterspalte im Seitenleisten-Grau), Leerzustand mit kleinem grauem Symbol und grauem Hinweis (Kontrast ≥ 4,5:1) statt großer blauer Lupe, Überschrift 13 px halbfett, Suchfeld im Tab als graue Kapsel mit weichem Fokus-Halo; offen: Trefferliste/Facetten bewusst nicht umgestaltet (Layout hängt an Thunderbirds Größen)
+- [x] `suche-vorschlaege` – Suchfeld oben außerhalb der Mailansicht: Vorschlagsliste (Kalender-Tab): erledigt (Commit „Ordnerliste: …“ (Runde 1)) – wie die übrigen Menüs: durchscheinend ohne harten Rand und ohne Blaustich (dunkel), 13 px, Zeilen mit 6 px Radius und Auswahl in Akzentfarbe, Adressen 11 px grau statt Linkblau
 - [ ] `today-pane-zu` – Mail ohne Today-Pane: offen
-- [ ] `spaces-eingeklappt` – Bereiche-Leiste eingeklappt: offen
+- [x] `spaces-eingeklappt` – Bereiche-Leiste eingeklappt: erledigt (Commit „Ordnerliste: …“ (Runde 1)) – Ordnerliste unten mit 54 px Platz: die letzte Zeile lässt sich über den Bereiche-Knopf (unten links) hinaus scrollen, auch ohne Statusleiste
 - [x] `spaces-menue-knopf` – Bereiche-Leiste eingeklappt: Bereiche-Menü: übersprungen: von halo.spaces ersetzt: der Knopf blendet die Seitenleiste ein/aus, das Menü wird blockiert (implementation.js, hookSidebarButton)
-- [ ] `spaces-anpassen` – Bereiche-Leiste anpassen (Panel): offen
+- [x] `spaces-anpassen` – Bereiche-Leiste anpassen (Panel): erledigt (Commit „Ordnerliste: …“ (Runde 1)) – „Anpassen…“ im Zahnrad-Kontextmenü (samt Trennlinie) und im Kontextmenü der leeren Leiste entfernt: das Panel hing am ausgeblendeten collapseButton, öffnete nicht und sperrte danach das Ein-/Ausblenden der Leiste; seine Farben wirkten gegen halo.spaces ohnehin nicht. Leere Leiste öffnet kein leeres Menü; Panel für Nutzer nicht mehr erreichbar (der Rundgang öffnet es weiter ersatzweise)
 - [ ] `appmenu` – App-Menü (≡): offen
 - [ ] `appmenu-ansicht` – App-Menü → Ansicht (Unteransicht): offen
 

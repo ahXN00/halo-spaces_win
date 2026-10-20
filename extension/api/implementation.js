@@ -2975,6 +2975,18 @@ class CardEnhancer {
       const row = d.getElementById("unifiedToolbarContainer");
       if (!el || !row) {
         barTarget(d).style.removeProperty("--mc-side-right");
+        // Tabs ohne eigene Seitenleiste (globale Suche, sonstige Inhalts-Tabs):
+        // Abstandhalter nicht auf dem Wert des zuletzt besuchten Bereichs
+        // lassen – Knöpfe und Suchfeld beginnen rechts vom Seitenleisten-Knopf
+        // (gemessen nach dem Entfernen von --mc-side-right, also an seinem
+        // Platz in diesem Tab)
+        const content = row && d.getElementById("unifiedToolbarContent");
+        const first = content?.querySelector(':scope > li[item-id="spacer"]') || content;
+        const pinned = d.getElementById("spacesPinnedButton")?.getBoundingClientRect();
+        if (first && pinned?.width) {
+          const start = first.getBoundingClientRect().left;
+          setBarVar(d, "--mc-tab-offset", `${Math.max(0, Math.round(pinned.right + 12 - start))}px`);
+        }
         return;
       }
       const inContent = el.ownerDocument != d;
@@ -4375,6 +4387,28 @@ class CardEnhancer {
       btn.addEventListener("click", () => this.animateSpaces(w, updateTip));
       bar.after(btn); // Geschwister der Leiste, damit CSS ihren Zustand sieht
       this.restorers.push(() => btn.remove());
+      // „Anpassen…“ der Bereiche-Leiste ausblenden: Thunderbirds Panel hängt am
+      // ausgeblendeten Knopf #collapseButton – es öffnet nicht und sperrt danach
+      // das Ein-/Ausblenden der Leiste (isCustomizing bleibt gesetzt); die
+      // Farben gibt ohnehin halo.spaces vor
+      const custItems = ["spacesToolbarContextCustomize", "settingsContextOpenCustomizeItem"]
+        .map(id => d.getElementById(id)).filter(Boolean);
+      const custSep = d.getElementById("settingsContextOpenCustomizeItem")?.previousElementSibling;
+      const custHide = [...custItems, ...(custSep?.localName == "menuseparator" ? [custSep] : [])];
+      custHide.forEach(el => (el.hidden = true));
+      // das Kontextmenü der leeren Leiste hat dann keinen Eintrag mehr – nicht
+      // als leere Fläche öffnen
+      const spacesMenu = d.getElementById("spacesToolbarContextMenu");
+      const noEmpty = e => {
+        if (e.target == spacesMenu && ![...spacesMenu.children].some(c => !c.hidden)) {
+          e.preventDefault();
+        }
+      };
+      spacesMenu?.addEventListener("popupshowing", noEmpty);
+      this.restorers.push(() => {
+        custHide.forEach(el => (el.hidden = false));
+        spacesMenu?.removeEventListener("popupshowing", noEmpty);
+      });
       // Tooltips der Bereiche nur mit Namen („Mail“ statt „Mail (⌃ 1)“):
       // Thunderbird setzt sie per Fluent aus Titel und Kurzbefehl, auch
       // später noch (Übersetzung läuft verzögert) – also jedes Mal den
