@@ -1401,7 +1401,10 @@ function fetchWithTimeout(win, url, { method = "GET", headers = {}, body = null,
     channel.loadFlags |= Ci.nsIRequest.LOAD_ANONYMOUS;
     if (body != null) {
       const stream = Cc["@mozilla.org/io/string-input-stream;1"].createInstance(Ci.nsIStringInputStream);
-      stream.setByteStringData(body);
+      // setUTF8Data statt setByteStringData: das gibt es in Thunderbird 128 ESR
+      // noch nicht, dort scheiterte sonst jeder POST (Ein-Klick-Abmeldung); der
+      // Body ist reines ASCII („List-Unsubscribe=One-Click“)
+      stream.setUTF8Data(body);
       channel.QueryInterface(Ci.nsIUploadChannel2).explicitSetUploadStream(stream, null, -1, method, false);
     } else {
       channel.requestMethod = method;
