@@ -3216,6 +3216,13 @@ class CardEnhancer {
     const fixAvatar = (el, name, card) => {
       const img = el.shadowRoot?.querySelector("img");
       const letters = el.shadowRoot?.querySelector("span");
+      // Zeilen der Kontaktliste werden beim Scrollen für andere Kontakte
+      // wiederverwendet: den Handler des vorigen Kontakts zuerst entfernen,
+      // sonst schreibt er dessen Initialen in diese Zeile
+      if (img && el.__mcFallback) {
+        img.removeEventListener("error", el.__mcFallback);
+        el.__mcFallback = null;
+      }
       if (!img || !letters || !img.getAttribute("src") || el.classList.contains("is-mail-list")) {
         return;
       }
@@ -3234,6 +3241,7 @@ class CardEnhancer {
       if (img.complete && img.naturalWidth == 0) {
         fallback();
       } else {
+        el.__mcFallback = fallback;
         img.addEventListener("error", fallback, { once: true });
       }
     };
@@ -3518,6 +3526,10 @@ class CardEnhancer {
       for (const clusters of groups.values()) {
         for (const c of clusters) {
           keep.add(c.best);
+          // welcher Eintrag stehen bleibt (Auswahl beim Zusammenführen übertragen)
+          for (const r of c.rows) {
+            r.mcBest = c.best;
+          }
           // in welchen Adressbüchern es diesen Kontakt gibt (für die Labels)
           c.best.mcSources = [...new Set(c.rows.map(r => r.directory?.dirName).filter(Boolean))];
         }
@@ -3534,9 +3546,32 @@ class CardEnhancer {
       const orig = Adapter.prototype.sortBy;
       Adapter.prototype.sortBy = function (column, direction, resort = false) {
         if (Services.prefs.getBoolPref(DEDUPE_PREF, true) && this._rowMap?.length) {
-          const before = this._rowMap.length;
-          this._rowMap = dedupeRows(this._rowMap);
-          if (this._rowMap.length != before) {
+          const old = this._rowMap;
+          const rows = dedupeRows(old);
+          if (rows.length != old.length) {
+            // Das Original liest die Auswahl über die Zeilennummern: sie wie
+            // beim Löschen mitverschieben (von hinten, damit die vorderen
+            // Nummern gültig bleiben), sonst rutscht die Markierung auf den
+            // Nachbarkontakt. War eine weggefallene Dublette gewählt, den
+            // stehen gebliebenen Eintrag wählen.
+            const sel = this.selection;
+            const kept = new Set(rows);
+            const moved = [];
+            for (let i = old.length - 1; sel && i >= 0; i--) {
+              if (!kept.has(old[i])) {
+                if (sel.isSelected(i) && old[i].mcBest) {
+                  moved.push(old[i].mcBest);
+                }
+                sel.adjustSelection(i, -1);
+              }
+            }
+            this._rowMap = rows;
+            for (const best of moved) {
+              const j = rows.indexOf(best);
+              if (j >= 0 && !sel.isSelected(j)) {
+                sel.toggleSelect(j);
+              }
+            }
             resort = true;
           }
         }
@@ -5735,7 +5770,15 @@ class CardEnhancer {
     }
     if (!cw.__mcHeaderHook) {
       cw.__mcHeaderHook = true;
-      const update = () => cw.setTimeout(() => this.updateAbHeader(box, cw), 0);
+      // nur solange das Adressbuch vorne ist: die Kopfzeile steht auch über der
+      // Mailliste, und die Kontaktliste ändert sich im Hintergrund (gesammelte
+      // Adressen, CardDAV). Beim Zurückwechseln füllt updateListHeader sie neu.
+      const update = () => cw.setTimeout(() => {
+        const tab = box.ownerDocument.getElementById("tabmail")?.currentTabInfo;
+        if (tab?.browser?.contentWindow == cw) {
+          this.updateAbHeader(box, cw);
+        }
+      }, 0);
       const search = cw.cardsPane.searchInput;
       books.addEventListener("select", update);
       search?.addEventListener("autocomplete", update);
@@ -8170,14 +8213,24 @@ class CardEnhancer {
     const run = () => {
       const box = doc.querySelector("#fromRecipient0 .recipient-avatar");
       const hdr = win.gMessage;
-      if (!box || !hdr || box.dataset.mcFor == hdr.messageId) {
+      // Thunderbird befüllt das Bild bei Adressbuch-Änderungen (Stern im
+      // Mailkopf, CardDAV) neu – mit seinem Buchstaben (<span>) oder Foto
+      // (<img data-l10n-id>); fillAvatar erzeugt beides nie. Dann neu befüllen.
+      const foreign = box?.querySelector(":scope > span, :scope > img[data-l10n-id]");
+      if (!box || !hdr || (box.dataset.mcFor == hdr.messageId && !foreign)) {
         return;
+      }
+      const same = box.dataset.mcFor == hdr.messageId;
+      if (foreign) {
+        box.replaceChildren();
       }
       box.dataset.mcFor = hdr.messageId;
       box.classList.add("mc-hdr-avatar");
       try {
         this.fillAvatar(box, hdr);
-        this.decorateHeader(doc, hdr);
+        if (!same) {
+          this.decorateHeader(doc, hdr);
+        }
       } catch (e) {
         log("header avatar error", e);
       }

@@ -822,6 +822,22 @@ def run_checks(m, version, profile, results):
         return ok, f"{res}"
     check("Leseansicht wie Apple: Absenderbild, Ordner, Verteiler-Hinweis statt List-ID", reading, results)
 
+    def header_avatar_refresh():
+        # Adressbuch-Änderung (Stern im Mailkopf, CardDAV): Thunderbird setzt sein
+        # Bild neu (ein Buchstabe) – danach steht wieder das eigene Absenderbild
+        res = m.js(MESSAGE_JS + '''
+          const am = a3.messageBrowser.contentWindow; const md = am.document;
+          const box = await until(() => md.querySelector("#fromRecipient0 .recipient-avatar.mc-hdr-avatar"));
+          const foreign = () => !!box?.querySelector(":scope > span, :scope > img[data-l10n-id]");
+          const before = box?.textContent.trim();
+          md.getElementById("fromRecipient0").updateRecipient();
+          const replaced = foreign();
+          await until(() => !foreign(), 3000); await wait(200);
+          return { before, replaced, after: box?.textContent.trim(), foreign: foreign() };''')
+        ok = res["before"] == "AB" and res["replaced"] and not res["foreign"] and res["after"] == "AB"
+        return ok, f"{res}"
+    check("Mailkopf: Absenderbild bleibt nach einer Adressbuch-Änderung (nicht Thunderbirds Buchstabe)", header_avatar_refresh, results)
+
     def unsubscribe():
         res = m.js(MESSAGE_JS + '''
           const am = a3.messageBrowser.contentWindow; const md = am.document;
@@ -1176,6 +1192,98 @@ def run_checks(m, version, profile, results):
               and res["photo"]["typed"] == "BB" and res["viewLetters"] == "AB" and res["viewSize"] > res["photo"]["size"] >= 100)
         return ok, f"{res}"
     check("Adressbuch: Kontakt bearbeiten in Systemschrift, Überschriften über den Feldern, Wichtiges zuerst, Weiteres auf Wunsch, Initialen mittig über dem Namen", contact_edit, results)
+
+    OPEN_BOOKS_JS = r"""
+          tm.openTab("addressBookTab", {});
+          const cw = await until(() => { const c = tm.currentTabInfo?.browser?.contentWindow; return c?.document?.getElementById("mcBooksHeader") && c; }, 8000);
+          const abTab = tm.currentTabInfo;"""
+
+    def ab_background_header():
+        # Adressbuch im Hintergrund: Änderungen an Kontakten (gesammelte Adressen,
+        # CardDAV) überschreiben nicht die Kopfzeile über der Mailliste
+        res = m.js(MESSAGE_JS + OPEN_BOOKS_JS + r"""
+          const book = MailServices.ab.getDirectory("jsaddrbook://abook.sqlite");
+          const title = () => d.querySelector("#mcListHeader .mc-lh-title")?.textContent;
+          await wait(800);
+          const abTitle = title();
+          await toMail();
+          const before = title(); const seen = new Set([before]);
+          const iv = w.setInterval(() => seen.add(title()), 20);
+          let c = Cc["@mozilla.org/addressbook/cardproperty;1"].createInstance(Ci.nsIAbCard);
+          c.displayName = "Hinter Grund"; c.primaryEmail = "hinter.grund@example.invalid";
+          try {
+            c = book.addCard(c); await wait(1500);
+            c.setProperty("PopularityIndex", 3); book.modifyCard(c); await wait(1500);
+          } finally {
+            book.deleteCards([c]); await wait(1500);
+            w.clearInterval(iv);
+            tm.closeTab(abTab); await toMail();
+          }
+          return { tab: !!cw, abTitle, before, seen: [...seen] };""")
+        ok = res["tab"] and res["before"] and res["abTitle"] != res["before"] and res["seen"] == [res["before"]]
+        return ok, f"{res}"
+    check("Adressbuch im Hintergrund: Kopfzeile der Mailliste bleibt, wenn sich Kontakte ändern", ab_background_header, results)
+
+    def ab_avatar_recycle():
+        # Kontaktzeilen werden beim Scrollen wiederverwendet: lädt das Foto des
+        # neuen Kontakts nicht, erscheinen seine Initialen (nicht die des vorigen)
+        res = m.js(OPEN_BOOKS_JS + r"""
+          const ad = cw.document;
+          const el = ad.createElement("contact-avatar"); ad.body.append(el);
+          const img = el.shadowRoot.querySelector("img"), letters = el.shadowRoot.querySelector("span");
+          const svg = "data:image/svg+xml," + encodeURIComponent("<svg xmlns='http://www.w3.org/2000/svg' width='8' height='8'><rect width='8' height='8' fill='red'/></svg>");
+          el.setData({ card: { displayName: "Anna Alt", primaryEmail: "anna.alt@example.invalid", photoURL: svg, emailAddresses: [] } });
+          const loaded = await until(() => img.complete && img.naturalWidth > 0, 3000);
+          el.setData({ card: { displayName: "Ben Neu", primaryEmail: "ben.neu@example.invalid", photoURL: "data:image/png;base64,AAAA", emailAddresses: [] } });
+          await until(() => img.hidden, 3000); await wait(200);
+          const out = { loaded, hidden: img.hidden, letters: letters.textContent };
+          el.remove(); tm.closeTab(abTab); await toMail();
+          return out;""")
+        return res["loaded"] and res["hidden"] and res["letters"] == "BN", f"{res}"
+    check("Adressbuch: wiederverwendete Kontaktzeile zeigt bei defektem Foto die eigenen Initialen", ab_avatar_recycle, results)
+
+    def ab_dedupe_selection():
+        # Dubletten, die per Sync dazukommen, werden beim nächsten Sortieren
+        # zusammengeführt: die Auswahl bleibt beim gewählten Kontakt statt auf den
+        # Nachbarn zu rutschen; fällt die gewählte Dublette weg, ist der verbliebene Eintrag gewählt
+        res = m.js(r"""
+          const { MailServices } = ChromeUtils.importESModule("resource:///modules/MailServices.sys.mjs");
+          const book = MailServices.ab.getDirectory("jsaddrbook://abook.sqlite");
+          const add = props => { const c = Cc["@mozilla.org/addressbook/cardproperty;1"].createInstance(Ci.nsIAbCard);
+            for (const [k, v] of Object.entries(props)) c.setProperty(k, v);
+            c.displayName = props.DisplayName; c.primaryEmail = props.PrimaryEmail; return book.addCard(c); };
+          const cards = [add({ DisplayName: "Dora Doppel", PrimaryEmail: "dora@example.invalid" }),
+                         add({ DisplayName: "Ella Eins", PrimaryEmail: "ella@example.invalid" }),
+                         add({ DisplayName: "Zeno Ziel", PrimaryEmail: "zeno@example.invalid" })];
+          """ + OPEN_BOOKS_JS + r"""
+          const out = { tab: !!cw };
+          try {
+            const list = cw.document.getElementById("cards");
+            const rows = () => [...Array(list.view.rowCount).keys()];
+            const sel = () => rows().filter(i => list.view.selection.isSelected(i)).map(i => list.view.getCardFromRow(i)?.UID);
+            const pick = test => { list.selectedIndex = rows().find(i => test(list.view.getCardFromRow(i))); };
+            // eine Änderung an einem anderen Kontakt sortiert neu (und führt zusammen)
+            const touch = async n => { cards[2].setProperty("PopularityIndex", n); book.modifyCard(cards[2]); await wait(800); };
+            await until(() => list.view?.rowCount >= 3); await wait(500);
+            pick(c => c?.UID == cards[1].UID); await wait(500);
+            cards.push(add({ DisplayName: "Dora Doppel", PrimaryEmail: "dora@example.invalid" })); await wait(600);
+            const n = list.view.rowCount;
+            await touch(2);
+            out.neighbor = { merged: list.view.rowCount == n - 1, sel: sel(), want: cards[1].UID };
+            pick(c => c?.displayName == "Dora Doppel"); await wait(500);
+            cards.push(add({ DisplayName: "Dora Doppel", PrimaryEmail: "dora@example.invalid", Company: "Doppel AG", JobTitle: "Leitung", WorkPhone: "+43 1 555" })); await wait(600);
+            await touch(3);
+            out.dropped = { merged: list.view.rowCount == n - 1, sel: sel(), want: cards[4].UID };
+          } finally {
+            book.deleteCards(cards); await wait(300);
+            tm.closeTab(abTab); await toMail();
+          }
+          return out;""")
+        nb, dr = res.get("neighbor", {}), res.get("dropped", {})
+        ok = (res["tab"] and nb.get("merged") and nb.get("sel") == [nb.get("want")]
+              and dr.get("merged") and dr.get("sel") == [dr.get("want")])
+        return ok, f"{res}"
+    check("Adressbuch: Zusammenführen von Dubletten lässt die Auswahl beim gewählten Kontakt", ab_dedupe_selection, results)
 
     def donate():
         # „Say Thanks“ im Info-Fenster öffnet die Spendenseite (Aufruf abgefangen, kein echter Browser)
