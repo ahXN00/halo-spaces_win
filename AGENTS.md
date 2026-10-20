@@ -26,6 +26,7 @@ kann. Ziel ist macOS; Windows/Linux laufen mit, sind aber nicht der Schwerpunkt.
 | `extension/about/`, `extension/options/` | Fenster „Hilfe → halo.spaces…“ und Einstellungsseite |
 | `tests/halo_test.py` | automatischer Test per Marionette in frischem Profil |
 | `tests/beta.sh` | gleicher Test mit Thunderbird Beta |
+| `tests/mac-mini-setup.sh`, `tests/mac-runner-hook.sh`, `tests/MAC-MINI.md` | Mac mini als Testrechner: Prüfen/Einrichten, Wächter für den GitHub-Runner, Anleitung |
 | `store/` | Texte, Screenshots und Upload-Skript für addons.thunderbird.net |
 | `updates.json` | Update-Manifest, das Thunderbird von GitHub abfragt |
 
@@ -76,6 +77,23 @@ python3 tests/halo_test.py --xpi dist/….xpi --shots /tmp/shots --keep
 
 Zum Ausprobieren im echten Profil: `./install.sh` (Thunderbird vorher beenden).
 Das betrifft das echte Profil des Nutzers – nur auf ausdrücklichen Wunsch.
+
+## Testrechner (Mac mini)
+
+Ein Mac mini übernimmt die Tests rund um die Uhr (Anleitung: `tests/MAC-MINI.md`):
+eigener Standardbenutzer ohne echte Mails mit automatischer Anmeldung, erreichbar
+nur über Tailscale (keine Portfreigabe), Claude Code per SSH aus der Desktop-App.
+
+- `tests/mac-mini-setup.sh --check` prüft den Rechner (Ruhezustand, Thunderbird,
+  Python, Bildschirm, Rechte, Anmeldung, Tailscale, SSH, Runner) und ändert
+  nichts; ohne `--check` richtet es ein, was ohne Passwort geht, und macht einen
+  Probelauf.
+- Marionette-Ports: 2839 Standard, 2845 CI-Job `mac`, ab 2850 für Läufe von Hand
+  und parallele Sitzungen (`--port`).
+- Job `mac` in `.github/workflows/test.yml` (self-hosted, Label `halo-mac`) läuft
+  nur bei Push auf `main` und von Hand – nie bei `pull_request`, weil das Repo
+  öffentlich ist. Die `if:`-Bedingung nicht lockern; auf dem Mac weist zusätzlich
+  `tests/mac-runner-hook.sh` alles andere ab.
 
 ## Release (nur auf ausdrücklichen Wunsch)
 

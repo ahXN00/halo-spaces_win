@@ -1,5 +1,6 @@
 # Automatischer Test bei jedem Push: aktuelles Thunderbird unter Linux,
 # frisches Testprofil, virtueller Bildschirm (xvfb). Screenshots als Artefakt.
+# Dazu macOS auf dem eigenen Mac mini (Job mac, nur bei Push auf main oder von Hand).
 name: Test
 
 on:
@@ -39,5 +40,45 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: test-${{ matrix.channel }}
+          path: shots/
+          if-no-files-found: ignore
+
+  mac:
+    # Mac mini mit self-hosted runner (Label halo-mac, Einrichtung: tests/MAC-MINI.md).
+    # Das Repo ist öffentlich: Code aus fremden Pull-Requests darf dort nie laufen.
+    # Deshalb nur bei Push auf main oder Start von Hand – hier per if:, auf dem Mac
+    # zusätzlich per Wächter (tests/mac-runner-hook.sh), den kein Pull-Request ändern kann.
+    if: (github.event_name == 'push' && github.ref == 'refs/heads/main') || github.event_name == 'workflow_dispatch'
+    runs-on: [self-hosted, macOS, halo-mac]
+    timeout-minutes: 60
+    concurrency: halo-mac
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Paket
+        run: |
+          echo "XPI=$(./build.sh | tail -n 1)" >> "$GITHUB_ENV"
+          # eigener Marionette-Port, damit Testläufe von Hand daneben laufen können
+          if python3 tests/halo_test.py --help | grep -- --port >/dev/null; then echo "PORT_OPT=--port 2845" >> "$GITHUB_ENV"; fi
+
+      - name: Test hell
+        timeout-minutes: 15
+        run: mkdir -p shots/hell && python3 -u tests/halo_test.py --xpi "$XPI" $PORT_OPT --shots shots/hell --tb-log shots/hell/thunderbird.log
+
+      - name: Test dunkel
+        if: ${{ !cancelled() }}
+        timeout-minutes: 15
+        run: mkdir -p shots/dunkel && python3 -u tests/halo_test.py --xpi "$XPI" $PORT_OPT --dark --shots shots/dunkel --tb-log shots/dunkel/thunderbird.log
+
+      - name: Test Beta
+        if: ${{ !cancelled() }}
+        timeout-minutes: 20
+        run: mkdir -p shots/beta && zsh tests/beta.sh --xpi "$XPI" $PORT_OPT --shots shots/beta --tb-log shots/beta/thunderbird.log
+
+      - name: Screenshots
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: test-mac
           path: shots/
           if-no-files-found: ignore
