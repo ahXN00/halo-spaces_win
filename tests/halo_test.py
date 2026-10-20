@@ -1815,8 +1815,15 @@ def calendar_checks(m, results):
                 sel: sel && csOf(sel).backgroundColor, accent: fd && colorOf(fd, "AccentColor", "backgroundColor") };
               await shutPop(dp);
             }
-            const sd = d.getElementById("ContentSelectDropdown")?.menupopup;
-            d.notifyUserGestureActivation(); f.repeat.showPicker();
+            // showPicker() öffnet die Auswahlliste im Chrome-Dokument nicht (Thunderbird 158) – dann ein echter Klick wie vom Nutzer
+            d.notifyUserGestureActivation(); try { f.repeat.showPicker(); } catch {}
+            const sd = await till(() => d.getElementById("ContentSelectDropdown")?.menupopup, 4000);
+            if (sd && !await till(() => sd.state == "open", 1500)) {
+              const r = f.repeat.getBoundingClientRect(), wu = w.windowUtils, k = w.devicePixelRatio;
+              const x = (w.mozInnerScreenX + r.left + r.width / 2) * k, y = (w.mozInnerScreenY + r.top + r.height / 2) * k;
+              wu.sendNativeMouseEvent(x, y, wu.NATIVE_MOUSE_MESSAGE_BUTTON_DOWN, 0, 0, f.repeat);
+              wu.sendNativeMouseEvent(x, y, wu.NATIVE_MOUSE_MESSAGE_BUTTON_UP, 0, 0, f.repeat);
+            }
             if (sd && await isOpen(sd)) {
               await pause(300);
               out.select = [...sd.children].filter(x => x.localName == "menuitem" && x.getAttribute("_moz-menuactive") != "true" && vis(x)).map(x => csOf(x).backgroundColor);
