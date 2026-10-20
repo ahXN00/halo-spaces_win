@@ -821,16 +821,30 @@ const APPEARANCE_THEMES = {
   light: "thunderbird-compact-light@mozilla.org",
   dark: "thunderbird-compact-dark@mozilla.org",
 };
+// Kennung dieser geladenen Fassung: Einfügungen einer älteren Fassung (Update
+// ohne Neustart, 3.2.0 räumte sie nicht weg) werden ersetzt statt übernommen
+const HOOK_OWNER = {};
+// vorhandenes Element dieser Fassung liefern, das einer älteren entfernen
+function ownedElement(doc, id) {
+  const el = doc.getElementById(id);
+  if (el && el.__mcOwner !== HOOK_OWNER) {
+    el.remove();
+    return null;
+  }
+  return el;
+}
+
 // Adressbuch: kleine Überschrift über der Liste wie „Favoriten“ in der Mail
 // und „Kalender“ im Kalender
 function hookBooksHeader(cw, restorers = null) {
   const doc = cw.document;
   const books = doc.getElementById("books");
-  if (!books || doc.getElementById("mcBooksHeader")) {
+  if (!books || ownedElement(doc, "mcBooksHeader")) {
     return;
   }
   const header = doc.createElement("div");
   header.id = "mcBooksHeader";
+  header.__mcOwner = HOOK_OWNER;
   header.textContent = tr("Address Books");
   books.before(header);
   restorers?.push(() => header.remove());
@@ -842,7 +856,7 @@ function hookAppearanceChoice(cw, restorers = null) {
   if (!colorGroup) {
     return;
   }
-  const existing = doc.getElementById("mcAppearanceGroup");
+  const existing = ownedElement(doc, "mcAppearanceGroup");
   if (existing) {
     // Thunderbird blendet beim Seitenwechsel alles ohne passende Kategorie aus
     existing.setAttribute("data-category", "paneAppearance");
@@ -852,6 +866,7 @@ function hookAppearanceChoice(cw, restorers = null) {
   const X = "http://www.w3.org/1999/xhtml";
   const group = doc.createElementNS(X, "fieldset");
   group.id = "mcAppearanceGroup";
+  group.__mcOwner = HOOK_OWNER;
   group.setAttribute("data-category", "paneAppearance");
   group.hidden = colorGroup.hidden;
   const legend = doc.createElementNS(X, "legend");

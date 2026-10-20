@@ -3642,17 +3642,21 @@ def run_checks(m, version, profile, results):
           // wie nach 3.2.0: deren stop() ließ das Merkmal als „true“ stehen
           fp.__mcWidthWatch = true;
           out.header1 = !!cw?.document.getElementById("mcBooksHeader");
+          // Überschrift einer älteren Fassung (ohne Kennung) bleibt stehen: wird ersetzt
+          if (cw) { const old = cw.document.createElement("div"); old.id = "mcBooksHeader"; cw.document.getElementById("books")?.before(old); }
           out.local1 = nameOf(local()); out.server = local()?._serverName;
           Cu.evalInSandbox("enhancer = new CardEnhancer({}); enhancer.start();", g);
-          out.header2 = !!(await until(() => cw?.document.getElementById("mcBooksHeader"), 8000));
+          const owner = Cu.evalInSandbox("HOOK_OWNER", g);
+          out.header2 = !!(await until(() => cw?.document.getElementById("mcBooksHeader")?.__mcOwner === owner, 8000));
+          out.headers2 = cw ? cw.document.querySelectorAll("#mcBooksHeader").length : 0;
           out.watch2 = await until(() => typeof fp.__mcWidthWatch == "object", 8000);
           out.local2 = await until(() => nameOf(local()) == out.local0 && out.local0, 6000);
           tm.closeTab(tm.currentTabInfo); await toMail();
           return out;''')
-        ok = (res["tab"] and res["watch0"] and not res["watch1"] and res["watch2"] and not res["header1"] and res["header2"]
+        ok = (res["tab"] and res["watch0"] and not res["watch1"] and res["watch2"] and not res["header1"] and res["header2"] and res["headers2"] == 1
               and res["local0"] != res["server"] and res["local1"] == res["server"] and res["local2"])
         return ok, f"{res}"
-    check("Erweiterung: Aus- und Einschalten setzt Ordnernamen und Einfügungen zurück und hängt sie wieder an", restart_cycle, results)
+    check("Erweiterung: Aus- und Einschalten setzt Ordnernamen und Einfügungen zurück und hängt sie wieder an; Einfügungen einer älteren Fassung werden ersetzt", restart_cycle, results)
 
     def errors():
         res = m.js("""
