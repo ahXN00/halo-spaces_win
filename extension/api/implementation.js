@@ -2878,6 +2878,12 @@ class CardEnhancer {
             const dlg = doc.defaultView;
             dlg.addEventListener("load", () => dlg.setTimeout(() => this.tidyEventDialog(dlg), 300), { once: true });
           }
+          // Beschreibung eines Termins/einer Aufgabe (Fenster und Tab): Schrift
+          // wie die Felder darüber (siehe event-description.css)
+          if (url.startsWith("chrome://calendar/content/calendar-item-iframe.xhtml") && doc.defaultView) {
+            const iw = doc.defaultView;
+            iw.addEventListener("load", () => iw.setTimeout(() => this.styleItemDescription(iw), 0), { once: true });
+          }
           // Erinnerungen: Fenster so hoch wie die Einträge (Thunderbird merkt
           // sich sonst eine feste Größe – bei einem Eintrag viel Leerraum)
           if (url.startsWith("chrome://calendar/content/calendar-alarm-dialog.xhtml") && doc.defaultView) {
@@ -5632,7 +5638,22 @@ class CardEnhancer {
         const width = 294; // Breite des Popovers samt Rand für den Schatten
         popup.openPopup(anchor, "before_start", Math.round(anchor.getBoundingClientRect().width / 2 - width / 2), 12);
       };
-      // dasselbe Popover unter dem „+“ oben rechts in der Today-Pane
+      // Pfeil über die Mitte des Knopfs – nach dem Öffnen gemessen, so stimmt
+      // er auch, wenn Gecko das Popover am Bildschirmrand verschiebt (höchstens
+      // bis 20 px vor die runden Ecken)
+      const aimArrow = anchor => {
+        const a = anchor.getBoundingClientRect();
+        const b = box.getBoundingClientRect();
+        if (!a.width || !b.width) {
+          return;
+        }
+        const mid = a.left + a.width / 2;
+        const x = w.getComputedStyle(box).direction == "rtl" ? b.right - mid - 7 : mid - b.left - 7;
+        box.style.setProperty("--mc-arrow-x", `${Math.round(Math.min(Math.max(x, 20), b.width - 34))}px`);
+      };
+      // dasselbe Popover unter dem „+“ oben rechts in der Today-Pane:
+      // rechtsbündig, um 28 px nach rechts versetzt – sonst läge die Mitte des
+      // Knopfs in der runden Ecke und der Pfeil zeigte 240 px daneben
       const below = anchor => {
         if (popup.state == "open" || popup.state == "showing") {
           popup.hidePopup();
@@ -5640,10 +5661,14 @@ class CardEnhancer {
         }
         popup.classList.remove("mc-up");
         lastAnchor = anchor;
-        popup.openPopup(anchor, "after_end", 0, 6);
+        popup.addEventListener("popupshown", () => aimArrow(anchor), { once: true });
+        popup.openPopup(anchor, "after_end", 28, 6);
       };
       newPopup = { above, below };
-      const onHidden = () => popup.classList.remove("mc-up");
+      const onHidden = () => {
+        popup.classList.remove("mc-up");
+        box.style.removeProperty("--mc-arrow-x");
+      };
       popup.addEventListener("popuphidden", onHidden);
       this.restorers.push(() => {
         bar.removeEventListener("click", onClick, true);
@@ -7315,6 +7340,33 @@ class CardEnhancer {
       });
     } catch (e) {
       log("event dialog tidy error", String(e).slice(0, 120));
+    }
+  }
+
+  // Beschreibung im Termin-Fenster: Systemschrift 13 px als Benutzer-
+  // Stylesheet im Editor-Dokument – kein <style> und kein Inline-Stil, die
+  // landeten sonst im gespeicherten Text der Beschreibung. Erst wenn
+  // Thunderbird den Editor eingerichtet hat (sein editorContent.css hängt
+  // dann im Dokument), höchstens 5 s warten
+  styleItemDescription(iw, tries = 0) {
+    try {
+      if (iw.closed || !Services.prefs.getBoolPref("extensions.mailcards.bundledTheme", true)) {
+        return;
+      }
+      const cw = iw.document.getElementById("item-description")?.contentWindow;
+      const doc = cw?.document;
+      const ready = doc?.head?.querySelector('link[href*="editorContent.css"]');
+      if (!ready && tries < 20) {
+        iw.setTimeout(() => this.styleItemDescription(iw, tries + 1), 250);
+        return;
+      }
+      if (!doc || doc.__mcDescSheet) {
+        return;
+      }
+      cw.windowUtils.loadSheetUsingURIString(`resource://mailcards/event-description.css?v=${extensionVersion}`, cw.windowUtils.USER_SHEET);
+      doc.__mcDescSheet = true;
+    } catch (e) {
+      log("item description sheet error", String(e).slice(0, 120));
     }
   }
 
