@@ -686,15 +686,17 @@ function accountColor(name) {
 // Farbpunkt vor Konto- und Adressbuchnamen (Ordnerliste, Adressbuchliste):
 // --mc-acc an der Zeile, gezeichnet von userChrome.css
 function colorAccountRows(doc, restorers = null) {
-  const names = new Set();
-  try {
-    for (const server of MailServices.accounts.allServers) {
-      if (server.type != "none") {
-        names.add(server.prettyName); // „Lokale Ordner“ bleibt ohne Farbe
-      }
-    }
-  } catch {}
   const paint = () => {
+    // Kontonamen bei jedem Lauf frisch lesen: umbenannte oder neue Konten
+    // sollen ihren Punkt sofort bekommen, nicht erst nach einem Neustart
+    const names = new Set();
+    try {
+      for (const server of MailServices.accounts.allServers) {
+        if (server.type != "none") {
+          names.add(server.prettyName); // „Lokale Ordner“ bleibt ohne Farbe
+        }
+      }
+    } catch {}
     for (const li of doc.querySelectorAll("#folderTree li, #books li.bookRow")) {
       const name = (li.querySelector(":scope > .container .name, .bookRow-name")?.textContent || "").trim();
       if (names.has(name)) {
@@ -1135,7 +1137,9 @@ function appleListDate(ms, now = new Date()) {
   const d = new Date(ms);
   const startOfDay = x => new Date(x.getFullYear(), x.getMonth(), x.getDate()).getTime();
   const days = Math.round((startOfDay(now) - startOfDay(d)) / 86400000);
-  if (days <= 0) {
+  // nur heute die Uhrzeit – Datum in der Zukunft (falsche Uhr beim Absender,
+  // Spam „oben halten“) zeigt das ganze Datum
+  if (days == 0) {
     return new Intl.DateTimeFormat(locale, { timeStyle: "short" }).format(d);
   }
   if (days == 1) {
@@ -7632,7 +7636,9 @@ class CardEnhancer {
     const localIsEmpty = () => {
       try {
         const root = MailServices.accounts.localFoldersServer?.rootFolder;
-        return !root || root.subFolders.every(f => !f.hasSubFolders && f.getTotalMessages(false) == 0);
+        // der eigene Suchordner zählt nicht – er behält nach einer Suche die
+        // Trefferzahl; gespeicherte Suchen des Nutzers zählen weiter
+        return !root || root.subFolders.every(f => this.isSearchFolder(f) || (!f.hasSubFolders && f.getTotalMessages(false) == 0));
       } catch {
         return false;
       }
@@ -7673,8 +7679,15 @@ class CardEnhancer {
             setAttr(li, "data-mc-hide", allShown && type != "inbox" && type != "sent");
             if (type == "inbox") setText(label, L.allInboxes);
             if (type == "sent") setText(label, L.allSent);
-          } else if (folder?.server) {
-            setText(label, folder.server.prettyName); // „Google“, „iCloud“
+          } else {
+            // nur das Postfach je Konto direkt unter „Alle Eingänge“/„Alle
+            // gesendeten“ heißt wie das Konto – tiefere Zeilen (Unterordner)
+            // und Ordner unter den Kontozeilen behalten ihren eigenen Namen
+            const parentRow = li.parentElement?.closest("li");
+            if (folder?.server && parentRow?.parentElement?.parentElement === modeLi &&
+                !parentRow.hasAttribute("data-server-type")) {
+              setText(label, folder.server.prettyName); // „Google“, „iCloud“
+            }
           }
           continue;
         }
@@ -8162,7 +8175,11 @@ class CardEnhancer {
     act("mc-act-flag", tr("Flag"), hdr => hdr.folder.markMessagesFlagged([hdr], !hdr.isFlagged));
     act("mc-act-archive", tr("Archive"), hdr => {
       const { MessageArchiver } = ChromeUtils.importESModule("resource:///modules/MessageArchiver.sys.mjs");
-      new MessageArchiver().archiveMessages([hdr]);
+      const archiver = new MessageArchiver();
+      // wie Thunderbirds cmd_archive: ohne msgWindow kein Rückgängig (Cmd+Z);
+      // msgWindow liegt im Hauptfenster, nicht in about:3pane
+      archiver.msgWindow = win.top.msgWindow;
+      archiver.archiveMessages([hdr]);
     });
     act("mc-act-delete", tr("Delete"), hdr => {
       // nur in den Papierkorb verschieben – im Papierkorb selbst (dort wäre es
@@ -8170,7 +8187,7 @@ class CardEnhancer {
       if (hdr.folder.getFlag(Ci.nsMsgFolderFlags.Trash)) {
         return;
       }
-      hdr.folder.deleteMessages([hdr], win.msgWindow, false, false, null, true);
+      hdr.folder.deleteMessages([hdr], win.top.msgWindow, false, false, null, true);
     });
     return box;
   }

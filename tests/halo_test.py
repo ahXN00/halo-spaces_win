@@ -743,14 +743,20 @@ def run_checks(m, version, profile, results):
           const buttons = rows[0]?.querySelectorAll(".mc-action") || [];
           rows[0].querySelector(".mc-act-flag").click(); await wait(500);
           const flagged = a3.gDBView.getMsgHdrAt(0).isFlagged; const selected = a3.gDBView.selection.count;
+          // Löschen per Knopf landet in Thunderbirds Rückgängig-Liste (früher ohne msgWindow: nicht)
+          const txn = w.messenger.transactionManager; const undo0 = txn.numberOfUndoItems;
           rows[0].querySelector(".mc-act-delete").click(); await wait(1200);
           const trash = root.getFolderWithFlags(Ci.nsMsgFolderFlags.Trash);
-          return { buttons: buttons.length, flagged, selected, inbox: inbox.getTotalMessages(false), trash: trash?.getTotalMessages(false) };''')
+          const out = { buttons: buttons.length, flagged, selected, inbox: inbox.getTotalMessages(false), trash: trash?.getTotalMessages(false),
+                        undoItems: txn.numberOfUndoItems - undo0 };
+          if (out.undoItems > 0) { w.messenger.undo(w.msgWindow); out.undone = await until(() => inbox.getTotalMessages(false) == 2 && 2, 6000); }
+          return out;''')
         if res.get("diag"):
             return False, f"keine Knöpfe auf der Karte – Diagnose {res}"
-        ok = res["buttons"] == 3 and res["flagged"] and res["selected"] == 0 and res["inbox"] == 1 and res["trash"] == 1
+        ok = (res["buttons"] == 3 and res["flagged"] and res["selected"] == 0 and res["inbox"] == 1 and res["trash"] == 1
+              and res["undoItems"] == 1 and res.get("undone") == 2)
         return ok, f"{res}"
-    check("Mailkarte: Aktionen beim Überfahren (Markieren, Löschen)", hover_actions, results)
+    check("Mailkarte: Aktionen beim Überfahren (Markieren, Löschen, Rückgängig)", hover_actions, results)
 
     def selected_actions():
         res = m.js('''
@@ -766,6 +772,46 @@ def run_checks(m, version, profile, results):
           return { found: true, icon: cs(b).color, pill: cs(box).backgroundColor, diff };''')
         return res.get("found") and res["diff"] >= 60, f"{res}"
     check("Ausgewählte Karte: Aktions-Symbole sichtbar", selected_actions, results)
+
+    def list_date_future():
+        # Datum in der Mailliste: heute nur die Uhrzeit, in der Zukunft (falsche Uhr,
+        # Spam „oben halten“) das ganze Datum statt nur der Uhrzeit; „jetzt“ = Di 20.10.2026 15:00
+        res = m.js('''
+          const { ExtensionParent } = ChromeUtils.importESModule("resource://gre/modules/ExtensionParent.sys.mjs");
+          const g = ExtensionParent.GlobalManager.getExtension("%s").experimentAPIManager.global;
+          const f = Cu.evalInSandbox("appleListDate", g); const now = new Date(2026, 9, 20, 15, 0);
+          return { today: f(new Date(2026, 9, 20, 10, 15).getTime(), now), tomorrow: f(new Date(2026, 9, 21, 10, 15).getTime(), now),
+                   nextYear: f(new Date(2027, 2, 1, 10, 15).getTime(), now), older: f(new Date(2026, 9, 17, 10, 15).getTime(), now) };''' % ADDON_ID)
+        ok = ("2026" not in res["today"] and "2026" in res["tomorrow"] and "21" in res["tomorrow"]
+              and "2027" in res["nextYear"] and "2026" in res["older"])
+        return ok, f"{res}"
+    check("Mailliste: Datum in der Zukunft zeigt das ganze Datum", list_date_future, results)
+
+    def smart_folder_names():
+        # Favoriten: nur das Postfach je Konto unter „Alle Eingänge“ heißt wie das Konto –
+        # Unterordner darunter und Ordner unter den Kontozeilen behalten ihren Namen
+        res = m.js('''
+          const { MailServices } = ChromeUtils.importESModule("resource:///modules/MailServices.sys.mjs");
+          try { MailServices.accounts.localFoldersServer; } catch { MailServices.accounts.createLocalMailAccount(); await wait(500); }
+          const root = MailServices.accounts.localFoldersServer.rootFolder;
+          if (!root.containsChildNamed("Inbox")) { root.createSubfolder("Inbox", null); await wait(800); }
+          const inbox = root.getChildNamed("Inbox");
+          if (!inbox.containsChildNamed("Rechnungen")) { inbox.createSubfolder("Rechnungen", null); await wait(800); }
+          if (!root.containsChildNamed("Projekte")) { root.createSubfolder("Projekte", null); await wait(800); }
+          const sub = inbox.getChildNamed("Rechnungen"), own = root.getChildNamed("Projekte");
+          const a3 = await toMail(); const ad = a3.document;
+          const smart = () => [...ad.querySelectorAll(\'#folderTree > li[data-mode="smart"] li[is="folder-tree-row"]\')];
+          const nameOf = li => li?.querySelector(":scope > .container .name")?.textContent;
+          const find = (f, underServer) => smart().find(li => li.uri == f.URI &&
+            !!li.parentElement?.closest("li")?.hasAttribute("data-server-type") == underServer);
+          await until(() => find(sub, false) && find(own, true), 8000); await wait(800);
+          return { modes: a3.folderPane?.activeModes, inbox: nameOf(find(inbox, false)), account: root.server.prettyName,
+                   sub: nameOf(find(sub, false)), underAccount: nameOf(find(own, true)) };''')
+        if not res.get("modes") or "smart" not in res["modes"]:
+            return False, f"Favoriten nicht eingeschaltet {res}"
+        ok = res["sub"] == "Rechnungen" and res["underAccount"] == "Projekte" and res["inbox"] == res["account"]
+        return ok, f"{res}"
+    check("Favoriten: Unterordner behalten ihren eigenen Namen statt des Kontonamens", smart_folder_names, results)
 
     def card_sender_date():
         # Absender nur als Adresse → Name aus der Domain; Datum vor gestern ganz;
