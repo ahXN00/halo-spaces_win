@@ -29,6 +29,21 @@ kann. Ziel ist macOS; Windows/Linux laufen mit, sind aber nicht der Schwerpunkt.
 | `store/` | Texte, Screenshots und Upload-Skript für addons.thunderbird.net |
 | `updates.json` | Update-Manifest, das Thunderbird von GitHub abfragt |
 
+## Offizielle Thunderbird-Doku
+
+Nicht ins Repo kopieren – bei Bedarf die einzelne Seite abrufen:
+
+- **Index für Agenten:** <https://developer.thunderbird.net/llms.txt>; jede Seite
+  dort gibt es als Markdown, wenn man `.md` an die URL hängt.
+  `llms-full.txt` enthält alles (~600 KB) – nur im Notfall.
+- **API-Referenz (Manifest V2, wie unser Paket):**
+  <https://webextension-api.thunderbird.net/en/mv2/> – vor neuer Logik in
+  `implementation.js` prüfen, ob es eine normale MailExtension-API gibt.
+- **Experiments:** `add-ons/mailextensions/experiments.md`
+- **Umstellungshinweise je Version:** `add-ons/updating/…` (z. B.
+  `updates-for-thunderbird-140.md`) – vor dem Anheben von `store/max-version` lesen.
+- **Schemas:** GitHub `thunderbird/webext-schemas`.
+
 ## Erzeugte Dateien – nicht von Hand bearbeiten
 
 - **`extension/theme.css`** wird von `build.sh` aus `chrome/userChrome.css` kopiert (gitignored).
