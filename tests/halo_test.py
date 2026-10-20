@@ -1933,16 +1933,23 @@ def run_checks(m, version, profile, results):
     check("Erweiterung: Fenster-Callbacks je Hauptfenster statt am gemeinsamen Enhancer", window_callbacks, results)
 
     def books_leak():
-        # Restorer eines geschlossenen Adressbuch-Tabs werden verworfen (halten das Fenster nicht fest)
+        # Restorer eines geschlossenen Adressbuch-Tabs werden verworfen (halten das Fenster nicht fest);
+        # nach dem ersten Öffnen (einmalige Hooks) wächst die Liste aller Restorer je Öffnen und Schließen nicht mehr
         res = m.js(ENH_JS + '''
           const cw = await openBooks();
           const fns = cw ? [...(enh.winRestorers.get(cw) || [])] : [];
           const held = fns.filter(f => enh.restorers.includes(f)).length;
           tm.closeTab(tm.currentTabInfo);
           const freed = await until(() => fns.every(f => !enh.restorers.includes(f)), 6000);
-          await toMail();
-          return { tab: !!cw, fns: fns.length, held, freed };''')
-        return res["tab"] and res["fns"] > 0 and res["held"] == res["fns"] and res["freed"], f"{res}"
+          await toMail(); await wait(800);
+          const n1 = enh.restorers.length;
+          const cw2 = await openBooks(); await wait(800);
+          const open2 = enh.restorers.length;
+          tm.closeTab(tm.currentTabInfo); await toMail();
+          const n2 = await until(() => enh.restorers.length == n1 && n1, 6000) || enh.restorers.length;
+          return { tab: !!cw && !!cw2, fns: fns.length, held, freed, n1, open2, n2 };''')
+        ok = res["tab"] and res["fns"] > 0 and res["held"] == res["fns"] and res["freed"] and res["n2"] == res["n1"]
+        return ok, f"{res}"
     check("Erweiterung: Restorer geschlossener Adressbuch-Tabs werden verworfen", books_leak, results)
 
     def restart_cycle():
@@ -1958,11 +1965,13 @@ def run_checks(m, version, profile, results):
           const out = { tab: !!cw, watch0: !!fp.__mcWidthWatch, local0: nameOf(local()) };
           enh.stop();
           out.watch1 = !!fp.__mcWidthWatch;
+          // wie nach 3.2.0: deren stop() ließ das Merkmal als „true“ stehen
+          fp.__mcWidthWatch = true;
           out.header1 = !!cw?.document.getElementById("mcBooksHeader");
           out.local1 = nameOf(local()); out.server = local()?._serverName;
           Cu.evalInSandbox("enhancer = new CardEnhancer({}); enhancer.start();", g);
           out.header2 = !!(await until(() => cw?.document.getElementById("mcBooksHeader"), 8000));
-          out.watch2 = await until(() => !!fp.__mcWidthWatch, 8000);
+          out.watch2 = await until(() => typeof fp.__mcWidthWatch == "object", 8000);
           out.local2 = await until(() => nameOf(local()) == out.local0 && out.local0, 6000);
           tm.closeTab(tm.currentTabInfo); await toMail();
           return out;''')

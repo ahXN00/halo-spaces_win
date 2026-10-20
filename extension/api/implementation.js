@@ -3095,7 +3095,9 @@ class CardEnhancer {
           ro.observe(el); // Adressbuchliste ein-/ausgeblendet: Kontaktliste rückt
           el.ownerDocument.getElementById("booksSplitter") && ro.observe(el.ownerDocument.getElementById("booksSplitter"));
           cards.__mcObserver = { owner: this, ro };
-          this.restorers.push(() => {
+          // am Adressbuch-Fenster: beim Schließen des Tabs verworfen (hielte sonst
+          // das geschlossene Adressbuch samt Kontaktliste bis zum Beenden fest)
+          this.addWinRestorer(el.ownerDocument.defaultView, () => {
             ro.disconnect();
             delete cards.__mcObserver;
           });
@@ -3138,7 +3140,7 @@ class CardEnhancer {
           };
           shared.addEventListener("splitter-resizing", onResizing);
           shared.addEventListener("splitter-resized", onResized);
-          this.restorers.push(() => {
+          this.addWinRestorer(el.ownerDocument.defaultView, () => {
             shared._updateSize = origUpdate;
             shared.removeEventListener("splitter-resizing", onResizing);
             shared.removeEventListener("splitter-resized", onResized);
@@ -3954,10 +3956,12 @@ class CardEnhancer {
     };
     const watchWidth = tab => {
       const [el, splitter, win] = sidebarFor(tab);
-      if (!el || el.__mcWidthWatch) {
+      // Merkmal gehört dieser Fassung: ein liegengebliebenes „true“ einer älteren
+      // (3.2.0 räumte es beim Update ohne Neustart nicht weg) blockiert nicht
+      if (!el || el.__mcWidthWatch === this) {
         return;
       }
-      el.__mcWidthWatch = true;
+      el.__mcWidthWatch = this;
       // Startwert: die Breite der Ordnerliste in der Mail
       if (!Services.prefs.getIntPref(WIDTH_PREF, 0) && tab.mode?.name == "mail3PaneTab") {
         const width = Math.round(el.getBoundingClientRect().width);
@@ -3983,7 +3987,9 @@ class CardEnhancer {
         splitter.addEventListener("pointerdown", onDown);
         this.addWinRestorer(win, () => {
           splitter.removeEventListener("pointerdown", onDown);
-          delete el.__mcWidthWatch;
+          if (el.__mcWidthWatch === this) {
+            delete el.__mcWidthWatch;
+          }
         });
       }
     };
@@ -5855,7 +5861,7 @@ class CardEnhancer {
       search?.addEventListener("autocomplete", update);
       const mo = new cw.MutationObserver(update);
       mo.observe(list, { childList: true, subtree: true });
-      this.restorers.push(() => {
+      this.addWinRestorer(cw, () => {
         books.removeEventListener("select", update);
         search?.removeEventListener("autocomplete", update);
         mo.disconnect();
