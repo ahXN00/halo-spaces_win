@@ -185,14 +185,14 @@
 }
 
 /* Minikalender wie unten links bei Apple */
-:is(#calMinimonth, #today-minimonth) {
+:is(#calMinimonth, #today-minimonth, #from-minimonth, #to-minimonth) {
   background: transparent !important;
   border: none !important;
   box-shadow: none !important;
   font-size: 12px !important;
 }
 
-:is(#calMinimonth, #today-minimonth) .minimonth-header {
+:is(#calMinimonth, #today-minimonth, #from-minimonth, #to-minimonth) .minimonth-header {
   display: flex !important;
   align-items: center !important;
   justify-content: center !important;
@@ -200,35 +200,35 @@
   padding: 0 4px 6px !important;
 }
 
-:is(#calMinimonth, #today-minimonth) .minimonth-nav-section {
+:is(#calMinimonth, #today-minimonth, #from-minimonth, #to-minimonth) .minimonth-nav-section {
   display: contents !important;
 }
 
-:is(#calMinimonth, #today-minimonth) .today-button,
-:is(#calMinimonth, #today-minimonth) .years-back-button,
-:is(#calMinimonth, #today-minimonth) .years-forward-button {
+:is(#calMinimonth, #today-minimonth, #from-minimonth, #to-minimonth) .today-button,
+:is(#calMinimonth, #today-minimonth, #from-minimonth, #to-minimonth) .years-back-button,
+:is(#calMinimonth, #today-minimonth, #from-minimonth, #to-minimonth) .years-forward-button {
   display: none !important;
 }
 
-:is(#calMinimonth, #today-minimonth) .months-back-button {
+:is(#calMinimonth, #today-minimonth, #from-minimonth, #to-minimonth) .months-back-button {
   order: 0 !important;
   margin-inline-end: auto !important;
 }
 
-:is(#calMinimonth, #today-minimonth) .minimonth-nav-item:not(:has(.yearcell)) {
+:is(#calMinimonth, #today-minimonth, #from-minimonth, #to-minimonth) .minimonth-nav-item:not(:has(.yearcell)) {
   order: 1 !important;
 }
 
-:is(#calMinimonth, #today-minimonth) .minimonth-nav-item:has(.yearcell) {
+:is(#calMinimonth, #today-minimonth, #from-minimonth, #to-minimonth) .minimonth-nav-item:has(.yearcell) {
   order: 2 !important;
 }
 
-:is(#calMinimonth, #today-minimonth) .months-forward-button {
+:is(#calMinimonth, #today-minimonth, #from-minimonth, #to-minimonth) .months-forward-button {
   order: 3 !important;
   margin-inline-start: auto !important;
 }
 
-:is(#calMinimonth, #today-minimonth) .minimonth-nav-btn:not(.today-button, .years-back-button, .years-forward-button) {
+:is(#calMinimonth, #today-minimonth, #from-minimonth, #to-minimonth) .minimonth-nav-btn:not(.today-button, .years-back-button, .years-forward-button) {
   display: inline-flex !important;
   align-items: center !important;
   justify-content: center !important;
@@ -240,42 +240,42 @@
   color: var(--mt-text-secondary) !important;
 }
 
-:is(#calMinimonth, #today-minimonth) .minimonth-nav-btn:hover {
+:is(#calMinimonth, #today-minimonth, #from-minimonth, #to-minimonth) .minimonth-nav-btn:hover {
   background: var(--mt-control-hover) !important;
 }
 
-:is(#calMinimonth, #today-minimonth) :is(.minimonth-month-name, .minimonth-year-name) {
+:is(#calMinimonth, #today-minimonth, #from-minimonth, #to-minimonth) :is(.minimonth-month-name, .minimonth-year-name) {
   font-size: 15px !important;
   font-weight: 400 !important;
   color: var(--mt-text-secondary) !important;
   text-align: center !important;
 }
 
-:is(#calMinimonth, #today-minimonth) .minimonth-month-name {
+:is(#calMinimonth, #today-minimonth, #from-minimonth, #to-minimonth) .minimonth-month-name {
   text-align: end !important;
 }
 
-:is(#calMinimonth, #today-minimonth) .minimonth-year-name {
+:is(#calMinimonth, #today-minimonth, #from-minimonth, #to-minimonth) .minimonth-year-name {
   text-align: start !important;
 }
 
 /* Kopf wie in Apple Kalender: ‹  Oktober 2026  › – Monat und Jahr so breit
    wie ihr Text und zusammen mittig, die Pfeile über der ersten bzw. letzten
    Spalte */
-:is(#calMinimonth, #today-minimonth) .minimonth-header {
+:is(#calMinimonth, #today-minimonth, #from-minimonth, #to-minimonth) .minimonth-header {
   justify-content: space-between !important;
   gap: 0 !important;
   padding: 0 0 6px !important;
 }
 
-:is(#calMinimonth, #today-minimonth) .minimonth-nav-item {
+:is(#calMinimonth, #today-minimonth, #from-minimonth, #to-minimonth) .minimonth-nav-item {
   display: flex !important;
   min-width: 0 !important;
   margin: 0 !important;
   padding: 0 !important;
 }
 
-:is(#calMinimonth, #today-minimonth) :is(.minimonth-month-name, .minimonth-year-name) {
+:is(#calMinimonth, #today-minimonth, #from-minimonth, #to-minimonth) :is(.minimonth-month-name, .minimonth-year-name) {
   field-sizing: content !important;
   width: auto !important;
   min-width: 0 !important;
@@ -289,22 +289,22 @@
   opacity: 1 !important;
 }
 
-:is(#calMinimonth, #today-minimonth) .minimonth-month-name {
+:is(#calMinimonth, #today-minimonth, #from-minimonth, #to-minimonth) .minimonth-month-name {
   margin-inline-end: 0.3em !important;
 }
 
-:is(#calMinimonth, #today-minimonth) :is(.minimonth-row-header-week, .minimonth-week) {
+:is(#calMinimonth, #today-minimonth, #from-minimonth, #to-minimonth) :is(.minimonth-row-header-week, .minimonth-week) {
   display: none !important;
 }
 
-:is(#calMinimonth, #today-minimonth) .minimonth-row-header {
+:is(#calMinimonth, #today-minimonth, #from-minimonth, #to-minimonth) .minimonth-row-header {
   font-size: 11px !important;
   font-weight: 500 !important;
   color: var(--mt-text-tertiary) !important;
   background: transparent !important;
 }
 
-:is(#calMinimonth, #today-minimonth) td.minimonth-day {
+:is(#calMinimonth, #today-minimonth, #from-minimonth, #to-minimonth) td.minimonth-day {
   height: 26px !important;
   font-size: 12px !important;
   font-weight: 500 !important;
@@ -316,23 +316,71 @@
   outline: none !important;
 }
 
-:is(#calMinimonth, #today-minimonth) td.minimonth-day[othermonth] {
+:is(#calMinimonth, #today-minimonth, #from-minimonth, #to-minimonth) td.minimonth-day[othermonth] {
   color: var(--mt-text-tertiary) !important;
 }
 
-:is(#calMinimonth, #today-minimonth) td.minimonth-day:hover {
+:is(#calMinimonth, #today-minimonth, #from-minimonth, #to-minimonth) td.minimonth-day:hover {
   background: var(--mt-control-hover) !important;
 }
 
-:is(#calMinimonth, #today-minimonth) td.minimonth-day[selected] {
+:is(#calMinimonth, #today-minimonth, #from-minimonth, #to-minimonth) td.minimonth-day[selected] {
   background: var(--mt-control) !important;
 }
 
 /* heute: weiße Zahl im roten Kreis wie Apple */
-:is(#calMinimonth, #today-minimonth) td.minimonth-day[today] {
+:is(#calMinimonth, #today-minimonth, #from-minimonth, #to-minimonth) td.minimonth-day[today] {
   background: radial-gradient(circle closest-side, #FF3B30 11px, transparent 11.5px) !important;
   color: white !important;
   font-weight: 700 !important;
+}
+
+/* Drucken („Von“/„Bis“): dieselben Minikalender wie in der Seitenleiste,
+   so breit wie das Formular (Thunderbird: mindestens 175 px plus Kopf mit
+   festen Breiten – Jahreszahl, Sa/So und Pfeile waren abgeschnitten) */
+:is(#from-minimonth, #to-minimonth) {
+  min-width: 0 !important;
+  width: auto !important;
+}
+
+/* Minikalender in Dialogen (Datumsfeld, Vorschau der Wiederholung): ruhig
+   wie in der Seitenleiste – heute rot ohne Kästchen, Auswahl in Akzentfarbe,
+   Kalenderwochen klein und grau statt fett in Lavendel; Jahres- und
+   Heute-Knöpfe bleiben (Thunderbird steuert alles über --mm*-Variablen) */
+calendar-minimonth:not(#calMinimonth, #today-minimonth, #from-minimonth, #to-minimonth) {
+  --mmMainBackground: transparent !important;
+  --mmBoxBackground: var(--mt-control) !important;
+  --mmBoxItemColor: var(--mt-separator) !important;
+  --mmDayWeekColor: var(--mt-text-tertiary) !important;
+  --mmDayTodayColor: #FF3B30 !important;
+  --mmDayTodayBackground: transparent !important;
+  --mmDayTodayBorderColor: transparent !important;
+  --mmDaySelectedColor: var(--mt-accent-text) !important;
+  --mmDaySelectedBackground: var(--mt-accent) !important;
+  --mmDaySelectedBorderColor: transparent !important;
+  --mmDaySelectedTodayBackground: var(--mt-accent) !important;
+  --mmDaySelectedTodayBorderColor: transparent !important;
+  --mmDayBorderRadius: 6px !important;
+}
+
+calendar-minimonth:not(#calMinimonth, #today-minimonth, #from-minimonth, #to-minimonth) .minimonth-week {
+  font-weight: 400 !important;
+  font-size: 11px !important;
+}
+
+calendar-minimonth:not(#calMinimonth, #today-minimonth, #from-minimonth, #to-minimonth) .minimonth-row-header {
+  font-weight: 500 !important;
+  font-size: 11px !important;
+  color: var(--mt-text-secondary) !important;
+}
+
+calendar-minimonth:not(#calMinimonth, #today-minimonth, #from-minimonth, #to-minimonth) td.minimonth-day[today] {
+  font-weight: 600 !important;
+}
+
+/* Überfahren: graue Fläche statt Rahmen (der hinge an der Auswahlfarbe) */
+calendar-minimonth:not(#calMinimonth, #today-minimonth, #from-minimonth, #to-minimonth) td.minimonth-day[interactive]:hover:not([selected]) {
+  background-color: var(--mt-control-hover) !important;
 }
 
 /* Kalender-Kopfzeile: großer Monatstitel links, Umschalter und Navigation rechts */
@@ -448,7 +496,7 @@
 }
 
 #calendarControls .button-group > :is(#previousViewButton, #nextViewButton)::before,
-:is(#calMinimonth, #today-minimonth) :is(.months-back-button, .months-forward-button)::before {
+:is(#calMinimonth, #today-minimonth, #from-minimonth, #to-minimonth) :is(.months-back-button, .months-forward-button)::before {
   content: "" !important;
   width: 16px !important;
   height: 16px !important;
@@ -458,7 +506,7 @@
 }
 
 #calendarControls .button-group > #nextViewButton::before,
-:is(#calMinimonth, #today-minimonth) .months-forward-button::before {
+:is(#calMinimonth, #today-minimonth, #from-minimonth, #to-minimonth) .months-forward-button::before {
   transform: rotate(-90deg) !important;
 }
 
@@ -705,12 +753,12 @@ calendar-month-day-box .calendar-month-day-box-list {
 }
 
 /* Belegt-Punkte im Minikalender gibt es bei Apple nicht */
-:is(#calMinimonth, #today-minimonth) td.minimonth-day[busy]::after,
-:is(#calMinimonth, #today-minimonth) td.minimonth-day::after {
+:is(#calMinimonth, #today-minimonth, #from-minimonth, #to-minimonth) td.minimonth-day[busy]::after,
+:is(#calMinimonth, #today-minimonth, #from-minimonth, #to-minimonth) td.minimonth-day::after {
   display: none !important;
 }
 
-:is(#calMinimonth, #today-minimonth) .minimonth-nav-item {
+:is(#calMinimonth, #today-minimonth, #from-minimonth, #to-minimonth) .minimonth-nav-item {
   border: none !important;
 }
 
@@ -751,6 +799,9 @@ calendar-week-view, calendar-day-view {
   min-width: 0 !important;
 }
 
+/* Breite: Thunderbird setzt per Inline-Stil eine Mindestbreite (Kurzform
+   „Mon 19 Oct“) – bei schmalem Fenster ragte der Kopf dann über die Spalte
+   und wurde vom nächsten deckenden Kopf ohne „…“ abgeschnitten */
 .day-column-heading {
   background: var(--mt-window) !important;
   border: none !important;
@@ -758,12 +809,31 @@ calendar-week-view, calendar-day-view {
   font-size: 13px !important;
   font-weight: 400 !important;
   color: var(--mt-text) !important;
-  min-height: 30px !important;
   justify-content: center !important;
+  min-width: 0 !important;
+  overflow: hidden !important;
 }
 
+/* Höhe über den Innenabstand statt min-height: Thunderbird misst für den
+   Versatz der (deckenden, mitlaufenden) Ganztags-Zeile nur Text, Innenabstand
+   und Rand – mit min-height lag die Zeile über den Unterlängen („Mondav“).
+   16 px Text + 13,5 px + Haarlinie ≈ 30 px */
+.multiday-grid:not(.multiday-grid-rotated) .day-column-heading {
+  padding-block: 6.5px 7px !important;
+}
+
+.multiday-grid-rotated .day-column-heading {
+  min-height: 30px !important;
+}
+
+/* kein display-Wert: Thunderbird blendet Lang- bzw. Kurzform per [hidden] aus */
 .day-column-heading > span {
   font-weight: 400 !important;
+  flex-shrink: 1 !important;
+  min-width: 0 !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
 }
 
 /* heute: Überschrift rot wie bei Apple, keine blaue Fläche */
@@ -776,6 +846,18 @@ calendar-week-view, calendar-day-view {
 .day-column-container calendar-header-container {
   background: var(--mt-window) !important;
   border-color: var(--mt-pane-line) !important;
+  border-block-end-width: var(--mt-hairline) !important;
+}
+
+/* Rasterlinien einheitlich als Haarlinie: keine 2-px-Linie der Zeitleiste
+   neben der Linie der ersten Spalte (die bringt ihre eigene mit) und keine
+   zweite Linie rechts der ausgewählten Spalte (Thunderbird rahmt sie ein) */
+.multiday-grid:not(.multiday-grid-rotated) .multiday-timebar {
+  border-inline-end: none !important;
+}
+
+.multiday-grid:not(.multiday-grid-rotated) .day-column-selected :is(calendar-header-container, .multiday-hour-box) {
+  border-inline-end: none !important;
 }
 
 calendar-event-column {
@@ -838,6 +920,14 @@ calendar-event-box :is(.alarm-icons-box, .item-classification-icon, .item-recurr
 
 .allday-events-list .calendar-color-box :is(.item-type-icon, .alarm-icons-box, .item-classification-icon, .item-recurrence-icon, .calendar-category-box) {
   display: none !important;
+}
+
+/* Ganztags-Termine einzeilig wie bei Apple (Thunderbird bricht Titel in
+   Tag und Woche um – die Zeile wurde dann doppelt so hoch) */
+:is(#day-view, #week-view) .allday-events-list .event-name-label {
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
 }
 
 /* ---------- Aufgaben im Stil von Apple Erinnerungen ---------- */
@@ -3424,7 +3514,7 @@ addon-page-header h1,
 }
 
 /* Minikalender: Zahlen exakt mittig, damit der rote Heute-Kreis sitzt */
-:is(#calMinimonth, #today-minimonth) td.minimonth-day {
+:is(#calMinimonth, #today-minimonth, #from-minimonth, #to-minimonth) td.minimonth-day {
   line-height: 26px !important;
   vertical-align: middle !important;
   text-align: center !important;
@@ -3680,6 +3770,44 @@ vbox:has(> #keepduration-button) {
 
 vbox:has(> #keepduration-button) > :not(#keepduration-button) {
   display: none !important;
+}
+
+/* Uhrzeit-Raster (Stunden/Minuten im Uhrzeitfeld): ohne Gitterlinien um
+   jede Zelle, runde Zellen, Auswahl in Akzentfarbe, 13 px statt 8 pt
+   (Thunderbird steuert die Farben über --tp*-/--tb*-Variablen) */
+timepicker-grids {
+  --tpBorderColor: transparent !important;
+  --tpMainBackground: transparent !important;
+  --tpSubBackground: transparent !important;
+  --tpFiveminBackground: transparent !important;
+  --tpMainColor: var(--mt-text) !important;
+  --tpSubColor: var(--mt-text) !important;
+  --tpFiveminColor: var(--mt-text) !important;
+  --tpItemHoverBackground: var(--mt-control-hover) !important;
+  --tpItemHoverColor: var(--mt-text) !important;
+  --tbHighlightBackground: var(--mt-accent) !important;
+  --tbHighlightColor: var(--mt-accent-text) !important;
+}
+
+timepicker-grids .time-picker-grids {
+  font-size: 13px !important;
+}
+
+timepicker-grids :is(.time-picker-hour-box-class, .time-picker-minute-box-class, .time-picker-five-minute-class, .time-picker-one-minute-class),
+timepicker-grids .time-picker-more-control-label {
+  border-color: transparent !important;
+  border-radius: 6px !important;
+}
+
+/* Schrift wie im übrigen Design (Thunderbird: 11 px, die Beschreibung
+   darunter 15 px) und Abstand zwischen Beschriftung und Feld (Thunderbird:
+   kein Innenabstand – „Reminder“ stieß fast ans Feld) */
+:is(#calendar-event-window, #calendar-event-dialog-inner) {
+  font-size: 13px !important;
+}
+
+#calendar-event-dialog-inner #event-grid th {
+  padding-inline-end: 10px !important;
 }
 
 /* Trennlinien zwischen den Abschnitten fein und eingerückt */
@@ -4721,7 +4849,7 @@ body:has(> #booksPane.mc-side-anim) {
 /* Inhalt des Popups (Schatten-DOM): extension/parts.css */
 
 #mcNewPopup .mc-pop {
-  --mc-pop-bg: #fbfbfc;
+  --mc-pop-bg: var(--mt-popover-bg);
   --mc-pop-icon-bg: #ebebed;
   position: relative !important;
   display: flex !important;
@@ -4734,12 +4862,13 @@ body:has(> #booksPane.mc-side-anim) {
   box-shadow: 0 8px 28px rgba(0, 0, 0, 0.16), 0 1px 4px rgba(0, 0, 0, 0.08) !important;
 }
 
-/* Pfeil über der Mitte des „+“ (Knopf 44 px breit) */
+/* Pfeil über der Mitte des „+“ (die Erweiterung misst die Lage nach dem
+   Öffnen und setzt --mc-arrow-x) */
 #mcNewPopup .mc-pop::before {
   content: "" !important;
   position: absolute !important;
   top: -7px !important;
-  inset-inline-start: 11px !important;
+  inset-inline-start: var(--mc-arrow-x, 11px) !important;
   width: 14px !important;
   height: 14px !important;
   background: var(--mc-pop-bg) !important;
@@ -4792,7 +4921,6 @@ body:has(> #booksPane.mc-side-anim) {
 
 @media (prefers-color-scheme: dark) {
   #mcNewPopup .mc-pop {
-    --mc-pop-bg: #2c2c2e;
     --mc-pop-icon-bg: #3a3a3c;
     border-color: rgba(255, 255, 255, 0.12);
   }
@@ -4914,19 +5042,19 @@ body:has(> #booksPane.mc-side-anim) {
   margin-inline: 14px !important;
 }
 
-:is(#calMinimonth, #today-minimonth) table {
+:is(#calMinimonth, #today-minimonth, #from-minimonth, #to-minimonth) table {
   width: 100% !important;
   table-layout: fixed !important;
 }
 
-:is(#calMinimonth, #today-minimonth) td.minimonth-day {
+:is(#calMinimonth, #today-minimonth, #from-minimonth, #to-minimonth) td.minimonth-day {
   width: auto !important;
   height: 28px !important;
   line-height: 28px !important;
   font-size: 13px !important;
 }
 
-:is(#calMinimonth, #today-minimonth) .minimonth-row-header {
+:is(#calMinimonth, #today-minimonth, #from-minimonth, #to-minimonth) .minimonth-row-header {
   font-size: 11px !important;
   height: 22px !important;
 }
@@ -4936,7 +5064,7 @@ body:has(> #booksPane.mc-side-anim) {
   min-width: 228px !important;
 }
 
-:is(#calMinimonth, #today-minimonth) td.minimonth-day:not([today]) {
+:is(#calMinimonth, #today-minimonth, #from-minimonth, #to-minimonth) td.minimonth-day:not([today]) {
   font-weight: 400 !important;
 }
 
@@ -5317,12 +5445,47 @@ notification-message toolbarbutton.notification-button > .toolbarbutton-menubutt
 /* ---------- Schnellfenster „Neuer Termin / Neue Aufgabe“ (#mcQuickPanel) ----------
    wie das Popover in Apple Kalender: Umschalter oben, Titel und Zeit mit
    Farbbalken des Kalenders, darunter helle Felder als Karten */
+/* Fläche wie das „+“-Popover (dunkel sonst Thunderbirds Navyblau mit
+   bläulichem Rand, hell grauer Rand): die Variablen brauchen !important,
+   sonst gelten Thunderbirds Panel-Regeln */
 #mcQuickPanel {
-  --panel-background: var(--mt-menu-bg, rgba(246, 246, 248, 0.92));
-  --panel-border-radius: 16px;
-  --panel-padding: 0;
-  --panel-border-color: transparent;
+  --panel-background-color: var(--mt-popover-bg) !important;
+  --panel-border-radius: 16px !important;
+  --panel-padding: 0 !important;
+  --panel-border-color: transparent !important;
   font-family: var(--mt-font) !important;
+}
+
+/* Datumsauswahl der Datumsfelder (Schnellfenster): ein Popover in derselben
+   Fläche statt eckiger Innenfläche in einem Navy-Rahmen mit hartem Rand */
+#DateTimePickerPanel {
+  --panel-background-color: var(--mt-popover-bg) !important;
+  --panel-border-color: transparent !important;
+  --panel-border-radius: 12px !important;
+  --panel-padding: 4px !important;
+}
+
+/* Inhalt der Datumsauswahl (eigenes Dokument; Thunderbird steuert es über
+   :root-Variablen): Knöpfe ohne harten Rand mit 6 px Radius, Auswahl in
+   Akzentfarbe statt eckigem Systemblau; rote Wochenenden bleiben */
+@-moz-document url("chrome://global/content/datetimepicker.xhtml") {
+  :root {
+    --border-color: transparent !important;
+    --border-radius: 6px !important;
+    --button-background: var(--mt-control) !important;
+    --button-background-hover: var(--mt-control-hover) !important;
+    --calendar-item-background-hover: var(--mt-control-hover) !important;
+  }
+
+  body {
+    background-color: var(--mt-popover-bg) !important;
+    color: var(--mt-text) !important;
+  }
+
+  :is(.days-view > tr > td, .spinner-container > .spinner:not(.scrolling) > div).selection {
+    background-color: var(--mt-accent) !important;
+    color: var(--mt-accent-text) !important;
+  }
 }
 
 #mcQuickPanel .mc-qc {
@@ -5653,7 +5816,7 @@ notification-message toolbarbutton.notification-button > .toolbarbutton-menubutt
     #editContactForm .add-property-button, .im-placeholder-screen button,
     #appMenu-uiDensity-controls > .subviewbutton):focus-visible,
 #mcQuickPanel :is(button, select, .mc-qc-summary, .mc-qc-calsel, .mc-qc-link):focus-visible,
-:is(#calMinimonth, #today-minimonth) td.minimonth-day:focus-visible {
+:is(#calMinimonth, #today-minimonth, #from-minimonth, #to-minimonth) td.minimonth-day:focus-visible {
   outline: 2px solid var(--mt-accent) !important;
   outline-offset: 1px !important;
 }

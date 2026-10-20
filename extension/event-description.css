@@ -1,0 +1,9 @@
+/* halo.spaces – Beschreibung im Termin-Fenster (Editor-Dokument about:blank
+   im Feld #item-description). theme.css erreicht dieses Dokument nicht; die
+   Erweiterung lädt diese Datei dort als Benutzer-Stylesheet (implementation.js,
+   styleItemDescription). Ohne sie stand die Beschreibung in der Inhaltsschrift
+   (sans-serif, 15 px) unter Feldern in der Systemschrift mit 13 px.
+   Ohne !important: eigene Schriftangaben einer HTML-Beschreibung bleiben. */
+body {
+  font: 13px -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+}

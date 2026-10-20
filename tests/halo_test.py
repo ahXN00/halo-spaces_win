@@ -1624,6 +1624,253 @@ def menu_checks(m, results):
     check("Schlagwort-Menü: Namen in Schlagwortfarbe lesbar (Kontrast ≥ 4,5:1), markiert in der Schrift der Auswahl", tag_menu, results)
 
 
+# Kalender: Woche mit heute (auf 8 Uhr gescrollt), Spalten, Popups öffnen/schließen, Inhaltsteil eines Panels
+CAL_CHECK_JS = COMPOSE_CHECK_JS + r"""
+  const { CalEvent } = ChromeUtils.importESModule("resource:///modules/CalEvent.sys.mjs");
+  const toWeek = async (width = 1500) => { w.resizeTo(width, 900); await pause(900); await toCalendar(); w.switchToView("week");
+    w.currentView().goToDay(cal.dtz.now()); await pause(1200); w.currentView().scrollToMinute(480); await pause(700); return w.currentView(); };
+  const cols = () => [...d.querySelectorAll("#week-view .day-column-container")]
+    .map(c => ({ h: c.querySelector(".day-column-heading"), hc: c.querySelector("calendar-header-container") })).filter(x => vis(x.h));
+  const isOpen = p => till(() => p?.state == "open", 4000);
+  const shutPop = async p => { if (p && p.state != "closed") { p.hidePopup(); await till(() => p.state == "closed", 2000); } };
+  const partOf = p => p?.shadowRoot?.querySelector('[part~="content"]');
+  const today = () => { const t = cal.dtz.now(); t.isDate = true; return t; };"""
+
+
+def calendar_checks(m, results):
+    """Kalender: Tagesköpfe der Woche (Höhe, schmales Fenster), Ganztags-Termine, Rasterlinien, Schnellfenster samt
+    Datumsauswahl und Auswahlliste, Pfeil des „+“-Popovers, Termin-Dialog (Schrift, Minimonat, Uhrzeit-Raster), Drucken."""
+
+    def week_heads():
+        # Thunderbird versetzt die deckende Ganztags-Zeile um Text + Innenabstand + Rand des Kopfs (ohne min-height) –
+        # mit min-height lag sie über den Unterlängen („Mondav“)
+        res = m.js(CAL_CHECK_JS + r"""
+          await toWeek();
+          return cols().map(({ h, hc }) => { const a = h.getBoundingClientRect(), b = hc.getBoundingClientRect();
+            const el = d.elementFromPoint(a.left + a.width / 2, a.bottom - 2);
+            return { height: Math.round(a.height * 10) / 10, gap: Math.round((b.top - a.bottom) * 10) / 10, hit: !!el && h.contains(el) }; });""")
+        ok = len(res) == 7 and all(c["gap"] >= -0.6 and c["hit"] and c["height"] >= 28 for c in res)
+        return ok, f"{res}"
+    check("Woche: Tagesköpfe ganz sichtbar (Ganztags-Zeile beginnt darunter, Unterlängen nicht abgeschnitten)", week_heads, results)
+
+    def narrow_heads():
+        # schmales Fenster: Kopf nicht breiter als seine Spalte (Thunderbirds Inline-Mindestbreite), Text endet mit „…“
+        res = m.js(CAL_CHECK_JS + r"""
+          await toWeek(1136);
+          const heads = cols().map(({ h }) => { const spans = [...h.children].filter(s => !s.hidden && s.getBoundingClientRect().width > 0);
+            const a = h.getBoundingClientRect(), r = spans[0]?.getBoundingClientRect();
+            return { shown: spans.length, ellipsis: spans[0] ? csOf(spans[0]).textOverflow : null,
+                     inside: !!r && r.right <= a.right + 0.5 && r.left >= a.left - 0.5, l: Math.round(a.left * 10) / 10, r: Math.round(a.right * 10) / 10 }; });
+          const out = { width: w.outerWidth, heads };
+          w.resizeTo(1500, 900); await pause(900); return out;""")
+        h = res["heads"]
+        ok = (len(h) == 7 and all(x["shown"] == 1 and x["ellipsis"] == "ellipsis" and x["inside"] for x in h)
+              and all(h[i]["r"] <= h[i + 1]["l"] + 0.5 for i in range(len(h) - 1)))
+        return ok, f"{res}"
+    check("Woche im schmalen Fenster: Tagesköpfe in ihrer Spalte, gekürzt mit „…“, ohne Überlappung", narrow_heads, results)
+
+    def allday_single_line():
+        # ganztägige Termine in Woche/Tag einzeilig (Thunderbird bricht dort um – die Zeile wurde doppelt so hoch)
+        res = m.js(CAL_CHECK_JS + r"""
+          const c = testCalendar(); const e = new CalEvent(); e.title = "Halo Ganztags Konferenz mit sehr langem Titel in Wien"; e.calendar = c;
+          const s = today(); const en = s.clone(); en.day += 2; e.startDate = s; e.endDate = en;
+          const saved = await c.addItem(e);
+          try {
+            await toWeek();
+            const labels = await till(() => { const l = [...d.querySelectorAll("#week-view .allday-events-list .event-name-label")]
+              .filter(x => /Halo Ganztags Konferenz/.test(x.textContent) && vis(x)); return l.length && l; }, 6000) || [];
+            await pause(300);
+            return labels.map(l => ({ ws: csOf(l).whiteSpace, li: Math.round(l.closest("li").getBoundingClientRect().height * 10) / 10 }));
+          } finally { try { await c.deleteItem(saved); } catch {} }""")
+        ok = len(res) >= 1 and all(x["ws"] == "nowrap" and x["li"] <= 26 for x in res)
+        return ok, f"{res}"
+    check("Woche: ganztägige Termine einzeilig (höchstens 26 px hoch)", allday_single_line, results)
+
+    def grid_lines():
+        # keine 2-px-Linie der Zeitleiste und unter den Ganztags-Zeilen, keine doppelte Linie rechts der ausgewählten Spalte
+        res = m.js(CAL_CHECK_JS + r"""
+          const v = await toWeek(); v.selectedDay = today(); await pause(500);
+          const sel = d.querySelector("#week-view .day-column-selected");
+          const tb = d.querySelector("#week-view .multiday-timebar"), hc = d.querySelector("#week-view calendar-header-container");
+          const hb = sel?.querySelector(".multiday-hour-box"), shc = sel?.querySelector("calendar-header-container");
+          return { selected: !!sel, timebar: csOf(tb).borderRightWidth, header: parseFloat(csOf(hc).borderBottomWidth),
+                   hourBox: hb ? csOf(hb).borderRightWidth : null, selHeader: shc ? csOf(shc).borderRightWidth : null };""")
+        ok = res["selected"] and res["timebar"] == "0px" and res["header"] <= 1 and res["hourBox"] == "0px" and res["selHeader"] == "0px"
+        return ok, f"{res}"
+    check("Woche: Rasterlinien als Haarlinie (Zeitleiste, Ganztags-Zeile, ausgewählte Spalte ohne doppelte Linie)", grid_lines, results)
+
+    def quick_panel_surfaces():
+        # Schnellfenster in der deckenden Popover-Fläche ohne Rand (dunkel sonst navyblau); Datumsauswahl als ein
+        # Popover ohne harte Ränder, Auswahl in Akzentfarbe; Auswahlliste ohne Kachel-Flächen je Zeile
+        res = m.js(CAL_CHECK_JS + r"""
+          await toWeek();
+          const li = [...d.querySelectorAll('#unifiedToolbarContent li[item-id="new-event"]')].find(vis);
+          li.querySelector("button").click();
+          const qp = await till(() => { const q = d.getElementById("mcQuickPanel"); return q?.state == "open" && q; }, 4000);
+          if (!qp) return { open: false, visibility: d.visibilityState };
+          await pause(300);
+          const out = { open: true, dark, token: colorOf(d, "var(--mt-popover-bg)", "backgroundColor") };
+          try {
+            const pc = csOf(partOf(qp)); out.panel = { bg: pc.backgroundColor, border: pc.borderTopColor, bw: pc.borderTopWidth };
+            const f = qp.__mc; if (!vis(f.startDate)) { f.summary.click(); await pause(600); }
+            const dp = d.getElementById("DateTimePickerPanel");
+            d.notifyUserGestureActivation(); f.startDate.showPicker();
+            if (await isOpen(dp)) {
+              const fd = await till(() => dp.querySelector("iframe")?.contentDocument?.querySelector("button.month-year") && dp.querySelector("iframe").contentDocument, 4000);
+              await pause(400);
+              const pp = csOf(partOf(dp)), sel = fd?.querySelector(".days-view td.selection");
+              out.picker = { bg: pp.backgroundColor, border: pp.borderTopColor, bw: pp.borderTopWidth, body: fd && csOf(fd.body).backgroundColor,
+                month: fd && csOf(fd.querySelector("button.month-year")).borderTopColor, clear: fd && csOf(fd.getElementById("clear-button")).borderTopColor,
+                sel: sel && csOf(sel).backgroundColor, accent: fd && colorOf(fd, "AccentColor", "backgroundColor") };
+              await shutPop(dp);
+            }
+            const sd = d.getElementById("ContentSelectDropdown")?.menupopup;
+            d.notifyUserGestureActivation(); f.repeat.showPicker();
+            if (sd && await isOpen(sd)) {
+              await pause(300);
+              out.select = [...sd.children].filter(x => x.localName == "menuitem" && x.getAttribute("_moz-menuactive") != "true" && vis(x)).map(x => csOf(x).backgroundColor);
+              await shutPop(sd);
+            }
+          } finally { await shutPop(qp); }
+          return out;""")
+        if not res.get("open"):
+            return res.get("visibility") == "hidden", f"Schnellfenster nicht offen {res}"
+        p, k = res["panel"], res.get("picker") or {}
+        no_border = lambda c, wd: wd == "0px" or rgba_alpha(c) == 0
+        ok = (no_border(p["border"], p["bw"]) and same_color(p["bg"], res["token"])
+              and same_color(res["token"], "rgb(44, 44, 46)" if res["dark"] else "rgb(251, 251, 252)")
+              and bool(k) and no_border(k["border"], k["bw"]) and same_color(k["bg"], k["body"])
+              and rgba_alpha(k["month"]) == 0 and rgba_alpha(k["clear"]) == 0 and (k["sel"] is None or same_color(k["sel"], k["accent"]))
+              and bool(res.get("select")) and all(rgba_alpha(c) == 0 for c in res["select"]))
+        return ok, f"{res}"
+    check("Schnellfenster: deckende Fläche ohne Rand; Datumsauswahl ein Popover ohne harte Ränder; Auswahlliste ohne Kacheln", quick_panel_surfaces, results)
+
+    def new_popup_arrow():
+        # „+“ der Today-Pane: Pfeil des Popovers über der Mitte des Knopfs (früher 240 px daneben) – auch am Bildschirmrand
+        res = m.js(CAL_CHECK_JS + r"""
+          const sx = w.screenX, sy = w.screenY, sw = w.outerWidth, sh = w.outerHeight; const out = { visibility: d.visibilityState };
+          await toMail();
+          const measure = async () => { await pause(800);
+            if (!w.TodayPane.isVisible) { d.getElementById("mcTodayToggle").click(); await pause(900); }
+            const np = d.getElementById("mcNewPopup"), btn = d.getElementById("mcTodayNew");
+            btn.click(); if (!await isOpen(np)) return { open: false };
+            await pause(400);
+            const box = np.querySelector(".mc-pop"), b = box.getBoundingClientRect(), a = btn.getBoundingClientRect();
+            const arrow = b.left + parseFloat(csOf(box, "::before").left) + 7, mid = a.left + a.width / 2;
+            const r = { open: true, diff: Math.round(arrow - mid), inL: Math.round(arrow - b.left), inR: Math.round(b.right - arrow), bg: csOf(box).backgroundColor,
+                        overButton: arrow >= a.left + 4 && arrow <= a.right - 4 };
+            await shutPop(np); return r; };
+          w.moveTo(0, 0); w.resizeTo(1500, 900); out.left = await measure();
+          // rechter Fensterrand am Bildschirmrand (wie maximiert): Gecko schiebt das Popover nach links
+          w.resizeTo(1300, 900); await pause(800); w.moveTo(w.screen.availLeft + w.screen.availWidth - w.outerWidth, w.screen.availTop); out.edge = await measure();
+          w.moveTo(sx, sy); w.resizeTo(sw, sh); await pause(800);
+          out.token = colorOf(d, "var(--mt-popover-bg)", "backgroundColor");
+          return out;""")
+        shots = [res["left"], res["edge"]]
+        if any(not s["open"] for s in shots) and res["visibility"] == "hidden":
+            return True, f"Testfenster verdeckt – übersprungen {res}"
+        # am Bildschirmrand bleibt der Pfeil vor der runden Ecke – dann zumindest über dem Knopf
+        ok = all(s["open"] and s["inL"] >= 20 and s["inR"] >= 20 and same_color(s["bg"], res["token"]) for s in shots) \
+            and abs(res["left"]["diff"]) <= 3 and (abs(res["edge"]["diff"]) <= 3 or res["edge"]["overButton"])
+        return ok, f"{res}"
+    check("Today-Pane: Pfeil des „+“-Popovers über der Mitte des Knopfs (auch am Bildschirmrand)", new_popup_arrow, results)
+
+    def event_dialog():
+        # Termin-Dialog: Schrift 13 px (Beschriftungen, Felder, Beschreibung in der Systemschrift), Abstand Beschriftung–Feld;
+        # Minimonat im Datumsfeld ohne Heute-Kästchen und fette Lavendel-Wochen; Uhrzeit-Raster ohne Gitter, 13 px, Akzent
+        res = m.js(CAL_CHECK_JS + r"""
+          for (const x of [...Services.wm.getEnumerator(null)]) if (!x.location.href.includes("messenger.xhtml")) x.close();
+          const c = testCalendar(); const e = new CalEvent(); e.title = "Halo Dialogtermin"; e.calendar = c;
+          const s = cal.dtz.now(); s.minute = 0; s.second = 0; const en = s.clone(); en.hour += 1; e.startDate = s; e.endDate = en;
+          e.setProperty("DESCRIPTION", "Erfundene Beschreibung zum Test."); const saved = await c.addItem(e);
+          const out = {};
+          let dw = null;
+          try {
+            await toCalendar(); w.modifyEventWithDialog(saved, true);
+            dw = await winUrl("calendar-event-dialog"); if (!dw) return { dialog: false };
+            const iw = await till(() => { const f = dw.document.getElementById("calendar-item-panel-iframe")?.contentWindow;
+              return f?.document.readyState == "complete" && f.document.getElementById("event-grid") && f; }, 8000);
+            const id = iw.document, ed = id.getElementById("item-description");
+            const body = await till(() => { const b = ed.contentDocument?.body; return b && /Erfundene/.test(b.textContent) && b; }, 6000);
+            await pause(1800);
+            // Zeilen mit Beschriftung (XUL-label mit value) und sichtbarem Feld
+            const rows = [...id.querySelectorAll("#event-grid > tr")].filter(tr => vis(tr.querySelector(":scope > th label")) && vis(tr.querySelector(":scope > td")?.firstElementChild));
+            out.rows = rows.map(tr => { const lab = tr.querySelector(":scope > th label"), fld = tr.querySelector(":scope > td").firstElementChild;
+              return { text: lab.getAttribute("value") || lab.textContent.trim(), font: csOf(lab).fontSize, gap: Math.round(fld.getBoundingClientRect().left - lab.getBoundingClientRect().right) }; });
+            out.title = csOf(id.getElementById("item-title")).fontSize;
+            out.desc = body ? { font: csOf(body).fontSize, family: csOf(body).fontFamily } : null;
+            const grid = id.getElementById("event-grid");
+            out.overflow = { grid: [grid.scrollWidth, grid.clientWidth], doc: [id.documentElement.scrollWidth, id.documentElement.clientWidth] };
+            // Datumsfeld: Minimonat
+            const dml = id.querySelector("#event-starttime datepicker menulist");
+            dml.open = true;
+            if (await isOpen(dml.menupopup)) {
+              await pause(500);
+              const mm = dml.menupopup.querySelector("calendar-minimonth"), td = mm.querySelector("td.minimonth-day[today]"), wk = [...mm.querySelectorAll(".minimonth-week")].find(vis);
+              out.mini = { bg: csOf(mm).backgroundColor, today: td ? csOf(td).borderTopColor : null, week: wk ? [csOf(wk).fontWeight, csOf(wk).color] : null };
+              await shutPop(dml.menupopup);
+            }
+            // Uhrzeitfeld: Raster
+            const tml = id.querySelector("#event-starttime timepicker menulist");
+            tml.open = true;
+            if (await isOpen(tml.menupopup)) {
+              await pause(500);
+              const g = tml.menupopup.querySelector("timepicker-grids"), hb = g.querySelector(".time-picker-hour-box-class"), sh = g.querySelector(".time-picker-hour-box-class[selected]");
+              out.time = { border: [csOf(hb).borderLeftColor, csOf(hb).borderLeftWidth], radius: csOf(hb).borderTopLeftRadius,
+                           font: csOf(g.querySelector(".time-picker-grids")).fontSize, sel: sh ? csOf(sh).backgroundColor : null, accent: colorOf(id, "AccentColor", "backgroundColor") };
+              await shutPop(tml.menupopup);
+            }
+          } finally {
+            if (dw && !dw.closed) { dw.close(); await till(() => dw.closed, 4000); }
+            try { await c.deleteItem(saved); } catch {}
+          }
+          return out;""")
+        if res.get("dialog") is False:
+            return False, "Termin-Dialog nicht offen"
+        rows, mini, tp = res.get("rows") or [], res.get("mini") or {}, res.get("time") or {}
+        desc = res.get("desc") or {}
+        ok = (len(rows) >= 4 and all(r["font"] == "13px" and r["gap"] >= 8 for r in rows) and res["title"] == "13px"
+              and desc.get("font") == "13px" and ("system-ui" in desc.get("family", "") or "-apple-system" in desc.get("family", ""))
+              and res["overflow"]["doc"][0] <= res["overflow"]["doc"][1] + 1
+              and bool(mini) and rgba_alpha(mini["bg"]) == 0 and (mini["today"] is None or rgba_alpha(mini["today"]) == 0)
+              and mini["week"] and mini["week"][0] == "400" and not same_color(mini["week"][1], "rgb(155, 158, 194)")
+              and bool(tp) and (rgba_alpha(tp["border"][0]) == 0 or tp["border"][1] == "0px") and tp["radius"] == "6px" and tp["font"] == "13px"
+              and tp["sel"] and not same_color(tp["sel"], "rgb(0, 100, 225)") and same_color(tp["sel"], tp["accent"]))
+        return ok, f"{res}"
+    check("Termin-Dialog: Schrift 13 px auch in der Beschreibung, Abstand Beschriftung–Feld; Minimonat und Uhrzeit-Raster ruhig mit Akzent", event_dialog, results)
+
+    def print_minimonths():
+        # Drucken: „Von“/„Bis“-Minikalender passen ins Formular, Pfeile sichtbar, Knöpfe ohne helle Fläche (dunkel)
+        res = m.js(CAL_CHECK_JS + r"""
+          w.resizeTo(1500, 900); await pause(600); await toCalendar(); w.switchToView("week"); await pause(800);
+          later(() => w.goDoCommand("cmd_print"));
+          const frame = await till(() => [...d.querySelectorAll(".dialogFrame, browser")].find(f => { try { return f.contentDocument?.querySelector("form#calendar-print #from-minimonth .months-forward-button"); } catch { return false; } }), 12000);
+          if (!frame) return { print: false };
+          const pd = frame.contentDocument; await pause(1500);
+          const form = pd.querySelector("form#calendar-print"), fr = form.getBoundingClientRect();
+          const out = { print: true, dark, months: ["from-minimonth", "to-minimonth"].map(idm => { const mm = pd.getElementById(idm), r = mm.getBoundingClientRect();
+            const fwd = mm.querySelector(".months-forward-button"), nav = mm.querySelector(".minimonth-nav-btn:not(.today-button, .years-back-button, .years-forward-button)");
+            return { right: Math.round(r.right * 10) / 10, formRight: Math.round(fr.right * 10) / 10, fwd: Math.round(fwd.getBoundingClientRect().width),
+                     mask: csOf(fwd, "::before").maskImage.slice(0, 12), navBg: nav ? csOf(nav).backgroundColor : null }; }) };
+          const cancel = pd.querySelector('#next-button-container button[is="cancel-button"]');
+          if (cancel) cancel.click();
+          await pause(800);
+          try { if (frame.isConnected && frame.contentDocument?.querySelector("form#calendar-print")) frame.contentWindow.close(); } catch {}
+          await pause(500);
+          return out;""")
+        if not res.get("print"):
+            return False, f"keine Druckvorschau {res}"
+        def dim(c):
+            import re
+            v = [float(x) for x in re.findall(r"-?[\d.]+", c or "")][:3]
+            lum = sum(k * ((x / 255) / 12.92 if x / 255 <= 0.03928 else ((x / 255 + 0.055) / 1.055) ** 2.4) for k, x in zip((0.2126, 0.7152, 0.0722), v)) if len(v) == 3 else 1
+            return rgba_alpha(c) < 0.2 or lum < 0.3
+        ok = all(mm["right"] <= mm["formRight"] + 0.5 and mm["fwd"] > 0 and mm["mask"].startswith("url(")
+                 and (not res["dark"] or (mm["navBg"] and dim(mm["navBg"]))) for mm in res["months"])
+        return ok, f"{res}"
+    check("Drucken: Minikalender „Von“/„Bis“ im Formular, Pfeile sichtbar, Knöpfe ohne helle Fläche", print_minimonths, results)
+
+
 def rgba_alpha(c):
     """Deckkraft aus rgb()/rgba()/color(srgb …) – 1, wenn keine angegeben ist."""
     import re
@@ -2056,6 +2303,7 @@ def run_checks(m, version, profile, results):
     compose_checks(m, results)
     folder_checks(m, results)
     menu_checks(m, results)
+    calendar_checks(m, results)
 
     def min_widths():
         res = m.js('''
