@@ -179,6 +179,11 @@ def local_https(host):
 
         def do_POST(self):
             posts.append(self.rfile.read(int(self.headers.get("Content-Length") or 0)).decode())
+            if self.path == "/abmelden-umleitung":  # Abmeldung leitet auf eine Bestätigungsseite im lokalen Netz um
+                self.send_response(303)
+                self.send_header("Location", f"http://127.0.0.1:{device.server_port}/bestaetigt")
+                self.end_headers()
+                return
             self.send_response(200)
             self.end_headers()
 
@@ -3529,7 +3534,9 @@ def run_checks(m, version, profile, results):
                          endless: await run("/endlos", { max: 512 * 1024 }), head: await run("/endlos", { max: 200000, truncate: true }),
                          stall: await run("/stumm"),
                          post: await run("/abmelden", { method: "POST", headers: { "Content-Type": "application/x-www-form-urlencoded" },
-                                                        body: "List-Unsubscribe=One-Click", max: 0, truncate: true }) };
+                                                        body: "List-Unsubscribe=One-Click", max: 0, truncate: true }),
+                         postRedirect: await run("/abmelden-umleitung", { method: "POST", headers: { "Content-Type": "application/x-www-form-urlencoded" },
+                                                        body: "List-Unsubscribe=One-Click", max: 0, truncate: true, followRedirects: false }) };
               } finally {
                 co.clearValidityOverride(HOST, PORT, {});
                 Services.prefs.clearUserPref("network.dns.localDomains");
@@ -3542,9 +3549,10 @@ def run_checks(m, version, profile, results):
               and res["auth"].get("status") == 401
               and res["endless"].get("error") == "too large" and res["head"].get("len") == 200000
               and res["stall"].get("error") == "timeout" and res["stall"]["ms"] < 15000
-              and res["post"].get("ok") and posts == ["List-Unsubscribe=One-Click"])
+              and res["post"].get("ok") and res["postRedirect"].get("ok") and res["postRedirect"].get("status") == 303
+              and posts == ["List-Unsubscribe=One-Click"] * 2)
         return ok, f"{res}"
-    check("Absenderbilder: Umleitung ins lokale Netz gesperrt, bevor verbunden wird; Zeitlimit und Größengrenze für die ganze Antwort", net_guard, results)
+    check("Absenderbilder: Umleitung ins lokale Netz gesperrt, bevor verbunden wird; Zeitlimit und Größengrenze für die ganze Antwort; Ein-Klick-Abmeldung mit Umleitung gilt als erledigt", net_guard, results)
 
     def keyboard():
         res = m.js('''

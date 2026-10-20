@@ -1416,7 +1416,7 @@ let fetchTimeouts = 0;
 // Zeitlimit und Größengrenze (max Bytes) gelten für die ganze Antwort, danach
 // wird abgebrochen; mit truncate liefert eine längere Antwort nur ihren Anfang.
 // Ergebnis wie bei fetch: ok, status, url, headers.get(), text(), arrayBuffer()
-function fetchWithTimeout(win, url, { method = "GET", headers = {}, body = null, max = 2 * 1024 * 1024, truncate = false } = {}) {
+function fetchWithTimeout(win, url, { method = "GET", headers = {}, body = null, max = 2 * 1024 * 1024, truncate = false, followRedirects = true } = {}) {
   return new Promise((resolve, reject) => {
     if (!isPublicHttps(url)) {
       reject(new Error("blocked url"));
@@ -1443,7 +1443,8 @@ function fetchWithTimeout(win, url, { method = "GET", headers = {}, body = null,
     let settled = false;
     const parts = [];
     let size = 0;
-    const finish = request => {
+    // redirected: Antwort 3xx, der nicht gefolgt wurde – gilt als Erfolg
+    const finish = (request, redirected = false) => {
       if (settled) {
         return;
       }
@@ -1458,7 +1459,7 @@ function fetchWithTimeout(win, url, { method = "GET", headers = {}, body = null,
       try {
         const http = request.QueryInterface(Ci.nsIHttpChannel);
         resolve({
-          ok: http.requestSucceeded,
+          ok: http.requestSucceeded || (redirected && http.responseStatus >= 300 && http.responseStatus < 400),
           status: http.responseStatus,
           url: http.URI.spec,
           headers: {
@@ -1497,6 +1498,15 @@ function fetchWithTimeout(win, url, { method = "GET", headers = {}, body = null,
         return this.QueryInterface(iid);
       },
       asyncOnChannelRedirect(oldChannel, newChannel, flags, callback) {
+        // ohne Weiterleiten (Ein-Klick-Abmeldung): der Server hat die Anfrage
+        // schon erhalten – die 3xx-Antwort ist das Ergebnis, die Bestätigungsseite
+        // (oft http oder intern) wird nicht mehr geladen
+        if (!followRedirects) {
+          callback.onRedirectVerifyCallback(Cr.NS_ERROR_ABORT);
+          finish(oldChannel, true);
+          fail(new Error("redirect not followed"));
+          return;
+        }
         // das Ziel muss ebenfalls öffentlich sein – sonst gar nicht erst verbinden
         if (!isPublicHttps(newChannel.URI.spec)) {
           callback.onRedirectVerifyCallback(Cr.NS_ERROR_ABORT);
@@ -8823,9 +8833,11 @@ class CardEnhancer {
             method: "POST",
             headers: { "Content-Type": "application/x-www-form-urlencoded" },
             body: "List-Unsubscribe=One-Click",
-            // die Antwortseite selbst wird nicht gebraucht
+            // die Antwortseite selbst wird nicht gebraucht; eine Umleitung auf
+            // eine Bestätigungsseite heißt schon „erledigt“
             max: 0,
             truncate: true,
+            followRedirects: false,
           });
           if (!res.ok) {
             throw new Error(`status ${res.status}`);
