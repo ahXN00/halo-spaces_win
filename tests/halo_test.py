@@ -512,7 +512,7 @@ def run_checks(m, version, profile, results):
           // Tag ohne Termine – frühere Prüfungen legen heute/morgen welche an, ein
           // Treffer öffnet den Termin statt des Schnellfensters (je nach Wochentag)
           const col = [...d.querySelectorAll("#week-view calendar-event-column")].filter(c => c.getBoundingClientRect().width && ![...c.querySelectorAll("calendar-event-box")].some(b => !b.hidden && b.occurrence))[1];
-          const lbl = [...d.querySelectorAll("#week-view .multiday-timebar-time")].find(l => /^\s*(14[:.]00|0?2:00\s*PM)\s*$/i.test(l.textContent));
+          const lbl = [...d.querySelectorAll("#week-view .multiday-timebar-time")].find(l => /^\\s*(14[:.]00|0?2:00\\s*PM)\\s*$/i.test(l.textContent));
           lbl.scrollIntoView({ block: "center" }); await wait(500);
           // Aufgehen und Zugehen mitzählen – unter xvfb ohne Fenstermanager klappt
           // das Fenster teils sofort wieder zu
@@ -866,7 +866,7 @@ def run_checks(m, version, profile, results):
           const out = { start: Math.round(panel.getBoundingClientRect().width), animating: !!panel.__mcAnimating, tpVisible: w.TodayPane?.isVisible, tab: d.documentElement.getAttribute("mc-tab"), popups: [...d.querySelectorAll("panel, menupopup")].filter(p => p.state == "open").map(p => p.id) };
           if (!out.start) return { skipped: true };
           const errs = []; const onErr = e => errs.push(String(e.message || e.error).slice(0, 200)); w.addEventListener("error", onErr);
-          const cons = []; const listener = { observe: m => { if (m instanceof Ci.nsIScriptError && /implementation\.js/.test(m.sourceName)) cons.push(m.errorMessage.slice(0, 200) + " @" + m.lineNumber); } };
+          const cons = []; const listener = { observe: m => { if (m instanceof Ci.nsIScriptError && /implementation\\.js/.test(m.sourceName)) cons.push(m.errorMessage.slice(0, 200) + " @" + m.lineNumber); } };
           Services.console.registerListener(listener);
           out.errs = errs; out.cons = cons; out.visibility = d.visibilityState;
           // Bildtakt ohne Animation als Maßstab (60 oder 120 Hz)

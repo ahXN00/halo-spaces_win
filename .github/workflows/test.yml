@@ -17,7 +17,7 @@ jobs:
       matrix:
         channel: [release, beta]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Pakete
         run: sudo apt-get update -q && sudo apt-get install -yq zsh zip xvfb libgtk-3-0t64 libdbus-glib-1-2 libasound2t64 fonts-noto-color-emoji
@@ -36,7 +36,7 @@ jobs:
 
       - name: Screenshots
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: test-${{ matrix.channel }}
           path: shots/
