@@ -1050,7 +1050,10 @@ def run_checks(m, version, profile, results):
             const a3 = await toMail(); a3.displayFolder(f.URI); await wait(800);
             a3.threadTree.selectedIndex = 0; await wait(1500);
             const am = a3.messageBrowser.contentWindow;
-            const btn = await until(() => am.document.querySelector("#mcListBanner .mc-lb-unsub"));
+            // about:message bleibt beim Mailwechsel geladen: erst klicken, wenn der Hinweis
+            // zur Rundbrief-Mail gehört, nicht noch der der vorigen Ein-Klick-Mail ist
+            const btn = await until(() => { const b = am.document.querySelector("#mcListBanner .mc-lb-unsub");
+              return (am.gMessage?.messageId == "halo-listserv@example.invalid" && b?.title.startsWith("listserv@example.invalid") && b) || null; }, 10000);
             button = !!btn;
             const before = new Set(Services.wm.getEnumerator("msgcompose"));
             btn?.click();
