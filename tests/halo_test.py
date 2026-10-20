@@ -781,13 +781,23 @@ def run_checks(m, version, profile, results):
           const out = { buttons: buttons.length, flagged, selected, inbox: inbox.getTotalMessages(false), trash: trash?.getTotalMessages(false),
                         undoItems: txn.numberOfUndoItems - undo0 };
           if (out.undoItems > 0) { w.messenger.undo(w.msgWindow); out.undone = await until(() => inbox.getTotalMessages(false) == 2 && 2, 6000); }
+          // Archivieren per Knopf ebenso rückgängig (ohne Identität: Lokale Ordner/Archives)
+          if (out.undone) {
+            const btn = await until(() => a3.document.querySelector('#threadTree tr[is="thread-card"] .mc-act-archive'), 6000);
+            const undoA = txn.numberOfUndoItems;
+            btn?.click();
+            out.archived = await until(() => inbox.getTotalMessages(false) == 1 && 1, 8000);
+            out.archiveUndo = txn.numberOfUndoItems - undoA;
+            if (out.archiveUndo > 0) { w.messenger.undo(w.msgWindow); out.unarchived = await until(() => inbox.getTotalMessages(false) == 2 && 2, 6000); }
+          }
           return out;''')
         if res.get("diag"):
             return False, f"keine Knöpfe auf der Karte – Diagnose {res}"
         ok = (res["buttons"] == 3 and res["flagged"] and res["selected"] == 0 and res["inbox"] == 1 and res["trash"] == 1
-              and res["undoItems"] == 1 and res.get("undone") == 2)
+              and res["undoItems"] == 1 and res.get("undone") == 2
+              and res.get("archived") == 1 and res.get("archiveUndo") == 1 and res.get("unarchived") == 2)
         return ok, f"{res}"
-    check("Mailkarte: Aktionen beim Überfahren (Markieren, Löschen, Rückgängig)", hover_actions, results)
+    check("Mailkarte: Aktionen beim Überfahren (Markieren, Löschen, Archivieren, Rückgängig)", hover_actions, results)
 
     def selected_actions():
         res = m.js('''
@@ -835,14 +845,55 @@ def run_checks(m, version, profile, results):
           const nameOf = li => li?.querySelector(":scope > .container .name")?.textContent;
           const find = (f, underServer) => smart().find(li => li.uri == f.URI &&
             !!li.parentElement?.closest("li")?.hasAttribute("data-server-type") == underServer);
-          await until(() => find(sub, false) && find(own, true), 8000); await wait(800);
-          return { modes: a3.folderPane?.activeModes, inbox: nameOf(find(inbox, false)), account: root.server.prettyName,
-                   sub: nameOf(find(sub, false)), underAccount: nameOf(find(own, true)) };''')
+          await until(() => find(sub, false) && find(own, true), 8000);
+          // erst prüfen, wenn die Dekoration nach dem Einfügen der Zeilen gelaufen ist
+          // (sie läuft im nächsten Bild) – sonst stünden hier Thunderbirds eigene
+          // Namen, und die Prüfung bestünde auch ohne Korrektur
+          const frames = await Promise.race([new Promise(r => a3.requestAnimationFrame(() => a3.requestAnimationFrame(() => r(true)))), wait(5000).then(() => false)]);
+          const { ExtensionParent } = ChromeUtils.importESModule("resource://gre/modules/ExtensionParent.sys.mjs");
+          const L = Cu.evalInSandbox("appleLabels", ExtensionParent.GlobalManager.getExtension("%s").experimentAPIManager.global)();
+          const top = ad.querySelector('#folderTree > li[data-mode="smart"] > ul > li[is="folder-tree-row"][data-folder-type="inbox"]');
+          return { modes: a3.folderPane?.activeModes, frames, visibility: d.visibilityState, inbox: nameOf(find(inbox, false)), account: root.server.prettyName,
+                   sub: nameOf(find(sub, false)), underAccount: nameOf(find(own, true)), top: nameOf(top), allInboxes: L.native ? null : L.allInboxes };''' % ADDON_ID)
         if not res.get("modes") or "smart" not in res["modes"]:
             return False, f"Favoriten nicht eingeschaltet {res}"
-        ok = res["sub"] == "Rechnungen" and res["underAccount"] == "Projekte" and res["inbox"] == res["account"]
+        if not res["frames"]:
+            return True, f"Testfenster verdeckt (kein Bild gezeichnet) – übersprungen {res}"
+        ok = (res["sub"] == "Rechnungen" and res["underAccount"] == "Projekte" and res["inbox"] == res["account"]
+              and (res["allInboxes"] is None or res["top"] == res["allInboxes"]))
         return ok, f"{res}"
     check("Favoriten: Unterordner behalten ihren eigenen Namen statt des Kontonamens", smart_folder_names, results)
+
+    def account_dot_rename():
+        # Farbpunkt vor dem Kontonamen: neue und umbenannte Konten bekommen ihn
+        # sofort (früher nur die Konten vom Start). Feed-Konto ohne Abos – kein
+        # Netzzugriff –, wird danach wieder entfernt
+        res = m.js('''
+          const { MailServices } = ChromeUtils.importESModule("resource:///modules/MailServices.sys.mjs");
+          const { ExtensionParent } = ChromeUtils.importESModule("resource://gre/modules/ExtensionParent.sys.mjs");
+          const color = Cu.evalInSandbox("accountColor", ExtensionParent.GlobalManager.getExtension("%s").experimentAPIManager.global);
+          const a3 = await toMail(); const ad = a3.document;
+          const srv = MailServices.accounts.createIncomingServer("nobody", "halo-feeds.invalid", "rss");
+          srv.prettyName = "Halo Feeds"; srv.doBiff = false;
+          const acc = MailServices.accounts.createAccount(); acc.incomingServer = srv;
+          const row = () => ad.querySelector(`#folderTree > li[data-mode="all"] li[is="folder-tree-row"][data-server-type][data-server-key="${srv.key}"]`);
+          const dot = () => row()?.style.getPropertyValue("--mc-acc") || "";
+          const out = { row: false };
+          try {
+            out.row = !!(await until(() => row(), 8000));
+            out.added = await until(() => dot(), 6000);
+            out.addedWant = color("Halo Feeds");
+            srv.prettyName = "Halo Feeds Neu";
+            out.renamedWant = color("Halo Feeds Neu");
+            out.renamed = await until(() => dot() == out.renamedWant && dot(), 6000) || dot();
+            out.name = row()?.querySelector(":scope > .container .name")?.textContent;
+          } finally {
+            MailServices.accounts.removeAccount(acc, true); await wait(800);
+          }
+          return out;''' % ADDON_ID)
+        ok = res["row"] and res["added"] == res["addedWant"] and res["renamed"] == res["renamedWant"]
+        return ok, f"{res}"
+    check("Ordnerliste: neue und umbenannte Konten bekommen ihren Farbpunkt sofort", account_dot_rename, results)
 
     def card_sender_date():
         # Absender nur als Adresse → Name aus der Domain; Datum vor gestern ganz;
