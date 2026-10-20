@@ -232,7 +232,9 @@ möglichen Schaden.
 
 1. GitHub → Repo → Settings → Actions → Runners → **New self-hosted runner** →
    macOS, ARM64. Die angezeigten Befehle in `~/actions-runner` ausführen; bei
-   `./config.sh` das Label `halo-mac` angeben (z. B. `--labels halo-mac --name mac-mini`).
+   `./config.sh` das Label `halo-mac` angeben und als Namen denselben wie in
+   Tailscale (z. B. `--labels halo-mac --name halo-mini`). Das Label wählt den
+   Rechner für den Job aus, der Name erscheint nur in der Runner-Liste.
 2. Als LaunchAgent einrichten – ohne `sudo`:
 
    ```bash
