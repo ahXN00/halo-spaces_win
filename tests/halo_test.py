@@ -3658,6 +3658,30 @@ def run_checks(m, version, profile, results):
         return ok, f"{res}"
     check("Erweiterung: Aus- und Einschalten setzt Ordnernamen und Einfügungen zurück und hängt sie wieder an; Einfügungen einer älteren Fassung werden ersetzt", restart_cycle, results)
 
+    def local_collapse():
+        # „Auf meinem Mac“ klappt auch nach einer Suche zu: der eigene Suchordner
+        # (mit Trefferzahl) zählt nicht als Inhalt, ein Ordner mit Mails schon
+        res = m.js(ENH_JS + '''
+          const sf = enh.searchFolder(true);
+          const empty = { hasSubFolders: false, getTotalMessages: () => 0 };
+          const full = { hasSubFolders: false, getTotalMessages: () => 3 };
+          // gleicher Name, aber kein eigener Suchordner: zählt mit Trefferzahl
+          const foreign = { name: sf?.name, hasSubFolders: false, getTotalMessages: () => 3, getFlag: () => true, parent: sf?.parent, server: null };
+          const root = subFolders => ({ subFolders });
+          // Suchordner mit Treffern (wie nach einer Suche): als eigener Suchordner erkannt
+          const hits = { hasSubFolders: false, getTotalMessages: () => 5 };
+          const own = enh.isSearchFolder;
+          enh.isSearchFolder = f => f === hits || own.call(enh, f);
+          try {
+            return { search: own.call(enh, sf), onlySearch: enh.localIsEmpty(root([sf, empty])), withHits: enh.localIsEmpty(root([hits, empty])),
+                     withMail: enh.localIsEmpty(root([sf, hits, empty, full])), foreign: enh.localIsEmpty(root([foreign, empty])) };
+          } finally {
+            delete enh.isSearchFolder;
+          }''')
+        ok = res["search"] and res["onlySearch"] is True and res["withHits"] is True and res["withMail"] is False and res["foreign"] is False
+        return ok, f"{res}"
+    check("Ordnerliste: „Auf meinem Mac“ klappt trotz Suchordner mit Treffern zu, mit eigenen Mails nicht", local_collapse, results)
+
     def errors():
         res = m.js("""
           const p = PathUtils.join(PathUtils.profileDir, "mail-cards-debug.log");

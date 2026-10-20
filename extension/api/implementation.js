@@ -7999,15 +7999,9 @@ class CardEnhancer {
       }
     };
 
-    // Lokale Ordner nur zusammenklappen, wenn darin nichts Eigenes liegt
-    // (nur leere Standardordner) – POP3-Konten mit globalem Posteingang,
-    // Archive oder Filterziele dort bleiben sichtbar
     const localIsEmpty = () => {
       try {
-        const root = MailServices.accounts.localFoldersServer?.rootFolder;
-        // der eigene Suchordner zählt nicht – er behält nach einer Suche die
-        // Trefferzahl; gespeicherte Suchen des Nutzers zählen weiter
-        return !root || root.subFolders.every(f => this.isSearchFolder(f) || (!f.hasSubFolders && f.getTotalMessages(false) == 0));
+        return this.localIsEmpty(MailServices.accounts.localFoldersServer?.rootFolder);
       } catch {
         return false;
       }
@@ -8263,6 +8257,15 @@ class CardEnhancer {
         markHits(el, term);
       }
     }
+  }
+
+  // Lokale Ordner nur zusammenklappen, wenn darin nichts Eigenes liegt
+  // (nur leere Standardordner) – POP3-Konten mit globalem Posteingang,
+  // Archive oder Filterziele dort bleiben sichtbar. Der eigene Suchordner
+  // zählt nicht – er behält nach einer Suche die Trefferzahl; gespeicherte
+  // Suchen des Nutzers zählen weiter
+  localIsEmpty(root) {
+    return !root || root.subFolders.every(f => this.isSearchFolder(f) || (!f.hasSubFolders && f.getTotalMessages(false) == 0));
   }
 
   isSearchFolder(folder) {
