@@ -1798,22 +1798,35 @@ def run_checks(m, version, profile, results):
           const blob = await new Promise(r => canvas.toBlob(r, "image/jpeg"));
           await IOUtils.makeDirectory(PathUtils.join(PathUtils.profileDir, "Photos"), { ignoreExisting: true });
           await IOUtils.write(PathUtils.join(PathUtils.profileDir, "Photos", "halo-foto.jpg"), new Uint8Array(await blob.arrayBuffer()));
+          // zu große Fotodatei (über 2 MB): nicht abgeschnitten verwenden
+          const big = new Uint8Array(2.5 * 1024 * 1024); big.set([0xFF, 0xD8, 0xFF, 0xE0]);
+          await IOUtils.write(PathUtils.join(PathUtils.profileDir, "Photos", "halo-gross.jpg"), big);
           const book = MailServices.ab.getDirectory("jsaddrbook://abook.sqlite");
-          let card = Cc["@mozilla.org/addressbook/cardproperty;1"].createInstance(Ci.nsIAbCard);
-          card.displayName = "Fiona Foto"; card.primaryEmail = "fiona.foto@example.invalid"; card.setProperty("PhotoName", "halo-foto.jpg");
-          card = book.addCard(card);
-          try { MailServices.accounts.localFoldersServer; } catch { MailServices.accounts.createLocalMailAccount(); await wait(500); }
-          const root = MailServices.accounts.localFoldersServer.rootFolder;
-          if (!root.containsChildNamed("Fotos")) { root.createSubfolder("Fotos", null); await wait(800); }
-          const f = root.getChildNamed("Fotos");
-          f.QueryInterface(Ci.nsIMsgLocalMailFolder).addMessage("From - Sat Oct 17 10:00:00 2026\\r\\nFrom: Fiona Foto <fiona.foto@example.invalid>\\r\\nSubject: Halo Foto\\r\\nDate: Sat, 17 Oct 2026 10:00:00 +0200\\r\\nMessage-ID: <halo-foto@example.invalid>\\r\\n\\r\\nTest\\r\\n");
-          const a3 = await toMail(); a3.displayFolder(f.URI);
-          const img = await until(() => a3.document.querySelector('#threadTree tr[is="thread-card"] .mc-avatar img[src^="data:"]'), 10000);
-          const av = a3.document.querySelector('#threadTree tr[is="thread-card"] .mc-avatar');
-          const out = { photoURL: card.photoURL.slice(0, 8), img: !!img, avatar: av ? (av.querySelector("img")?.getAttribute("src") || "").slice(0, 16) || av.textContent : null };
-          book.deleteCards([card]);
-          return out;''')
-        ok = res["photoURL"].startswith("file:") and res["img"]
+          const newCard = (name, email, photo) => { const c = Cc["@mozilla.org/addressbook/cardproperty;1"].createInstance(Ci.nsIAbCard);
+            c.displayName = name; c.primaryEmail = email; c.setProperty("PhotoName", photo); return book.addCard(c); };
+          const card = newCard("Fiona Foto", "fiona.foto@example.invalid", "halo-foto.jpg");
+          const bigCard = newCard("Gustav Gross", "gustav.gross@example.invalid", "halo-gross.jpg");
+          try {
+            const { ExtensionParent } = ChromeUtils.importESModule("resource://gre/modules/ExtensionParent.sys.mjs");
+            const enh = Cu.evalInSandbox("enhancer", ExtensionParent.GlobalManager.getExtension("%s").experimentAPIManager.global);
+            const bigSrc = await enh.avatars.fromAddressBook("gustav.gross@example.invalid");
+            try { MailServices.accounts.localFoldersServer; } catch { MailServices.accounts.createLocalMailAccount(); await wait(500); }
+            const root = MailServices.accounts.localFoldersServer.rootFolder;
+            if (!root.containsChildNamed("Fotos")) { root.createSubfolder("Fotos", null); await wait(800); }
+            const f = root.getChildNamed("Fotos");
+            f.QueryInterface(Ci.nsIMsgLocalMailFolder).addMessage("From - Sat Oct 17 10:00:00 2026\\r\\nFrom: Fiona Foto <fiona.foto@example.invalid>\\r\\nSubject: Halo Foto\\r\\nDate: Sat, 17 Oct 2026 10:00:00 +0200\\r\\nMessage-ID: <halo-foto@example.invalid>\\r\\n\\r\\nTest\\r\\n");
+            const a3 = await toMail(); a3.displayFolder(f.URI);
+            const img = await until(() => a3.document.querySelector('#threadTree tr[is="thread-card"] .mc-avatar img[src^="data:"]'), 10000);
+            const av = a3.document.querySelector('#threadTree tr[is="thread-card"] .mc-avatar');
+            return { photoURL: card.photoURL.slice(0, 8), img: !!img, avatar: av ? (av.querySelector("img")?.getAttribute("src") || "").slice(0, 16) || av.textContent : null,
+                     big: bigSrc ? bigSrc.length : null, visibility: d.visibilityState, rows: a3.gDBView?.rowCount };
+          } finally {
+            book.deleteCards([card, bigCard]);
+          }''' % ADDON_ID)
+        # ohne gezeichnete Karten (verdecktes Testfenster) lässt sich das Bild nicht prüfen
+        if not res["img"] and res.get("visibility") == "hidden":
+            return res["big"] is None, f"Testfenster verdeckt (Karten nicht gezeichnet) – Mailliste übersprungen {res}"
+        ok = res["photoURL"].startswith("file:") and res["img"] and res["big"] is None
         return ok, f"{res}"
     check("Kontaktfotos: Foto aus dem lokalen Adressbuch (Datei im Profil) in der Mailliste", local_ab_photo, results)
 

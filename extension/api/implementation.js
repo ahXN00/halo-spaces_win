@@ -1980,8 +1980,12 @@ class AvatarResolver {
       if (win) {
         try {
           const path = Services.io.newURI(url).QueryInterface(Ci.nsIFileURL).file.path;
-          const buf = await IOUtils.read(path, { maxBytes: 2 * 1024 * 1024 });
-          if (buf.length >= 100) {
+          // nur ganze Dateien bis 2 MB – größere (alte Profile: Kamerafoto
+          // unverändert kopiert) nicht abgeschnitten anzeigen, sondern wie im
+          // Netz-Zweig überspringen
+          const { size } = await IOUtils.stat(path);
+          if (size >= 100 && size <= 2 * 1024 * 1024) {
+            const buf = await IOUtils.read(path);
             return `data:image/jpeg;base64,${bytesToBase64(win, buf)}`;
           }
         } catch {}
