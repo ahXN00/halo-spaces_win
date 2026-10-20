@@ -49,7 +49,7 @@ tun()     { print -r -- "         → $*" }
 # sshd-keygen-wrapper, im GitHub-Runner dessen Programm, sonst die äußerste App
 # über dieser Shell (Terminal, iTerm, Claude …)
 verantwortlich() {
-  [[ -n $SSH_CONNECTION ]] && { print -r -- "sshd-keygen-wrapper (Anmeldung per SSH)"; return }
+  [[ -n $SSH_CONNECTION ]] && { print -r -- "SSH (sshd-keygen-wrapper)"; return }
   local pid=$$ comm app=""
   while (( pid > 1 )); do
     comm=$(ps -o comm= -p $pid 2>/dev/null) || break
@@ -267,19 +267,24 @@ pruefe_bildschirm() {
 }
 
 pruefe_rechte() {
-  local app erlaubt tmp ergebnis tour=$ROOT/tests/ui_tour.py
+  local app erlaubt tmp ergebnis neu tour=$ROOT/tests/ui_tour.py
   local pane='open "x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture"'
   app=$(verantwortlich)
+  neu="$app neu starten"
+  [[ -n $SSH_CONNECTION ]] && neu="die SSH-Verbindung neu aufbauen"
   erlaubt=$(osascript -l JavaScript -e "$PROBE_JS" erlaubt 2>/dev/null)
   if [[ -z $erlaubt ]]; then
     offen "Bildschirmaufnahme" "keine Verbindung zur Bildschirmsitzung von $ME"
     tun "automatische Anmeldung einrichten (siehe unten) oder per Bildschirmfreigabe anmelden, dann erneut prüfen"
   elif [[ $erlaubt == nein ]]; then
-    offen "Bildschirmaufnahme" "nicht erlaubt für $app (ui_tour.py nimmt Popups mit screencapture -l auf)"
+    offen "Bildschirmaufnahme" "nicht erlaubt für $app – ui_tour.py nimmt Popups mit screencapture -l auf"
     (( CHECK )) || osascript -l JavaScript -e "$PROBE_JS" anfragen >/dev/null 2>&1
-    tun "Systemeinstellungen → Datenschutz & Sicherheit → Bildschirm- & Systemaudioaufnahme → $app einschalten, danach $app neu starten"
-    [[ -n $SSH_CONNECTION ]] && tun "per SSH: dort mit „+“ /usr/libexec/sshd-keygen-wrapper hinzufügen (Tastenkürzel ⇧⌘G für den Pfad)"
-    tun "Bereich direkt öffnen: $pane"
+    if [[ -n $SSH_CONNECTION ]]; then
+      tun "am Bildschirm des Mac (z. B. per RustDesk): Systemeinstellungen → Datenschutz & Sicherheit → Bildschirm- & Systemaudioaufnahme → „+“ → ⇧⌘G → /usr/libexec/sshd-keygen-wrapper → einschalten"
+    else
+      tun "Systemeinstellungen → Datenschutz & Sicherheit → Bildschirm- & Systemaudioaufnahme → $app einschalten"
+    fi
+    tun "danach $neu; Bereich direkt öffnen: $pane"
   else
     tmp=$(mktemp -d)
     ergebnis=$(osascript -l JavaScript -e "$PROBE_JS" aufnahme "$tmp/probe.png" 2>&1)
@@ -288,7 +293,7 @@ pruefe_rechte() {
       ok "Bildschirmaufnahme" "erlaubt für $app, Probeaufnahme des eigenen Testfensters stimmt"
     else
       offen "Bildschirmaufnahme" "erlaubt für $app, aber Probeaufnahme fehlgeschlagen: ${ergebnis:-ohne Meldung}"
-      tun "Eintrag $app unter Datenschutz & Sicherheit → Bildschirm- & Systemaudioaufnahme aus- und wieder einschalten, $app neu starten"
+      tun "Eintrag $app unter Datenschutz & Sicherheit → Bildschirm- & Systemaudioaufnahme aus- und wieder einschalten, danach $neu"
     fi
   fi
 
@@ -405,30 +410,39 @@ pruefe_runner() {
 }
 
 probelauf() {
-  local args=() log rc
+  local args=() port=2839 log tblog rc
   if [[ ! -d $TB_APP ]] || ! python3 -c '' 2>/dev/null; then
     hinweis "Probelauf" "übersprungen – Thunderbird oder Python fehlt noch"
     return
   fi
-  if nc -z -G 1 127.0.0.1 $PORT >/dev/null 2>&1; then
-    offen "Probelauf" "Port $PORT ist belegt (läuft schon ein Test?) – anderen mit --port wählen"
-    return
-  fi
   # --port gibt es erst ab dem Stand mit „Marionette-Port mit --port wählbar“
   if python3 "$ROOT/tests/halo_test.py" --help 2>/dev/null | grep -- '--port' >/dev/null; then
-    args=(--port $PORT)
+    args=(--port $PORT) port=$PORT
   else
     hinweis "Probelauf" "halo_test.py kennt --port noch nicht – läuft auf dem Standardport 2839"
   fi
+  # zwei Läufe auf einem Port stören sich: der zweite verbindet sich mit dem Thunderbird
+  # des ersten und bricht mit „Marionette-Verbindung geschlossen“ ab
+  if nc -z -G 1 127.0.0.1 $port >/dev/null 2>&1 ||
+     { (( ! $#args )) && pgrep -f -- '-profile .*/halo-test-' >/dev/null }; then
+    offen "Probelauf" "es läuft schon ein Test auf Port $port – warten, bis er fertig ist${args:+, oder mit --port einen anderen wählen}"
+    tun "laufende Test-Thunderbirds anzeigen: pgrep -fl halo-test-"
+    return
+  fi
   log=$(mktemp -t halo-probelauf)
+  tblog=$log-thunderbird
   print "Probelauf: python3 tests/halo_test.py${args:+ ${args[*]}} (einige Minuten, Thunderbird öffnet ein Testfenster) …"
-  python3 -u "$ROOT/tests/halo_test.py" $args 2>&1 | tee $log | sed 's/^/    /'
+  python3 -u "$ROOT/tests/halo_test.py" $args --tb-log $tblog 2>&1 | tee $log | sed 's/^/    /'
   rc=${pipestatus[1]}
   if (( rc == 0 )); then
     ok "Probelauf" "$(tail -1 $log)"
   else
     offen "Probelauf" "$(tail -1 $log)"
-    tun "Protokoll: $log"
+    if [[ -s $tblog ]]; then
+      print "         Thunderbird meldete zuletzt:"
+      tail -5 $tblog | sed 's/^/           /'
+    fi
+    tun "Protokolle: $log und $tblog"
   fi
 }
 

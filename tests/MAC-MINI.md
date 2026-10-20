@@ -274,7 +274,13 @@ git push mini bugfix/2026-10-20
 ```
 
 Auf dem Mini: `git switch bugfix/2026-10-20`. Einen Zweig, der auf dem Mini
-gerade ausgecheckt ist, nimmt Git nicht an – dort vorher auf `main` wechseln.
+gerade ausgecheckt ist, nimmt Git nur an, wenn das einmal auf dem Mini erlaubt
+wurde – dann aktualisiert der Push auch die Dateien dort (solange auf dem Mini
+nichts Uncommittetes liegt):
+
+```bash
+git -C ~/halo-spaces config receive.denyCurrentBranch updateInstead
+```
 
 **Per Push über GitHub:** `git push origin <zweig>`, auf dem Mini
 `git fetch origin` und `git switch <zweig>`. Das Repo ist öffentlich – der
