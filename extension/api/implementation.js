@@ -2369,11 +2369,12 @@ function parseNatural(text, now = new Date()) {
   if (take(new RegExp(`${B}(ganztägig|ganztags|den ganzen tag|all[ -]?day)${E}`, "iu"))) {
     allDay = true;
   }
-  // relative Tage
+  const dayNames = Object.keys(NL_WEEKDAYS).filter(k => k.length > 3).join("|");
+  // relative Tage („morgen“ nach einem Wochentag ist der Vormittag: „Freitag morgen 8 Uhr“)
   let m = take(new RegExp(`${B}(übermorgen|day after tomorrow)${E}`, "iu"));
   if (m) {
     day = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 2);
-  } else if ((m = take(new RegExp(`${B}(heute|today|morgen|tomorrow)${E}`, "iu")))) {
+  } else if ((m = take(new RegExp(`${B}(heute|today|(?<!(?:${dayNames})\\s+)morgen|tomorrow)${E}`, "iu")))) {
     const plus = /^(morgen|tomorrow)$/i.test(m[1]) ? 1 : 0;
     day = new Date(now.getFullYear(), now.getMonth(), now.getDate() + plus);
   }
@@ -2395,18 +2396,23 @@ function parseNatural(text, now = new Date()) {
   } else if (!day && (m = take(new RegExp(`${B}(${monthNames})\\.?\\s+(\\d{1,2})(?:st|nd|rd|th)?(?:,?\\s+(\\d{4}))?${E}`, "iu")))) {
     day = new Date(m[3] ? Number(m[3]) : now.getFullYear(), NL_MONTHS[m[1].toLowerCase()], Number(m[2]));
   }
-  if (day && !/\d{4}/.test(m?.[0] || "") && day < new Date(now.getFullYear(), now.getMonth(), now.getDate()) && !/heute|today/i.test(m?.[0] || "")) {
+  if (day && !m?.[3] && day < new Date(now.getFullYear(), now.getMonth(), now.getDate()) && !/heute|today/i.test(m?.[0] || "")) {
     day.setFullYear(day.getFullYear() + 1);
   }
   // Wochentag (nächstes Vorkommen; „nächsten Montag“ = in der nächsten Woche)
-  const dayNames = Object.keys(NL_WEEKDAYS).filter(k => k.length > 3).join("|");
-  if (!day && (m = take(new RegExp(`${B}(?:(am|on|nächsten|nächste[rn]?|next)\\s+)?(${dayNames})${E}`, "iu")))) {
+  if (!day && (m = take(new RegExp(`${B}(?:(am|on|nächsten|nächste[rn]?|next)\\s+)?(${dayNames})(?:\\s+morgens?)?${E}`, "iu")))) {
     const target = NL_WEEKDAYS[m[2].toLowerCase()];
     let diff = (target - now.getDay() + 7) % 7;
     if (diff == 0 || /^(nächst|next)/i.test(m[1] || "")) {
       diff += diff == 0 ? 7 : 0;
     }
     day = new Date(now.getFullYear(), now.getMonth(), now.getDate() + diff);
+  }
+  // Dauer (vor den Uhrzeiten, sonst wird „für 2h“ als 02:00 gelesen)
+  let duration = null;
+  if ((m = take(new RegExp(`${B}(?:für|for)\\s+(\\d+(?:[.,]5)?)\\s*(stunden?|std\\.?|hours?|hrs?|h|minuten|min\\.?|minutes?|mins?)${E}`, "iu")))) {
+    const n = Number(m[1].replace(",", "."));
+    duration = /^m/i.test(m[2]) ? n : n * 60;
   }
   // Uhrzeit: Zeitraum oder Einzelzeit
   const T = "(\\d{1,2})(?:[:.](\\d{2}))?\\s*(am|pm|a\\.m\\.|p\\.m\\.)?";
@@ -2418,10 +2424,15 @@ function parseNatural(text, now = new Date()) {
   };
   let startMin = null;
   let endMin = null;
-  m = take(new RegExp(`${B}(?:von\\s+|from\\s+|um\\s+|at\\s+)?${T}\\s*(?:-|–|bis|to|until)\\s*${T}\\s*(?:uhr|h)?${E}`, "iu"));
-  if (m) {
-    startMin = toMinutes(m[1], m[2], m[3] || m[6]);
-    endMin = toMinutes(m[4], m[5], m[6]);
+  const range = take(new RegExp(`${B}(?:von\\s+|from\\s+|um\\s+|at\\s+)?${T}\\s*(?:-|–|bis|to|until)\\s*${T}\\s*(?:uhr|h)?${E}`, "iu"));
+  if (range) {
+    startMin = toMinutes(range[1], range[2], range[3]);
+    endMin = toMinutes(range[4], range[5], range[6]);
+    // nur das Ende hat am/pm: der Beginn übernimmt es, wenn er dann vor dem Ende
+    // liegt („2-4pm“ → 14–16 Uhr, aber „11-1pm“ → 11–13 Uhr)
+    if (!range[3] && range[6] && toMinutes(range[1], range[2], range[6]) < endMin) {
+      startMin = toMinutes(range[1], range[2], range[6]);
+    }
   } else if ((m = take(new RegExp(`${B}(?:um\\s+|at\\s+)?(\\d{1,2})(?:[:.](\\d{2}))?\\s*(?:uhr|h)${E}`, "iu")))) {
     startMin = toMinutes(m[1], m[2]);
   } else if ((m = take(new RegExp(`${B}(?:um\\s+|at\\s+)?(\\d{1,2})(?:[:.](\\d{2}))?\\s*(am|pm)${E}`, "iu")))) {
@@ -2434,12 +2445,6 @@ function parseNatural(text, now = new Date()) {
   if (startMin != null && (startMin >= 24 * 60 || (endMin != null && endMin >= 24 * 60))) {
     return { title: text.trim() }; // keine gültige Uhrzeit – nichts erkannt
   }
-  // Dauer
-  let duration = null;
-  if ((m = take(new RegExp(`${B}(?:für|for)\\s+(\\d+(?:[.,]5)?)\\s*(stunden?|std\\.?|hours?|hrs?|h|minuten|min\\.?|minutes?|mins?)${E}`, "iu")))) {
-    const n = Number(m[1].replace(",", "."));
-    duration = /^m/i.test(m[2]) ? n : n * 60;
-  }
   if (day == null && startMin == null && !allDay) {
     return { title: text.trim() };
   }
@@ -2450,7 +2455,11 @@ function parseNatural(text, now = new Date()) {
   const result = { title: title || text.trim(), allDay: allDay || (startMin == null && !!day) };
   if (!result.allDay && startMin != null) {
     result.start = new Date(base.getFullYear(), base.getMonth(), base.getDate(), Math.floor(startMin / 60), startMin % 60);
-    const end = endMin != null ? endMin : startMin + (duration ?? 60);
+    let end = endMin != null ? endMin : startMin + (duration ?? 60);
+    if (endMin != null && end <= startMin) {
+      // Ende vor dem Beginn: „9-5“ → 17:00, „22-2 Uhr“ → 02:00 am Folgetag
+      end += !range[6] && end < 12 * 60 && end + 12 * 60 > startMin ? 12 * 60 : 24 * 60;
+    }
     result.end = new Date(base.getFullYear(), base.getMonth(), base.getDate(), Math.floor(end / 60), end % 60);
     if (result.end <= result.start) {
       result.end = new Date(result.start.getTime() + 3600 * 1000);
@@ -5946,6 +5955,11 @@ class CardEnhancer {
       const updateColor = () => root.style.setProperty("--mc-qc-color", color(selectedCalendar()));
       const updateSummary = () => {
         if (state.mode == "task") {
+          // Erinnerung braucht eine Fälligkeit (sonst ginge sie beim Anlegen verloren)
+          if (f.alert.value && !f.hasDue.checked) {
+            f.hasDue.checked = true;
+            root.toggleAttribute("data-due", true);
+          }
           const due = f.hasDue.checked ? parse(f.dueDate.value, f.dueTime.value) : null;
           f.line1.textContent = due ? `${tr("Due")} ${fmtDate.format(due)} ${fmtTime.format(due)}` : tr("No Due Date");
           f.line2.textContent = f.alert.value ? chosen(f.alert) : tr("Add Due Date or Alert");
@@ -6021,6 +6035,9 @@ class CardEnhancer {
       }
       f.hasDue.addEventListener("change", () => {
         root.toggleAttribute("data-due", f.hasDue.checked);
+        if (!f.hasDue.checked) {
+          f.alert.value = "";
+        }
         updateSummary();
       });
       f.calendar.addEventListener("change", updateColor);
@@ -6129,7 +6146,9 @@ class CardEnhancer {
           let s = parse(f.startDate.value, f.allDay.checked ? "00:00" : f.startTime.value) || new Date();
           let e = parse(f.endDate.value, f.allDay.checked ? "00:00" : f.endTime.value);
           if (f.allDay.checked) {
-            e = new Date((e || s).getFullYear(), (e || s).getMonth(), (e || s).getDate() + 1);
+            // Ende vor dem Beginn: ein Tag am Beginn
+            const last = e && e >= s ? e : s;
+            e = new Date(last.getFullYear(), last.getMonth(), last.getDate() + 1);
           } else if (!e || e <= s) {
             e = new Date(s.getTime() + 3600 * 1000);
           }
@@ -6226,10 +6245,12 @@ class CardEnhancer {
         day = new Date(ts.year, ts.month, ts.day, now.getHours(), now.getMinutes());
       }
     } catch {}
-    let start = new Date(day.getFullYear(), day.getMonth(), day.getDate(), now.getHours() + 1, 0);
+    // ein anderer Tag als heute bleibt auch nach 23 Uhr dieser Tag (23:00 statt 0:00 am Folgetag)
+    const nextHour = Math.min(now.getHours() + 1, 23);
+    let start = new Date(day.getFullYear(), day.getMonth(), day.getDate(), day === now ? now.getHours() + 1 : nextHour, 0);
     if (preset?.start) {
       start = preset.allDay
-        ? new Date(preset.start.getFullYear(), preset.start.getMonth(), preset.start.getDate(), now.getHours() + 1, 0)
+        ? new Date(preset.start.getFullYear(), preset.start.getMonth(), preset.start.getDate(), nextHour, 0)
         : new Date(preset.start);
     }
     const end = new Date(start.getTime() + 3600 * 1000);

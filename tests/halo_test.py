@@ -550,6 +550,96 @@ def run_checks(m, version, profile, results):
         return ok, f"{res}"
     check("Schnellfenster: natürliche Eingabe („morgen 12:30 für 90 min“)", natural, results)
 
+    def natural_rules():
+        # parseNatural direkt über das Experiment-Modul, „jetzt“ = Di 20.10.2026 15:00
+        res = m.js('''
+          const { ExtensionParent } = ChromeUtils.importESModule("resource://gre/modules/ExtensionParent.sys.mjs");
+          const g = ExtensionParent.GlobalManager.getExtension("%s").experimentAPIManager.global;
+          const parse = Cu.evalInSandbox("parseNatural", g);
+          const p = n => String(n).padStart(2, "0");
+          const f = x => x ? `${p(x.getDate())}.${p(x.getMonth() + 1)}.${x.getFullYear()} ${p(x.getHours())}:${p(x.getMinutes())}` : "-";
+          const out = {};
+          for (const t of ["Lunch für 2h um 12 Uhr", "Workshop für 1.5h morgen um 10 Uhr", "Meeting 14:00 für 2h", "Arzt Freitag morgen 8 Uhr",
+                           "Arzt morgen 8 Uhr", "Termin 1.3.25", "Call 11-1pm", "Call 2-4pm", "Party 22-2 Uhr", "Arbeit 9-5"]) {
+            const r = parse(t, new Date(2026, 9, 20, 15, 0));
+            out[t] = `${r.title} | ${f(r.start)} – ${f(r.end)}`;
+          }
+          return out;''' % ADDON_ID)
+        expected = {
+            "Lunch für 2h um 12 Uhr": "Lunch | 20.10.2026 12:00 – 20.10.2026 14:00",
+            "Workshop für 1.5h morgen um 10 Uhr": "Workshop | 21.10.2026 10:00 – 21.10.2026 11:30",
+            "Meeting 14:00 für 2h": "Meeting | 20.10.2026 14:00 – 20.10.2026 16:00",
+            "Arzt Freitag morgen 8 Uhr": "Arzt | 23.10.2026 08:00 – 23.10.2026 09:00",
+            "Arzt morgen 8 Uhr": "Arzt | 21.10.2026 08:00 – 21.10.2026 09:00",
+            "Termin 1.3.25": "Termin | 01.03.2025 00:00 – -",
+            "Call 11-1pm": "Call | 20.10.2026 11:00 – 20.10.2026 13:00",
+            "Call 2-4pm": "Call | 20.10.2026 14:00 – 20.10.2026 16:00",
+            "Party 22-2 Uhr": "Party | 20.10.2026 22:00 – 21.10.2026 02:00",
+            "Arbeit 9-5": "Arbeit | 20.10.2026 09:00 – 20.10.2026 17:00",
+        }
+        bad = [f"„{k}“ → {res.get(k)}" for k, v in expected.items() if res.get(k) != v]
+        return not bad, "; ".join(bad) or f"{len(expected)} Eingaben richtig (Dauer, „Freitag morgen“, Jahr „25“, am/pm, über Mitternacht)"
+    check("Schnellfenster: Dauer, Wochentag mit „morgen“, zweistelliges Jahr, Zeiträume", natural_rules, results)
+
+    def quick_late_allday():
+        # Doppelklick auf einen Tag um 23:15: der Termin bleibt an diesem Tag
+        # (Uhrzeit im Experiment-Modul kurz auf 23:15 gestellt)
+        res = m.js('''
+          const { ExtensionParent } = ChromeUtils.importESModule("resource://gre/modules/ExtensionParent.sys.mjs");
+          const g = ExtensionParent.GlobalManager.getExtension("%s").experimentAPIManager.global;
+          await toCalendar();
+          let out;
+          Cu.evalInSandbox("globalThis.__mcRealDate = Date; Date = class extends __mcRealDate { constructor(...a) { if (a.length) super(...a); else super(2026, 9, 20, 23, 15); } };", g);
+          try {
+            Cu.evalInSandbox("enhancer", g).openQuickCreate(w, "event", null, { start: new Date(2026, 9, 21), allDay: true });
+            const p = d.getElementById("mcQuickPanel"); const f = p.__mc;
+            out = { start: f.startDate.value, time: f.startTime.value, end: f.endDate.value, allDay: f.allDay.checked };
+          } finally {
+            Cu.evalInSandbox("Date = globalThis.__mcRealDate; delete globalThis.__mcRealDate;", g);
+          }
+          d.getElementById("mcQuickPanel").hidePopup(); await wait(400);
+          return out;''' % ADDON_ID)
+        ok = res == {"start": "2026-10-21", "time": "23:00", "end": "2026-10-21", "allDay": True}
+        return ok, f"{res}"
+    check("Schnellfenster: ganztägig um 23 Uhr bleibt am angeklickten Tag", quick_late_allday, results)
+
+    def quick_checks():
+        # ganztägig mit Ende vor dem Beginn → ein Tag; Aufgabe mit Erinnerung bekommt eine Fälligkeit
+        res = m.js('''
+          const { ExtensionParent } = ChromeUtils.importESModule("resource://gre/modules/ExtensionParent.sys.mjs");
+          const enh = Cu.evalInSandbox("enhancer", ExtensionParent.GlobalManager.getExtension("%s").experimentAPIManager.global);
+          await toCalendar();
+          const open = mode => {
+            enh.openQuickCreate(w, mode);
+            const p = d.getElementById("mcQuickPanel"); const f = p.__mc;
+            f.calendar.value = testCalendar().id; f.calendar.dispatchEvent(new w.Event("change"));
+            return [p, f];
+          };
+          const set = (input, v) => { if (typeof v == "boolean") input.checked = v; else input.value = v; input.dispatchEvent(new w.Event("change")); };
+          const find = async t => { for (let i = 0; i < 40; i++) { const x = (await items(t))[0]; if (x) return x; await wait(100); } return null; };
+          let [p, f] = open("event");
+          f.title.value = "Halo Ganztag rückwärts"; f.title.dispatchEvent(new w.Event("input", { bubbles: true }));
+          set(f.allDay, true); set(f.startDate, "2026-11-12"); set(f.endDate, "2026-11-10");
+          f.add.click();
+          const ev = await find("Halo Ganztag rückwärts");
+          await until(() => p.state == "closed", 3000);
+          [p, f] = open("task");
+          f.title.value = "Halo Aufgabe Erinnerung"; f.title.dispatchEvent(new w.Event("input", { bubbles: true }));
+          const before = f.hasDue.checked;
+          set(f.alert, "PT15M"); const due = f.hasDue.checked;
+          set(f.hasDue, false); const cleared = f.alert.value;
+          set(f.alert, "PT15M");
+          f.add.click();
+          const td = await find("Halo Aufgabe Erinnerung");
+          await until(() => p.state == "closed", 3000);
+          const out = { ev: ev ? [ev.startDate.icalString, ev.endDate.icalString] : null,
+                        task: { before, due, cleared, hasDue: !!td?.dueDate, alarms: td ? td.getAlarms().length : null } };
+          for (const it of [ev, td].filter(Boolean)) await testCalendar().deleteItem(it);
+          return out;''' % ADDON_ID)
+        ok = (res["ev"] == ["20261112", "20261113"] and res["task"] == {"before": False, "due": True, "cleared": "", "hasDue": True, "alarms": 1})
+        return ok, f"{res}"
+    check("Schnellfenster: ganztägiges Ende vor Beginn, Erinnerung bei Aufgabe", quick_checks, results)
+
     def emoji():
         res = m.js("""
           const { CalEvent } = ChromeUtils.importESModule("resource:///modules/CalEvent.sys.mjs");
