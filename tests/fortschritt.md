@@ -7,7 +7,7 @@ Vorher-Bilder: `tests/shots/tour/vorher/` (hell-*/dunkel-*), Paket `tests/shots/
 
 ## 1. Mailliste (`mailliste`)
 
-- [x] `mail-karten` – Mailliste als Karten, Posteingang mit ausgewählter Mail: erledigt (Commit „Mailliste: …“ (Runde 1)) – Datum ungelesener Karten normal statt fett; zugeklappte Konversation mit Ungelesenem hat den Akzent-Punkt, Thread-Knopf als graue Kapsel ohne Stern/Akzentrahmen
+- [x] `mail-karten` – Mailliste als Karten, Posteingang mit ausgewählter Mail: erledigt (Commit „Mailliste: …“ (Runde 1)) – Datum ungelesener Karten normal statt fett; zugeklappte Konversation mit Ungelesenem hat den Akzent-Punkt, Thread-Knopf als graue Kapsel ohne Stern/Akzentrahmen; Runde 1 Leseansicht: Uhrzeit/Datum der Karten im Format der Regionaleinstellungen wie im Mailkopf (Commit „Leseansicht: …“)
 - [x] `mail-karten-ohne-auswahl` – Posteingang ohne Auswahl (leere Leseansicht): erledigt (Runde 1: geprüft, kein eigener Befund; Datum/Thread-Knopf wie bei mail-karten)
 - [x] `mail-tabelle` – Mailliste als Tabelle: erledigt (Commit „Mailliste: …“ (Runde 1)) – Schrift 13 px wie Karten und Spaltenkopf; Ungelesen-Punkt in Akzentfarbe statt Grün/Ring; kein Funkelstern vor neuen Mails; Schlagwortfarben hell abgedunkelt, dunkel aufgehellt (Kontrast ≥ 4,5:1)
 - [x] `mail-tabelle-threads` – Tabelle nach Threads gruppiert, Threads aufgeklappt: erledigt (Commit „Mailliste: …“ (Runde 1)) – wie mail-tabelle (13 px, Akzent-Punkt auch für zugeklappte Konversation mit Ungelesenem, kein Stern)
@@ -41,33 +41,33 @@ Vorher-Bilder: `tests/shots/tour/vorher/` (hell-*/dunkel-*), Paket `tests/shots/
 
 ## 2. Leseansicht und Mailkopf (`lesen`)
 
-- [ ] `lesen-text` – Leseansicht: Textmail mit Cc: offen
-- [ ] `lesen-newsletter` – HTML-Newsletter mit Abmelde-Hinweis (List-Unsubscribe): offen
-- [ ] `lesen-thread-anhang` – Antwort im Thread mit einem Anhang: offen
-- [ ] `lesen-anhaenge-fremdinhalt` – Mail mit drei Anhängen und blockiertem Bild (Hinweisleiste): offen
-- [ ] `lesen-anhaenge-liste` – Anhangsliste aufgeklappt: offen
-- [ ] `lesen-viele-empfaenger` – Mailkopf mit vielen Empfängern: offen
-- [ ] `lesen-alle-empfaenger` – Mailkopf: alle Empfänger ausgeklappt: offen
-- [ ] `lesen-langer-betreff` – Sehr langer Betreff und Absendername: offen
-- [ ] `lesen-junk` – Als Junk markierte Mail (Junk-Leiste): offen
-- [ ] `lesen-entwurf` – Entwurf in der Leseansicht (Bearbeiten-Leiste): offen
-- [ ] `lesen-html-tabelle` – HTML-Mail mit Tabelle: offen
-- [ ] `lesen-tab` – Mail im eigenen Tab: offen
-- [ ] `lesen-fenster` – Mail im eigenen Fenster: offen
-- [ ] `lesen-suchleiste` – Suchleiste in der Mail (Bearbeiten → Suchen): offen
-- [ ] `lesen-quelltext` – Quelltext der Mail: offen
+- [x] `lesen-text` – Leseansicht: Textmail mit Cc: erledigt (Commit „Leseansicht: …“ (Runde 1)) – nur noch eine Linie zwischen Kopf und Mailtext (Thunderbirds zweite Linie an #mail-notification-top entfernt); Kommas in Cc tertiärgrau wie in An; Uhrzeit in Liste und Kopf im selben Format (Regionaleinstellungen). Verworfen: dunkler Mailgrund (#18181B) gegenüber Kopf (#1E1E1E) – kaum sichtbar, die Korrektur überschriebe eigene Hintergründe von Mails und bräuchte @-moz-document im Author-Sheet; verworfen: Ordner/Uhrzeit im Kopf in Sekundärgrau – Tertiärgrau für Nebeninfos ist im Projekt durchgängig gewählt (Token-Frage, keine Einzelkorrektur)
+- [x] `lesen-newsletter` – HTML-Newsletter mit Abmelde-Hinweis (List-Unsubscribe): erledigt (Runde 1: geprüft, nichts geändert) – verworfen: 560 px breite Newsletter werden im 484-px-Lesebereich rechts ohne Hinweis abgeschnitten; Abhilfe wäre neues Verhalten (CSS-Zoom auf jede HTML-Mail mit ResizeObserver – Risiken mit Text-Zoom, nachgeladenen Bildern, Drucken, Resize-Schleifen). Offener Punkt: „Breite HTML-Mails auf Lesebreite verkleinern (wie Apple Mail) – nur mit Freigabe“
+- [x] `lesen-thread-anhang` – Antwort im Thread mit einem Anhang: erledigt (Commit „Leseansicht: …“ (Runde 1)) – Anhangsleiste auf der Fläche der Mail mit Haarlinie statt grauem Band
+- [x] `lesen-anhaenge-fremdinhalt` – Mail mit drei Anhängen und blockiertem Bild (Hinweisleiste): erledigt (Commit „Leseansicht: …“ (Runde 1)) – Anhangsleiste wie lesen-anhaenge-liste. Verworfen: gelbe Hinweisleiste auch im Dunkelmodus – bewusste Entscheidung (Commit 02cc7d6, Test „Hinweis über der Mail … Farbe unverändert“); verworfen: Linien inline angezeigter Anhänge – Thunderbirds Darstellung im Mailinhalt, kein harter Kontrastrahmen, Geschmacksfrage (bräuchte zudem @-moz-document im Author-Sheet)
+- [x] `lesen-anhaenge-liste` – Anhangsliste aufgeklappt: erledigt (Commit „Leseansicht: …“ (Runde 1)) – Leiste und Liste auf --mt-window statt Zinkgrau bzw. dunkel #3F3F46, eine Haarlinie darüber; markierte Datei 6 px rund in Akzentfarbe ohne Rahmen und Outline, unfokussiert grau
+- [x] `lesen-viele-empfaenger` – Mailkopf mit vielen Empfängern: erledigt (Commit „Leseansicht: …“ (Runde 1)) – „Mehr“ als graue Kapsel in 11 px („More“) statt blauer Pille mit 9,9-px-Versalien
+- [x] `lesen-alle-empfaenger` – Mailkopf: alle Empfänger ausgeklappt: erledigt (Commit „Leseansicht: …“ (Runde 1)) – Kommas in Cc/Bcc/Antwort-an tertiärgrau wie in der An-Zeile (vorher fast schwarz bzw. dunkel fast weiß)
+- [x] `lesen-langer-betreff` – Sehr langer Betreff und Absendername: erledigt (Commit „Leseansicht: …“ (Runde 1)) – im schmalen Mailbereich (< 768 px) bleibt der Kopf so breit wie der Mailbereich: langer Absendername endet mit „…“ vor Ordner und Uhrzeit, Betreff bricht vollständig um; Nachrichtenfenster unverändert
+- [x] `lesen-junk` – Als Junk markierte Mail (Junk-Leiste): erledigt (Runde 1: geprüft, kein Befund)
+- [x] `lesen-entwurf` – Entwurf in der Leseansicht (Bearbeiten-Leiste): erledigt (Runde 1: geprüft, kein Befund)
+- [x] `lesen-html-tabelle` – HTML-Mail mit Tabelle: erledigt (Runde 1: geprüft, kein Befund)
+- [x] `lesen-tab` – Mail im eigenen Tab: erledigt (Commit „Leseansicht: …“ (Runde 1)) – im Nachrichten-Tab kein Listenkopf („Inbox – On My Mac / 25 messages“) und kein Seitenleisten-Grau oben und in der Statusleiste mehr; der Seitenleisten-Knopf sitzt wie in anderen Bereichen ohne Seitenleiste neben den Fensterknöpfen; zurück im Mail-Tab wie vorher
+- [x] `lesen-fenster` – Mail im eigenen Fenster: erledigt (Runde 1: geprüft; nur die doppelte Linie unter dem Kopf entfällt) – verworfen: Knopfleiste im eigenen Fenster mittig über Ordner/Uhrzeit – nichts abgeschnitten oder überlappend, die Korrektur bräuchte mehrere abgestimmte Versätze und führte im Versuch zu einer Überlappung (eigene Runde zum Nachrichtenfenster)
+- [x] `lesen-suchleiste` – Suchleiste in der Mail (Bearbeiten → Suchen): erledigt (Commit „Leseansicht: …“ (Runde 1)) – Leiste mit Haarlinie auf der Fläche der Mail, Suchfeld als graue Fläche ohne Rahmen (6 px); bei wenig Platz brechen die Optionen um statt rechts abgeschnitten zu werden (gilt auch im Verfassen-Fenster: „1 of 1 match“ jetzt ganz sichtbar). Nicht umgesetzt: Optionen ausblenden (Verhaltensänderung, nur mit Freigabe)
+- [x] `lesen-quelltext` – Quelltext der Mail: erledigt (Runde 1: geprüft, kein Befund)
 - [x] `lesen-mehr-menue` – Mailkopf: „Mehr“-Menü: übersprungen: nicht erreichbar – Knopf ausgeblendet: halo.spaces blendet die Symbolleiste im Mailkopf aus (Aktionen über Toolbar und Kontextmenü)
-- [ ] `lesen-adresse-popup` – Mailkopf: Menü zur Absenderadresse: offen
+- [x] `lesen-adresse-popup` – Mailkopf: Menü zur Absenderadresse: erledigt (Runde 1: geprüft, kein Befund)
 - [x] `lesen-kopf-anpassen` – Mailkopf anpassen (Panel): übersprungen: nicht erreichbar – Knopf ausgeblendet: halo.spaces blendet die Symbolleiste im Mailkopf (und damit „Anpassen“) aus
-- [ ] `lesen-anhaenge-speichern` – Anhänge: Menü „Alle speichern“: offen
-- [ ] `lesen-fremdinhalt-optionen` – Hinweisleiste: Optionen für entfernte Inhalte: offen
-- [ ] `lesen-einladung` – Mail mit Kalender-Einladung (iMIP-Leiste: Zusagen, Vielleicht, Absagen, Mehr): offen
-- [ ] `lesen-einladung-zusagen` – Einladung: Menü am Knopf „Zusagen“: offen
-- [ ] `lesen-einladung-mehr` – Einladung: Menü „Mehr“: offen
-- [ ] `lesen-empfangsbestaetigung` – Hinweisleiste „Absender bittet um Empfangsbestätigung“: offen
-- [ ] `lesen-betrugswarnung` – Hinweisleiste „Diese Nachricht könnte Betrug sein“: offen
-- [ ] `lesen-betrugswarnung-optionen` – Betrugswarnung: Menü am Knopf der Hinweisleiste: offen
-- [ ] `lesen-kontakt-bearbeiten` – Mailkopf: Panel „Kontakt bearbeiten“ (über das Menü zur Absenderadresse): offen
+- [x] `lesen-anhaenge-speichern` – Anhänge: Menü „Alle speichern“: erledigt (Runde 1: geprüft, kein Befund)
+- [x] `lesen-fremdinhalt-optionen` – Hinweisleiste: Optionen für entfernte Inhalte: erledigt (Runde 1: geprüft, kein Befund)
+- [x] `lesen-einladung` – Mail mit Kalender-Einladung (iMIP-Leiste: Zusagen, Vielleicht, Absagen, Mehr): erledigt (Commit „Leseansicht: …“ (Runde 1)) – iMIP-Leiste als graue Kapsel (12 px Radius, ohne Schatten) statt hellblauer bzw. dunkel lila Fläche mit 2,3:1-Kontrast; Text über die ganze Zeile, Knöpfe als graue Kapseln darunter (Hauptknopf und Pfeil in einer Kapsel mit Haarlinie); Einladungsdetails als Karte mit feiner Linie und 10 px Radius in der Breite des Lesebereichs statt 600 px mit 3-px-Rahmen, Werte linksbündig
+- [x] `lesen-einladung-zusagen` – Einladung: Menü am Knopf „Zusagen“: erledigt (Runde 1: geprüft; Menü unverändert, Knöpfe siehe lesen-einladung)
+- [x] `lesen-einladung-mehr` – Einladung: Menü „Mehr“: erledigt (Runde 1: geprüft; Menü unverändert, Knöpfe siehe lesen-einladung)
+- [x] `lesen-empfangsbestaetigung` – Hinweisleiste „Absender bittet um Empfangsbestätigung“: erledigt (Runde 1: geprüft, kein Befund; Farben der Hinweisleisten bewusst Thunderbirds, s. lesen-anhaenge-fremdinhalt)
+- [x] `lesen-betrugswarnung` – Hinweisleiste „Diese Nachricht könnte Betrug sein“: erledigt (Runde 1: geprüft, kein Befund; Farben der Hinweisleisten bewusst Thunderbirds)
+- [x] `lesen-betrugswarnung-optionen` – Betrugswarnung: Menü am Knopf der Hinweisleiste: erledigt (Runde 1: geprüft, kein Befund)
+- [x] `lesen-kontakt-bearbeiten` – Mailkopf: Panel „Kontakt bearbeiten“ (über das Menü zur Absenderadresse): erledigt (Commit „Leseansicht: …“ (Runde 1)) – Panel mit neutraler Fläche und weichem Rand wie die Tooltips (hell #FFFFFF, dunkel #2C2C2E) statt Thunderbirds bläulichem Schiefergrau (#262D3B) mit hartem Rand
 
 ## 3. Verfassen (`verfassen`)
 

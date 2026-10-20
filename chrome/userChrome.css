@@ -949,6 +949,143 @@ body:has(> #accountCentral),
   font-family: var(--mt-font) !important;
 }
 
+/* Thunderbird zieht unter dem Kopf eine zweite Linie (Rand der Hinweisleisten)
+   – zusammen mit der des Kopfs eine doppelt dicke, zweifarbige Kante */
+#mail-notification-top {
+  border-block-end: none !important;
+}
+
+/* Einladung (iMIP-Leiste): graue Kapsel wie der Verteiler-Hinweis statt
+   blauer bzw. lila Fläche mit Schatten; Text in einer Zeile, die Knöpfe als
+   graue Kapseln darunter (Hauptknopf und Pfeil in einer Kapsel) */
+#imip-bar.calendar-notification-bar {
+  margin: 10px 12px 2px !important;
+  padding: 6px 8px 6px 12px !important;
+  border: none !important;
+  border-radius: 12px !important;
+  box-shadow: none !important;
+  background: var(--mt-control) !important;
+  color: var(--mt-text) !important;
+  font: 12px var(--mt-font) !important;
+  flex-wrap: wrap !important;
+  align-items: center !important;
+  gap: 6px 8px !important;
+}
+
+#imip-bar > .msgNotificationBarText {
+  min-width: 0 !important;
+  margin: 0 !important;
+  font-weight: 500 !important;
+  color: var(--mt-text) !important;
+}
+
+/* (der Text hat flex="1" – Thunderbird erzwingt dafür flex: 1, deshalb
+   bekommen die Knöpfe die eigene Zeile über ihre Basis) */
+#imip-view-toolbox {
+  flex: 1 1 100% !important;
+}
+
+#imip-view-toolbox,
+#imip-view-toolbar {
+  margin: 0 !important;
+  padding: 0 !important;
+  background: transparent !important;
+}
+
+#imip-view-toolbar {
+  gap: 6px !important;
+  --imip-button-background: linear-gradient(var(--mt-control), var(--mt-control)) !important;
+  --imip-button-background-hover: linear-gradient(var(--mt-control-hover), var(--mt-control-hover)) !important;
+  --imip-button-background-active: linear-gradient(var(--mt-control-hover), var(--mt-control-hover)) !important;
+  --toolbarbutton-header-bordercolor: transparent !important;
+}
+
+#imip-view-toolbar > toolbarbutton {
+  margin: 0 !important;
+  min-height: 26px !important;
+  border-radius: 999px !important;
+  box-shadow: none !important;
+  color: var(--mt-text) !important;
+  font: 12px var(--mt-font) !important;
+}
+
+#imip-view-toolbar > toolbarbutton > .toolbarbutton-menubutton-button {
+  padding-inline-start: 8px !important;
+}
+
+#imip-view-toolbar > toolbarbutton > .toolbarbutton-menubutton-dropmarker {
+  border-inline-start: var(--mt-hairline) solid var(--mt-separator) !important;
+}
+
+/* Anhänge: auf der Fläche der Mail statt grauer Platten, eine Haarlinie
+   darüber; markierte Datei abgerundet in Akzentfarbe (unfokussiert grau) */
+#messagepanebox,
+#attachmentView,
+#attachmentBar,
+#attachmentList {
+  background: var(--mt-window) !important;
+  color: var(--mt-text) !important;
+}
+
+#attachmentView {
+  border-top: var(--mt-hairline) solid var(--mt-separator) !important;
+}
+
+#attachmentList {
+  border-top: none !important;
+}
+
+#attachmentList .attachmentItem {
+  border-radius: 6px !important;
+}
+
+#attachmentList .attachmentItem[selected] {
+  background: var(--mt-accent) !important;
+  color: var(--mt-accent-text) !important;
+  border-color: transparent !important;
+  outline: none !important;
+}
+
+#attachmentList:not(:focus-within) .attachmentItem[selected] {
+  background: var(--mt-selected-unfocused) !important;
+  color: var(--mt-text) !important;
+}
+
+/* Suchleiste (Bearbeiten → Suchen, in Mail und Verfassen): ruhige Fläche mit
+   Haarlinie, Suchfeld als graue Fläche; ist der Platz zu knapp, brechen die
+   Optionen in die nächste Zeile um statt abgeschnitten zu werden.
+   Rot (nicht gefunden) und Gelb (Treffer-Blinken) bleiben. */
+findbar {
+  background: var(--mt-window) !important;
+  color: var(--mt-text) !important;
+  border-top: var(--mt-hairline) solid var(--mt-separator) !important;
+  font-family: var(--mt-font) !important;
+}
+
+findbar .findbar-container {
+  flex-wrap: wrap !important;
+  row-gap: 4px !important;
+  height: auto !important;
+  /* Platz für den Fokusring (der Behälter schneidet ab) */
+  padding-block: 3px !important;
+}
+
+findbar .findbar-textbox {
+  border: none !important;
+  border-radius: 6px !important;
+  box-shadow: none !important;
+  color: var(--mt-text) !important;
+}
+
+findbar .findbar-textbox:not([status="notfound"], [flash="true"]) {
+  background-color: var(--mt-control) !important;
+}
+
+findbar .findbar-textbox:focus {
+  outline: 2px solid var(--mt-accent) !important;
+  outline-offset: 1px !important;
+}
+
 #messageHeader .message-header-recipient,
 #messageHeader .header-recipient {
   border-radius: 999px !important;
@@ -1331,7 +1468,31 @@ body:has(> #accountCentral),
 
 #expandedtoBox {
   font-size: 11px !important;
+}
+
+/* Empfängerzeilen einheitlich: die Kommas zwischen den Namen erben die Farbe
+   des Felds – in Cc, Bcc und Antwort-an standen sie sonst fast schwarz
+   (dunkel fast weiß) neben grauen Namen */
+#expandedtoBox,
+#messageHeader :is(#expandedccBox, #expandedbccBox, #expandedreply-toBox) {
   color: var(--mt-text-tertiary) !important;
+}
+
+/* „Mehr“ bei vielen Empfängern: graue Kapsel in 11 px statt blauer Pille
+   mit winzigen Versalien */
+#messageHeader .show-more-recipients {
+  text-transform: none !important;
+  font-size: 11px !important;
+  font-weight: 500 !important;
+  background: var(--mt-control) !important;
+  color: var(--mt-text-secondary) !important;
+  border: none !important;
+  padding: 2px 8px !important;
+}
+
+#messageHeader .show-more-recipients:hover {
+  background: var(--mt-control-hover) !important;
+  color: var(--mt-text) !important;
 }
 
 /* ==== Icons im Apple-Mail-Stil (generiert von icons/make_icons.py) ==== */
@@ -1837,6 +1998,13 @@ panel {
   --panel-border-radius: 12px !important;
 }
 
+/* Panel „Kontakt bearbeiten“ aus dem Mailkopf: neutrale Fläche wie die
+   Tooltips statt Thunderbirds bläulichem Grau mit hartem Rand */
+#editContactPanel {
+  --panel-background-color: var(--mt-tooltip-bg) !important;
+  --panel-border-color: var(--mt-tooltip-border) !important;
+}
+
 /* Symbolzeile oben im Nachrichten-Kontextmenü: die Erweiterung macht daraus
    Textzeilen (Klasse mc-nav-list); ohne Erweiterung bleibt sie ausgeblendet */
 #mailContext-navigation:not(.mc-nav-list),
@@ -1918,6 +2086,18 @@ unified-toolbar {
   align-items: center !important;
   gap: 8px !important;
   z-index: 1 !important;
+}
+
+/* Mail im eigenen Tab: keine Liste, also weder Listenkopf noch das Grau der
+   Ordnerliste oben und in der Statusleiste (die Maße stammen vom Mail-Tab
+   und bleiben dort gültig) */
+:root[mc-tab="mailMessageTab"] #mcListHeader {
+  display: none !important;
+}
+
+:root[mc-tab="mailMessageTab"] :is(#unifiedToolbarContainer, #status-bar) {
+  --mc-sidebar-right: 0px !important;
+  --mc-list-right: -10px !important;
 }
 
 #mcListHeader .mc-lh-text {
@@ -7480,6 +7660,30 @@ notification-message:not([type="warning"]) button.notification-button {
 #messageHeader:has(#mcHdrMeta) #headerSenderToolbarContainer {
   /* Breite von Ordner + Uhrzeit misst die Erweiterung (--mc-meta-w) */
   padding-inline-end: calc(var(--mc-meta-w, 260px) + 16px) !important;
+}
+
+/* Schmaler Mailbereich (unter 768 px, z. B. mit Today-Pane): Thunderbird
+   stellt den Kopf dann auf Spalten um, und die Zeile wuchs auf die volle
+   Länge des Namens – er lief quer über Ordner und Uhrzeit, der Kopf wurde
+   breiter als der Mailbereich und der Betreff rechts abgeschnitten.
+   So bleibt alles in der Breite des Mailbereichs, der Name endet mit „…“ */
+#messageHeader:has(#mcHdrMeta) :is(#headerSenderToolbarContainer, #expandedfromRow, #expandedfromBox) {
+  min-width: 0 !important;
+  max-width: 100% !important;
+  box-sizing: border-box !important;
+}
+
+#expandedfromBox .header-recipient {
+  overflow: hidden !important;
+  white-space: nowrap !important;
+  text-overflow: ellipsis !important;
+}
+
+/* mehrzeilige Variante (Name über der ausgeblendeten Adresse): als Box in
+   voller Breite – sonst schneidet das Listenelement den Namen hart ab, ohne „…“ */
+#expandedfromBox .recipient-multi-line {
+  display: flex !important;
+  min-width: 0 !important;
 }
 
 /* Mailbereich nicht schmaler als 480 px ziehen lassen – darunter passt der

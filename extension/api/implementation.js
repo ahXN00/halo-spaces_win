@@ -1134,19 +1134,23 @@ function orgDomain(domain) {
 }
 
 // Datum in der Mailliste: heute nur die Uhrzeit, gestern „Gestern“, davor
-// immer das ganze Datum (17.10.2026) – kein Wochentag
+// immer das ganze Datum (17.10.2026) – kein Wochentag.
+// Formatiert wie der Mailkopf: Thunderbirds eigener Formatierer ohne Sprache
+// nimmt die Regionaleinstellungen des Systems (auch 12/24 Stunden) – sonst
+// stand in der Liste „12:49 AM“ neben „00:49“ im Kopf
 function appleListDate(ms, now = new Date()) {
-  const locale = Services.locale.appLocaleAsBCP47;
+  const fmt = opts => new Services.intl.DateTimeFormat(undefined, opts);
   const d = new Date(ms);
   const startOfDay = x => new Date(x.getFullYear(), x.getMonth(), x.getDate()).getTime();
   const days = Math.round((startOfDay(now) - startOfDay(d)) / 86400000);
   if (days <= 0) {
-    return new Intl.DateTimeFormat(locale, { timeStyle: "short" }).format(d);
+    return fmt({ timeStyle: "short" }).format(d);
   }
   if (days == 1) {
     return tr("Yesterday");
   }
-  return new Intl.DateTimeFormat(locale, { day: "2-digit", month: "2-digit", year: "numeric" }).format(d);
+  // „mittel“ ist das ganze Datum im Muster des Systems (17.10.2026)
+  return fmt({ dateStyle: "medium" }).format(d);
 }
 
 // Absender ohne eigenen Namen (nur die Adresse, oft auch als Name

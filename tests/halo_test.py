@@ -650,6 +650,242 @@ def maillist_checks(m, results):
       sent.clearFlag(Ci.nsMsgFolderFlags.SentMail); await wait(800); return 1;""")
 
 
+# Leseansicht und Mailkopf: erfundene Mails (example.invalid) im Ordner „Kopf“
+READING_JS = r"""
+  const { MailServices } = ChromeUtils.importESModule("resource:///modules/MailServices.sys.mjs");
+  try { MailServices.accounts.localFoldersServer; } catch { MailServices.accounts.createLocalMailAccount(); await wait(500); }
+  const root = MailServices.accounts.localFoldersServer.rootFolder;
+  const pad = n => String(n).padStart(2, "0");
+  const DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"], MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+  const rfc = dt => { const o = -dt.getTimezoneOffset();
+    return `${DAYS[dt.getDay()]}, ${pad(dt.getDate())} ${MONTHS[dt.getMonth()]} ${dt.getFullYear()} ${pad(dt.getHours())}:${pad(dt.getMinutes())}:${pad(dt.getSeconds())} ${o >= 0 ? "+" : "-"}${pad(Math.floor(Math.abs(o) / 60))}${pad(Math.abs(o) % 60)}`; };
+  const ics = (days, h) => { const t = new Date(); t.setDate(t.getDate() + days); t.setHours(h, 0, 0, 0); return t.toISOString().replace(/[-:]/g, "").replace(/\.\d+Z$/, "Z"); };
+  const raw = o => unescape(encodeURIComponent([`From: ${o.from || "Anna Beispiel <anna@example.invalid>"}`, `To: ${o.to || "Halo Test <halo@example.invalid>"}`,
+    ...(o.cc ? [`Cc: ${o.cc}`] : []), `Subject: ${o.subject}`, `Date: ${rfc(o.date || new Date(Date.now() - 2 * 86400000))}`, `Message-ID: <${o.id}@example.invalid>`,
+    "MIME-Version: 1.0", `Content-Type: ${o.type || "text/plain; charset=UTF-8"}`, "", o.body || "Erfundene Testnachricht.", ""].join("\r\n")));
+  if (!root.containsChildNamed("Kopf")) { root.createSubfolder("Kopf", null); await wait(800); }
+  const f = root.getChildNamed("Kopf");
+  if (!f.getTotalMessages(false)) {
+    const many = ["Halo Test", "Anna Beispiel", "Ben Muster", "Carla Ölmann", "Emil Kurz", "Frieda Lang", "Gustav Weit", "Jana Breit", "Karl Lang", "Lena Mehr", "Mia Viel", "Nora Weit"]
+      .map(n => `${n} <${n.split(" ")[0].toLowerCase()}@example.invalid>`).join(", ");
+    const b = "----=_halo_kopf", c = "----=_halo_einladung";
+    const vcal = ["BEGIN:VCALENDAR", "PRODID:-//Halo//Test//DE", "VERSION:2.0", "METHOD:REQUEST", "BEGIN:VEVENT", "UID:halo-kopf-einladung@example.invalid",
+      `DTSTAMP:${ics(0, 8)}`, `DTSTART:${ics(3, 10)}`, `DTEND:${ics(3, 11)}`, "SUMMARY:Halo Workshop", "LOCATION:Raum 2.01",
+      "ORGANIZER;CN=Anna Beispiel:mailto:anna@example.invalid",
+      "ATTENDEE;CN=Halo Test;ROLE=REQ-PARTICIPANT;PARTSTAT=NEEDS-ACTION;RSVP=TRUE:mailto:halo@example.invalid",
+      "ATTENDEE;CN=Anna Beispiel;ROLE=CHAIR;PARTSTAT=ACCEPTED:mailto:anna@example.invalid", "SEQUENCE:0", "END:VEVENT", "END:VCALENDAR"].join("\r\n");
+    const att = name => `--${b}\r\nContent-Type: text/plain; name="${name}"\r\nContent-Disposition: attachment; filename="${name}"\r\nContent-Transfer-Encoding: base64\r\n\r\n${btoa("Erfundene Testdatei " + name)}\r\n`;
+    const lf = f.QueryInterface(Ci.nsIMsgLocalMailFolder);
+    for (const o of [
+      { id: "halo-kopf-lang", from: "Dr. Maximilian Alexander von Langenname-Überlänge <max@example.invalid>",
+        subject: "Halo Lang: eine sehr lange Betreffzeile, die garantiert nicht in eine Zeile passt, weil sie wirklich außergewöhnlich viele Wörter enthält – und noch mehr", body: "Kurzer Inhalt." },
+      { id: "halo-kopf-viele", from: "Dana Zöllner <dana@example.invalid>", to: many, cc: "Hannah Mehr <hannah@example.invalid>, Ida Viel <ida@example.invalid>", subject: "Halo Viele Empfänger" },
+      { id: "halo-kopf-anhang", subject: "Halo Anhänge", type: `multipart/mixed; boundary="${b}"`,
+        body: `--${b}\r\nContent-Type: text/plain; charset=UTF-8\r\n\r\nDrei Anhänge.\r\n${att("Ausflug-01.txt")}${att("Ausflug-02.txt")}${att("Notizen.txt")}--${b}--` },
+      { id: "halo-kopf-einladung", subject: "Einladung: Halo Workshop", type: `multipart/alternative; boundary="${c}"`,
+        body: `--${c}\r\nContent-Type: text/plain; charset=UTF-8\r\n\r\nErfundene Einladung.\r\n--${c}\r\nContent-Type: text/calendar; charset=UTF-8; method=REQUEST\r\n\r\n${vcal}\r\n--${c}--` },
+      { id: "halo-kopf-jetzt", subject: "Halo Jetzt", date: new Date() },
+      { id: "halo-kopf-kontakt", from: "Paula Panel <paula@example.invalid>", subject: "Halo Kontakt" },
+    ]) lf.addMessage(raw(o));
+    await wait(1000);
+  }
+  const a3 = await toMail();
+  const md = () => a3.messageBrowser.contentDocument;
+  const cs = (el, p) => el.ownerDocument.defaultView.getComputedStyle(el, p);
+  const vis = el => !!el && el.getClientRects().length > 0 && el.getBoundingClientRect().width > 0;
+  const showMail = async subj => {
+    if (a3.gFolder?.URI != f.URI) { a3.displayFolder(f.URI); await until(() => a3.gFolder?.URI == f.URI && a3.gDBView, 6000); await wait(800); }
+    const v = a3.gDBView; let i = -1;
+    for (let k = 0; k < v.rowCount; k++) if ((v.getMsgHdrAt(k).mime2DecodedSubject || "").includes(subj)) i = k;
+    a3.threadTree.selectedIndex = i;
+    await until(() => (md().getElementById("expandedsubjectBox")?.textContent || "").includes(subj) && md().getElementById("messagepane")?.contentDocument?.body?.textContent, 6000);
+    await wait(900); return md(); };
+  // schmaler Mailbereich (unter 768 px stellt Thunderbird den Kopf auf Spalten um): Today-Pane auf
+  const tpCmd = d.getElementById("calendar_toggle_todaypane_command");
+  const narrow = async () => { if (md().documentElement.clientWidth >= 768 && !w.TodayPane.isVisible) { tpCmd.doCommand(); w.__haloTpOpened = true; await wait(1500); } return md().documentElement.clientWidth; };
+  const restore = async () => { if (w.__haloTpOpened && w.TodayPane.isVisible) { tpCmd.doCommand(); await wait(800); } w.__haloTpOpened = false; };
+  const rgb = c => (c.match(/-?[\d.]+/g) || []).map(Number).map((v, i) => (c.startsWith("color(") && i < 3 ? v * 255 : v));
+  const lum = ([r, g, b]) => { const t = v => { v /= 255; return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4; }; return 0.2126 * t(r) + 0.7152 * t(g) + 0.0722 * t(b); };
+  const contrast = (a, b) => { const [x, y] = [lum(a), lum(b)].sort((p, q) => q - p); return Math.round((x + 0.05) / (y + 0.05) * 100) / 100; };
+  const over = (fg, bg) => { const al = fg[3] ?? 1; return fg.slice(0, 3).map((v, i) => v * al + bg[i] * (1 - al)); };"""
+
+
+def reading_checks(m, results):
+    """Leseansicht und Mailkopf: langer Absender, Einladung, Anhänge, Suchleiste, Kontakt-Panel, Mail im Tab, Datum, Linie, „Mehr“, Kommas."""
+
+    def long_sender():
+        # schmaler Mailbereich: Name endet mit „…“ vor Ordner und Uhrzeit, Kopf nicht breiter als der Mailbereich
+        res = m.js(READING_JS + r"""
+          let doc = await showMail("Halo Lang"); const width = await narrow(); doc = md(); await wait(500);
+          const header = doc.getElementById("messageHeader"), meta = doc.getElementById("mcHdrMeta"), subj = doc.getElementById("expandedsubjectBox");
+          const name = [...doc.querySelectorAll("#fromRecipient0 :is(.recipient-single-line, .recipient-multi-line-name)")].find(vis);
+          // das kürzende Element: der Name selbst (Block) oder sein Listenelement (einzeiliger Name)
+          const box = name && (cs(name).display == "inline" ? name.closest("li") : name);
+          const out = { width, scroll: header.scrollWidth, client: header.clientWidth, name: name?.textContent,
+                        nameRight: Math.round(box?.getBoundingClientRect().right), metaLeft: Math.round(meta?.getBoundingClientRect().left),
+                        subjRight: Math.round(subj.getBoundingClientRect().right), headerRight: Math.round(header.getBoundingClientRect().right),
+                        ellipsis: box && cs(box).textOverflow, cut: box && box.scrollWidth > box.clientWidth };
+          await restore(); return out;""")
+        ok = (res["width"] < 768 and res["scroll"] <= res["client"] + 1 and res["nameRight"] <= res["metaLeft"] + 1
+              and res["subjRight"] <= res["headerRight"] and res["ellipsis"] == "ellipsis" and res["cut"])
+        return ok, f"{res}"
+    check("Mailkopf: langer Absender im schmalen Mailbereich endet mit „…“ vor Ordner und Uhrzeit, Betreff ganz", long_sender, results)
+
+    def invitation():
+        # Einladung: graue Kapsel statt blauer/lila Fläche mit Schatten, Text einzeilig und lesbar; Details in voller Breite
+        res = m.js(READING_JS + r"""
+          await showMail("Halo Workshop"); await narrow(); const doc = md();
+          const bar = await until(() => vis(doc.getElementById("imip-bar")) && doc.getElementById("imip-bar"), 6000);
+          if (!bar) { await restore(); return { bar: false }; }
+          await wait(500);
+          const s = cs(bar), t = bar.querySelector(".msgNotificationBarText");
+          const lh = parseFloat(cs(t).lineHeight) || parseFloat(cs(t).fontSize) * 1.2;
+          const win = rgb(cs(doc.getElementById("messageHeader")).backgroundColor);
+          const btn = doc.getElementById("imipAcceptButton");
+          const body = doc.getElementById("messagepane").contentDocument;
+          const border = await until(() => body.querySelector(".invitation-border"), 6000);
+          const out = { bar: true, bg: s.backgroundColor, radius: parseFloat(s.borderTopLeftRadius), shadow: s.boxShadow,
+                        text: t.textContent.trim(), textLines: Math.round(t.getBoundingClientRect().height / lh * 10) / 10,
+                        // Text über die ganze Zeile (nicht als schmale Spalte neben den Knöpfen), Knöpfe darunter
+                        fullRow: t.getBoundingClientRect().right >= bar.getBoundingClientRect().right - parseFloat(s.paddingRight) - 2,
+                        below: doc.getElementById("imip-view-toolbox").getBoundingClientRect().top >= t.getBoundingClientRect().bottom - 1,
+                        contrast: contrast(rgb(cs(t).color), over(rgb(s.backgroundColor), win)),
+                        btnRadius: parseFloat(cs(btn).borderTopLeftRadius), btnBorder: cs(btn.querySelector(".toolbarbutton-menubutton-button") || btn).borderTopColor,
+                        bodyScroll: body.documentElement.scrollWidth, inner: body.defaultView.innerWidth,
+                        cardBorder: border && parseFloat(cs(border).borderTopWidth), cardRight: border && Math.round(border.getBoundingClientRect().right) };
+          await restore(); return out;""")
+        ok = (res.get("bar") and res["bg"] not in ("rgb(192, 132, 252)", "rgb(221, 238, 254)") and res["radius"] >= 10
+              and res["shadow"] == "none" and res["fullRow"] and res["below"] and res["contrast"] >= 4.5 and res["btnRadius"] >= 10
+              and rgba_alpha(res["btnBorder"]) == 0 and res["bodyScroll"] <= res["inner"] + 1
+              and res["cardBorder"] is not None and res["cardBorder"] <= 1 and res["cardRight"] <= res["inner"])
+        return ok, f"{res}"
+    check("Einladung: Leiste als graue Kapsel (Text über die ganze Zeile, lesbar, Knöpfe darunter), Details als Karte in der Breite des Lesebereichs", invitation, results)
+
+    def attachments():
+        res = m.js(READING_JS + r"""
+          const doc = await showMail("Halo Anhänge");
+          doc.defaultView.toggleAttachmentList?.(true, true); await wait(900);
+          const list = doc.getElementById("attachmentList");
+          list.selectedIndex = 0; list.focus(); await wait(400);
+          const item = list.querySelector(".attachmentItem[selected]");
+          const focused = { bg: cs(item).backgroundColor, radius: parseFloat(cs(item).borderTopLeftRadius), outline: cs(item).outlineStyle };
+          a3.threadTree.focus(); await wait(300);
+          const out = { list: cs(list).backgroundColor, header: cs(doc.getElementById("messageHeader")).backgroundColor,
+                        bar: cs(doc.getElementById("attachmentBar")).backgroundColor, focused, unfocused: cs(item).backgroundColor,
+                        accent: (() => { const e = doc.createElement("div"); e.style.color = "AccentColor"; doc.documentElement.append(e); const c = cs(e).color; e.remove(); return c; })() };
+          doc.defaultView.toggleAttachmentList?.(false); return out;""")
+        f = res["focused"]
+        ok = (same_color(res["list"], res["header"]) and same_color(res["bar"], res["header"]) and f["radius"] >= 6
+              and f["outline"] == "none" and same_color(f["bg"], res["accent"]) and not same_color(res["unfocused"], res["accent"]))
+        return ok, f"{res}"
+    check("Anhänge: Liste auf der Fläche der Mail, markierte Datei abgerundet ohne Rahmen (unfokussiert grau)", attachments, results)
+
+    def find_bar():
+        res = m.js(READING_JS + r"""
+          const doc = await showMail("Halo Jetzt"); await narrow();
+          a3.commandController.doCommand("cmd_find"); await wait(900);
+          const fb = doc.querySelector("findbar");
+          if (!fb || fb.hidden) { await restore(); return { open: false }; }
+          const right = fb.getBoundingClientRect().right;
+          const outside = [...fb.querySelectorAll(".findbar-container > *")].filter(e => e.getBoundingClientRect().width > 0 && e.getBoundingClientRect().right > right + 1)
+            .map(e => e.getAttribute("anonid") || e.className);
+          const tb = fb.querySelector(".findbar-textbox");
+          const out = { open: true, width: Math.round(right), outside, border: cs(tb).borderTopStyle, radius: parseFloat(cs(tb).borderTopLeftRadius) };
+          fb.close(); await wait(900);
+          // geschlossen: keine Lücke unter der Mail
+          out.gap = Math.round(doc.getElementById("messagepanebox").getBoundingClientRect().bottom - doc.getElementById("messagepane").getBoundingClientRect().bottom);
+          await restore(); return out;""")
+        ok = res.get("open") and not res["outside"] and res["border"] == "none" and res["radius"] >= 6 and res["gap"] <= 1
+        return ok, f"{res}"
+    check("Suchleiste in der Mail: nichts abgeschnitten, Suchfeld ohne Rahmen, geschlossen ohne Lücke", find_bar, results)
+
+    def contact_panel():
+        # Panel „Kontakt bearbeiten“ (über das Menü zur Absenderadresse) mit der Fläche der Tooltips
+        res = m.js(READING_JS + r"""
+          const book = MailServices.ab.getDirectory("jsaddrbook://abook.sqlite");
+          let card = book.childCards.find(c => c.primaryEmail == "paula@example.invalid");
+          if (!card) { card = Cc["@mozilla.org/addressbook/cardproperty;1"].createInstance(Ci.nsIAbCard);
+            card.displayName = "Paula Panel"; card.primaryEmail = "paula@example.invalid"; card = book.addCard(card); }
+          const doc = await showMail("Halo Kontakt");
+          const menu = doc.getElementById("emailAddressPopup"), from = doc.querySelector("#fromRecipient0");
+          (from.querySelector(".recipient-single-line, .recipient-multi-line-name") || from).click();
+          await until(() => menu.state == "open", 3000);
+          const item = doc.getElementById("editContactItem"); const shown = !!item && !item.hidden;
+          if (shown) item.doCommand();
+          menu.hidePopup();
+          const panel = await until(() => { const p = doc.getElementById("editContactPanel"); return p?.state == "open" && p; }, 4000);
+          const out = { shown, open: !!panel };
+          if (panel) { await wait(300); const s = cs(panel), r = cs(doc.documentElement);
+            Object.assign(out, { bg: s.getPropertyValue("--panel-background-color").trim(), want: r.getPropertyValue("--mt-tooltip-bg").trim(),
+                                 border: s.getPropertyValue("--panel-border-color").trim(), wantBorder: r.getPropertyValue("--mt-tooltip-border").trim() });
+            panel.hidePopup(); await wait(300); }
+          book.deleteCards([card]); return out;""")
+        ok = res.get("open") and res["bg"] == res["want"] and res["border"] == res["wantBorder"] and "262d3b" not in res["bg"].lower()
+        return ok, f"{res}"
+    check("Mailkopf: Panel „Kontakt bearbeiten“ mit neutraler Fläche wie die Tooltips", contact_panel, results)
+
+    def message_tab():
+        # Mail im eigenen Tab: kein Listenkopf, kein Grau der Ordnerliste; zurück im Mail-Tab wieder da
+        res = m.js(READING_JS + r"""
+          await showMail("Halo Jetzt"); await wait(500);
+          const hdr = a3.gDBView.hdrForFirstSelectedMessage;
+          tm.openTab("mailMessageTab", { messageURI: hdr.folder.getUriForMsg(hdr), background: false });
+          await until(() => d.documentElement.getAttribute("mc-tab") == "mailMessageTab", 6000); await wait(1500);
+          const row = d.getElementById("unifiedToolbarContainer"), status = d.getElementById("status-bar"), lh = d.getElementById("mcListHeader");
+          const v = (el, n) => w.getComputedStyle(el).getPropertyValue(n).trim();
+          const tab = { mode: d.documentElement.getAttribute("mc-tab"), header: lh && w.getComputedStyle(lh).display,
+                        row: v(row, "--mc-sidebar-right"), status: v(status, "--mc-sidebar-right"), line: v(row, "--mc-list-right") };
+          tm.closeTab(tm.currentTabInfo); await toMail(); await wait(1200);
+          const mail = { mode: d.documentElement.getAttribute("mc-tab"), header: lh && w.getComputedStyle(lh).display, row: v(row, "--mc-sidebar-right") };
+          return { tab, mail };""")
+        t, ml = res["tab"], res["mail"]
+        ok = (t["mode"] == "mailMessageTab" and t["header"] == "none" and t["row"] == "0px" and t["status"] == "0px" and t["line"] == "-10px"
+              and ml["mode"] == "mail3PaneTab" and ml["header"] != "none" and float(ml["row"].replace("px", "") or 0) > 0)
+        return ok, f"{res}"
+    check("Mail im eigenen Tab: ohne Listenkopf und Seitenleisten-Grau, im Mail-Tab wieder vorhanden", message_tab, results)
+
+    def list_date():
+        # Uhrzeit in Liste und Kopf im selben Format (Regionaleinstellungen des Systems)
+        res = m.js(READING_JS + r"""
+          const doc = await showMail("Halo Jetzt");
+          const hdr = a3.gDBView.hdrForFirstSelectedMessage;
+          const row = await until(() => [...a3.document.querySelectorAll('#threadTree tr[is="thread-card"]')].find(r => (r.querySelector(".subject")?.textContent || "").includes("Halo Jetzt") && r.querySelector(".date")?.textContent), 6000);
+          const norm = s => (s || "").replace(/\s+/g, " ").trim();
+          // ältere Mail (vor zwei Tagen): ganzes Datum im Muster des Systems
+          const oldHdr = [...f.messages].find(h => h.messageId == "halo-kopf-anhang@example.invalid");
+          const oldRow = [...a3.document.querySelectorAll('#threadTree tr[is="thread-card"]')].find(r => (r.querySelector(".subject")?.textContent || "").includes("Halo Anhänge"));
+          return { list: norm(row?.querySelector(".date")?.textContent), header: norm(doc.querySelector("#mcHdrMeta #dateLabel")?.textContent),
+                   want: norm(new Services.intl.DateTimeFormat(undefined, { timeStyle: "short" }).format(new Date(hdr.date / 1000))),
+                   old: norm(oldRow?.querySelector(".date")?.textContent), oldWant: oldHdr && norm(new Services.intl.DateTimeFormat(undefined, { dateStyle: "medium" }).format(new Date(oldHdr.date / 1000))) };""")
+        ok = bool(res["list"]) and res["list"] == res["want"] and res["list"] in res["header"] and bool(res["old"]) and res["old"] == res["oldWant"]
+        return ok, f"{res}"
+    check("Mailliste und Mailkopf: Uhrzeit und Datum im Format der Regionaleinstellungen", list_date, results)
+
+    def header_line():
+        res = m.js(READING_JS + r"""
+          const doc = await showMail("Halo Jetzt");
+          const top = doc.getElementById("mail-notification-top"), header = doc.getElementById("messageHeader");
+          return { top: parseFloat(cs(top).borderBottomWidth), header: parseFloat(cs(header).borderBottomWidth),
+                   gap: Math.round((doc.getElementById("messagepane").getBoundingClientRect().top - header.getBoundingClientRect().bottom) * 10) / 10 };""")
+        ok = res["top"] == 0 and res["header"] > 0 and res["gap"] <= 0.5
+        return ok, f"{res}"
+    check("Mailkopf: eine Linie zum Mailtext (keine zweite darunter)", header_line, results)
+
+    def recipients():
+        # viele Empfänger: „Mehr“ als graue Kapsel in 11 px; Kommas in Cc wie in An
+        res = m.js(READING_JS + r"""
+          const doc = await showMail("Halo Viele Empfänger");
+          const btn = [...doc.querySelectorAll("#expandedtoBox .show-more-recipients")].find(vis);
+          const accent = (() => { const e = doc.createElement("div"); e.style.color = "AccentColor"; doc.documentElement.append(e); const c = cs(e).color; e.remove(); return c; })();
+          const comma = id => { const li = doc.querySelector(`#${id} li.header-recipient`); return li && cs(li, "::after").color; };
+          return { more: !!btn, transform: btn && cs(btn).textTransform, size: btn && parseFloat(cs(btn).fontSize), bg: btn && cs(btn).backgroundColor, accent,
+                   to: comma("expandedtoBox"), cc: comma("expandedccBox") };""")
+        ok = (res["more"] and res["transform"] == "none" and res["size"] >= 11 and not same_color(res["bg"], res["accent"])
+              and res["to"] and res["cc"] and same_color(res["to"], res["cc"]))
+        return ok, f"{res}"
+    check("Mailkopf: „Mehr“-Knopf als graue Kapsel in 11 px, Kommas in Cc wie in An", recipients, results)
+
+
 def rgba_alpha(c):
     """Deckkraft aus rgb()/rgba()/color(srgb …) – 1, wenn keine angegeben ist."""
     import re
@@ -1073,6 +1309,8 @@ def run_checks(m, version, profile, results):
         ok = res["placeholder"] and res["textHidden"] and res["size"] == [48, 40] and max(res["pixel"]) <= 1
         return ok, f"{res}"
     check("Blockierte Bilder: Platzhalter statt Ersatztext, Zählpixel unsichtbar", blocked_image, results)
+
+    reading_checks(m, results)
 
     def min_widths():
         res = m.js('''

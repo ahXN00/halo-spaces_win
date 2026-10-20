@@ -5483,6 +5483,30 @@ notification-message:not([type="warning"]) button.notification-button {
   padding-inline-end: calc(var(--mc-meta-w, 260px) + 16px) !important;
 }
 
+/* Schmaler Mailbereich (unter 768 px, z. B. mit Today-Pane): Thunderbird
+   stellt den Kopf dann auf Spalten um, und die Zeile wuchs auf die volle
+   Länge des Namens – er lief quer über Ordner und Uhrzeit, der Kopf wurde
+   breiter als der Mailbereich und der Betreff rechts abgeschnitten.
+   So bleibt alles in der Breite des Mailbereichs, der Name endet mit „…“ */
+#messageHeader:has(#mcHdrMeta) :is(#headerSenderToolbarContainer, #expandedfromRow, #expandedfromBox) {
+  min-width: 0 !important;
+  max-width: 100% !important;
+  box-sizing: border-box !important;
+}
+
+#expandedfromBox .header-recipient {
+  overflow: hidden !important;
+  white-space: nowrap !important;
+  text-overflow: ellipsis !important;
+}
+
+/* mehrzeilige Variante (Name über der ausgeblendeten Adresse): als Box in
+   voller Breite – sonst schneidet das Listenelement den Namen hart ab, ohne „…“ */
+#expandedfromBox .recipient-multi-line {
+  display: flex !important;
+  min-width: 0 !important;
+}
+
 /* Mailbereich nicht schmaler als 480 px ziehen lassen – darunter passt der
    Kopf (Bild, Name, Ordner, Uhrzeit) nicht mehr sauber */
 #messagePane {

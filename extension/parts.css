@@ -1,4 +1,5 @@
-/* halo.spaces – Regeln für Teile im Schatten-DOM (::part).
+/* halo.spaces – Regeln für Teile im Schatten-DOM (::part) sowie Thunderbirds
+   Einladungsdetails in Mails.
    Thunderbird wendet ::part nur aus Author-Stylesheets an, nicht aus dem
    User-Stylesheet des Designs (theme.css). Deshalb dieses eigene Stylesheet,
    global als Author-Sheet registriert. Die Farben (--mt-*) kommen aus theme.css. */
@@ -39,4 +40,35 @@ dialog::part(dialog-button) {
   border: none !important;
   box-shadow: none !important;
   padding: 0 !important;
+}
+
+/* Einladungsdetails (Kalender-Einladung in der Mail, Thunderbirds imip.css):
+   Tabelle fest 40em breit – im schmalen Lesebereich fehlten rechts Rand und
+   Teile der Uhrzeit, und ohne Scrollbalken gab es keinen Hinweis darauf. Jetzt
+   so breit wie der Lesebereich, als Karte mit feiner Linie statt 3-px-Rahmen,
+   Werte linksbündig.
+   (Im Mailinhalt gibt es keine --mt-Variablen: neutrales Grau für hell und dunkel.) */
+.invitation-details {
+  text-align: start !important;
+  padding-inline: 0 !important;
+}
+
+.invitation-border {
+  border: 1px solid rgba(128, 128, 128, 0.3) !important;
+  border-radius: 10px !important;
+  overflow: hidden !important;
+  max-width: 100% !important;
+  box-sizing: border-box !important;
+  margin-inline: 0 !important;
+}
+
+.invitation-table {
+  inline-size: auto !important;
+  max-width: 100% !important;
+  margin-block: 0 !important;
+}
+
+.invitation-table td:not(.description) {
+  text-align: start !important;
+  overflow-wrap: anywhere !important;
 }
