@@ -957,6 +957,49 @@ def run_checks(m, version, profile, results):
         return ok, f"{res}"
     check("Verteiler-Hinweis: Ein-Klick-Abmeldung fragt nach und sendet statt Browser", one_click_unsubscribe, results)
 
+    def unsubscribe_identity():
+        # nur Abmelde-Mail (mailto, z. B. LISTSERV): Absender ist die Identität,
+        # an die die Mail ging, nicht die erste/Standard-Identität. Das
+        # Verfassen-Fenster wird nur geöffnet und ungesendet wieder geschlossen;
+        # die zweite Test-Identität wird danach wieder entfernt (die erste wie
+        # in COMPOSE_JS bleibt – die letzte lässt Thunderbird nicht entfernen).
+        res = m.js(r"""
+          const { MailServices } = ChromeUtils.importESModule("resource:///modules/MailServices.sys.mjs");
+          try { MailServices.accounts.localFoldersServer; } catch { MailServices.accounts.createLocalMailAccount(); await wait(500); }
+          const acc = MailServices.accounts.findAccountForServer(MailServices.accounts.localFoldersServer);
+          const ensure = (name, email) => { if (acc.identities.some(i => i.email == email)) return null; const id = MailServices.accounts.createIdentity(); id.fullName = name; id.email = email; acc.addIdentity(id); return id; };
+          if (!acc.identities.length) ensure("Halo Test", "halo@example.invalid");
+          const added = ensure("Halo Arbeit", "arbeit@example.invalid");
+          const first = acc.identities[0]?.email;
+          let cw = null; let from = null; let to = ""; let button = false;
+          try {
+            const root = MailServices.accounts.localFoldersServer.rootFolder;
+            if (!root.containsChildNamed("Liste")) { root.createSubfolder("Liste", null); await wait(800); }
+            const f = root.getChildNamed("Liste");
+            if (!f.getTotalMessages(false)) {
+              f.QueryInterface(Ci.nsIMsgLocalMailFolder).addMessage("From - Sat Oct 17 10:00:00 2026\r\nFrom: Halo Liste <liste@example.invalid>\r\nTo: Halo Arbeit <arbeit@example.invalid>\r\nSubject: Rundbrief\r\nDate: Sat, 17 Oct 2026 09:41:00 +0200\r\nMessage-ID: <halo-listserv@example.invalid>\r\nList-Id: <rundbrief.example.invalid>\r\nList-Unsubscribe: <mailto:listserv@example.invalid?body=SIGNOFF%20RUNDBRIEF>\r\n\r\nTest\r\n");
+              await wait(800);
+            }
+            const a3 = await toMail(); a3.displayFolder(f.URI); await wait(800);
+            a3.threadTree.selectedIndex = 0; await wait(1500);
+            const am = a3.messageBrowser.contentWindow;
+            const btn = await until(() => am.document.querySelector("#mcListBanner .mc-lb-unsub"));
+            button = !!btn;
+            const before = new Set(Services.wm.getEnumerator("msgcompose"));
+            btn?.click();
+            cw = await until(() => [...Services.wm.getEnumerator("msgcompose")].find(x => !before.has(x)), 8000);
+            from = await until(() => cw?.gCurrentIdentity?.email, 8000);
+            to = cw?.gMsgCompose?.compFields?.to || [...(cw?.document.querySelectorAll("mail-address-pill") || [])].map(p => p.emailAddress).join(",");
+          } finally {
+            cw?.close(); await wait(500);
+            try { if (added) acc.removeIdentity(added); } catch {}
+          }
+          return { button, compose: !!cw, first, from, to };""")
+        ok = (res["button"] and res["compose"] and res["first"] != "arbeit@example.invalid"
+              and res["from"] == "arbeit@example.invalid" and "listserv@example.invalid" in (res["to"] or ""))
+        return ok, f"{res}"
+    check("Verteiler-Hinweis: Abmelde-Mail geht von der Identität, an die die Mail ging", unsubscribe_identity, results)
+
     def html_font():
         res = m.js(r"""
           const { MailServices } = ChromeUtils.importESModule("resource:///modules/MailServices.sys.mjs");

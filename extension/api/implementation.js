@@ -8481,8 +8481,20 @@ class CardEnhancer {
             .loadURI(Services.io.newURI(web), Services.scriptSecurityManager.getSystemPrincipal());
         }
       };
-      // Abmelde-Mail nur vorbereiten – gesendet wird erst durch den Nutzer
-      const composeMail = () => MailServices.compose.OpenComposeWindowWithURI(null, Services.io.newURI(mail));
+      // Abmelde-Mail nur vorbereiten – gesendet wird erst durch den Nutzer.
+      // Absender ist die Identität, an die die Mail ging (wie Thunderbird bei
+      // mailto-Links in Mails), nicht die Standard-Identität: Verteiler melden
+      // nach Absender ab, und die private Adresse ginge sonst an den Betreiber
+      const composeMail = () => {
+        let identity = null;
+        try {
+          const { MailUtils } = ChromeUtils.importESModule("resource:///modules/MailUtils.sys.mjs");
+          [identity] = MailUtils.getIdentityForHeader(hdr);
+        } catch (e) {
+          debugLog("unsubscribe identity", String(e).slice(0, 120));
+        }
+        MailServices.compose.OpenComposeWindowWithURI(null, Services.io.newURI(mail), identity);
+      };
       const unsubscribeOneClick = async () => {
         let name = "";
         try {
