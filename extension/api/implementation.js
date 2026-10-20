@@ -1317,19 +1317,6 @@ function readHeader(hdr, name) {
   });
 }
 
-// Netzwerkzugriffe laufen in einer eigenen Sandbox: about:3pane verbietet
-// per Content-Security-Policy Verbindungen ins Internet.
-let netSandbox = null;
-function sandboxFetch() {
-  if (!netSandbox) {
-    netSandbox = Components.utils.Sandbox(
-      Services.scriptSecurityManager.getSystemPrincipal(),
-      { wantGlobalProperties: ["fetch"], sandboxName: "mail-cards-net" }
-    );
-  }
-  return netSandbox.fetch;
-}
-
 // Nur öffentliche https-Adressen – Absender bestimmen die Adresse (BIMI,
 // Kontaktfotos), damit darf kein Zugriff auf lokale Geräte oder Firmennetze
 // ausgelöst werden
@@ -1354,28 +1341,140 @@ function isPublicHttps(url) {
 // Zeitüberschreitungen zählen: dann kein „kein Logo“ merken (nur langsames Netz)
 let fetchTimeouts = 0;
 
-async function fetchWithTimeout(win, url, opts = {}) {
-  if (!isPublicHttps(url)) {
-    throw new Error("blocked url");
-  }
-  const request = sandboxFetch()(url, {
-    credentials: "omit",
-    redirect: "follow",
-    ...opts,
-  });
-  let timer;
-  const timeout = new Promise((_, reject) => {
-    timer = setTimeout(() => {
+// Abruf über einen eigenen Kanal statt fetch: fetch folgt Umleitungen, bevor
+// sich ihr Ziel prüfen lässt – der Absender könnte so auf Geräte im lokalen
+// Netz umleiten. Hier wird jedes Umleitungsziel vor dem Verbinden geprüft.
+// Zeitlimit und Größengrenze (max Bytes) gelten für die ganze Antwort, danach
+// wird abgebrochen; mit truncate liefert eine längere Antwort nur ihren Anfang.
+// Ergebnis wie bei fetch: ok, status, url, headers.get(), text(), arrayBuffer()
+function fetchWithTimeout(win, url, { method = "GET", headers = {}, body = null, max = 2 * 1024 * 1024, truncate = false } = {}) {
+  return new Promise((resolve, reject) => {
+    if (!isPublicHttps(url)) {
+      reject(new Error("blocked url"));
+      return;
+    }
+    const channel = NetUtil.newChannel({ uri: url, loadUsingSystemPrincipal: true })
+      .QueryInterface(Ci.nsIHttpChannel);
+    // ohne Cookies und Anmeldedaten (wie credentials: "omit")
+    channel.loadFlags |= Ci.nsIRequest.LOAD_ANONYMOUS;
+    if (body != null) {
+      const stream = Cc["@mozilla.org/io/string-input-stream;1"].createInstance(Ci.nsIStringInputStream);
+      stream.setByteStringData(body);
+      channel.QueryInterface(Ci.nsIUploadChannel2).explicitSetUploadStream(stream, null, -1, method, false);
+    } else {
+      channel.requestMethod = method;
+    }
+    for (const [name, value] of Object.entries(headers)) {
+      channel.setRequestHeader(name, value, false);
+    }
+    let current = channel;
+    let settled = false;
+    const parts = [];
+    let size = 0;
+    const finish = request => {
+      if (settled) {
+        return;
+      }
+      settled = true;
+      clearTimeout(timer);
+      const bytes = new Uint8Array(size);
+      let at = 0;
+      for (const part of parts) {
+        bytes.set(part, at);
+        at += part.length;
+      }
+      try {
+        const http = request.QueryInterface(Ci.nsIHttpChannel);
+        resolve({
+          ok: http.requestSucceeded,
+          status: http.responseStatus,
+          url: http.URI.spec,
+          headers: {
+            get(name) {
+              try {
+                return http.getResponseHeader(name);
+              } catch {
+                return null;
+              }
+            },
+          },
+          arrayBuffer: async () => bytes.buffer,
+          text: async () => new win.TextDecoder().decode(bytes),
+        });
+      } catch (e) {
+        reject(e);
+      }
+    };
+    const fail = error => {
+      if (!settled) {
+        settled = true;
+        clearTimeout(timer);
+        reject(error);
+      }
+      try {
+        current.cancel(Cr.NS_BINDING_ABORTED);
+      } catch {}
+    };
+    const timer = setTimeout(() => {
       fetchTimeouts++;
-      reject(new Error("timeout"));
+      fail(new Error("timeout"));
     }, FETCH_TIMEOUT);
+    channel.notificationCallbacks = {
+      QueryInterface: ChromeUtils.generateQI(["nsIInterfaceRequestor", "nsIChannelEventSink"]),
+      getInterface(iid) {
+        return this.QueryInterface(iid);
+      },
+      asyncOnChannelRedirect(oldChannel, newChannel, flags, callback) {
+        // das Ziel muss ebenfalls öffentlich sein – sonst gar nicht erst verbinden
+        if (!isPublicHttps(newChannel.URI.spec)) {
+          callback.onRedirectVerifyCallback(Cr.NS_ERROR_ABORT);
+          fail(new Error("blocked redirect"));
+          return;
+        }
+        current = newChannel;
+        callback.onRedirectVerifyCallback(Cr.NS_OK);
+      },
+    };
+    try {
+      channel.asyncOpen({
+        QueryInterface: ChromeUtils.generateQI(["nsIStreamListener", "nsIRequestObserver"]),
+        onStartRequest(request) {
+          current = request;
+        },
+        onDataAvailable(request, stream, offset, count) {
+          const input = Cc["@mozilla.org/binaryinputstream;1"].createInstance(Ci.nsIBinaryInputStream);
+          input.setInputStream(stream);
+          const chunk = new Uint8Array(count);
+          input.readArrayBuffer(count, chunk.buffer);
+          if (size + count > max) {
+            if (!truncate) {
+              fail(new Error("too large"));
+              return;
+            }
+            parts.push(chunk.subarray(0, max - size));
+            size = max;
+            finish(request);
+            request.cancel(Cr.NS_BINDING_ABORTED);
+            return;
+          }
+          parts.push(chunk);
+          size += count;
+        },
+        onStopRequest(request, status) {
+          if (request != current) {
+            return; // alter Kanal nach einer Umleitung
+          }
+          if (Components.isSuccessCode(status)) {
+            finish(request);
+          } else {
+            fail(new Error(`network error 0x${(status >>> 0).toString(16)}`));
+          }
+        },
+      });
+    } catch (e) {
+      fail(e);
+    }
   });
-  const res = await Promise.race([request, timeout]).finally(() => clearTimeout(timer));
-  // Umleitungen folgt fetch selbst – das Ziel muss ebenfalls öffentlich sein
-  if (res.url && !isPublicHttps(res.url)) {
-    throw new Error("blocked redirect");
-  }
-  return res;
 }
 
 // Zeitkurve wie CSS cubic-bezier(x1, y1, x2, y2)
@@ -1945,7 +2044,7 @@ class AvatarResolver {
         continue;
       }
       try {
-        const res = await fetchWithTimeout(win, m[1]);
+        const res = await fetchWithTimeout(win, m[1], { max: 256 * 1024 });
         if (!res.ok) {
           continue;
         }
@@ -1972,8 +2071,11 @@ class AvatarResolver {
     ];
     // Icons aus dem <head> der Startseite (apple-touch-icon bevorzugt)
     for (const home of [`https://www.${org}/`, `https://${org}/`]) try {
+      // nur der Anfang mit dem <head> wird gebraucht
       const res = await fetchWithTimeout(win, home, {
         headers: { Accept: "text/html" },
+        max: 200000,
+        truncate: true,
       });
       if (res.ok) {
         const html = (await res.text()).slice(0, 200000);
@@ -2012,7 +2114,7 @@ class AvatarResolver {
         continue;
       }
       try {
-        const res = await fetchWithTimeout(win, url);
+        const res = await fetchWithTimeout(win, url, { max: 512 * 1024 });
         const type = (res.headers.get("content-type") || "").split(";")[0];
         if (!res.ok || !type.startsWith("image/")) {
           continue;
@@ -8205,6 +8307,9 @@ class CardEnhancer {
             method: "POST",
             headers: { "Content-Type": "application/x-www-form-urlencoded" },
             body: "List-Unsubscribe=One-Click",
+            // die Antwortseite selbst wird nicht gebraucht
+            max: 0,
+            truncate: true,
           });
           if (!res.ok) {
             throw new Error(`status ${res.status}`);

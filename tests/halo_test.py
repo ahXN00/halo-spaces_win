@@ -113,6 +113,97 @@ def wait_port(port, timeout=60):
     return False
 
 
+def local_https(host):
+    """Lokaler HTTPS-Server (selbst signiert, für host) für die Netzprüfung der
+    Absenderbilder, dazu ein „Gerät im lokalen Netz“ (http auf 127.0.0.1), das
+    jeden Zugriff mitschreibt. Liefert Port, Zertifikat (DER, Base64), die
+    Zugriffe aufs Gerät, die empfangenen POSTs und eine Funktion zum Beenden."""
+    import base64
+    import http.server
+    import ssl
+    import threading
+    tmp = tempfile.mkdtemp(prefix="halo-netz-")
+    key, crt = os.path.join(tmp, "key.pem"), os.path.join(tmp, "cert.pem")
+    subprocess.run(["openssl", "req", "-x509", "-newkey", "rsa:2048", "-nodes", "-keyout", key, "-out", crt, "-days", "2",
+                    "-subj", f"/CN={host}", "-addext", f"subjectAltName=DNS:{host}",
+                    "-addext", "basicConstraints=critical,CA:FALSE"], check=True, capture_output=True)
+    hits, posts, stop = [], [], threading.Event()
+
+    class Device(http.server.BaseHTTPRequestHandler):
+        def do_GET(self):
+            hits.append(self.path)
+            self.send_response(200)
+            self.end_headers()
+
+        def log_message(self, *args):
+            pass
+
+    class Sender(http.server.BaseHTTPRequestHandler):
+        def do_GET(self):
+            if self.path == "/umleitung":  # Absender leitet auf ein Gerät im lokalen Netz um
+                self.send_response(302)
+                self.send_header("Location", f"http://127.0.0.1:{device.server_port}/geraet")
+                self.end_headers()
+            elif self.path == "/weiter":  # Umleitung auf eine öffentliche Adresse bleibt erlaubt
+                self.send_response(302)
+                self.send_header("Location", f"https://{host}:{server.server_port}/ziel")
+                self.end_headers()
+            elif self.path == "/ziel":
+                self.send_response(200)
+                self.send_header("Content-Type", "text/html; charset=utf-8")
+                self.end_headers()
+                self.wfile.write("<head></head>Grüße".encode())
+            elif self.path == "/anmelden":  # wie iCloud-Fotos: 401 ohne Anmeldedialog
+                self.send_response(401)
+                self.send_header("WWW-Authenticate", 'Basic realm="Halo"')
+                self.end_headers()
+            elif self.path == "/endlos":  # Daten ohne Ende (höchstens 20 MB)
+                self.send_response(200)
+                self.send_header("Content-Type", "image/png")
+                self.end_headers()
+                try:
+                    for _ in range(320):
+                        self.wfile.write(b"x" * 65536)
+                except OSError:
+                    pass
+            elif self.path == "/stumm":  # nach den Kopfzeilen kommt nichts mehr
+                self.send_response(200)
+                self.send_header("Content-Type", "image/png")
+                self.end_headers()
+                self.wfile.write(b"x" * 10)
+                self.wfile.flush()
+                stop.wait(30)
+            else:
+                self.send_response(404)
+                self.end_headers()
+
+        def do_POST(self):
+            posts.append(self.rfile.read(int(self.headers.get("Content-Length") or 0)).decode())
+            self.send_response(200)
+            self.end_headers()
+
+        def log_message(self, *args):
+            pass
+
+    device = http.server.ThreadingHTTPServer(("127.0.0.1", 0), Device)
+    server = http.server.ThreadingHTTPServer(("127.0.0.1", 0), Sender)
+    ctx = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+    ctx.load_cert_chain(crt, key)
+    server.socket = ctx.wrap_socket(server.socket, server_side=True)
+    for s in (device, server):
+        s.daemon_threads = True
+        threading.Thread(target=s.serve_forever, daemon=True).start()
+    der = base64.b64encode(ssl.PEM_cert_to_DER_cert(open(crt).read())).decode()
+
+    def close():
+        stop.set()
+        for s in (device, server):
+            s.shutdown()
+            s.server_close()
+        shutil.rmtree(tmp, ignore_errors=True)
+    return server.server_port, der, hits, posts, close
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--xpi", help="Paket (Standard: neuestes dist/halo-spaces-*.xpi)")
@@ -1342,6 +1433,55 @@ def run_checks(m, version, profile, results):
         ok = res["photoURL"].startswith("file:") and res["img"]
         return ok, f"{res}"
     check("Kontaktfotos: Foto aus dem lokalen Adressbuch (Datei im Profil) in der Mailliste", local_ab_photo, results)
+
+    def net_guard():
+        # Absenderbilder kommen von Adressen, die der Absender bestimmt (BIMI,
+        # Startseite): eine Umleitung ins lokale Netz darf gar nicht erst
+        # verbunden werden; Zeitlimit und Größengrenze gelten für die ganze
+        # Antwort. Lokaler Server unter einem öffentlichen Namen (localDomains)
+        if not shutil.which("openssl"):
+            return True, "kein openssl – übersprungen"
+        host = "halo-netz.example.org"
+        port, der, hits, posts, close = local_https(host)
+        try:
+            res = m.js('''
+              const HOST = %s, PORT = %d;
+              const { ExtensionParent } = ChromeUtils.importESModule("resource://gre/modules/ExtensionParent.sys.mjs");
+              const g = ExtensionParent.GlobalManager.getExtension("%s").experimentAPIManager.global;
+              const get = Cu.evalInSandbox("fetchWithTimeout", g);
+              const cert = Cc["@mozilla.org/security/x509certdb;1"].getService(Ci.nsIX509CertDB).constructX509FromBase64(%s);
+              const co = Cc["@mozilla.org/security/certoverride;1"].getService(Ci.nsICertOverrideService);
+              co.rememberValidityOverride(HOST, PORT, {}, cert, true);
+              Services.prefs.setStringPref("network.dns.localDomains", HOST);
+              const run = async (path, opts) => {
+                const t = Date.now();
+                try {
+                  const r = await get(w, `https://${HOST}:${PORT}${path}`, opts);
+                  const text = await r.text();
+                  return { ok: r.ok, status: r.status, url: r.url, len: text.length, text: text.slice(-5), ms: Date.now() - t };
+                } catch (e) { return { error: String(e?.message || e), ms: Date.now() - t }; }
+              };
+              try {
+                return { redirect: await run("/umleitung"), follow: await run("/weiter"), auth: await run("/anmelden"),
+                         endless: await run("/endlos", { max: 512 * 1024 }), head: await run("/endlos", { max: 200000, truncate: true }),
+                         stall: await run("/stumm"),
+                         post: await run("/abmelden", { method: "POST", headers: { "Content-Type": "application/x-www-form-urlencoded" },
+                                                        body: "List-Unsubscribe=One-Click", max: 0, truncate: true }) };
+              } finally {
+                co.clearValidityOverride(HOST, PORT, {});
+                Services.prefs.clearUserPref("network.dns.localDomains");
+              }''' % (json.dumps(host), port, ADDON_ID, json.dumps(der)))
+        finally:
+            close()
+        res["device"], res["posts"] = hits, posts
+        ok = (res["redirect"].get("error") == "blocked redirect" and not hits
+              and res["follow"].get("ok") and res["follow"].get("url", "").endswith("/ziel") and res["follow"].get("text") == "Grüße"
+              and res["auth"].get("status") == 401
+              and res["endless"].get("error") == "too large" and res["head"].get("len") == 200000
+              and res["stall"].get("error") == "timeout" and res["stall"]["ms"] < 15000
+              and res["post"].get("ok") and posts == ["List-Unsubscribe=One-Click"])
+        return ok, f"{res}"
+    check("Absenderbilder: Umleitung ins lokale Netz gesperrt, bevor verbunden wird; Zeitlimit und Größengrenze für die ganze Antwort", net_guard, results)
 
     def keyboard():
         res = m.js('''
