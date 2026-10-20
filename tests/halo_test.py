@@ -1595,6 +1595,61 @@ def run_checks(m, version, profile, results):
         return bool(res["last"]) and res["ageSec"] < 600, f"Update-Prüfung beim Start gelaufen: {res}"
     check("Updates: Prüfung beim Start", auto_update, results)
 
+    ENH_JS = '''
+          const { ExtensionParent } = ChromeUtils.importESModule("resource://gre/modules/ExtensionParent.sys.mjs");
+          const g = ExtensionParent.GlobalManager.getExtension("%s").experimentAPIManager.global;
+          const enh = Cu.evalInSandbox("enhancer", g);
+          const openBooks = async () => { tm.openTab("addressBookTab", {});
+            return until(() => { const c = tm.currentTabInfo?.browser?.contentWindow; return c?.document?.getElementById("mcBooksHeader") && c; }, 8000); };''' % ADDON_ID
+
+    def window_callbacks():
+        # Seitenleisten-Tooltip, Popover „Neu“ und Today-Pane-Sync gehören dem Fenster, nicht dem gemeinsamen Enhancer
+        res = m.js(ENH_JS + '''
+          await toMail();
+          return { onEnhancer: ["openNewPopupAbove", "openNewPopupBelow", "lastNewAnchor", "todayTopSync", "sidebarTip", "sideHidden", "toggleSpaceSidebar"].filter(k => k in enh),
+                   sync: typeof w.__mcTodayTopSync };''')
+        return not res["onEnhancer"] and res["sync"] == "function", f"{res}"
+    check("Erweiterung: Fenster-Callbacks je Hauptfenster statt am gemeinsamen Enhancer", window_callbacks, results)
+
+    def books_leak():
+        # Restorer eines geschlossenen Adressbuch-Tabs werden verworfen (halten das Fenster nicht fest)
+        res = m.js(ENH_JS + '''
+          const cw = await openBooks();
+          const fns = cw ? [...(enh.winRestorers.get(cw) || [])] : [];
+          const held = fns.filter(f => enh.restorers.includes(f)).length;
+          tm.closeTab(tm.currentTabInfo);
+          const freed = await until(() => fns.every(f => !enh.restorers.includes(f)), 6000);
+          await toMail();
+          return { tab: !!cw, fns: fns.length, held, freed };''')
+        return res["tab"] and res["fns"] > 0 and res["held"] == res["fns"] and res["freed"], f"{res}"
+    check("Erweiterung: Restorer geschlossener Adressbuch-Tabs werden verworfen", books_leak, results)
+
+    def restart_cycle():
+        # wie bei einem Update: stop() räumt auf (Breiten-Merkmal, Adressbuch-Überschrift, Ordnernamen),
+        # ein neuer Start hängt alles wieder an
+        res = m.js(ENH_JS + '''
+          await toMail();
+          const ad = tm.currentAbout3Pane.document;
+          const fp = ad.getElementById("folderPane");
+          const local = () => ad.querySelector('#folderTree > li[data-mode="all"] li[is="folder-tree-row"][data-server-type="none"]');
+          const nameOf = li => li?.querySelector(":scope > .container .name")?.textContent;
+          const cw = await openBooks();
+          const out = { tab: !!cw, watch0: !!fp.__mcWidthWatch, local0: nameOf(local()) };
+          enh.stop();
+          out.watch1 = !!fp.__mcWidthWatch;
+          out.header1 = !!cw?.document.getElementById("mcBooksHeader");
+          out.local1 = nameOf(local()); out.server = local()?._serverName;
+          Cu.evalInSandbox("enhancer = new CardEnhancer({}); enhancer.start();", g);
+          out.header2 = !!(await until(() => cw?.document.getElementById("mcBooksHeader"), 8000));
+          out.watch2 = await until(() => !!fp.__mcWidthWatch, 8000);
+          out.local2 = await until(() => nameOf(local()) == out.local0 && out.local0, 6000);
+          tm.closeTab(tm.currentTabInfo); await toMail();
+          return out;''')
+        ok = (res["tab"] and res["watch0"] and not res["watch1"] and res["watch2"] and not res["header1"] and res["header2"]
+              and res["local0"] != res["server"] and res["local1"] == res["server"] and res["local2"])
+        return ok, f"{res}"
+    check("Erweiterung: Aus- und Einschalten setzt Ordnernamen und Einfügungen zurück und hängt sie wieder an", restart_cycle, results)
+
     def errors():
         res = m.js("""
           const p = PathUtils.join(PathUtils.profileDir, "mail-cards-debug.log");

@@ -793,7 +793,7 @@ const APPEARANCE_THEMES = {
 };
 // Adressbuch: kleine Überschrift über der Liste wie „Favoriten“ in der Mail
 // und „Kalender“ im Kalender
-function hookBooksHeader(cw) {
+function hookBooksHeader(cw, restorers = null) {
   const doc = cw.document;
   const books = doc.getElementById("books");
   if (!books || doc.getElementById("mcBooksHeader")) {
@@ -803,9 +803,10 @@ function hookBooksHeader(cw) {
   header.id = "mcBooksHeader";
   header.textContent = Services.locale.appLocaleAsBCP47.startsWith("de") ? "Adressbücher" : "Address Books";
   books.before(header);
+  restorers?.push(() => header.remove());
 }
 
-function hookAppearanceChoice(cw) {
+function hookAppearanceChoice(cw, restorers = null) {
   const doc = cw.document;
   const colorGroup = doc.getElementById("colorGroup");
   if (!colorGroup) {
@@ -843,6 +844,7 @@ function hookAppearanceChoice(cw) {
   row.append(label, list);
   group.append(legend, row);
   colorGroup.before(group);
+  restorers?.push(() => group.remove());
   const { AddonManager } = ChromeUtils.importESModule("resource://gre/modules/AddonManager.sys.mjs");
   const sync = async () => {
     const themes = await AddonManager.getAddonsByTypes(["theme"]);
@@ -2643,6 +2645,7 @@ class CardEnhancer {
     this.previewLines = Math.max(0, Math.min(4, lines));
     this.windows = new Set();
     this.restorers = [];
+    this.winRestorers = new WeakMap();
     this.requested = new Set();
     this.pendingPreview = new Map();
     this.previewTimer = null;
@@ -2936,11 +2939,34 @@ class CardEnhancer {
     });
   }
 
+  // Restorer, der nur so lange lebt wie sein (Inhalts-)Fenster: beim Schließen
+  // verworfen – sonst hielte this.restorers das tote Fenster bis zum Beenden fest
+  addWinRestorer(win, fn) {
+    this.restorers.push(fn);
+    if (!win) {
+      return;
+    }
+    let set = this.winRestorers.get(win);
+    if (!set) {
+      set = new Set();
+      this.winRestorers.set(win, set);
+      win.addEventListener("unload", () => {
+        this.winRestorers.delete(win);
+        this.restorers = this.restorers.filter(f => !set.has(f));
+      }, { once: true });
+    }
+    set.add(fn);
+  }
+
   watchMainWindow(w) {
     if (this.mainWindows.has(w)) {
       return;
     }
     this.mainWindows.add(w);
+    // je Fenster (nicht am gemeinsamen Enhancer, sonst wirkt der Knopf im zuletzt
+    // geöffneten Fenster): Tooltip des Seitenleisten-Knopfs und Popover „Neu“
+    let sidebarTip = null;
+    let newPopup = null;
     this.hookMinWindowWidth(w);
     log("main window", { tabs: w.document.getElementById("tabmail")?.tabInfo?.length ?? null });
     // Attribut „mc-mail“ am Hauptfenster, solange ein Mail-Tab vorne ist –
@@ -3212,6 +3238,7 @@ class CardEnhancer {
       }
     };
     const hookAvatars = cw => {
+      const restorers = { push: fn => this.addWinRestorer(cw, fn) };
       const Avatar = cw.customElements?.get("contact-avatar");
       if (!Avatar || Avatar.prototype.__mcFix) {
         return;
@@ -3250,7 +3277,7 @@ class CardEnhancer {
         return result;
       };
       Avatar.prototype.__mcFix = true;
-      this.restorers.push(() => {
+      restorers.push(() => {
         Avatar.prototype.setData = orig;
         delete Avatar.prototype.__mcFix;
       });
@@ -3295,7 +3322,7 @@ class CardEnhancer {
         const mo = new cw.MutationObserver(fixPhoto);
         mo.observe(photo, { attributes: true, attributeFilter: ["src"] });
         fixPhoto();
-        this.restorers.push(() => {
+        restorers.push(() => {
           mo.disconnect();
           photo.removeEventListener("error", onError);
         });
@@ -3315,7 +3342,7 @@ class CardEnhancer {
       if (fixEditPhoto && editHeading) {
         const mo = new cw.MutationObserver(fixEditPhoto);
         mo.observe(editHeading, { childList: true, characterData: true, subtree: true });
-        this.restorers.push(() => mo.disconnect());
+        restorers.push(() => mo.disconnect());
       }
       // Bearbeiten wie Apple Kontakte: sichtbar sind Vor- und Nachname, E-Mail,
       // Telefon und Adressen; leere seltene Felder erst nach „Weitere Felder“,
@@ -3416,7 +3443,7 @@ class CardEnhancer {
           return result;
         };
         EditCard.prototype.__mcLayout = true;
-        this.restorers.push(() => {
+        restorers.push(() => {
           EditCard.prototype.updateView = origUpdate;
           delete EditCard.prototype.__mcLayout;
           for (const el of cw.document.querySelectorAll(".mc-more-button")) {
@@ -3498,6 +3525,7 @@ class CardEnhancer {
       return rows.filter(r => keep.has(r));
     };
     const hookDedupe = cw => {
+      const restorers = { push: fn => this.addWinRestorer(cw, fn) };
       const view = cw.cardsPane?.cardsList?.view;
       const Adapter = view?.constructor;
       if (!Adapter?.prototype?.sortBy || Adapter.prototype.__mcDedupe) {
@@ -3515,7 +3543,7 @@ class CardEnhancer {
         return orig.call(this, column, direction, resort);
       };
       Adapter.prototype.__mcDedupe = true;
-      this.restorers.push(() => {
+      restorers.push(() => {
         Adapter.prototype.sortBy = orig;
         delete Adapter.prototype.__mcDedupe;
       });
@@ -3563,7 +3591,7 @@ class CardEnhancer {
           return result;
         };
         pane.__mcBooks = true;
-        this.restorers.push(() => {
+        restorers.push(() => {
           pane.displayContact = origDisplay;
           delete pane.__mcBooks;
           cw.document.getElementById("mcDetailBooks")?.remove();
@@ -3586,7 +3614,7 @@ class CardEnhancer {
         try {
           cw.cardsPane?.cardsList?.reset?.();
         } catch {}
-        this.restorers.push(() => {
+        restorers.push(() => {
           delete Row.ROW_HEIGHT;
           Row.ROW_HEIGHT = 52;
         });
@@ -3620,7 +3648,7 @@ class CardEnhancer {
           return result;
         };
         Row.prototype.__mcBooks = true;
-        this.restorers.push(() => {
+        restorers.push(() => {
           Row.prototype.fillRow = origFill;
           delete Row.prototype.__mcBooks;
         });
@@ -3651,7 +3679,7 @@ class CardEnhancer {
           return result;
         };
         TableRow.prototype.__mcBooks = true;
-        this.restorers.push(() => {
+        restorers.push(() => {
           TableRow.prototype.fillRow = origTableFill;
           delete TableRow.prototype.__mcBooks;
         });
@@ -3682,7 +3710,7 @@ class CardEnhancer {
           c.className = "mc-caption";
           c.setAttribute("label", label);
           before.before(c);
-          this.restorers.push(() => c.remove());
+          restorers.push(() => c.remove());
         };
         caption(tr("Show Names As"), menu.querySelector('menuitem[name="format"]'));
         caption(tr("Sort"), menu.querySelector('menuitem[name="sort"]'));
@@ -3703,7 +3731,7 @@ class CardEnhancer {
           cw.booksList?.dispatchEvent(new cw.CustomEvent("select"));
         });
         menu.append(sep, item);
-        this.restorers.push(() => {
+        restorers.push(() => {
           sep.remove();
           item.remove();
         });
@@ -3722,9 +3750,11 @@ class CardEnhancer {
       for (const tab of tabmail.tabInfo) {
         const cw = tab.browser?.contentWindow;
         const url = cw?.document?.documentURI || "";
+        // Restorer dieses Tabs verfallen mit seinem Fenster
+        const winRestorers = { push: fn => this.addWinRestorer(cw, fn) };
         if (cw && url.startsWith("about:preferences")) {
           try {
-            hookAppearanceChoice(cw);
+            hookAppearanceChoice(cw, winRestorers);
           } catch (e) {
             log("appearance choice error", e);
           }
@@ -3732,15 +3762,15 @@ class CardEnhancer {
         if (cw && url.startsWith("about:addressbook")) {
           try {
             hookAvatars(cw);
-            hookBooksHeader(cw);
+            hookBooksHeader(cw, winRestorers);
             hookSplitterReset(cw.document);
           } catch (e) {
             log("avatar fix error", e);
           }
           try {
             hookDedupe(cw);
-            colorAccountRows(cw.document, this.restorers);
-            cacheCardCount(cw.document, this.restorers);
+            colorAccountRows(cw.document, winRestorers);
+            cacheCardCount(cw.document, winRestorers);
           } catch (e) {
             log("dedupe error", e);
           }
@@ -3859,7 +3889,10 @@ class CardEnhancer {
           }, 300), { once: true });
         };
         splitter.addEventListener("pointerdown", onDown);
-        this.restorers.push(() => splitter.removeEventListener("pointerdown", onDown));
+        this.addWinRestorer(win, () => {
+          splitter.removeEventListener("pointerdown", onDown);
+          delete el.__mcWidthWatch;
+        });
       }
     };
     // Doppelklick auf eine Trennlinie stellt ihre Standardbreite wieder her:
@@ -3922,7 +3955,7 @@ class CardEnhancer {
       };
       doc.addEventListener("mousedown", onDown, true);
       doc.addEventListener("dblclick", onDblClick, true);
-      this.restorers.push(() => {
+      this.addWinRestorer(doc.defaultView, () => {
         doc.removeEventListener("mousedown", onDown, true);
         doc.removeEventListener("dblclick", onDblClick, true);
         delete doc.__mcSplitterReset;
@@ -3979,11 +4012,11 @@ class CardEnhancer {
       el.classList.toggle("mc-side-hidden", hidden);
       splitter?.classList.toggle("mc-side-hidden", hidden);
     };
-    this.sideHidden = () => {
+    const sideHidden = () => {
       const { mode, el } = currentSide();
       return el ? !!sideState()[mode] : false;
     };
-    this.toggleSpaceSidebar = () => {
+    const toggleSpaceSidebar = () => {
       const { mode, el, splitter } = currentSide();
       if (!el || el.__mcAnimating) {
         return;
@@ -4063,7 +4096,7 @@ class CardEnhancer {
         el.classList.remove("mc-side-anim");
         el.__mcAnimating = false;
         updateSideEdge();
-        this.sidebarTip?.();
+        sidebarTip?.();
       };
       win.requestAnimationFrame(() => win.requestAnimationFrame(step));
     };
@@ -4277,7 +4310,7 @@ class CardEnhancer {
         if (!hooked.has(target)) {
           hooked.add(target);
           target.addEventListener("keydown", onEscape);
-          this.restorers.push(() => target.removeEventListener("keydown", onEscape));
+          this.addWinRestorer(target == w ? null : target, () => target.removeEventListener("keydown", onEscape));
         }
       }
     };
@@ -4292,11 +4325,11 @@ class CardEnhancer {
         const ab = tab.chromeBrowser?.contentWindow;
         const splitter = ab?.paneLayout?.folderPaneSplitter;
         if (splitter) {
-          this.animateSidebar(ab, splitter);
+          this.animateSidebar(ab, splitter, () => sidebarTip?.());
         }
       } else {
         // in allen anderen Bereichen deren Seitenleiste ein-/ausblenden
-        this.toggleSpaceSidebar?.();
+        toggleSpaceSidebar();
       }
     };
     const hookSidebarButton = () => {
@@ -4332,14 +4365,14 @@ class CardEnhancer {
             ? (tr("Show Sidebar"))
             : (tr("Hide Sidebar"));
         } else {
-          text = this.sideHidden?.()
+          text = sideHidden()
             ? (tr("Show Sidebar"))
             : (tr("Hide Sidebar"));
         }
         button.setAttribute("tooltiptext", text);
       };
       updateTip();
-      this.sidebarTip = updateTip; // nach der Animation erneut aufrufen
+      sidebarTip = updateTip; // nach der Animation erneut aufrufen
       button.addEventListener("mouseenter", updateTip);
       this.restorers.push(() => {
         popup?.removeEventListener("popupshowing", blockPopup);
@@ -4347,6 +4380,7 @@ class CardEnhancer {
         button.removeEventListener("keydown", onPress, true);
         button.removeEventListener("mouseenter", updateTip);
         delete button.dataset.mcSidebar;
+        sidebarTip = null;
         if (oldTooltip) {
           button.setAttribute("tooltiptext", oldTooltip);
         } else {
@@ -4451,7 +4485,7 @@ class CardEnhancer {
       btn.addEventListener("click", () => this.animateTodayPane(w, command, updateTip));
       const mo = panel ? new w.MutationObserver(() => {
         updateTip();
-        this.todayTopSync?.();
+        w.__mcTodayTopSync?.();
       }) : null;
       mo?.observe(panel, { attributes: true, attributeFilter: ["collapsed", "hidden", "collapsedinmodes"] });
       // in die Toolbar-Zeile; darüber reicht die Today-Pane bis ganz oben
@@ -4475,7 +4509,7 @@ class CardEnhancer {
       plus.setAttribute("aria-label", plus.title);
       plus.addEventListener("click", event => {
         event.stopPropagation();
-        this.openNewPopupBelow?.(plus);
+        newPopup?.below(plus);
       });
       btn.after(plus);
       this.restorers.push(() => {
@@ -4536,7 +4570,7 @@ class CardEnhancer {
         // links Today-Knopf (12 + 40 + 8), rechts „+“ (8 + 40 + 12) und ggf. Fensterknöpfe
         title.toggleAttribute("data-narrow", width - 60 - (60 + caption) < 110);
       };
-      this.todayTopSync = sync;
+      w.__mcTodayTopSync = sync;
       const ro = panel ? new w.ResizeObserver(sync) : null;
       ro?.observe(panel);
       sync();
@@ -4546,7 +4580,7 @@ class CardEnhancer {
         btn.remove();
         top.remove();
         row?.style.removeProperty("--mc-tp-w");
-        delete this.todayTopSync;
+        delete w.__mcTodayTopSync;
       });
     };
 
@@ -5248,6 +5282,7 @@ class CardEnhancer {
         return;
       }
       bar.__mcNewHooked = true;
+      let lastAnchor = null;
       // Popover wie in Apple Kalender: zwei runde Symbole mit Beschriftung
       const popup = d.createXULElement("panel");
       popup.id = "mcNewPopup";
@@ -5283,7 +5318,7 @@ class CardEnhancer {
         btn.append(circle, text);
         btn.addEventListener("click", () => {
           popup.hidePopup();
-          this.openQuickCreate(w, command == "calendar_new_todo_command" ? "task" : "event", this.lastNewAnchor);
+          this.openQuickCreate(w, command == "calendar_new_todo_command" ? "task" : "event", lastAnchor);
         });
         box.append(btn);
       }
@@ -5303,26 +5338,27 @@ class CardEnhancer {
       };
       bar.addEventListener("click", onClick, true);
       // dasselbe Popover über einem Knopf unten (Today-Pane): nach oben, mittig
-      this.openNewPopupAbove = anchor => {
+      const above = anchor => {
         if (popup.state == "open" || popup.state == "showing") {
           popup.hidePopup();
           return;
         }
         popup.classList.add("mc-up");
-        this.lastNewAnchor = anchor;
+        lastAnchor = anchor;
         const width = 294; // Breite des Popovers samt Rand für den Schatten
         popup.openPopup(anchor, "before_start", Math.round(anchor.getBoundingClientRect().width / 2 - width / 2), 12);
       };
       // dasselbe Popover unter dem „+“ oben rechts in der Today-Pane
-      this.openNewPopupBelow = anchor => {
+      const below = anchor => {
         if (popup.state == "open" || popup.state == "showing") {
           popup.hidePopup();
           return;
         }
         popup.classList.remove("mc-up");
-        this.lastNewAnchor = anchor;
+        lastAnchor = anchor;
         popup.openPopup(anchor, "after_end", 0, 6);
       };
+      newPopup = { above, below };
       const onHidden = () => popup.classList.remove("mc-up");
       popup.addEventListener("popuphidden", onHidden);
       this.restorers.push(() => {
@@ -5330,8 +5366,7 @@ class CardEnhancer {
         popup.removeEventListener("popuphidden", onHidden);
         popup.remove();
         delete bar.__mcNewHooked;
-        delete this.openNewPopupAbove;
-        delete this.openNewPopupBelow;
+        newPopup = null;
       });
     };
 
@@ -5354,7 +5389,7 @@ class CardEnhancer {
       const onPlus = event => {
         event.preventDefault();
         event.stopPropagation();
-        this.openNewPopupAbove?.(button);
+        newPopup?.above(button);
       };
       if (button && panel) {
         panel.append(button);
@@ -5570,7 +5605,7 @@ class CardEnhancer {
   // darüber und decken sie zu (beim Einblenden umgekehrt). Dauer und Kurve sind die macOS-Standardwerte für
   // Seitenleisten: 0,25 s, cubic-bezier(0.25, 0.1, 0.25, 1).
   // Thunderbird steuert die Breite über --folderPaneSplitter-width am Raster.
-  animateSidebar(ab, splitter) {
+  animateSidebar(ab, splitter, onDone) {
     if (ab.__mcAnimating) {
       return;
     }
@@ -5642,7 +5677,7 @@ class CardEnhancer {
         grid.style.removeProperty(prop);
       }
       ab.__mcAnimating = false;
-      this.sidebarTip?.();
+      onDone?.();
       ab.setTimeout(() => this.offsetUpdaters?.forEach(fn => fn()), 30);
     };
     // erstes Bild sofort setzen, damit nichts aufblitzt
@@ -6431,7 +6466,7 @@ class CardEnhancer {
       const k = Math.min(1, (now - start) / DURATION);
       const value = full * (showing ? curve(k) : 1 - curve(k));
       setW(value);
-      this.todayTopSync?.(value);
+      w.__mcTodayTopSync?.(value);
       if (k < 1) {
         w.requestAnimationFrame(step);
         return;
@@ -6454,7 +6489,7 @@ class CardEnhancer {
       }
       panel.__mcAnimating = false;
       panel.removeAttribute("data-mc-anim");
-      this.todayTopSync?.();
+      w.__mcTodayTopSync?.();
       // Toolbar einmal neu anordnen (während der Animation ausgesetzt)
       for (const f of this.offsetUpdaters || []) {
         try {
@@ -7673,7 +7708,20 @@ class CardEnhancer {
         li.removeAttribute("data-mc-hide");
         li.removeAttribute("data-mc-flatten");
       }
-      win.folderPane?.activeModes && (win.folderPane.activeModes = win.folderPane.activeModes); // Namen neu aufbauen
+      // Namen, Reihenfolge und Einrückung direkt zurücksetzen (activeModes neu
+      // zuweisen baut nichts neu auf, solange die Modi gleich bleiben)
+      for (const li of tree.querySelectorAll('li[is="folder-tree-row"]')) {
+        li.style.removeProperty("order");
+        if (li.childList && li.depth) {
+          li.childList.style.setProperty("--depth", li.depth);
+        }
+        try {
+          li._setName?.();
+        } catch {}
+      }
+      for (const header of tree.querySelectorAll(":scope > li[data-mode] > .mode-container .mode-name")) {
+        doc.l10n?.setAttributes(header, `folder-pane-mode-header-${header.closest("li[data-mode]").dataset.mode}`);
+      }
     });
   }
 
@@ -8168,7 +8216,7 @@ class CardEnhancer {
     shorten();
     run();
     this.hookNotificationLayout(doc);
-    this.restorers.push(() => {
+    this.addWinRestorer(win, () => {
       mo.disconnect();
       delete doc.__mcHdrAvatar;
       // Datum zurück an seinen Platz, eigene Elemente entfernen
@@ -8177,6 +8225,7 @@ class CardEnhancer {
       if (meta && date && doc.__mcDateHome) {
         doc.__mcDateHome.parent.insertBefore(date, doc.__mcDateHome.next?.parentNode == doc.__mcDateHome.parent ? doc.__mcDateHome.next : null);
       }
+      meta?.__mcResize?.disconnect();
       meta?.remove();
       doc.getElementById("mcListBanner")?.remove();
       for (const box of doc.querySelectorAll(".mc-hdr-avatar")) {
@@ -8219,7 +8268,7 @@ class CardEnhancer {
     const mo = new win.MutationObserver(() => win.setTimeout(apply, 0));
     mo.observe(box, { childList: true, subtree: true });
     apply();
-    this.restorers.push(() => {
+    this.addWinRestorer(win, () => {
       mo.disconnect();
       delete box.__mcLayout;
       for (const n of box.querySelectorAll("notification-message")) {
@@ -8445,7 +8494,8 @@ class CardEnhancer {
     this.pendingPreview.get(folder).push(hdr);
     this.stats.quick++;
     if (!this.previewTimer) {
-      this.previewTimer = win.setTimeout(() => this.flushPreviews(), 150);
+      // Modul-Timer: ein Fenster-Timer verfällt, wenn der Tab/das Fenster vorher geschlossen wird
+      this.previewTimer = setTimeout(() => this.flushPreviews(), 150);
     }
   }
 
