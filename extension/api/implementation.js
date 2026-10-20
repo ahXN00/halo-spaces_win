@@ -4803,7 +4803,10 @@ class CardEnhancer {
           if (!list) {
             continue;
           }
-          const lr = list.getBoundingClientRect();
+          // ab Thunderbird 159 steckt die Liste in einem eigenen Rollbereich
+          // (.calendar-month-day-box-scroll) und ist selbst so hoch wie alle
+          // Termine – gemessen wird am sichtbaren Bereich
+          const lr = (list.closest(".calendar-month-day-box-scroll") || list).getBoundingClientRect();
           const items = [...list.children];
           // Platz für die Zeile „+N weitere“ freihalten, sobald etwas fehlt
           for (const i of items) {

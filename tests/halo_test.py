@@ -1575,12 +1575,17 @@ def run_checks(m, version, profile, results):
             await wait(1500); mo.disconnect();
           }
           const text = more?.textContent;
+          // der volle Tag rollt nicht selbst (ab Thunderbird 159 liegt die Liste in
+          // einem eigenen Rollbereich, den macOS sonst ans Mausrad bindet)
+          const day = d.querySelector("#month-view calendar-month-day-box[mc-has-more]");
+          const scroll = day && w.getComputedStyle(day.querySelector(".calendar-month-day-box-scroll") || day.querySelector(".calendar-month-day-box-list")).overflowY;
           for (const e of made) { try { await c.deleteItem(e); } catch {} }
-          return { text, changes, visibility: d.visibilityState };''')
+          return { text, changes, scroll, visibility: d.visibilityState };''')
         if res["text"] is None and res["visibility"] == "hidden":
             return True, f"Testfenster verdeckt – übersprungen {res}"
-        return bool(res["text"]) and res["text"].startswith("+") and res["changes"] == 0, f"{res}"
-    check("Kalender: „+N weitere“ in der Monatsansicht ohne Endlosschleife", month_more, results)
+        return (bool(res["text"]) and res["text"].startswith("+") and res["changes"] == 0
+                and res["scroll"] == "hidden"), f"{res}"
+    check("Kalender: „+N weitere“ in der Monatsansicht ohne Endlosschleife, volle Tage rollen nicht", month_more, results)
 
     def mail_search():
         # Suchfeld oben: alle Postfächer, Datum („12.10“), Trefferzahl, gelbe Markierung, zurück beim Leeren

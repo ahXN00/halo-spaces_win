@@ -4144,7 +4144,7 @@ calendar-month-day-box .calendar-month-day-box-list > li[data-mc-cut] {
   visibility: hidden !important;
 }
 
-calendar-month-day-box[mc-has-more] .calendar-month-day-box-list {
+calendar-month-day-box[mc-has-more] :is(.calendar-month-day-box-list, .calendar-month-day-box-scroll) {
   overflow: hidden !important;
 }
 
@@ -4569,8 +4569,9 @@ body:has(> #booksPane.mc-side-anim) {
 
 /* Tage selbst nicht scrollbar: sonst bindet macOS das Mausrad für ~1,5 s an
    den vollen Tag, und nach dem Blättern kommt nichts mehr an (Verzögerung);
-   was nicht hineinpasst, zeigt „+N weitere“ */
-#month-view ol.calendar-month-day-box-list {
+   was nicht hineinpasst, zeigt „+N weitere“ (ab Thunderbird 159 rollt ein
+   eigener Bereich um die Liste) */
+#month-view :is(ol.calendar-month-day-box-list, .calendar-month-day-box-scroll) {
   overflow: hidden !important;
 }
 
