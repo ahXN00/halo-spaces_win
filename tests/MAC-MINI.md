@@ -201,8 +201,11 @@ Regeln für Testläufe auf dem Mini:
   mehrere Sitzungen und der Runner gleichzeitig testen können: 2839 ist der
   Standard, 2845 nimmt der CI-Job, ab 2850 für Läufe von Hand.
 - Thunderbird-Fenster aus einer SSH-Sitzung erscheinen in der Bildschirmsitzung
-  desselben Benutzers – deshalb die automatische Anmeldung. Ob das auf dem Mini
-  klappt, zeigt per SSH ausgeführt `tests/mac-mini-setup.sh --check --probelauf`.
+  desselben Benutzers – deshalb die automatische Anmeldung. Geprüft auf dem Mac
+  mini (macOS 27): `tests/mac-mini-setup.sh --check --probelauf` per SSH, alle
+  Prüfungen von `halo_test.py` OK.
+- Nie zwei Testläufe auf demselben Port: Der zweite verbindet sich mit dem
+  Thunderbird des ersten und bricht mit „Marionette-Verbindung geschlossen“ ab.
 
 ## 8. GitHub-Runner (optional)
 
