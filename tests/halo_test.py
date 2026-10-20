@@ -886,6 +886,286 @@ def reading_checks(m, results):
     check("Mailkopf: „Mehr“-Knopf als graue Kapsel in 11 px, Kommas in Cc wie in An", recipients, results)
 
 
+# Verfassen-Fenster und seine Dialoge: Test-Identität (example.invalid, kein Server), Fenster öffnen/schließen,
+# Editor-Dialoge (modal) erst nach dem Skript öffnen. Gewartet wird über den Zeitgeber des Moduls –
+# solange ein modaler Dialog offen ist, ruhen die Zeitgeber der Fenster.
+COMPOSE_CHECK_JS = r"""
+  const { MailServices } = ChromeUtils.importESModule("resource:///modules/MailServices.sys.mjs");
+  const { setTimeout: modTimeout } = ChromeUtils.importESModule("resource://gre/modules/Timer.sys.mjs");
+  const pause = ms => new Promise(r => modTimeout(r, ms));
+  const till = async (fn, ms = 8000) => { for (let t = 0; t < ms; t += 100) { const v = fn(); if (v) return v; await pause(100); } return fn(); };
+  try { MailServices.accounts.localFoldersServer; } catch { MailServices.accounts.createLocalMailAccount(); await pause(500); }
+  const acc = MailServices.accounts.findAccountForServer(MailServices.accounts.localFoldersServer);
+  if (!acc.identities.length) { const id = MailServices.accounts.createIdentity(); id.fullName = "Halo Test"; id.email = "halo@example.invalid"; acc.addIdentity(id); }
+  const later = fn => w.setTimeout(() => { try { fn(); } catch (e) { console.error("Test:", e); } }, 0);
+  const compose = async (o = {}) => {
+    const params = Cc["@mozilla.org/messengercompose/composeparams;1"].createInstance(Ci.nsIMsgComposeParams);
+    const fields = Cc["@mozilla.org/messengercompose/composefields;1"].createInstance(Ci.nsIMsgCompFields);
+    fields.to = o.to ?? "Anna Beispiel <anna@example.invalid>"; fields.subject = o.subject ?? "Halo Entwurf";
+    if (o.cc) fields.cc = o.cc;
+    fields.body = o.body ?? "<p>Hallo Anna,</p><p>das ist ein Testentwurf.</p>";
+    params.composeFields = fields; params.identity = acc.identities[0]; params.format = Ci.nsIMsgCompFormat.HTML;
+    const before = new Set(Services.wm.getEnumerator("msgcompose"));
+    MailServices.compose.OpenComposeWindowWithParams(null, params);
+    const cw = await till(() => [...Services.wm.getEnumerator("msgcompose")].find(x => !before.has(x) && x.document.readyState == "complete" && x.gMsgCompose), 12000);
+    if (!cw) throw new Error("Verfassen-Fenster nicht offen");
+    cw.resizeTo(o.width ?? 1000, 760); await pause(1800); return cw; };
+  const closeCompose = async cw => { if (!cw || cw.closed) return; cw.gContentChanged = false; if (cw.gMsgCompose) cw.gMsgCompose.bodyModified = false;
+    cw.close(); await till(() => cw.closed, 4000); await pause(300); };
+  // mit Verfassen-Fenster: fn(cw, cd), danach das Fenster immer schließen
+  const withCompose = async (o, fn) => { const cw = await compose(o); try { return await fn(cw, cw.document); } finally { await closeCompose(cw); } };
+  const winUrl = (part, ms = 10000) => till(() => [...Services.wm.getEnumerator(null)].find(x => x.location.href.includes(part) && x.document.readyState == "complete"), ms);
+  // Dialog über „Abbrechen“ schließen (die Rechtschreibprüfung gibt nur so ihr Verfassen-Fenster wieder frei)
+  const shut = async x => { for (let i = 0; i < 3 && x && !x.closed; i++) {
+    try { const dl = x.document.querySelector("dialog"); if (i == 0 && dl?.cancelDialog) dl.cancelDialog(); else x.close(); } catch {}
+    await till(() => x.closed, 2000); } await pause(200); };
+  // modalen Dialog über einen Befehl öffnen: fn(dw, dd), danach schließen
+  const dialog = async (open, part, fn) => { later(open); const dw = await winUrl(part); if (!dw) throw new Error(part + " nicht offen");
+    await pause(800); try { return await fn(dw, dw.document); } finally { await shut(dw); } };
+  // Fenster nach vorn, damit :focus greift
+  const front = async x => { x.focus(); await till(() => Services.focus.activeWindow == x, 3000); await pause(200); };
+  const csOf = (el, pseudo) => el.ownerDocument.defaultView.getComputedStyle(el, pseudo);
+  // berechnete Farbe eines Werts (AccentColor, var(--mt-…)) im Dokument
+  const colorOf = (doc, value, prop = "color") => { const e = doc.createElementNS("http://www.w3.org/1999/xhtml", "div"); e.style[prop] = value;
+    doc.documentElement.append(e); const c = csOf(e)[prop]; e.remove(); return c; };
+  const vis = el => !!el && el.getClientRects().length > 0 && el.getBoundingClientRect().width > 0;
+  const rgba = c => { const v = (String(c).match(/-?[\d.]+(?:e-?\d+)?/g) || []).map(Number); const k = String(c).startsWith("color(") ? 255 : 1;
+    return [v[0] * k, v[1] * k, v[2] * k, v.length > 3 ? v[3] : 1]; };
+  const dark = w.matchMedia("(prefers-color-scheme: dark)").matches;
+  const testFolder = async () => { const root = MailServices.accounts.localFoldersServer.rootFolder;
+    if (!root.containsChildNamed("Lesen")) { root.createSubfolder("Lesen", null); await pause(800); } return root.getChildNamed("Lesen"); };"""
+
+
+def compose_checks(m, results):
+    """Verfassen-Fenster und Editor-Dialoge: Kästchen, Anhänge, Textfläche, Hinweisleiste, Felder, Kontakte, Rückfragen,
+    Listen, Reiter, Anpassen, Trennlinie."""
+
+    def checkboxes():
+        # angehakt mit Haken: data:-Bilder sperrt die CSP der Dialoge (default-src chrome:) – nur die blaue Fläche blieb
+        res = m.js(COMPOSE_CHECK_JS + r"""
+          const look = (dd, cb) => { const s = csOf(cb.querySelector(".checkbox-check"));
+            return { img: s.backgroundImage, fill: s.fill, bg: s.backgroundColor, accent: colorOf(dd, "AccentColor"), accentText: colorOf(dd, "AccentColorText") }; };
+          const out = {};
+          out.replace = await withCompose({}, cw => dialog(() => cw.goDoCommand("cmd_findReplace"), "EdReplace", async (dw, dd) => {
+            const blocked = []; dd.addEventListener("securitypolicyviolation", e => blocked.push(e.blockedURI));
+            const cb = dd.getElementById("dialog.wrap"), was = cb.checked;
+            cb.checked = false; await pause(100); cb.checked = true; await pause(400);
+            const r = look(dd, cb); r.blocked = blocked; cb.checked = was; return r; }));
+          const f = await testFolder(); tm.switchToTab(0); await pause(500); const a3 = tm.currentAbout3Pane; a3.displayFolder(f.URI); await pause(800);
+          out.folder = await dialog(() => a3.commandController.doCommand("cmd_properties"), "folderProps", async (dw, dd) => {
+            const cb = [...dd.querySelectorAll("checkbox")].find(vis), was = cb.checked;
+            cb.checked = true; await pause(300); const r = look(dd, cb); cb.checked = was; return r; });
+          return out;""")
+        def good(r):
+            return (r["img"].startswith('url("chrome://') and "data:" not in r["img"]
+                    and same_color(r["fill"], r["accentText"]) and same_color(r["bg"], r["accent"]))
+        ok = good(res["replace"]) and not res["replace"]["blocked"] and good(res["folder"])
+        return ok, f"{res}"
+    check("Dialoge: angehakte Kästchen mit Haken (chrome://-Grafik, die CSP sperrt data:) – Suchen/Ersetzen, Ordner-Eigenschaften", checkboxes, results)
+
+    def attachments():
+        res = m.js(COMPOSE_CHECK_JS + r"""
+          return await withCompose({}, async (cw, cd) => {
+            const atts = [];
+            for (const n of ["Halo Anhang eins.txt", "Halo Anhang zwei.txt"]) { const path = PathUtils.join(PathUtils.profileDir, n);
+              if (!await IOUtils.exists(path)) await IOUtils.writeUTF8(path, "Erfundene Testdatei\n");
+              const a = Cc["@mozilla.org/messengercompose/attachment;1"].createInstance(Ci.nsIMsgAttachment); a.url = PathUtils.toFileURI(path); a.name = n; a.size = 30; atts.push(a); }
+            cw.AddAttachments(atts);
+            if (!await till(() => cw.gAttachmentBucket?.itemCount >= 2, 5000)) return { attached: false };
+            await pause(800); await front(cw);
+            const area = cd.getElementById("attachmentArea"), bucket = cd.getElementById("attachmentBucket");
+            bucket.selectedIndex = 0; bucket.focus(); await pause(300);
+            const item = bucket.querySelector(".attachmentItem[selected]"), s = csOf(item);
+            const focused = { focus: bucket.matches(":focus"), bg: s.backgroundColor, radius: parseFloat(s.borderTopLeftRadius), outline: s.outlineStyle, border: parseFloat(s.borderTopWidth) };
+            cd.getElementById("msgSubject").focus(); await pause(300);
+            return { attached: true, focused, unfocused: csOf(item).backgroundColor, accent: colorOf(cd, "AccentColor"),
+                     summary: csOf(area.querySelector("summary")).backgroundColor, bucket: csOf(bucket).backgroundColor,
+                     header: csOf(cd.getElementById("MsgHeadersToolbar")).backgroundColor, bucketBorder: parseFloat(csOf(bucket).borderTopWidth),
+                     size: csOf(cd.getElementById("attachmentBucketSize")).backgroundColor }; });""")
+        f = res.get("focused") or {}
+        ok = (res.get("attached") and same_color(res["summary"], res["header"]) and same_color(res["bucket"], res["header"]) and res["bucketBorder"] == 0
+              and f["focus"] and same_color(f["bg"], res["accent"]) and f["radius"] >= 6 and f["outline"] == "none" and f["border"] == 0
+              and not same_color(res["unfocused"], res["accent"]) and rgba_alpha(res["size"]) == 0)
+        return ok, f"{res}"
+    check("Verfassen: Anhänge auf der Fläche des Fensters, markierte Datei abgerundet ohne Rahmen (unfokussiert grau), Größe ohne Plakette", attachments, results)
+
+    def body():
+        # Textfläche in der Fläche des Fensters (dunkel sonst bläulich #2a2a2e); eigene Hintergründe der Mail bleiben
+        res = m.js(COMPOSE_CHECK_JS + r"""
+          return await withCompose({}, async (cw, cd) => {
+            const ed = cw.GetCurrentEditorElement().contentDocument; const b = ed.body;
+            const out = { dark, body: csOf(b).backgroundColor, header: csOf(cd.getElementById("MsgHeadersToolbar")).backgroundColor,
+                          area: csOf(cd.getElementById("messageArea")).backgroundColor, box: csOf(cd.getElementById("composeContentBox")).backgroundColor };
+            b.setAttribute("bgcolor", "#ffffcc"); await pause(200); out.own = csOf(b).backgroundColor; b.removeAttribute("bgcolor");
+            return out; });""")
+        ok = same_color(res["area"], res["header"]) and same_color(res["box"], res["header"]) and same_color(res["own"], "rgb(255, 255, 204)")
+        # hell bleibt der Körper weiß (bzw. durchsichtig auf weißem Grund)
+        ok = ok and (same_color(res["body"], res["header"]) if res["dark"]
+                     else rgba_alpha(res["body"]) == 0 or same_color(res["body"], "rgb(255, 255, 255)"))
+        return ok, f"{res}"
+    check("Verfassen: Textfläche und Fugen in der Fläche des Fensters (dunkel kein zweites Grau), eigene Hintergrundfarbe bleibt", body, results)
+
+    def reminder():
+        # Hinweis „Anhang vergessen?“: „Später erinnern“ als Kapsel wie „Anhang hinzufügen“, Leiste ohne violettgrauen Rand
+        res = m.js(COMPOSE_CHECK_JS + r"""
+          return await withCompose({ body: "<p>Hallo Anna,</p><p>im Anhang findest du das Dokument (attached).</p>" }, async (cw, cd) => {
+            await cw.gAttachmentNotifier.checkForAttachmentKeywords?.();
+            const msg = await till(() => cd.querySelector('notification-message[value="attachmentReminder"]'), 6000);
+            if (!msg) return { bar: false };
+            await pause(800);
+            const all = sel => [...msg.querySelectorAll(sel), ...(msg.shadowRoot?.querySelectorAll(sel) || [])].find(vis);
+            const b = all("button.notification-button"), t = all("toolbarbutton.notification-button");
+            if (!b || !t) return { bar: true, buttons: false };
+            const rb = b.getBoundingClientRect(), rt = t.getBoundingClientRect(), st = csOf(t);
+            const stack = msg.closest(".notificationbox-stack") || cd.querySelector("#compose-notification-bottom .notificationbox-stack");
+            return { bar: true, buttons: true, heights: [rb.height, rt.height], mids: [rb.top + rb.height / 2, rt.top + rt.height / 2],
+                     radius: parseFloat(st.borderTopLeftRadius), border: parseFloat(st.borderTopWidth),
+                     innerBorder: parseFloat(csOf(t.querySelector(".toolbarbutton-menubutton-button")).borderTopWidth),
+                     // die gelbe Fläche (Schatten-DOM, fest 4 px) wird vom runden Rand der Leiste zugeschnitten
+                     host: parseFloat(csOf(msg).borderTopLeftRadius), clip: csOf(msg).overflowX,
+                     container: parseFloat(csOf(msg.shadowRoot.querySelector(".container")).borderTopLeftRadius),
+                     stack: stack && csOf(stack).backgroundColor, header: csOf(cd.getElementById("MsgHeadersToolbar")).backgroundColor }; });""")
+        ok = (res.get("buttons") and abs(res["heights"][0] - res["heights"][1]) <= 1 and abs(res["mids"][0] - res["mids"][1]) <= 1
+              and res["radius"] >= 14 and res["border"] == 0 and res["innerBorder"] == 0
+              and res["host"] >= 10 and (res["container"] >= 10 or res["clip"] in ("clip", "hidden"))
+              and res["stack"] and same_color(res["stack"], res["header"]))
+        return ok, f"{res}"
+    check("Verfassen: Hinweis „Anhang vergessen?“ – „Später erinnern“ als Kapsel gleich hoch wie „Anhang hinzufügen“, runde Leiste ohne Rand", reminder, results)
+
+    def dialog_fields():
+        # Felder in Dialogen 28 px wie die Auswahllisten daneben, Zahlenfelder bleiben breit genug
+        res = m.js(COMPOSE_CHECK_JS + r"""
+          return await withCompose({}, async cw => {
+            const out = {};
+            out.table = await dialog(() => cw.goDoCommand("cmd_InsertTable"), "EdInsertTable", async (dw, dd) => {
+              const rows = dd.getElementById("rowsInput"), wi = dd.getElementById("widthInput"), ml = dd.getElementById("widthPixelOrPercentMenulist");
+              const was = wi.value; wi.value = "100"; await pause(100);
+              const r = { rows: rows.getBoundingClientRect().height, width: wi.getBoundingClientRect().height, menulist: ml.getBoundingClientRect().height,
+                          scroll: wi.scrollWidth, client: wi.clientWidth };
+              wi.value = was; return r; });
+            out.replace = await dialog(() => cw.goDoCommand("cmd_findReplace"), "EdReplace", async (dw, dd) => dd.getElementById("dialog.findInput").getBoundingClientRect().height);
+            return out; });""")
+        t = res["table"]
+        ok = t["rows"] <= 29 and abs(t["width"] - t["menulist"]) <= 1 and t["scroll"] <= t["client"] and res["replace"] <= 29
+        return ok, f"{res}"
+    check("Dialoge: Eingabefelder 28 px hoch wie die Auswahllisten daneben, „100“ im Zahlenfeld ganz sichtbar", dialog_fields, results)
+
+    def contacts():
+        res = m.js(COMPOSE_CHECK_JS + r"""
+          return await withCompose({}, async (cw, cd) => {
+            cw.toggleContactsSidebar();
+            const d2 = await till(() => { const b = cd.getElementById("contactsBrowser"); const x = b?.contentDocument;
+              return x?.readyState == "complete" && x.getElementById("abResultsTree") && x; }, 6000);
+            if (!d2) return { open: false };
+            await pause(1000);
+            const tree = d2.getElementById("abResultsTree"), list = d2.getElementById("addressbookList"), label = d2.querySelector("label[control]");
+            const head = cd.querySelector("#contactsSidebar > .sidebar-header");
+            return { open: true, tree: csOf(tree).backgroundColor, root: csOf(d2.documentElement).backgroundColor,
+                     listBorder: parseFloat(csOf(list).borderTopWidth), listRadius: parseFloat(csOf(list).borderTopLeftRadius),
+                     labelMargin: label && parseFloat(csOf(label).marginInlineStart),
+                     headLine: csOf(head).borderBottomColor, line: colorOf(cd, "var(--mt-pane-line)") }; });""")
+        ok = (res.get("open") and (rgba_alpha(res["tree"]) == 0 or same_color(res["tree"], res["root"])) and not same_color(res["tree"], "rgb(0, 0, 0)")
+              and res["listBorder"] == 0 and res["listRadius"] >= 12 and (res["labelMargin"] or 0) >= 6 and same_color(res["headLine"], res["line"]))
+        return ok, f"{res}"
+    check("Verfassen: Kontakte-Seitenleiste durchgehend im Seitenleisten-Grau, Adressbuch-Auswahl als Kapsel, Abstand zum Rand", contacts, results)
+
+    def common_dialog():
+        # Rückfragen (hier die des Verfassen-Fensters wie „Speichern?“) dunkel neutral wie die übrigen Dialoge,
+        # ohne violettgrauen Farbstich; hell weiß. Sie gehört nicht zum Hauptfenster – Marionette lässt sie offen
+        res = m.js(COMPOSE_CHECK_JS + r"""
+          return await withCompose({}, async cw => {
+            let done = false;
+            cw.setTimeout(() => Services.prompt.asyncConfirm(cw.browsingContext, Services.prompt.MODAL_TYPE_WINDOW, "Halo", "Test")
+              .finally(() => { done = true; }), 0);
+            const dw = await winUrl("commonDialog");
+            if (!dw) return { open: false };
+            await pause(600);
+            const dl = dw.document.querySelector("dialog");
+            const own = csOf(dl).backgroundColor, rootBg = csOf(dw.document.documentElement).backgroundColor;
+            dl.cancelDialog(); await till(() => done && dw.closed, 4000);
+            return { open: true, dark, dialog: own, root: rootBg, visible: rgba(own)[3] > 0 ? own : rootBg }; });""")
+        c = res.get("visible", "")
+        import re
+        v = [float(x) for x in re.findall(r"-?[\d.]+", c)][:3]
+        if res.get("dark"):
+            ok = len(v) == 3 and max(abs(v[0] - v[1]), abs(v[1] - v[2]), abs(v[0] - v[2])) <= 3 and not same_color(c, "rgb(66, 65, 77)")
+        else:
+            ok = len(v) == 3 and min(v) >= 250
+        return bool(res.get("open")) and ok, f"{res}"
+    check("Rückfragen: neutrale Fläche (dunkel ohne violettgrauen Farbstich, hell weiß)", common_dialog, results)
+
+    def lists():
+        # Listen in Dialogen ohne harten macOS-Rahmen, Auswahl abgerundet in Akzentfarbe (unfokussiert grau)
+        res = m.js(COMPOSE_CHECK_JS + r"""
+          const out = {};
+          out.spell = await withCompose({ body: "<p>Ein Tset mit Fehlrn und noch mehr Fehlren.</p>" }, cw =>
+            dialog(() => cw.goDoCommand("cmd_spelling"), "EdSpellCheck", async (dw, dd) => {
+              await pause(600);
+              const list = dd.getElementById("SuggestedList");
+              if (!list.itemCount) list.appendItem("Probe");
+              if (list.selectedIndex < 0) list.selectedIndex = 0;
+              await front(dw); list.focus(); await pause(300);
+              const item = list.selectedItem;
+              const r = { appearance: csOf(list).appearance, radius: parseFloat(csOf(item).borderTopLeftRadius), focus: list.matches(":focus"),
+                          focused: csOf(item).backgroundColor, accent: colorOf(dd, "AccentColor") };
+              dd.getElementById("ReplaceWordInput").focus(); await pause(300); r.unfocused = csOf(item).backgroundColor;
+              return r; }));
+          // Filter-Editor: Zeilen mit Menülisten und Feldern behalten ihre Farben
+          const f = await testFolder(); w.MsgFilters(null, f);
+          const lw = await winUrl("FilterListDialog"); if (!lw) throw new Error("Filterliste nicht offen");
+          await pause(1000);
+          try {
+            out.filter = await dialog(() => lw.onNewFilter(), "FilterEditor", async (dw, dd) => ({
+              terms: csOf(dd.getElementById("searchTermList")).appearance, actions: csOf(dd.getElementById("filterActionList")).appearance }));
+          } finally { await shut(lw); }
+          return out;""")
+        s, f = res["spell"], res["filter"]
+        ok = (s["appearance"] == "none" and s["radius"] >= 6 and s["focus"] and same_color(s["focused"], s["accent"])
+              and not same_color(s["unfocused"], s["accent"]) and f["terms"] == "none" and f["actions"] == "none")
+        return ok, f"{res}"
+    check("Dialoge: Listen ohne harten Rahmen, Auswahl abgerundet in Akzentfarbe (Rechtschreibung), Filter-Editor ohne macOS-Rahmen", lists, results)
+
+    def tabs():
+        res = m.js(COMPOSE_CHECK_JS + r"""
+          return await withCompose({}, cw => dialog(() => cw.goDoCommand("cmd_image"), "EdImageProps", async (dw, dd) => {
+            const tabs = dd.querySelector("tabs"), t = tabs.querySelector("tab[selected]"), u = tabs.querySelector("tab:not([selected])");
+            const s = csOf(t), after = csOf(t, "::after");
+            return { bottom: parseFloat(s.borderBottomWidth), radius: parseFloat(s.borderTopLeftRadius), bg: s.backgroundColor,
+                     control: colorOf(dd, "var(--mt-control)", "backgroundColor"), after: [after.display, after.content],
+                     tabsLine: parseFloat(csOf(tabs).borderBottomWidth), other: csOf(u).backgroundColor }; }));""")
+        ok = (res["bottom"] == 0 and res["radius"] >= 12 and same_color(res["bg"], res["control"])
+              and (res["after"][0] == "none" or res["after"][1] == "none") and res["tabsLine"] == 0 and rgba_alpha(res["other"]) == 0)
+        return ok, f"{res}"
+    check("Dialoge: Reiter als Segment-Kapseln ohne Strich und Linie (Bild einfügen)", tabs, results)
+
+    def customize():
+        res = m.js(COMPOSE_CHECK_JS + r"""
+          return await withCompose({}, async (cw, cd) => {
+            cw.CustomizeMailToolbar("compose-toolbox", "CustomizeComposeToolbar");
+            const frame = cd.getElementById("customizeToolbarSheetIFrame");
+            const d2 = await till(() => { const x = frame?.contentDocument; return x?.readyState == "complete" && x.getElementById("palette-box")?.querySelector("toolbarspring") && x; }, 8000);
+            if (!d2) return { open: false };
+            await pause(800);
+            const box = d2.getElementById("palette-box"), spring = box.querySelector("toolbarspring"), s = csOf(box);
+            const out = { open: true, border: parseFloat(s.borderTopWidth), radius: parseFloat(s.borderTopLeftRadius), bg: s.backgroundColor,
+                          spring: [csOf(spring).borderTopStyle, parseFloat(csOf(spring).borderTopLeftRadius)] };
+            try { frame.contentWindow.onClose(); } catch {} await pause(800);
+            return out; });""")
+        ok = res.get("open") and res["border"] == 0 and res["radius"] >= 8 and rgba_alpha(res["bg"]) <= 0.15 and res["spring"][0] == "dashed" and res["spring"][1] >= 4
+        return ok, f"{res}"
+    check("Verfassen: Anpassen-Sheet mit ruhiger Palette ohne Rahmen, Platzhalter gestrichelt und gerundet", customize, results)
+
+    def separator():
+        res = m.js(COMPOSE_CHECK_JS + r"""
+          return await withCompose({}, cw => dialog(() => cw.goDoCommand("cmd_link"), "EdLinkProps", async (dw, dd) => {
+            const s = dd.getElementById("advancedSeparator");
+            return { border: csOf(s).borderTopWidth, height: s.getBoundingClientRect().height, bg: csOf(s).backgroundColor,
+                     line: colorOf(dd, "var(--mt-pane-line)", "backgroundColor") }; }));""")
+        ok = res["border"] == "0px" and res["height"] <= 1 and same_color(res["bg"], res["line"])
+        return ok, f"{res}"
+    check("Dialoge: Trennlinie über OK/Abbrechen als Haarlinie (Link einfügen)", separator, results)
+
+
 def rgba_alpha(c):
     """Deckkraft aus rgb()/rgba()/color(srgb …) – 1, wenn keine angegeben ist."""
     import re
@@ -909,7 +1189,11 @@ def run_checks(m, version, profile, results):
     m.js("""
       for (const x of [...Services.wm.getEnumerator(null)]) if (!x.location.href.includes("messenger.xhtml")) x.close();
       w.moveTo(0, 0); w.resizeTo(1500, 900); await wait(500);
-      // Marionette sperrt Add-on-Updates – für die Prüfung „Updates beim Start“ erlauben
+      // Marionette sperrt Add-on-Updates – für die Prüfung „Updates beim Start“ erlauben. Die Update-Liste
+      // (updates.json auf GitHub) bleibt im Testprofil aber unerreichbar: ein veröffentlichtes Update
+      // ersetzte sonst mitten im Lauf Design und Logik des geprüften Pakets
+      Services.obs.addObserver({ observe(ch) { ch.QueryInterface(Ci.nsIHttpChannel);
+        if (/\\/updates\\.json(\\?|$)/.test(ch.URI.spec)) ch.cancel(Cr.NS_ERROR_ABORT); } }, "http-on-modify-request");
       Services.prefs.setBoolPref("extensions.update.enabled", true);
       // Aktionen beim Überfahren sind standardmäßig aus – für die Prüfungen einschalten
       Services.prefs.setBoolPref("extensions.mailcards.hoverActions", true);
@@ -1311,6 +1595,7 @@ def run_checks(m, version, profile, results):
     check("Blockierte Bilder: Platzhalter statt Ersatztext, Zählpixel unsichtbar", blocked_image, results)
 
     reading_checks(m, results)
+    compose_checks(m, results)
 
     def min_widths():
         res = m.js('''

@@ -1,0 +1,14 @@
+/* halo.spaces – Textfläche des Verfassen-Fensters (Dokument about:blank?compose).
+   theme.css erreicht dieses Dokument nicht; Thunderbird malt es dunkel in
+   bläulichem Photon-Grau (#2a2a2e, editorContent.css) statt in der Fläche
+   des Fensters. Der Wert entspricht --mt-window dunkel aus userChrome.css
+   (die Variable gibt es im Editor-Dokument nicht). !important, weil
+   editorContent.css als Override-Stylesheet sonst Vorrang hätte.
+   Eine Hintergrundfarbe, die die Mail selbst setzt (bgcolor/style), bleibt. */
+@-moz-document url("about:blank?compose") {
+  @media (prefers-color-scheme: dark) {
+    body:not([bgcolor], [style*="background"]) {
+      background-color: #1E1E1E !important;
+    }
+  }
+}

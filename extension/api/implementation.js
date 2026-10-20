@@ -6741,6 +6741,17 @@ class CardEnhancer {
           sss.unregisterSheet(parts, sss.AUTHOR_SHEET);
         }
       });
+      // Textfläche des Verfassen-Fensters (about:blank?compose) dunkel in der
+      // Fläche des Fensters – theme.css gilt dort nicht (siehe compose-body.css)
+      const body = Services.io.newURI(`resource://mailcards/compose-body.css?v=${extensionVersion}`);
+      if (!sss.sheetRegistered(body, sss.USER_SHEET)) {
+        sss.loadAndRegisterSheet(body, sss.USER_SHEET);
+      }
+      this.restorers.push(() => {
+        if (sss.sheetRegistered(body, sss.USER_SHEET)) {
+          sss.unregisterSheet(body, sss.USER_SHEET);
+        }
+      });
     }
     if (!Services.prefs.getBoolPref("extensions.mailcards.appleIcons", true)) {
       return;

@@ -71,12 +71,12 @@ Vorher-Bilder: `tests/shots/tour/vorher/` (hell-*/dunkel-*), Paket `tests/shots/
 
 ## 3. Verfassen (`verfassen`)
 
-- [ ] `verfassen-html` – Verfassen (HTML) mit Formatleiste: offen
-- [ ] `verfassen-text` – Verfassen (reiner Text): offen
-- [ ] `verfassen-antwort` – Antworten (zitierter Text): offen
-- [ ] `verfassen-cc-bcc` – Verfassen mit Cc und vielen Empfängern: offen
-- [ ] `verfassen-anhaenge` – Verfassen mit Anhängen: offen
-- [ ] `verfassen-kontakte` – Verfassen mit Kontakte-Seitenleiste: offen
+- [x] `verfassen-html` – Verfassen (HTML) mit Formatleiste: erledigt (Commit „Verfassen: …“ (Runde 1)) – Nachrichtentext dunkel in der Fläche des Fensters (#1E1E1E) statt bläulichem #2A2A2E, keine helle Fuge mehr unter der Formatleiste (hell unverändert weiß; eigene Hintergrundfarbe der Mail bleibt). Symbolleiste im schmalen Fenster: eigener Durchgang
+- [x] `verfassen-text` – Verfassen (reiner Text): erledigt (Commit „Verfassen: …“ (Runde 1)) – Textfläche dunkel in der Fläche des Fensters wie verfassen-html
+- [x] `verfassen-antwort` – Antworten (zitierter Text): erledigt (Commit „Verfassen: …“ (Runde 1)) – Textfläche dunkel in der Fläche des Fensters wie verfassen-html
+- [ ] `verfassen-cc-bcc` – Verfassen mit Cc und vielen Empfängern: offen (Teil erledigt mit Commit „Verfassen: …“ (Runde 1): Textfläche dunkel in der Fläche des Fensters; Beschriftungen und Umbruch der Empfängerzeilen folgen)
+- [x] `verfassen-anhaenge` – Verfassen mit Anhängen: erledigt (Commit „Verfassen: …“ (Runde 1)) – Anhänge wie in der Leseansicht: Kopf und Liste auf der Fläche des Fensters mit Haarlinie statt grauem Band bzw. weißem Kopf, markierte Datei 6 px rund in Akzentfarbe ohne Rahmen und Outline (unfokussiert grau), Gesamtgröße als graue Nebeninfo statt blauer Plakette
+- [x] `verfassen-kontakte` – Verfassen mit Kontakte-Seitenleiste: erledigt (Commit „Verfassen: …“ (Runde 1)) – Kontakte-Seitenleiste durchgehend im Seitenleisten-Grau (dunkel keine schwarze Liste mehr), Adressbuch-Auswahl als Kapsel ohne Rahmen, Beschriftungen und Felder 8 px vom Rand, Kopf mit Haarlinie
 - [ ] `verfassen-absender-menue` – Verfassen: Absender-Auswahl: offen
 - [ ] `verfassen-autovervollstaendigung` – Verfassen: Adress-Vorschläge beim Tippen: offen
 - [ ] `verfassen-absatz-menue` – Formatleiste: Absatzformat: offen
@@ -86,24 +86,24 @@ Vorher-Bilder: `tests/shots/tour/vorher/` (hell-*/dunkel-*), Paket `tests/shots/
 - [ ] `verfassen-speichern-menue` – Symbolleiste: Speichern-Menü: offen
 - [ ] `verfassen-rechtschreibung-menue` – Symbolleiste: Rechtschreibung/Sprache: offen
 - [ ] `verfassen-weitere-felder` – Adressfelder: weitere Felder (…): offen
-- [ ] `verfassen-farbe` – Verfassen: Textfarbe wählen: offen
-- [ ] `verfassen-link` – Verfassen: Link einfügen: offen
-- [ ] `verfassen-tabelle` – Verfassen: Tabelle einfügen: offen
-- [ ] `verfassen-speichern-frage` – Verfassen schließen: „Speichern?“-Frage: offen
+- [x] `verfassen-farbe` – Verfassen: Textfarbe wählen: erledigt (Commit „Verfassen: …“ (Runde 1)) – Trennlinie über OK/Abbrechen als Haarlinie, Eingabefeld 28 px hoch
+- [x] `verfassen-link` – Verfassen: Link einfügen: erledigt (Commit „Verfassen: …“ (Runde 1)) – Trennlinie als Haarlinie, Felder 28 px hoch, angehaktes Kästchen mit Haken
+- [x] `verfassen-tabelle` – Verfassen: Tabelle einfügen: erledigt (Commit „Verfassen: …“ (Runde 1)) – Zahlenfelder 28 px hoch wie die Auswahlliste daneben („100“ und Pfeile ganz sichtbar), Trennlinie als Haarlinie
+- [x] `verfassen-speichern-frage` – Verfassen schließen: „Speichern?“-Frage: erledigt (Commit „Verfassen: …“ (Runde 1)) – Rückfrage dunkel neutral (#282828) statt violettgrau (#42414C), wie alle Rückfragen (commonDialog); hell unverändert weiß
 - [ ] `verfassen-kontext-text` – Kontextmenü im Nachrichtentext (Verfassen): offen
 - [ ] `verfassen-kontext-anhang` – Kontextmenü eines Anhangs (Verfassen): offen
 - [ ] `verfassen-anhaenge-anordnen` – Panel „Anhänge neu anordnen“: offen
-- [ ] `verfassen-anhang-erinnerung` – Hinweisleiste „Anhang vergessen?“ (Schlüsselwort im Text): offen
-- [ ] `verfassen-bild` – Verfassen: Bild einfügen: offen
-- [ ] `verfassen-rechtschreibung-dialog` – Verfassen: Rechtschreibung prüfen: offen
+- [x] `verfassen-anhang-erinnerung` – Hinweisleiste „Anhang vergessen?“ (Schlüsselwort im Text): erledigt (Commit „Verfassen: …“ (Runde 1)) – „Später erinnern“ als Kapsel gleich hoch und mittig wie „Anhang hinzufügen“ (Pfeil mit Haarlinie abgesetzt) statt eckigem, gerahmtem Knopf; Leiste rund ohne violettgrauen Rand
+- [x] `verfassen-bild` – Verfassen: Bild einfügen: erledigt (Commit „Verfassen: …“ (Runde 1)) – Reiter als Segment-Kapseln wie im Termin-Dialog statt eckiger Proton-Reiter mit Strich (gilt für alle Dialoge mit Reitern, z. B. Ordner-Eigenschaften, Zertifikate); Trennlinie als Haarlinie, Felder 28 px
+- [x] `verfassen-rechtschreibung-dialog` – Verfassen: Rechtschreibung prüfen: erledigt (Commit „Verfassen: …“ (Runde 1)) – Vorschlagsliste mit Haarlinie und 8 px Radius statt hartem eckigem macOS-Rahmen, Auswahl 6 px rund in Akzentfarbe (unfokussiert grau); gilt für Textlisten in allen Dialogen, Filter- und Suchzeilen ausgenommen
 - [ ] `verfassen-schriftgroesse-menue` – Formatleiste: Textgröße: offen
 - [ ] `verfassen-ausrichtung-menue` – Formatleiste: Ausrichtung (mit Symbolen): offen
 - [ ] `verfassen-smiley-menue` – Formatleiste: Smileys: offen
-- [ ] `verfassen-suchleiste` – Verfassen: Suchleiste im Nachrichtentext (Bearbeiten → Suchen): offen
-- [ ] `verfassen-suchen-ersetzen` – Verfassen: Suchen und Ersetzen: offen
-- [ ] `verfassen-anker` – Verfassen: Einfügen → Anker: offen
+- [x] `verfassen-suchleiste` – Verfassen: Suchleiste im Nachrichtentext (Bearbeiten → Suchen): erledigt (Runde 1: geprüft – bereits mit Commit „Leseansicht: …“ behoben: Haarlinie, Suchfeld ohne Rahmen, „1 of 1 match“ ganz sichtbar; Befund war ein Duplikat)
+- [x] `verfassen-suchen-ersetzen` – Verfassen: Suchen und Ersetzen: erledigt (Commit „Verfassen: …“ (Runde 1)) – angehakte Kästchen zeigen wieder den Haken (chrome://-Grafik statt von der CSP gesperrtem data:-Bild; ebenso in Kontoeinstellungen, Filter, Ordner-Eigenschaften), Felder 28 px statt 37 px
+- [x] `verfassen-anker` – Verfassen: Einfügen → Anker: erledigt (Commit „Verfassen: …“ (Runde 1)) – Trennlinie als Haarlinie, Feld 28 px hoch
 - [ ] `verfassen-toolbar-kontext` – Verfassen: Kontextmenü der Symbolleiste: offen
-- [ ] `verfassen-toolbar-anpassen` – Verfassen: Symbolleiste anpassen (Sheet): offen
+- [x] `verfassen-toolbar-anpassen` – Verfassen: Symbolleiste anpassen (Sheet): erledigt (Commit „Verfassen: …“ (Runde 1)) – Palette als ruhige graue Fläche mit 12 px Radius statt heller Insel mit Rahmen (dunkel #686868), Platzhalter gestrichelt und gerundet, Trennlinie als Haarlinie
 - [x] `verfassen-verschluesselung` – Verfassen: Verschlüsselungs-Panel: übersprungen: braucht einen OpenPGP-/S/MIME-Schlüssel – im Testprofil nicht vorhanden
 
 ## 4. Ordnerliste, Toolbar, Suche, Bereiche-Leiste (`ordner`)
