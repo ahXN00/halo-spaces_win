@@ -24,6 +24,9 @@ einer Ansicht: Hover, Fokus, schmal, leer …).
 - Mindestbreite: Mit den Testdaten lässt sich das Fenster in der Mailansicht nicht schmaler ziehen als rund 1490 px (min-width von halo.spaces, mit Today-Pane), im Kalender 1136 px – die „schmal“-Zustände zeigen daher die kleinste mögliche Breite.
 - Ohne Konto mit Server sind „Abrufen“ (Toolbar, Ordnerliste) deaktiviert – deren Menüs bleiben unerreichbar.
 - Druckvorschau und andere Systemzugriffe können macOS-Berechtigungsabfragen auslösen (Systemdialog eines anderen Prozesses, gilt für das ganze Thunderbird-Programm) – nie im Namen des Nutzers beantworten.
+- Mails nur für einzelne Oberflächen (Einladung, Empfangsbestätigung, Betrugswarnung) legt der Rundgang mit Message-ID `halo-temp-…` an und löscht sie beim Aufräumen wieder (nur im Testprofil) – die übrigen Bilder behalten dieselbe Liste. Die Knöpfe dieser Leisten werden nie ausgelöst (sie würden antworten).
+- Modale Dialoge (z. B. Suchordner) halten die Zeitgeber des Hauptfensters an: zweite Schritte darin laufen über `then=(URL-Teil, JS)` im Dialog selbst, das Aufräumen wartet über den Zeitgeber des Moduls und schließt die neuesten Fenster zuerst.
+- Popups der HTML-Felder im Schnellfenster (Datum: `DateTimePickerPanel`, Auswahlliste: `#ContentSelectDropdown`) gehen nur nach `notifyUserGestureActivation()` auf; das Bild `-2` zeigt das Schnellfenster dazu.
 
 ## 1. Mailliste (`mailliste`)
 
@@ -56,6 +59,8 @@ CSS/Code: chrome/userChrome.css (Thread-Liste, Karten), extension/api/implementa
 | `mail-spaltenauswahl` | Tabelle: Spaltenauswahl (Listen-Spaltenmenü) | popup | ja |  |
 | `mail-ansichtsoptionen` | Listenkopf: Ansichtsoptionen (…) | popup | ja |  |
 | `mail-ansichtsoptionen-sortieren` | Listenkopf: Ansichtsoptionen → Sortieren nach | popup | ja |  |
+| `mail-gruppiert` | Karten gruppiert nach Sortierung (Gruppenköpfe Heute, Gestern, Letzte 7 Tage …) | zustand | ja |  |
+| `mail-gruppiert-tabelle` | Tabelle gruppiert nach Sortierung (Gruppenköpfe) | zustand | ja |  |
 
 ## 2. Leseansicht und Mailkopf (`lesen`)
 
@@ -83,6 +88,13 @@ CSS/Code: chrome/userChrome.css (Mailkopf, Anhänge, Hinweisleisten), extension/
 | `lesen-kopf-anpassen` | Mailkopf anpassen (Panel) | popup | nein | Knopf ausgeblendet: halo.spaces blendet die Symbolleiste im Mailkopf (und damit „Anpassen“) aus |
 | `lesen-anhaenge-speichern` | Anhänge: Menü „Alle speichern“ | popup | ja |  |
 | `lesen-fremdinhalt-optionen` | Hinweisleiste: Optionen für entfernte Inhalte | popup | ja |  |
+| `lesen-einladung` | Mail mit Kalender-Einladung (iMIP-Leiste: Zusagen, Vielleicht, Absagen, Mehr) | zustand | ja |  |
+| `lesen-einladung-zusagen` | Einladung: Menü am Knopf „Zusagen“ | popup | ja |  |
+| `lesen-einladung-mehr` | Einladung: Menü „Mehr“ | popup | ja |  |
+| `lesen-empfangsbestaetigung` | Hinweisleiste „Absender bittet um Empfangsbestätigung“ | zustand | ja |  |
+| `lesen-betrugswarnung` | Hinweisleiste „Diese Nachricht könnte Betrug sein“ | zustand | ja |  |
+| `lesen-betrugswarnung-optionen` | Betrugswarnung: Menü am Knopf der Hinweisleiste | popup | ja |  |
+| `lesen-kontakt-bearbeiten` | Mailkopf: Panel „Kontakt bearbeiten“ (über das Menü zur Absenderadresse) | popup | ja | Stern-Knopf im Mailkopf ist in halo.spaces ausgeblendet – erreichbar über das Menü zur Absenderadresse |
 
 ## 3. Verfassen (`verfassen`)
 
@@ -109,6 +121,12 @@ CSS/Code: chrome/userChrome.css (Verfassen-Fenster, Adresszeilen, Format-Leiste)
 | `verfassen-link` | Verfassen: Link einfügen | dialog | ja |  |
 | `verfassen-tabelle` | Verfassen: Tabelle einfügen | dialog | ja |  |
 | `verfassen-speichern-frage` | Verfassen schließen: „Speichern?“-Frage | dialog | ja |  |
+| `verfassen-kontext-text` | Kontextmenü im Nachrichtentext (Verfassen) | popup | ja |  |
+| `verfassen-kontext-anhang` | Kontextmenü eines Anhangs (Verfassen) | popup | ja |  |
+| `verfassen-anhaenge-anordnen` | Panel „Anhänge neu anordnen“ | popup | ja |  |
+| `verfassen-anhang-erinnerung` | Hinweisleiste „Anhang vergessen?“ (Schlüsselwort im Text) | zustand | ja |  |
+| `verfassen-bild` | Verfassen: Bild einfügen | dialog | ja |  |
+| `verfassen-rechtschreibung-dialog` | Verfassen: Rechtschreibung prüfen | dialog | ja |  |
 | `verfassen-verschluesselung` | Verfassen: Verschlüsselungs-Panel | popup | nein | braucht einen OpenPGP-/S/MIME-Schlüssel – im Testprofil nicht vorhanden |
 
 ## 4. Ordnerliste, Toolbar, Suche, Bereiche-Leiste (`ordner`)
@@ -180,12 +198,21 @@ CSS/Code: chrome/spaces.css (Kalender), implementation.js (Schnellfenster, Today
 | `kal-suche` | Kalender: Termine suchen (Liste oben) | zustand | nein | von halo.spaces bewusst ausgeblendet (Suchliste gibt es in Apple Kalender nicht) |
 | `kal-today-pane` | Today-Pane in der Mailansicht | zustand | ja |  |
 | `kal-schnellfenster` | Kalender: Schnellfenster „Neuer Termin“ | popup | ja |  |
+| `kal-schnellfenster-datum` | Schnellfenster: Datumsauswahl (Datumsfeld „Beginn“) | popup | ja | DateTimePickerPanel (datetimepicker.xhtml) – in userChrome.css/spaces.css bisher ohne eigene Regeln |
+| `kal-schnellfenster-auswahlliste` | Schnellfenster: aufgeklappte Auswahlliste „Wiederholen“ | popup | ja | Popup #ContentSelectDropdown – dasselbe erscheint für „Vorschauzeilen“ in den halo.spaces-Einstellungen |
+| `kal-schnellfenster-kalender` | Schnellfenster: Kalendermenü mit Farbpunkten | popup | ja |  |
 | `kal-neu-popover` | Today-Pane: „+“ → Neuer Termin / Neue Aufgabe | popup | ja |  |
 | `kal-termin-dialog` | Neuer Termin (Dialog) | fenster | ja |  |
 | `kal-termin-bearbeiten` | Termin bearbeiten (Ort, Beschreibung) | fenster | ja |  |
 | `kal-termin-erinnerung-menue` | Termin-Dialog: Erinnerung (Auswahl) | popup | ja |  |
 | `kal-wiederholung-dialog` | Termin: benutzerdefinierte Wiederholung | dialog | ja |  |
 | `kal-teilnehmer-dialog` | Termin: Teilnehmer einladen | dialog | ja |  |
+| `kal-termin-datum` | Termin-Dialog: Datumsauswahl (Minimonat im Datumsfeld) | popup | ja |  |
+| `kal-termin-uhrzeit` | Termin-Dialog: Uhrzeit-Raster (Stunden und Minuten) | popup | ja |  |
+| `kal-termin-kategorien` | Termin-Dialog: Kategorien (Auswahl mit Häkchen) | popup | ja |  |
+| `kal-termin-privatsphaere` | Termin-Dialog: Symbolleiste „Privatsphäre“ (Menü) | popup | ja |  |
+| `kal-termin-anhang-menue` | Termin-Dialog: Symbolleiste „Anhängen“ (Menü) | popup | ja |  |
+| `kal-erinnerung-anpassen` | Termin: Erinnerungen anpassen (Erinnerung → Benutzerdefiniert…) | dialog | ja |  |
 | `kal-zusammenfassung` | Termin aus schreibgeschütztem Kalender (Zusammenfassung) | fenster | ja |  |
 | `kal-erinnerung` | Erinnerungsfenster (Alarm) | fenster | ja |  |
 | `kal-eigenschaften` | Kalender-Eigenschaften | dialog | ja |  |
@@ -232,6 +259,9 @@ CSS/Code: chrome/spaces.css (Adressbuch), implementation.js (Avatare, Bearbeiten
 | `ab-mehrfachauswahl` | Adressbuch: mehrere Kontakte ausgewählt | zustand | ja |  |
 | `ab-schmal-1100` | Adressbuch im schmalen Fenster (1100 px bzw. kleinste mögliche Breite) | zustand | ja |  |
 | `ab-sortieren` | Adressbuch: Listenoptionen (Sortieren) | popup | ja |  |
+| `ab-tabelle` | Adressbuch als Tabelle (Listenoptionen → Tabellenansicht) | zustand | ja |  |
+| `ab-tabelle-spalten` | Adressbuch-Tabelle: Spaltenauswahl | popup | ja |  |
+| `ab-toolbar-neues-buch` | Adressbuch-Toolbar: „Neues Adressbuch“ (Menü) | popup | ja |  |
 | `ab-account-hub` | Adressbuch hinzufügen (Account Hub, „+“ in der Bücherliste) | dialog | ja |  |
 | `ab-neu-menue` | Adressbuch: „Neues Adressbuch“-Menü (Rechtsklick auf „+“) | popup | ja |  |
 | `ab-kontext-kontakt` | Kontextmenü: Kontakt | popup | ja |  |
@@ -316,6 +346,7 @@ CSS/Code: chrome/spaces.css (Kontoeinstellungen), chrome/userChrome.css (Dialoge
 | `konto-smtp` | Kontoeinstellungen: Postausgang-Server (SMTP) | bereich | ja |  |
 | `konto-hinzufuegen-menue` | Kontoeinstellungen: Konto hinzufügen (Menü) | popup | ja |  |
 | `konto-smtp-dialog` | Postausgang-Server hinzufügen (Dialog, ohne Speichern) | dialog | ja |  |
+| `konto-archiv-optionen` | Kontoeinstellungen → Kopien & Ordner → Archiv-Optionen (Unterdialog) | dialog | ja |  |
 | `konto-einrichten` | E-Mail-Konto einrichten (Account Hub, ohne Netz) | dialog | ja |  |
 | `konto-feed-assistent` | Feed-Konto anlegen (Assistent, abgebrochen) | dialog | ja |  |
 | `konto-news-assistent` | Newsgruppen-Konto (Assistent, abgebrochen) | dialog | ja |  |
@@ -347,6 +378,8 @@ CSS/Code: chrome/userChrome.css (Dialoge, commonDialog), chrome/spaces.css
 | `dlg-suchordner` | Neuer Suchordner (gespeicherte Suche) | dialog | ja |  |
 | `dlg-filterliste` | Nachrichtenfilter (Liste) | fenster | ja |  |
 | `dlg-filter-editor` | Filterregeln bearbeiten (Filter-Editor) | dialog | ja |  |
+| `dlg-filterprotokoll` | Nachrichtenfilter → Filterprotokoll | fenster | ja |  |
+| `dlg-suchordner-ordnerwahl` | Suchordner → Ordner auswählen (Ordnerliste zum Durchsuchen) | dialog | ja |  |
 | `dlg-suche` | Nachrichten suchen (erweiterte Suche) | fenster | ja |  |
 | `dlg-lesen-nach-datum` | Nach Datum als gelesen markieren | dialog | ja |  |
 | `dlg-schlagwort` | Neues Schlagwort (aus der Mailliste) | dialog | ja |  |
@@ -369,4 +402,4 @@ CSS/Code: chrome/userChrome.css (Dialoge, commonDialog), chrome/spaces.css
 | `dlg-anhang-oeffnen` | Anhang öffnen/speichern (Programmauswahl) | dialog | nein | würde eine Datei öffnen oder speichern (Systemdialog) – bewusst ausgelassen |
 | `dlg-dateiauswahl` | Dateiauswahl (Anhängen, Kontaktbild …) | dialog | nein | nativ: macOS-Dateidialog – nicht gestaltbar |
 
-Gesamt: 253 Oberflächen, davon 230 mit Bild.
+Gesamt: 283 Oberflächen, davon 260 mit Bild.

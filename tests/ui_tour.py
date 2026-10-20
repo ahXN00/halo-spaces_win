@@ -190,6 +190,60 @@ const hubDialog = () => [...d.querySelectorAll("account-hub-container")].map(c =
 const hubInputs = () => { const out = []; const walk = r => { for (const e of r.querySelectorAll("*")) { if (e.localName == "input") out.push(e); if (e.shadowRoot) walk(e.shadowRoot); } };
   for (const c of d.querySelectorAll("account-hub-container")) if (c.shadowRoot) walk(c.shadowRoot); return out; };
 const prompt = (fn) => later(() => fn(Services.prompt, w.browsingContext, Ci.nsIPrompt.MODAL_TYPE_WINDOW));
+// erfundene Mail nur für eine Oberfläche (Message-ID halo-temp-…): wird beim Aufräumen wieder gelöscht,
+// damit Liste und Ordner der übrigen Bilder gleich bleiben
+const tempMail = async (path, o) => { const f = fld(path); const id = `halo-temp-${o.key}@example.invalid`;
+  let h = [...f.messages].find(m => m.messageId == id);
+  if (!h) {
+    const head = [`From: ${o.from ?? "Anna Beispiel <anna@example.invalid>"}`, `To: ${o.to ?? "Halo Test <halo@example.invalid>"}`, `Subject: ${o.subject}`,
+      `Date: ${new Date(Date.now() - 5 * 60000).toUTCString()}`, `Message-ID: <${id}>`, ...(o.headers || []), "MIME-Version: 1.0", `Content-Type: ${o.type ?? "text/plain; charset=UTF-8"}`];
+    f.QueryInterface(Ci.nsIMsgLocalMailFolder).addMessage(unescape(encodeURIComponent(head.join("\r\n") + "\r\n\r\n" + o.body + "\r\n\r\n")));
+    h = await until(() => [...f.messages].find(m => m.messageId == id), 4000);
+    if (!h) throw new Error("Testmail fehlt: " + o.subject);
+  }
+  return h; };
+const dropTempMails = async () => { const hs = [];
+  for (const f of lf().descendants) { try { for (const m of f.messages) if (m.messageId?.startsWith("halo-temp-")) hs.push(m); } catch {} }
+  if (!hs.length) return 0;
+  // Auswahl lösen, sonst rückt die nächste Mail nach und wird als gelesen markiert
+  for (const t of tm.tabInfo) { try { const p = t.chromeBrowser?.contentWindow; if (p?.gDBView?.hdrForFirstSelectedMessage?.messageId?.startsWith("halo-temp-")) p.threadTree.selectedIndex = -1; } catch {} }
+  await wait(300);
+  for (const f of new Set(hs.map(h => h.folder))) f.deleteMessages(hs.filter(h => h.folder == f), null, true, false, null, false);
+  await wait(500); return hs.length; };
+// Kalender-Einladung (iMIP, METHOD:REQUEST) an die Test-Identität – nur ansehen, keinen Knopf auslösen (würde antworten)
+const inviteMail = () => { const ics = (days, h) => { const t = new Date(); t.setDate(t.getDate() + days); t.setHours(h, 0, 0, 0); return t.toISOString().replace(/[-:]/g, "").replace(/\.\d+Z$/, "Z"); };
+  const b = "----=_halo_einladung";
+  const vcal = ["BEGIN:VCALENDAR", "PRODID:-//Halo//Rundgang//DE", "VERSION:2.0", "METHOD:REQUEST", "BEGIN:VEVENT", "UID:halo-temp-einladung@example.invalid",
+    `DTSTAMP:${ics(0, 8)}`, `DTSTART:${ics(3, 10)}`, `DTEND:${ics(3, 11)}`, "SUMMARY:Workshop Gestaltung", "LOCATION:Raum 2.01",
+    "ORGANIZER;CN=Anna Beispiel:mailto:anna@example.invalid",
+    "ATTENDEE;CN=Halo Test;ROLE=REQ-PARTICIPANT;PARTSTAT=NEEDS-ACTION;RSVP=TRUE:mailto:halo@example.invalid",
+    "ATTENDEE;CN=Anna Beispiel;ROLE=CHAIR;PARTSTAT=ACCEPTED:mailto:anna@example.invalid", "SEQUENCE:0", "END:VEVENT", "END:VCALENDAR"].join("\r\n");
+  return tempMail("Inbox", { key: "einladung", subject: "Einladung: Workshop Gestaltung", type: `multipart/alternative; boundary="${b}"`,
+    body: `--${b}\r\nContent-Type: text/plain; charset=UTF-8\r\n\r\nAnna Beispiel lädt dich zum Workshop Gestaltung ein (erfundene Einladung).\r\n`
+      + `--${b}\r\nContent-Type: text/calendar; charset=UTF-8; method=REQUEST\r\n\r\n${vcal}\r\n--${b}--` }); };
+const showInvite = async () => { await inviteMail(); await pick("Inbox", "Workshop Gestaltung"); const md = msgDoc();
+  if (!await until(() => vis(md.getElementById("imip-bar")), 6000)) throw new Error("keine Einladungsleiste"); await wait(600); return md; };
+// Bitte um Empfangsbestätigung (Disposition-Notification-To) – Leiste nur ansehen, sonst würde gesendet
+const mdnMail = () => tempMail("Inbox", { key: "mdn", subject: "Bitte um Bestätigung: Vertragsentwurf", headers: ["Disposition-Notification-To: Anna Beispiel <anna@example.invalid>"],
+  body: "Hallo,\r\n\r\nbitte kurz bestätigen, dass der Entwurf angekommen ist (erfundene Testnachricht).\r\n\r\nAnna" });
+// HTML-Mail mit Formular und fremdem Ziel: Thunderbird warnt vor Betrug (maybeScam)
+const scamMail = () => tempMail("Inbox", { key: "betrug", from: "Kontoservice <service@example.invalid>", subject: "Konto bestätigen (Formular-Test)", type: "text/html; charset=UTF-8",
+  body: "<html><body><p>Bitte bestätigen Sie Ihr Konto (erfundene Testnachricht).</p><form action='https://example.invalid/login' method='post'><input name='benutzer'> <input type='submit' value='Bestätigen'></form></body></html>" });
+const noteOf = (doc, value) => until(() => doc.querySelector(`notification-message[value="${value}"]`), 6000);
+const noteBtn = n => n?.querySelector("button") || n?.shadowRoot?.querySelector("button");
+// verschiedene Testdateien im Profilordner anhängen (Anhänge mit gleicher URL fasst Thunderbird zusammen)
+const attachFiles = async (cw, names) => { const atts = [];
+  for (const n of names) { const path = PathUtils.join(PathUtils.profileDir, n); if (!await IOUtils.exists(path)) await IOUtils.writeUTF8(path, "Erfundene Testdatei " + n + "\n");
+    const a = Cc["@mozilla.org/messengercompose/attachment;1"].createInstance(Ci.nsIMsgAttachment); a.url = PathUtils.toFileURI(path); a.name = n; a.size = 30; atts.push(a); }
+  cw.AddAttachments(atts); if (!await until(() => cw.gAttachmentBucket?.itemCount >= names.length, 4000)) throw new Error("Anhänge fehlen"); await wait(1200); };
+// Termin-Dialog (Fenster) und sein Inhalt (iframe)
+const eventDialog = async () => { await toCalendar(); w.switchToView("week"); w.createEventWithDialog(testCalendar(), null, null, "Neuer Testtermin");
+  const dw = await winUrl("calendar-event-dialog"); if (!dw) throw new Error("Termin-Dialog nicht offen"); await wait(2500);
+  return { dw, iw: dw.document.getElementById("calendar-item-panel-iframe")?.contentWindow || dw }; };
+// Schnellfenster „Neuer Termin“ von halo.spaces mit aufgeklappten Details (Beginn, Ende, Wiederholen …)
+const quickPanel = async () => { await toCalendar(); w.switchToView("week"); await wait(800); const li = toolbarItem("new-event"); if (!li) throw new Error("„+“ fehlt");
+  await pop("mcQuickPanel", () => li.querySelector("button").click()); const f = d.getElementById("mcQuickPanel").__mc;
+  if (!f) throw new Error("Schnellfenster ohne Felder"); if (!vis(f.startDate)) { f.summary.click(); await wait(600); } return f; };
 """
 
 # erfundene Testdaten (alle Adressen @example.invalid) – wird beim Start einmal ausgeführt
@@ -398,13 +452,20 @@ CLEANUP_JS = r"""
   const subs = () => [...docs].flatMap(dd => { try { return [...dd.querySelectorAll(".dialogFrame")]; } catch { return []; } })
     .filter(f => { try { return f.isConnected && f.contentDocument && f.contentDocument.location.href != "about:blank"; } catch { return false; } });
   for (const f of subs()) { try { f.contentWindow.close(); } catch {} }
-  // zweimal: eine geschlossene Rückfrage lässt ihr Fenster (z. B. Verfassen) offen
+  // zweimal: eine geschlossene Rückfrage lässt ihr Fenster (z. B. Verfassen) offen;
+  // neueste zuerst: ein modales Fenster schließt sich erst, wenn sein modales Kind zu ist.
+  // Warten über den Zeitgeber des Moduls – solange ein modaler Dialog offen ist, ruhen die des Hauptfensters
+  const { setTimeout: modTimeout } = ChromeUtils.importESModule("resource://gre/modules/Timer.sys.mjs");
+  const pause = ms => new Promise(r => modTimeout(r, ms));
   for (const pass of [1, 2]) {
-    for (const x of [...Services.wm.getEnumerator(null)]) if (x != w) {
-      try { if (x.gMsgCompose) { x.gContentChanged = false; x.gMsgCompose.bodyModified = false; } x.close(); } catch {} }
-    await wait(400);
+    for (const x of [...Services.wm.getEnumerator(null)].reverse()) if (x != w) {
+      try { if (x.gMsgCompose) { x.gContentChanged = false; x.gMsgCompose.bodyModified = false; } x.close(); } catch {}
+      await pause(150); }
+    await pause(400);
   }
   for (const t of tm.tabInfo) { try { const dp = t.browser?.contentWindow?.detailsPane; if (dp) dp.isDirty = false; } catch {} }
+  // Mails nur für eine Oberfläche (Einladung, Empfangsbestätigung …) wieder entfernen
+  try { await dropTempMails(); } catch (e) { console.error("Rundgang:", e); }
   while (tm.tabInfo.length > 1) tm.closeTab(tm.tabInfo[tm.tabInfo.length - 1]);
   tm.switchToTab(0);
   // Account Hub und andere HTML-Dialoge im Hauptfenster schließen
@@ -417,6 +478,7 @@ CLEANUP_JS = r"""
   docs.clear(); for (const x of Services.wm.getEnumerator(null)) addDoc(x.document);
   for (const f of subs()) { try { left.push("Unterdialog " + f.contentDocument.location.href.split("/").pop()); } catch {} }
   if (hubDialog()) left.push("Account Hub");
+  for (const f of lf().descendants) { try { if ([...f.messages].some(m => m.messageId?.startsWith("halo-temp-"))) left.push("Testmail in " + f.name); } catch {} }
   for (const x of Services.wm.getEnumerator(null)) if (x != w) left.push("Fenster " + x.location.href.split("/").pop());
   for (const dd of [d, tm.currentAbout3Pane?.document].filter(Boolean)) for (const p of dd.querySelectorAll("menupopup, panel")) if (p.state == "open") left.push("Popup " + (p.id || p.className));
   return left;
@@ -576,6 +638,19 @@ SURFACES = [
       'const p = await pick("Inbox", "Treffen am Donnerstag"); const b = p.document.getElementById("threadPaneDisplayButton");'
       ' await pop(p.document.getElementById("threadPaneDisplayContext"), () => b.click());'
       ' const sub = p.document.getElementById("menu_threadPaneSortPopup"); return await pop(sub, () => { sub.parentNode.open = true; });', cap="popup"),
+    # Ansichtsoptionen → Sortieren nach → „Gruppiert nach Sortierung“: Gruppenköpfe (dummy-Zeilen) Heute, Gestern …
+    S("mail-gruppiert", "mailliste", "zustand", "Karten gruppiert nach Sortierung (Gruppenköpfe Heute, Gestern, Letzte 7 Tage …)",
+      'const p = await pick("Inbox", "Treffen am Donnerstag"); w.__tourView = { threaded: p.gViewWrapper.showThreaded, grouped: p.gViewWrapper.showGroupedBySort };'
+      ' p.gViewWrapper.showGroupedBySort = true; await wait(1000); cmd3("cmd_expandAllThreads"); await wait(1200);'
+      ' if (!p.gViewWrapper.showGroupedBySort) throw new Error("Gruppierung nicht aktiv"); p.threadTree.scrollToIndex?.(0); await wait(600);',
+      close='const p = tm.currentAbout3Pane, v = w.__tourView || {}; if (p?.gViewWrapper && !v.grouped) { p.gViewWrapper.showGroupedBySort = false;'
+            ' if (v.threaded) p.gViewWrapper.showThreaded = true; else p.gViewWrapper.showUnthreaded = true; await wait(600); cmd3("cmd_collapseAllThreads"); } w.__tourView = null; await wait(800);'),
+    S("mail-gruppiert-tabelle", "mailliste", "zustand", "Tabelle gruppiert nach Sortierung (Gruppenköpfe)",
+      'const p = await pick("Inbox", "Treffen am Donnerstag"); w.__tourView = { threaded: p.gViewWrapper.showThreaded, grouped: p.gViewWrapper.showGroupedBySort };'
+      ' cmd3("cmd_threadPaneViewTable"); await wait(1000); p.gViewWrapper.showGroupedBySort = true; await wait(1000); cmd3("cmd_expandAllThreads"); await wait(1200);'
+      ' if (!p.gViewWrapper.showGroupedBySort) throw new Error("Gruppierung nicht aktiv"); p.threadTree.scrollToIndex?.(0); await wait(600);',
+      close='const p = tm.currentAbout3Pane, v = w.__tourView || {}; if (p?.gViewWrapper && !v.grouped) { p.gViewWrapper.showGroupedBySort = false;'
+            ' if (v.threaded) p.gViewWrapper.showThreaded = true; else p.gViewWrapper.showUnthreaded = true; await wait(600); cmd3("cmd_collapseAllThreads"); } w.__tourView = null; cmd3("cmd_threadPaneViewCards"); await wait(800);'),
 
     # ------------------------------------------------------------ Leseansicht / Mailkopf
     S("lesen-text", "lesen", "bereich", "Leseansicht: Textmail mit Cc",
@@ -629,6 +704,30 @@ SURFACES = [
       'await pick("Inbox", "Bilder vom Ausflug"); const md = msgDoc(); const n = await until(() => md.querySelector(\'#mail-notification-top notification-message[value="remoteContent"]\'));'
       ' const b = n?.querySelector("button") || n?.shadowRoot?.querySelector("button"); if (!b) throw new Error("Knopf fehlt");'
       ' return await pop(md.getElementById("remoteContentOptions"), p => p.openPopup(b, "after_start"));', cap="popup"),
+    # Mails nur für diese Oberflächen (tempMail): Einladung, Empfangsbestätigung, Betrugswarnung – keinen Knopf der Leisten auslösen
+    S("lesen-einladung", "lesen", "zustand", "Mail mit Kalender-Einladung (iMIP-Leiste: Zusagen, Vielleicht, Absagen, Mehr)",
+      'await showInvite();', close="await dropTempMails();"),
+    S("lesen-einladung-zusagen", "lesen", "popup", "Einladung: Menü am Knopf „Zusagen“",
+      'const md = await showInvite(); return await openBtnPop(md.getElementById("imipAcceptDropdown"), md.getElementById("imipAcceptButton"));', cap="popup",
+      close="await dropTempMails();"),
+    S("lesen-einladung-mehr", "lesen", "popup", "Einladung: Menü „Mehr“",
+      'const md = await showInvite(); return await openBtnPop(md.getElementById("imipMoreDropdown"), md.getElementById("imipMoreButton"));', cap="popup",
+      close="await dropTempMails();"),
+    S("lesen-empfangsbestaetigung", "lesen", "zustand", "Hinweisleiste „Absender bittet um Empfangsbestätigung“",
+      'await mdnMail(); await pick("Inbox", "Bitte um Bestätigung"); if (!await noteOf(msgDoc(), "mdnRequested")) throw new Error("keine Leiste"); await wait(600);',
+      close="await dropTempMails();"),
+    S("lesen-betrugswarnung", "lesen", "zustand", "Hinweisleiste „Diese Nachricht könnte Betrug sein“",
+      'await scamMail(); await pick("Inbox", "Formular-Test"); if (!await noteOf(msgDoc(), "maybeScam")) throw new Error("keine Leiste"); await wait(600);',
+      close="await dropTempMails();"),
+    S("lesen-betrugswarnung-optionen", "lesen", "popup", "Betrugswarnung: Menü am Knopf der Hinweisleiste",
+      'await scamMail(); await pick("Inbox", "Formular-Test"); const md = msgDoc(); const b = noteBtn(await noteOf(md, "maybeScam")); if (!b) throw new Error("Knopf fehlt");'
+      ' return await pop(md.getElementById("phishingOptions"), p => p.openPopup(b, "after_start"));', cap="popup", close="await dropTempMails();"),
+    S("lesen-kontakt-bearbeiten", "lesen", "popup", "Mailkopf: Panel „Kontakt bearbeiten“ (über das Menü zur Absenderadresse)",
+      'await pick("Inbox", "Treffen am Donnerstag"); const md = msgDoc(); const el = md.querySelector("#fromRecipient0"); const menu = md.getElementById("emailAddressPopup");'
+      ' await pop(menu, () => { (el.querySelector(".recipient-single-line, .recipient-multi-line-name") || el).click(); });'
+      ' const item = md.getElementById("editContactItem"); if (!item || item.hidden) throw new Error("Absender nicht im Adressbuch"); item.doCommand(); menu.hidePopup();'
+      ' const panel = await until(() => md.getElementById("editContactPanel"), 4000); if (!panel) throw new Error("Panel fehlt"); return await pop(panel);', cap="popup",
+      note="Stern-Knopf im Mailkopf ist in halo.spaces ausgeblendet – erreichbar über das Menü zur Absenderadresse"),
 
     # ------------------------------------------------------------ Verfassen
     S("verfassen-html", "verfassen", "fenster", "Verfassen (HTML) mit Formatleiste",
@@ -675,6 +774,25 @@ SURFACES = [
       'const cw = await compose(); later(() => cw.goDoCommand("cmd_InsertTable"));', cap="window", win="EdInsertTable"),
     S("verfassen-speichern-frage", "verfassen", "dialog", "Verfassen schließen: „Speichern?“-Frage",
       'const cw = await compose(); cw.gContentChanged = true; later(() => cw.goDoCommand("cmd_close"));', cap="window", win="commonDialog", prompt=True),
+    S("verfassen-kontext-text", "verfassen", "popup", "Kontextmenü im Nachrichtentext (Verfassen)",
+      'const cw = await compose(); const body = cw.document.getElementById("messageEditor").contentDocument.body;'
+      ' return await pop(cw.document.getElementById("msgComposeContext"), () => ctx(body.querySelector("p") || body));', cap="popup"),
+    S("verfassen-kontext-anhang", "verfassen", "popup", "Kontextmenü eines Anhangs (Verfassen)",
+      'const cw = await compose(); await attachFiles(cw, ["Angebot-Entwurf.txt", "Zweiter Anhang mit langem Namen.txt"]);'
+      ' const it = cw.document.querySelector("#attachmentBucket richlistitem"); if (!it) throw new Error("kein Anhang"); cw.document.getElementById("attachmentBucket").selectedItem = it;'
+      ' return await ctxPop("msgComposeAttachmentItemContext", it);', cap="popup"),
+    S("verfassen-anhaenge-anordnen", "verfassen", "popup", "Panel „Anhänge neu anordnen“",
+      'const cw = await compose(); await attachFiles(cw, ["Angebot-Entwurf.txt", "Zweiter Anhang mit langem Namen.txt", "Dritter Anhang.txt"]);'
+      ' cw.document.getElementById("attachmentBucket").selectedIndex = 1;'
+      ' return await pop(cw.document.getElementById("reorderAttachmentsPanel"), () => cw.goDoCommand("cmd_reorderAttachments"));', cap="popup"),
+    S("verfassen-anhang-erinnerung", "verfassen", "zustand", "Hinweisleiste „Anhang vergessen?“ (Schlüsselwort im Text)",
+      'const cw = await compose({ body: "<p>Hallo Anna,</p><p>im Anhang findest du das Dokument (attached).</p><p>Viele Grüße<br>Halo</p>" });'
+      ' await cw.gAttachmentNotifier.checkForAttachmentKeywords?.(); if (!await until(() => cw.document.querySelector(\'notification-message[value="attachmentReminder"]\'), 6000)) throw new Error("keine Leiste"); await wait(800);',
+      cap="window", win="messengercompose"),
+    S("verfassen-bild", "verfassen", "dialog", "Verfassen: Bild einfügen",
+      'const cw = await compose(); later(() => cw.goDoCommand("cmd_image"));', cap="window", win="EdImageProps"),
+    S("verfassen-rechtschreibung-dialog", "verfassen", "dialog", "Verfassen: Rechtschreibung prüfen",
+      'const cw = await compose({ body: "<p>Ein Tset mit Fehlrn und noch mehr Fehlren.</p>" }); later(() => cw.goDoCommand("cmd_spelling"));', cap="window", win="EdSpellCheck"),
 
     # ------------------------------------------------------------ Ordnerliste, Toolbar, Suche, Spaces
     S("ordner-mehr-menue", "ordner", "popup", "Ordnerliste: „…“-Menü (Ordner-Modi)",
@@ -799,6 +917,16 @@ SURFACES = [
     S("kal-schnellfenster", "kalender", "popup", "Kalender: Schnellfenster „Neuer Termin“",
       'await toCalendar(); w.switchToView("week"); await wait(800); const li = toolbarItem("new-event"); if (!li) throw new Error("„+“ fehlt");'
       ' return await pop("mcQuickPanel", () => li.querySelector("button").click());', cap="popup"),
+    # Schnellfenster: Popups der HTML-Felder (Datum, Auswahlliste) und das eigene Kalendermenü von halo.spaces
+    S("kal-schnellfenster-datum", "kalender", "popup", "Schnellfenster: Datumsauswahl (Datumsfeld „Beginn“)",
+      'const f = await quickPanel(); return await pop("DateTimePickerPanel", () => { d.notifyUserGestureActivation(); f.startDate.showPicker(); });', cap="popup",
+      note="DateTimePickerPanel (datetimepicker.xhtml) – in userChrome.css/spaces.css bisher ohne eigene Regeln"),
+    S("kal-schnellfenster-auswahlliste", "kalender", "popup", "Schnellfenster: aufgeklappte Auswahlliste „Wiederholen“",
+      'const f = await quickPanel(); const p = d.getElementById("ContentSelectDropdown")?.menupopup; if (!p) throw new Error("Auswahlliste fehlt");'
+      ' return await pop(p, () => { d.notifyUserGestureActivation(); f.repeat.showPicker(); });', cap="popup",
+      note="Popup #ContentSelectDropdown – dasselbe erscheint für „Vorschauzeilen“ in den halo.spaces-Einstellungen"),
+    S("kal-schnellfenster-kalender", "kalender", "popup", "Schnellfenster: Kalendermenü mit Farbpunkten",
+      'const f = await quickPanel(); return await pop("mcQuickCalMenu", () => fire(f.calendar, "mousedown"));', cap="popup"),
     S("kal-neu-popover", "kalender", "popup", "Today-Pane: „+“ → Neuer Termin / Neue Aufgabe",
       'await toMail(); if (!w.TodayPane.isVisible) d.getElementById("calendar_toggle_todaypane_command").doCommand(); await wait(1000);'
       ' return await pop("mcNewPopup", () => d.getElementById("mcTodayNew").click());', cap="popup"),
@@ -817,6 +945,25 @@ SURFACES = [
     S("kal-teilnehmer-dialog", "kalender", "dialog", "Termin: Teilnehmer einladen",
       'await toCalendar(); w.createEventWithDialog(testCalendar(), null, null, "Neuer Testtermin"); const dw = await winUrl("calendar-event-dialog"); await wait(2500);'
       ' const iw = dw.document.getElementById("calendar-item-panel-iframe")?.contentWindow || dw; later(() => iw.editAttendees());', cap="window", win="calendar-event-dialog-attendees"),
+    # Termin-Dialog: aufgeklappte Felder (Datum, Uhrzeit, Kategorien) und Menüs der Symbolleiste
+    S("kal-termin-datum", "kalender", "popup", "Termin-Dialog: Datumsauswahl (Minimonat im Datumsfeld)",
+      'const { iw } = await eventDialog(); const ml = iw.document.querySelector("#event-starttime datepicker menulist"); if (!ml) throw new Error("Datumsfeld fehlt");'
+      ' return await openBtnPop(ml.menupopup, ml);', cap="popup"),
+    S("kal-termin-uhrzeit", "kalender", "popup", "Termin-Dialog: Uhrzeit-Raster (Stunden und Minuten)",
+      'const { iw } = await eventDialog(); const ml = iw.document.querySelector("#event-starttime timepicker menulist"); if (!ml) throw new Error("Uhrzeitfeld fehlt");'
+      ' return await openBtnPop(ml.menupopup, ml);', cap="popup"),
+    S("kal-termin-kategorien", "kalender", "popup", "Termin-Dialog: Kategorien (Auswahl mit Häkchen)",
+      'const { iw } = await eventDialog(); const ml = iw.document.getElementById("item-categories"); if (!ml) throw new Error("Kategorien fehlen");'
+      ' return await openBtnPop(iw.document.getElementById("item-categories-popup"), ml);', cap="popup"),
+    S("kal-termin-privatsphaere", "kalender", "popup", "Termin-Dialog: Symbolleiste „Privatsphäre“ (Menü)",
+      'const { dw } = await eventDialog(); const b = dw.document.getElementById("button-privacy"); if (!vis(b)) throw new Error("Knopf ausgeblendet");'
+      ' return await openBtnPop(dw.document.getElementById("event-privacy-menupopup"), b);', cap="popup"),
+    S("kal-termin-anhang-menue", "kalender", "popup", "Termin-Dialog: Symbolleiste „Anhängen“ (Menü)",
+      'const { dw } = await eventDialog(); const b = dw.document.getElementById("button-url"); if (!vis(b)) throw new Error("Knopf ausgeblendet");'
+      ' return await openBtnPop(dw.document.getElementById("button-attach-menupopup"), b);', cap="popup"),
+    S("kal-erinnerung-anpassen", "kalender", "dialog", "Termin: Erinnerungen anpassen (Erinnerung → Benutzerdefiniert…)",
+      'const { iw } = await eventDialog(); const ml = iw.document.getElementById("item-alarm"); if (!ml) throw new Error("Erinnerungsfeld fehlt");'
+      ' ml.value = "custom"; later(() => iw.updateReminder());', cap="window", win="calendar-event-dialog-reminder"),
     S("kal-zusammenfassung", "kalender", "fenster", "Termin aus schreibgeschütztem Kalender (Zusammenfassung)",
       'await toCalendar(); const it = await anyItem("Nationalfeiertag"); w.modifyEventWithDialog(it, true);', cap="window", win="calendar-summary-dialog"),
     S("kal-erinnerung", "kalender", "fenster", "Erinnerungsfenster (Alarm)",
@@ -910,6 +1057,18 @@ SURFACES = [
       # in halo.spaces über „…“ im Listenkopf oben (der Knopf im Kartenkopf ist ausgeblendet)
       'const ab = await toBook(); const more = [...d.querySelectorAll("#mcListHeader .mc-lh-more")].find(vis);'
       ' const b = more || ab.document.getElementById("displayButton"); return await pop(ab.document.getElementById("sortContext"), () => b.click());', cap="popup"),
+    # Listenoptionen → Tabellenansicht (bleibt im xulStore – beim Schließen zurück auf Karten)
+    S("ab-tabelle", "kontakte", "zustand", "Adressbuch als Tabelle (Listenoptionen → Tabellenansicht)",
+      'const ab = await toBook(); ab.cardsPane.toggleLayout(true); await wait(1200); await selectCard(ab, "Anna Beispiel");',
+      close='const ab = tm.currentTabInfo.browser?.contentWindow; ab?.cardsPane?.toggleLayout(false); await wait(600);'),
+    S("ab-tabelle-spalten", "kontakte", "popup", "Adressbuch-Tabelle: Spaltenauswahl",
+      'const ab = await toBook(); ab.cardsPane.toggleLayout(true); await wait(1200);'
+      ' const b = [...ab.document.querySelectorAll("#cards .button-column-picker")].find(vis); if (!b) throw new Error("Spaltenknopf fehlt");'
+      ' return await pop(ab.document.querySelector("#cards menupopup.menupopup-column-picker"), () => b.click());', cap="popup",
+      close='const ab = tm.currentTabInfo.browser?.contentWindow; ab?.cardsPane?.toggleLayout(false); await wait(600);'),
+    S("ab-toolbar-neues-buch", "kontakte", "popup", "Adressbuch-Toolbar: „Neues Adressbuch“ (Menü)",
+      'await toBook(); const li = toolbarItem("create-address-book"); if (!li) throw new Error("Knopf fehlt");'
+      ' return await pop("unifiedToolbarCreateBook", () => (li.querySelector("button") || li.firstElementChild).click());', cap="popup"),
     S("ab-account-hub", "kontakte", "dialog", "Adressbuch hinzufügen (Account Hub, „+“ in der Bücherliste)",
       'const ab = await toBook(); ab.document.getElementById("booksPaneCreateBook").click(); if (!await until(hubDialog, 6000)) throw new Error("Account Hub nicht offen"); await wait(1500);'),
     S("ab-neu-menue", "kontakte", "popup", "Adressbuch: „Neues Adressbuch“-Menü (Rechtsklick auf „+“)",
@@ -956,6 +1115,9 @@ SURFACES = [
     S("konto-smtp-dialog", "konten", "dialog", "Postausgang-Server hinzufügen (Dialog, ohne Speichern)",
       'const aw = await accountPage("am-smtp.xhtml"); const cf = aw.document.getElementById("contentFrame").contentWindow; const b = cf.document.getElementById("addButton");'
       ' if (!b) throw new Error("Knopf fehlt"); later(() => b.click()); await subFrame(aw.document);'),
+    S("konto-archiv-optionen", "konten", "dialog", "Kontoeinstellungen → Kopien & Ordner → Archiv-Optionen (Unterdialog)",
+      'const aw = await accountPage("am-copies.xhtml"); const cf = aw.document.getElementById("contentFrame").contentWindow; const b = cf.document.getElementById("archiveHierarchyButton");'
+      ' if (!b) throw new Error("Knopf fehlt"); if (b.disabled) throw new Error("Knopf deaktiviert"); b.scrollIntoView({ block: "center" }); later(() => b.click()); await subFrame(aw.document);'),
     S("konto-einrichten", "konten", "dialog", "E-Mail-Konto einrichten (Account Hub, ohne Netz)",
       'await toMail(); w.openAccountHub(); if (!await until(hubDialog, 6000)) throw new Error("Account Hub nicht offen"); await wait(1500);'
       # Name kommt sonst aus dem macOS-Benutzerkonto – durch den Testnamen ersetzen (nichts wird abgeschickt)
@@ -995,6 +1157,13 @@ SURFACES = [
       'await show("Inbox"); w.MsgFilters(null, fld("Inbox"));', cap="window", win="FilterListDialog"),
     S("dlg-filter-editor", "dialoge", "dialog", "Filterregeln bearbeiten (Filter-Editor)",
       'await show("Inbox"); w.MsgFilters(null, fld("Inbox")); const fw = await winUrl("FilterListDialog"); await wait(1000); later(() => fw.onNewFilter());', cap="window", win="FilterEditor"),
+    S("dlg-filterprotokoll", "dialoge", "fenster", "Nachrichtenfilter → Filterprotokoll",
+      'await show("Inbox"); w.MsgFilters(null, fld("Inbox")); const fw = await winUrl("FilterListDialog"); if (!fw) throw new Error("Filterliste nicht offen"); await wait(1000);'
+      ' const b = fw.document.getElementById("filterLogButton"); if (!vis(b)) throw new Error("Knopf fehlt"); fw.setTimeout(() => b.click(), 0);', cap="window", win="viewLog"),
+    S("dlg-suchordner-ordnerwahl", "dialoge", "dialog", "Suchordner → Ordner auswählen (Ordnerliste zum Durchsuchen)",
+      # der Suchordner-Dialog ist modal (Zeitgeber des Hauptfensters ruhen) – Knopf daher im Dialog selbst auslösen (then)
+      'await show("Inbox"); later(() => cmd3("cmd_newVirtualFolder"));', cap="window", win="virtualFolderListEdit",
+      then=("virtualFolderProperties", 'const b = d.getElementById("folderListPicker"); if (!b) throw new Error("Knopf fehlt"); setTimeout(() => b.click(), 0); return 1;')),
     S("dlg-suche", "dialoge", "fenster", "Nachrichten suchen (erweiterte Suche)",
       'await show("Inbox"); later(() => w.searchAllMessages());', cap="window", win="SearchDialog"),
     S("dlg-lesen-nach-datum", "dialoge", "dialog", "Nach Datum als gelesen markieren",
@@ -1309,8 +1478,35 @@ class Tour:
         path = capture_window(self.pid, win["id"], self.path(s["id"]))
         return self.report(s, True, [path])
 
+    def find_new_window(self, before, part, timeout=15):
+        """Neues Fenster (nicht in before), dessen URL part enthält – Handle oder None."""
+        seen = {}
+        end = time.time() + timeout
+        while time.time() < end:
+            for h in [h for h in self.handles() if h not in before]:
+                if seen.get(h, "") in ("", "about:blank"):
+                    self.m.cmd("WebDriver:SwitchToWindow", {"handle": h, "focus": False})
+                    seen[h] = self.win_sync("return location.href;") or ""
+                if part in seen[h] and self.win_sync("return document.readyState;") == "complete":
+                    return h
+            time.sleep(0.25)
+        return None
+
+    def run_then(self, s, before):
+        """Zweiter Schritt in einem Fenster, das open geöffnet hat (then=(URL-Teil, JS)): nötig, wenn
+        dieses Fenster modal ist – dann ruhen die Zeitgeber des Hauptfensters und dort darf nicht gewartet werden."""
+        part, script = s["then"]
+        h = self.find_new_window(before, part)
+        if not h:
+            raise RuntimeError(f"Fenster „{part}“ für den zweiten Schritt nicht gefunden")
+        self.m.cmd("WebDriver:SwitchToWindow", {"handle": h, "focus": False})
+        time.sleep(1.0)
+        self.win_js(script)
+
     def capture_new_window(self, s, before):
         sid, want = s["id"], s.get("win")
+        if s.get("then"):
+            self.run_then(s, before)
         seen, target = {}, None
         end = time.time() + s.get("timeout", 15)
         while time.time() < end and not target:
@@ -1417,6 +1613,14 @@ BESONDERHEITEN = [
     "Ohne Konto mit Server sind „Abrufen“ (Toolbar, Ordnerliste) deaktiviert – deren Menüs bleiben unerreichbar.",
     "Druckvorschau und andere Systemzugriffe können macOS-Berechtigungsabfragen auslösen (Systemdialog eines "
     "anderen Prozesses, gilt für das ganze Thunderbird-Programm) – nie im Namen des Nutzers beantworten.",
+    "Mails nur für einzelne Oberflächen (Einladung, Empfangsbestätigung, Betrugswarnung) legt der Rundgang mit "
+    "Message-ID `halo-temp-…` an und löscht sie beim Aufräumen wieder (nur im Testprofil) – die übrigen Bilder "
+    "behalten dieselbe Liste. Die Knöpfe dieser Leisten werden nie ausgelöst (sie würden antworten).",
+    "Modale Dialoge (z. B. Suchordner) halten die Zeitgeber des Hauptfensters an: zweite Schritte darin laufen "
+    "über `then=(URL-Teil, JS)` im Dialog selbst, das Aufräumen wartet über den Zeitgeber des Moduls und schließt "
+    "die neuesten Fenster zuerst.",
+    "Popups der HTML-Felder im Schnellfenster (Datum: `DateTimePickerPanel`, Auswahlliste: `#ContentSelectDropdown`) "
+    "gehen nur nach `notifyUserGestureActivation()` auf; das Bild `-2` zeigt das Schnellfenster dazu.",
 ]
 
 
@@ -1465,9 +1669,21 @@ def write_inventory(path, out):
     print(f"Inventar → {path}")
 
 
+def old_progress(path):
+    """Bisherige Einträge „erledigt …“ aus fortschritt.md (id → Status), damit ein Neuschreiben sie behält."""
+    keep = {}
+    if os.path.exists(path):
+        for line in open(path):
+            m = re.match(r"- \[.\] `([^`]+)` – .*?: (erledigt\b.*)$", line.rstrip("\n"))
+            if m:
+                keep[m.group(1)] = m.group(2)
+    return keep
+
+
 def write_progress(path, out):
-    """tests/fortschritt.md: jede Oberfläche offen bzw. übersprungen (mit Grund)."""
+    """tests/fortschritt.md: jede Oberfläche offen bzw. übersprungen (mit Grund); „erledigt“ bleibt erhalten."""
     res = load_results(out)
+    done = old_progress(path)
     lines = ["# Fortschritt der Design-Durchsicht", "",
              "Zu Beginn jeder Runde lesen. Status je Oberfläche: `offen`, `erledigt` (mit Commit)",
              "oder `übersprungen: Grund`. Reihenfolge = Priorität (siehe tests/inventar.md).", "",
@@ -1479,13 +1695,15 @@ def write_progress(path, out):
         lines += [f"## {prio}. {title} (`{key}`)", ""]
         for s in items:
             r = res.get(s["id"], {})
-            if s.get("skip"):
+            if s["id"] in done:
+                status = done[s["id"]]
+            elif s.get("skip"):
                 status = f"übersprungen: {s['skip']}"
             elif r and not any(e["ok"] for e in r.values()):
                 status = "übersprungen: nicht erreichbar – " + clean_reason(next(iter(r.values())).get("reason", ""))
             else:
                 status = "offen"
-            lines.append(f"- [{'x' if status.startswith('übersprungen') else ' '}] `{s['id']}` – {s['title']}: {status}")
+            lines.append(f"- [{' ' if status == 'offen' else 'x'}] `{s['id']}` – {s['title']}: {status}")
         lines.append("")
     with open(path, "w") as f:
         f.write("\n".join(lines))

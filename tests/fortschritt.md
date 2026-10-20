@@ -32,6 +32,8 @@ Vorher-Bilder: `tests/shots/tour/vorher/` (hell-*/dunkel-*), Paket `tests/shots/
 - [ ] `mail-spaltenauswahl` – Tabelle: Spaltenauswahl (Listen-Spaltenmenü): offen
 - [ ] `mail-ansichtsoptionen` – Listenkopf: Ansichtsoptionen (…): offen
 - [ ] `mail-ansichtsoptionen-sortieren` – Listenkopf: Ansichtsoptionen → Sortieren nach: offen
+- [ ] `mail-gruppiert` – Karten gruppiert nach Sortierung (Gruppenköpfe Heute, Gestern, Letzte 7 Tage …): offen
+- [ ] `mail-gruppiert-tabelle` – Tabelle gruppiert nach Sortierung (Gruppenköpfe): offen
 
 ## 2. Leseansicht und Mailkopf (`lesen`)
 
@@ -55,6 +57,13 @@ Vorher-Bilder: `tests/shots/tour/vorher/` (hell-*/dunkel-*), Paket `tests/shots/
 - [x] `lesen-kopf-anpassen` – Mailkopf anpassen (Panel): übersprungen: nicht erreichbar – Knopf ausgeblendet: halo.spaces blendet die Symbolleiste im Mailkopf (und damit „Anpassen“) aus
 - [ ] `lesen-anhaenge-speichern` – Anhänge: Menü „Alle speichern“: offen
 - [ ] `lesen-fremdinhalt-optionen` – Hinweisleiste: Optionen für entfernte Inhalte: offen
+- [ ] `lesen-einladung` – Mail mit Kalender-Einladung (iMIP-Leiste: Zusagen, Vielleicht, Absagen, Mehr): offen
+- [ ] `lesen-einladung-zusagen` – Einladung: Menü am Knopf „Zusagen“: offen
+- [ ] `lesen-einladung-mehr` – Einladung: Menü „Mehr“: offen
+- [ ] `lesen-empfangsbestaetigung` – Hinweisleiste „Absender bittet um Empfangsbestätigung“: offen
+- [ ] `lesen-betrugswarnung` – Hinweisleiste „Diese Nachricht könnte Betrug sein“: offen
+- [ ] `lesen-betrugswarnung-optionen` – Betrugswarnung: Menü am Knopf der Hinweisleiste: offen
+- [ ] `lesen-kontakt-bearbeiten` – Mailkopf: Panel „Kontakt bearbeiten“ (über das Menü zur Absenderadresse): offen
 
 ## 3. Verfassen (`verfassen`)
 
@@ -77,6 +86,12 @@ Vorher-Bilder: `tests/shots/tour/vorher/` (hell-*/dunkel-*), Paket `tests/shots/
 - [ ] `verfassen-link` – Verfassen: Link einfügen: offen
 - [ ] `verfassen-tabelle` – Verfassen: Tabelle einfügen: offen
 - [ ] `verfassen-speichern-frage` – Verfassen schließen: „Speichern?“-Frage: offen
+- [ ] `verfassen-kontext-text` – Kontextmenü im Nachrichtentext (Verfassen): offen
+- [ ] `verfassen-kontext-anhang` – Kontextmenü eines Anhangs (Verfassen): offen
+- [ ] `verfassen-anhaenge-anordnen` – Panel „Anhänge neu anordnen“: offen
+- [ ] `verfassen-anhang-erinnerung` – Hinweisleiste „Anhang vergessen?“ (Schlüsselwort im Text): offen
+- [ ] `verfassen-bild` – Verfassen: Bild einfügen: offen
+- [ ] `verfassen-rechtschreibung-dialog` – Verfassen: Rechtschreibung prüfen: offen
 - [x] `verfassen-verschluesselung` – Verfassen: Verschlüsselungs-Panel: übersprungen: braucht einen OpenPGP-/S/MIME-Schlüssel – im Testprofil nicht vorhanden
 
 ## 4. Ordnerliste, Toolbar, Suche, Bereiche-Leiste (`ordner`)
@@ -136,12 +151,21 @@ Vorher-Bilder: `tests/shots/tour/vorher/` (hell-*/dunkel-*), Paket `tests/shots/
 - [x] `kal-suche` – Kalender: Termine suchen (Liste oben): übersprungen: nicht erreichbar – von halo.spaces bewusst ausgeblendet (Suchliste gibt es in Apple Kalender nicht)
 - [ ] `kal-today-pane` – Today-Pane in der Mailansicht: offen
 - [ ] `kal-schnellfenster` – Kalender: Schnellfenster „Neuer Termin“: offen
+- [ ] `kal-schnellfenster-datum` – Schnellfenster: Datumsauswahl (Datumsfeld „Beginn“): offen
+- [ ] `kal-schnellfenster-auswahlliste` – Schnellfenster: aufgeklappte Auswahlliste „Wiederholen“: offen
+- [ ] `kal-schnellfenster-kalender` – Schnellfenster: Kalendermenü mit Farbpunkten: offen
 - [ ] `kal-neu-popover` – Today-Pane: „+“ → Neuer Termin / Neue Aufgabe: offen
 - [ ] `kal-termin-dialog` – Neuer Termin (Dialog): offen
 - [ ] `kal-termin-bearbeiten` – Termin bearbeiten (Ort, Beschreibung): offen
 - [ ] `kal-termin-erinnerung-menue` – Termin-Dialog: Erinnerung (Auswahl): offen
 - [ ] `kal-wiederholung-dialog` – Termin: benutzerdefinierte Wiederholung: offen
 - [ ] `kal-teilnehmer-dialog` – Termin: Teilnehmer einladen: offen
+- [ ] `kal-termin-datum` – Termin-Dialog: Datumsauswahl (Minimonat im Datumsfeld): offen
+- [ ] `kal-termin-uhrzeit` – Termin-Dialog: Uhrzeit-Raster (Stunden und Minuten): offen
+- [ ] `kal-termin-kategorien` – Termin-Dialog: Kategorien (Auswahl mit Häkchen): offen
+- [ ] `kal-termin-privatsphaere` – Termin-Dialog: Symbolleiste „Privatsphäre“ (Menü): offen
+- [ ] `kal-termin-anhang-menue` – Termin-Dialog: Symbolleiste „Anhängen“ (Menü): offen
+- [ ] `kal-erinnerung-anpassen` – Termin: Erinnerungen anpassen (Erinnerung → Benutzerdefiniert…): offen
 - [ ] `kal-zusammenfassung` – Termin aus schreibgeschütztem Kalender (Zusammenfassung): offen
 - [ ] `kal-erinnerung` – Erinnerungsfenster (Alarm): offen
 - [ ] `kal-eigenschaften` – Kalender-Eigenschaften: offen
@@ -180,6 +204,9 @@ Vorher-Bilder: `tests/shots/tour/vorher/` (hell-*/dunkel-*), Paket `tests/shots/
 - [ ] `ab-mehrfachauswahl` – Adressbuch: mehrere Kontakte ausgewählt: offen
 - [ ] `ab-schmal-1100` – Adressbuch im schmalen Fenster (1100 px bzw. kleinste mögliche Breite): offen
 - [ ] `ab-sortieren` – Adressbuch: Listenoptionen (Sortieren): offen
+- [ ] `ab-tabelle` – Adressbuch als Tabelle (Listenoptionen → Tabellenansicht): offen
+- [ ] `ab-tabelle-spalten` – Adressbuch-Tabelle: Spaltenauswahl: offen
+- [ ] `ab-toolbar-neues-buch` – Adressbuch-Toolbar: „Neues Adressbuch“ (Menü): offen
 - [ ] `ab-account-hub` – Adressbuch hinzufügen (Account Hub, „+“ in der Bücherliste): offen
 - [ ] `ab-neu-menue` – Adressbuch: „Neues Adressbuch“-Menü (Rechtsklick auf „+“): offen
 - [ ] `ab-kontext-kontakt` – Kontextmenü: Kontakt: offen
@@ -252,6 +279,7 @@ Vorher-Bilder: `tests/shots/tour/vorher/` (hell-*/dunkel-*), Paket `tests/shots/
 - [ ] `konto-smtp` – Kontoeinstellungen: Postausgang-Server (SMTP): offen
 - [ ] `konto-hinzufuegen-menue` – Kontoeinstellungen: Konto hinzufügen (Menü): offen
 - [ ] `konto-smtp-dialog` – Postausgang-Server hinzufügen (Dialog, ohne Speichern): offen
+- [ ] `konto-archiv-optionen` – Kontoeinstellungen → Kopien & Ordner → Archiv-Optionen (Unterdialog): offen
 - [ ] `konto-einrichten` – E-Mail-Konto einrichten (Account Hub, ohne Netz): offen
 - [ ] `konto-feed-assistent` – Feed-Konto anlegen (Assistent, abgebrochen): offen
 - [ ] `konto-news-assistent` – Newsgruppen-Konto (Assistent, abgebrochen): offen
@@ -275,6 +303,8 @@ Vorher-Bilder: `tests/shots/tour/vorher/` (hell-*/dunkel-*), Paket `tests/shots/
 - [ ] `dlg-suchordner` – Neuer Suchordner (gespeicherte Suche): offen
 - [ ] `dlg-filterliste` – Nachrichtenfilter (Liste): offen
 - [ ] `dlg-filter-editor` – Filterregeln bearbeiten (Filter-Editor): offen
+- [ ] `dlg-filterprotokoll` – Nachrichtenfilter → Filterprotokoll: offen
+- [ ] `dlg-suchordner-ordnerwahl` – Suchordner → Ordner auswählen (Ordnerliste zum Durchsuchen): offen
 - [ ] `dlg-suche` – Nachrichten suchen (erweiterte Suche): offen
 - [ ] `dlg-lesen-nach-datum` – Nach Datum als gelesen markieren: offen
 - [ ] `dlg-schlagwort` – Neues Schlagwort (aus der Mailliste): offen
