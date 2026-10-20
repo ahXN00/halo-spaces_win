@@ -1546,6 +1546,84 @@ def folder_checks(m, results):
     check("Bereiche-Leiste: „Anpassen…“ (öffnete nicht, sperrte das Ausblenden) entfernt, leere Leiste ohne leeres Menü", spaces_customize, results)
 
 
+# Kontextmenü der Mailliste per Rechtsklick auf die ausgewählte Testmail (nach MESSAGE_JS) öffnen;
+# dazu Farbhilfen (rgb()/color(srgb …) auf 0–255) und Kontrast nach WCAG
+MENU_JS = MESSAGE_JS + r"""
+  const ad = a3.document, P = ad.getElementById("mailContext");
+  const cs = (el, pseudo) => a3.getComputedStyle(el, pseudo);
+  const rgba = c => { const v = (String(c).match(/-?[\d.]+(?:e-?\d+)?/g) || []).map(Number); const k = String(c).startsWith("color(") ? 255 : 1;
+    return [v[0] * k, v[1] * k, v[2] * k, v.length > 3 ? v[3] : 1]; };
+  const over = (fg, bg) => fg.slice(0, 3).map((x, i) => x * fg[3] + bg[i] * (1 - fg[3])).concat(1);
+  const lum = c => { const [r, g, b] = c.slice(0, 3).map(x => { x /= 255; return x <= 0.03928 ? x / 12.92 : ((x + 0.055) / 1.055) ** 2.4; }); return 0.2126 * r + 0.7152 * g + 0.0722 * b; };
+  const contrast = (a, b) => { const [x, y] = [lum(a), lum(b)].sort((p, q) => q - p); return Math.round((x + 0.05) / (y + 0.05) * 100) / 100; };
+  const colorOf = value => { const e = ad.createElementNS("http://www.w3.org/1999/xhtml", "div"); e.style.color = value;
+    ad.documentElement.append(e); const c = cs(e).color; e.remove(); return c; };
+  const openContext = async () => {
+    const row = ad.querySelector('#threadTree tr.selected, #threadTree tr[aria-selected="true"]');
+    if (!row) return "keine Zeile";
+    const r = row.getBoundingClientRect(), x = r.left + Math.min(r.width / 2, 40), y = r.top + r.height / 2;
+    for (const [type, buttons] of [["mousedown", 2], ["contextmenu", 2], ["mouseup", 0]])
+      row.dispatchEvent(new a3.MouseEvent(type, { bubbles: true, cancelable: true, composed: true, view: a3, button: 2, buttons,
+        clientX: x, clientY: y, screenX: a3.mozInnerScreenX + x, screenY: a3.mozInnerScreenY + y }));
+    return await until(() => P.state == "open" && "open", 4000) || P.state;
+  };"""
+
+
+def menu_checks(m, results):
+    """Menüs: gleichmäßige Zeilen im Kontextmenü der Mailliste, lesbare Schlagwörter im Schlagwort-Menü."""
+
+    def nav_rows():
+        # Archivieren/Spam/Löschen baut halo.spaces aus Thunderbirds Symbolzeile zu Textzeilen um – sie waren 2 px niedriger
+        res = m.js(MENU_JS + r"""
+          const item = id => ad.getElementById(id);
+          const NAV = ["navContext-archive", "navContext-markAsJunk", "navContext-delete"], REST = ["mailContext-editAsNew", "mailContext-moveMenu", "mailContext-tags", "mailContext-saveAs"];
+          const out = { list: !!item("mailContext-navigation")?.classList.contains("mc-nav-list") };
+          out.state = await openContext();
+          try {
+            // berechnete Abstände gibt es erst bei offenem Menü
+            out.pad = Object.fromEntries([...NAV, ...REST].map(id => [id, item(id) ? cs(item(id)).paddingTop : "fehlt"]));
+            const h = id => { const e = item(id); return e && e.getClientRects().length ? Math.round(e.getBoundingClientRect().height * 10) / 10 : null; };
+            out.nav = NAV.map(h).filter(x => x); out.rest = REST.map(h).filter(x => x);
+          } finally { P.hidePopup(); await wait(400); }
+          return out;""")
+        pads = set((res.get("pad") or {"-": ""}).values())
+        hs = res.get("nav", []) + res.get("rest", [])
+        # Fenster verdeckt (Höhe 0): nur das Padding werten
+        heights_ok = (not any(hs)) or (len(res["nav"]) >= 2 and len(res["rest"]) >= 3 and max(hs) - min(hs) < 0.5)
+        ok = res["list"] and len(pads) == 1 and pads.pop().endswith("px") and heights_ok
+        return ok, f"{res}"
+    check("Kontextmenü Mailliste: Archivieren/Spam/Löschen so hoch wie die übrigen Zeilen", nav_rows, results)
+
+    def tag_menu():
+        # Schlagwort-Menü: Thunderbird färbt die Namen in der Grundfarbe (Orange auf Hellgrau 1,6:1) – gemischt mit der Textfarbe lesbar
+        res = m.js(MENU_JS + r"""
+          const sub = ad.getElementById("mailContext-tagpopup"), menu = ad.getElementById("mailContext-tags");
+          const text = colorOf("var(--mt-text)"), menuBg = rgba(colorOf("var(--mt-menu-bg)"));
+          const dark = lum(rgba(text)) > 0.5;
+          // gemessener Menügrund (durchscheinend) und die Menüfläche über Weiß bzw. Schwarz
+          const bgs = dark ? [[36, 36, 38, 1], over(menuBg, [0, 0, 0])] : [[224, 224, 224, 1], over(menuBg, [255, 255, 255])];
+          const out = { dark, state: await openContext(), tags: [] };
+          try {
+            menu.open = true;
+            out.sub = await until(() => sub.state == "open" && "open", 4000) || sub.state;
+            const tags = [...sub.querySelectorAll(':scope > menuitem[type="checkbox"]')].filter(x => x.style.color);
+            for (const t of tags) {
+              const tx = cs(t.querySelector(".menu-text")).color, icon = t.querySelector(".menu-icon");
+              out.tags.push({ name: t.getAttribute("label"), inline: t.style.color, text: tx, icon: icon ? cs(icon).color : null,
+                              contrast: Math.min(...bgs.map(b => contrast(rgba(tx), b))) });
+            }
+            if (tags[1]) { tags[1].setAttribute("_moz-menuactive", "true"); await wait(100);
+              out.active = [cs(tags[1].querySelector(".menu-text")).color, colorOf("var(--mt-accent-text)")];
+              tags[1].removeAttribute("_moz-menuactive"); }
+          } finally { sub.hidePopup?.(); P.hidePopup(); await wait(400); }
+          return out;""")
+        tags = res.get("tags", [])
+        ok = (len(tags) >= 5 and all(not same_color(t["text"], t["inline"]) and same_color(t["icon"], t["text"]) and t["contrast"] >= 4.5 for t in tags)
+              and same_color(*res.get("active", ["", "?"])))
+        return ok, f"{res}"
+    check("Schlagwort-Menü: Namen in Schlagwortfarbe lesbar (Kontrast ≥ 4,5:1), markiert in der Schrift der Auswahl", tag_menu, results)
+
+
 def rgba_alpha(c):
     """Deckkraft aus rgb()/rgba()/color(srgb …) – 1, wenn keine angegeben ist."""
     import re
@@ -1977,6 +2055,7 @@ def run_checks(m, version, profile, results):
     reading_checks(m, results)
     compose_checks(m, results)
     folder_checks(m, results)
+    menu_checks(m, results)
 
     def min_widths():
         res = m.js('''

@@ -2054,6 +2054,19 @@ menupopup > :is(menu, menuitem)[disabled] {
   color: var(--mt-text-tertiary) !important;
 }
 
+/* Schlagwörter in Menüs (Kontextmenü, Toolbar-Knopf, Mailkopf, Menüleiste
+   unter Linux/Windows): Thunderbird färbt den Namen per Inline-Stil in der
+   Grundfarbe (Orange auf Hellgrau 1,6:1). Mit der Textfarbe gemischt bleibt
+   der Farbton erkennbar und der Kontrast liegt hell und dunkel über 4,5:1 –
+   wie in Tabelle und Schnellfilter. currentColor ist hier die geerbte
+   Schlagwortfarbe; das Häkchen (.menu-icon) zeichnet mit currentColor und
+   folgt mit. Markierte Zeilen bleiben in der Schrift der Auswahl. */
+:is(#mailContext-tagpopup, #toolbarTagPopup, #hdrTagDropdown, #tagMenu-tagpopup, #button-tagpopup)
+  > menuitem[type="checkbox"][style*="color"]:not([_moz-menuactive], [disabled])
+  > :is(.menu-icon, .menu-text, .menu-highlightable-text) {
+  color: color-mix(in srgb, currentColor 45%, var(--mt-text)) !important;
+}
+
 menupopup > menuseparator {
   margin: 5px 14px !important;
   padding: 0 !important;
@@ -2138,12 +2151,15 @@ panel {
   flex-direction: column !important;
 }
 
+/* gleiche Zeilenhöhe wie die übrigen Einträge (Thunderbird:
+   --menu-item-padding, folgt auch der Dichte) – mit 3 px waren
+   Archivieren/Spam/Löschen 2 px niedriger */
 #mailContext-navigation.mc-nav-list > .menuitem-iconic {
   flex: none !important;
   justify-content: flex-start !important;
   margin-inline: 5px !important;
   min-height: 22px !important;
-  padding-block: 3px !important;
+  padding-block: var(--menu-item-padding, 4px) !important;
   padding-inline: 8px !important;
   border-radius: 6px !important;
 }
