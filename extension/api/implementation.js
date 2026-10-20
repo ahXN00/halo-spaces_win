@@ -174,6 +174,13 @@ const DE = {
   "All Mailboxes": "Alle Postfächer",
   "{n} result": "{n} Treffer",
   "{n} results": "{n} Treffer",
+  "Address Books": "Adressbücher",
+  "Today Pane": "Heute-Leiste",
+  "Search": "Suchen",
+  "Search Contacts": "Kontakte durchsuchen",
+  "Search Tasks": "Aufgaben durchsuchen",
+  "Search All Mailboxes": "Alle Postfächer durchsuchen",
+  "Find in Settings": "Einstellungen durchsuchen",
 };
 const FR = {
   "Install version {v}": "Installer la version {v}",
@@ -319,6 +326,13 @@ const FR = {
   "All Mailboxes": "Toutes les boîtes",
   "{n} result": "{n} résultat",
   "{n} results": "{n} résultats",
+  "Address Books": "Carnets d’adresses",
+  "Today Pane": "Volet Aujourd’hui",
+  "Search": "Rechercher",
+  "Search Contacts": "Rechercher des contacts",
+  "Search Tasks": "Rechercher des tâches",
+  "Search All Mailboxes": "Rechercher dans toutes les boîtes",
+  "Find in Settings": "Rechercher dans les réglages",
 };
 const ES = {
   "Install version {v}": "Instalar la versión {v}",
@@ -464,6 +478,13 @@ const ES = {
   "All Mailboxes": "Todos los buzones",
   "{n} result": "{n} resultado",
   "{n} results": "{n} resultados",
+  "Address Books": "Libretas de direcciones",
+  "Today Pane": "Panel Hoy",
+  "Search": "Buscar",
+  "Search Contacts": "Buscar contactos",
+  "Search Tasks": "Buscar tareas",
+  "Search All Mailboxes": "Buscar en todos los buzones",
+  "Find in Settings": "Buscar en Ajustes",
 };
 const IT = {
   "Install version {v}": "Installa la versione {v}",
@@ -609,6 +630,13 @@ const IT = {
   "All Mailboxes": "Tutte le caselle",
   "{n} result": "{n} risultato",
   "{n} results": "{n} risultati",
+  "Address Books": "Rubriche",
+  "Today Pane": "Pannello Oggi",
+  "Search": "Cerca",
+  "Search Contacts": "Cerca contatti",
+  "Search Tasks": "Cerca attività",
+  "Search All Mailboxes": "Cerca in tutte le caselle",
+  "Find in Settings": "Cerca nelle impostazioni",
 };
 const TRANSLATIONS = { de: DE, fr: FR, es: ES, it: IT };
 // tr("+{n} more", { n: 3 }) – Platzhalter in geschweiften Klammern
@@ -803,7 +831,7 @@ function hookBooksHeader(cw, restorers = null) {
   }
   const header = doc.createElement("div");
   header.id = "mcBooksHeader";
-  header.textContent = Services.locale.appLocaleAsBCP47.startsWith("de") ? "Adressbücher" : "Address Books";
+  header.textContent = tr("Address Books");
   books.before(header);
   restorers?.push(() => header.remove());
 }
@@ -4145,12 +4173,12 @@ class CardEnhancer {
     // Mail-Volltextsuche) – die Suchfelder in diesen Seiten entfallen.
     const SEARCH_TARGETS = {
       addressBookTab: {
-        de: "Kontakte durchsuchen", en: "Search Contacts",
+        label: "Search Contacts",
         input: cw => cw?.cardsPane?.searchInput,
         set: (input, text) => input.overrideSearchTerm(text), // löst dort selbst die Suche aus
       },
       tasks: {
-        de: "Aufgaben durchsuchen", en: "Search Tasks",
+        label: "Search Tasks",
         input: () => w.document.getElementById("task-text-filter-field"),
         set: (input, text) => {
           input.value = text;
@@ -4159,12 +4187,12 @@ class CardEnhancer {
       },
       // Mail: alle Postfächer (Suchordner), Tippen sucht kurz verzögert
       mail3PaneTab: {
-        de: "Alle Postfächer durchsuchen", en: "Search All Mailboxes",
+        label: "Search All Mailboxes",
         input: () => ({ value: this.mailSearchTerm || "" }),
         mail: true,
       },
       preferencesTab: {
-        de: "Einstellungen durchsuchen", en: "Find in Settings",
+        label: "Find in Settings",
         input: cw => cw?.document.getElementById("searchInput"),
         set: (input, text) => {
           input.value = text;
@@ -4192,13 +4220,20 @@ class CardEnhancer {
         bar.reset(); // leert dabei auch die Suche der verlassenen Seite
       }
       w.__mcSearchMode = target ? mode : null;
-      const de = Services.locale.appLocaleAsBCP47.startsWith("de");
+      // Platzhalter je Bereich: Thunderbird gibt dem Suchfeld einen eigenen
+      // <span slot="placeholder"> – das placeholder-Attribut (nur Ersatzinhalt
+      // des Slots) bliebe unsichtbar. Erst nachdem styleSearch Thunderbirds
+      // Text abgekoppelt hat (sonst bleibt dessen Übersetzung stehen).
+      const placeholder = bar.querySelector('[slot="placeholder"]');
+      if (placeholder && !placeholder.hasAttribute("data-l10n-id")) {
+        const text = tr(target ? target.label : "Search");
+        if (placeholder.textContent != text) {
+          placeholder.textContent = text;
+        }
+      }
       if (target) {
-        bar.setAttribute("placeholder", de ? target.de : target.en);
         const term = target.input(currentTarget()?.cw)?.value || "";
         bar.overrideSearchTerm?.(term);
-      } else {
-        bar.removeAttribute("placeholder");
       }
     };
     const hookSearchForwarding = () => {
@@ -4535,7 +4570,7 @@ class CardEnhancer {
       // Überschrift „Today Pane“ oben in der Toolbar-Zeile, neben dem Knopf
       const title = d.createElementNS("http://www.w3.org/1999/xhtml", "span");
       title.id = "mcTodayTitle";
-      title.textContent = Services.locale.appLocaleAsBCP47.startsWith("de") ? "Heute-Leiste" : "Today Pane";
+      title.textContent = tr("Today Pane");
       top.append(title);
       row?.prepend(top);
       (row || d.body).append(btn);
@@ -5418,7 +5453,7 @@ class CardEnhancer {
       if (!header || header.dataset.mcTitle) {
         return;
       }
-      header.dataset.mcTitle = Services.locale.appLocaleAsBCP47.startsWith("de") ? "Heute-Leiste" : "Today Pane";
+      header.dataset.mcTitle = tr("Today Pane");
       const home = button?.parentElement;
       const next = button?.nextSibling;
       // ganz unten in der Today-Pane, unter den Einträgen: ein „+“ wie im
@@ -5539,6 +5574,7 @@ class CardEnhancer {
     };
 
     const scan = () => {
+      this.styleSearch(w); // vor markTab, damit der Platzhalter des Bereichs gleich gilt
       markTab();
       decorateAgenda();
       hookMonthView();
@@ -5560,7 +5596,6 @@ class CardEnhancer {
       hookSplitterReset(w.document);
       hookListHeader();
       this.updateListHeader(w);
-      this.styleSearch(w);
       const tabmail = w.document.getElementById("tabmail");
       for (const tab of tabmail?.tabInfo || []) {
         const cw = tab.chromeBrowser?.contentWindow;
@@ -5613,22 +5648,29 @@ class CardEnhancer {
     if (!bar?.shadowRoot || bar.shadowRoot.getElementById("mail-cards-search")) {
       return;
     }
+    // eigener Text nur in Sprachen mit eigener Übersetzung (und Englisch) –
+    // sonst bleibt Thunderbirds übersetzter Platzhalter
+    const own = uiLanguage() != "en" || Services.locale.appLocaleAsBCP47.startsWith("en");
+    // langer eigener Platzhalter („Alle Postfächer durchsuchen“) endet bei
+    // schmalem Feld mit „…“ statt mitten im Wort
+    const ellipsis = own
+      ? `::slotted([slot="placeholder"]) { display: block !important; overflow: hidden !important; text-overflow: ellipsis !important; }`
+      : "";
     const style = w.document.createElementNS("http://www.w3.org/1999/xhtml", "style");
     style.id = "mail-cards-search";
     style.textContent = `
       .button { inset-inline-start: 4px !important; inset-inline-end: auto !important; }
       input { padding-inline: 30px 10px !important; }
       div { inset-inline-start: 30px !important; inset-inline-end: 10px !important; }
+      ${ellipsis}
     `;
     bar.shadowRoot.appendChild(style);
 
     const placeholder = bar.querySelector('[slot="placeholder"]');
     const l10nId = placeholder?.getAttribute("data-l10n-id");
-    if (placeholder) {
+    if (placeholder && own) {
       placeholder.removeAttribute("data-l10n-id");
-      placeholder.textContent = Services.locale.appLocaleAsBCP47.startsWith("de")
-        ? "Suchen"
-        : "Search";
+      placeholder.textContent = tr("Search");
     }
     this.restorers.push(() => {
       style.remove();

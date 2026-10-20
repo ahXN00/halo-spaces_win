@@ -1492,6 +1492,52 @@ def run_checks(m, version, profile, results):
         return ok, f"{res}"
     check("Suche: alle Postfächer, Datum, Trefferzahl, Markierung, zurück zum Ordner", mail_search, results)
 
+    def search_placeholder():
+        # Suchfeld oben: Platzhalter je Bereich steht im eigenen <span slot="placeholder">
+        # (das placeholder-Attribut wäre unsichtbar) und in der Sprache der Oberfläche;
+        # Überschrift über der Adressbuchliste und Today-Pane-Titel ebenso übersetzt
+        res = m.js(r'''
+          const before = new Set(tm.tabInfo);
+          const bar = d.querySelector("#unifiedToolbarContent global-search-bar");
+          const ph = () => bar?.querySelector('[slot="placeholder"]');
+          const text = () => ph()?.textContent;
+          const out = { locale: Services.locale.appLocaleAsBCP47, attr: null };
+          const step = async (key, open, expectChange = true) => {
+            const prev = text(); await open();
+            out[key] = await until(() => (!expectChange || text() != prev) && text(), 4000) || text();
+          };
+          await toMail(); await wait(300); out.mail = text();
+          out.slotted = !!ph()?.assignedSlot; out.l10n = !!ph()?.hasAttribute("data-l10n-id");
+          // zu langer Platzhalter endet mit „…“ im Feld statt darüber hinaus
+          const box = bar?.shadowRoot?.querySelector("div")?.getBoundingClientRect();
+          out.ellipsis = ph() && [w.getComputedStyle(ph()).textOverflow, Math.round(ph().getBoundingClientRect().width) <= Math.round(box?.width || 0)];
+          await step("calendar", () => toCalendar());
+          await step("tasks", async () => { tm.openTab("tasks", {}); await wait(1500); });
+          await step("addressbook", async () => { tm.openTab("addressBookTab", {}); await wait(1500); });
+          const abDoc = tm.currentTabInfo.browser?.contentDocument;
+          out.books = (await until(() => abDoc?.getElementById("mcBooksHeader"), 6000))?.textContent;
+          await step("settings", async () => { w.openPreferencesTab(); await wait(1500); });
+          out.attr = bar?.getAttribute("placeholder");
+          out.today = [d.getElementById("mcTodayTitle")?.textContent, d.getElementById("today-pane-header")?.dataset.mcTitle];
+          for (const t of [...tm.tabInfo]) { if (!before.has(t)) tm.closeTab(t); }
+          await toMail(); await wait(300); out.back = text();
+          return out;''')
+        expect = {
+            "de": ["Alle Postfächer durchsuchen", "Suchen", "Aufgaben durchsuchen", "Kontakte durchsuchen",
+                   "Einstellungen durchsuchen", "Adressbücher", "Heute-Leiste"],
+            "en": ["Search All Mailboxes", "Search", "Search Tasks", "Search Contacts", "Find in Settings",
+                   "Address Books", "Today Pane"],
+        }.get(res["locale"].split("-")[0])
+        got = [res["mail"], res["calendar"], res["tasks"], res["addressbook"], res["settings"], res["books"]]
+        ok = (res["slotted"] and not res["l10n"] and not res["attr"] and res["back"] == res["mail"]
+              and res["ellipsis"] == ["ellipsis", True])
+        if expect:
+            ok = ok and got == expect[:6] and all(t in (None, expect[6]) for t in res["today"]) and expect[6] in res["today"]
+        else:  # andere Sprache: Thunderbirds eigener Platzhalter, nur Überschrift prüfen
+            ok = bool(res["books"])
+        return ok, f"{res}"
+    check("Suche: Platzhalter je Bereich sichtbar und übersetzt, Überschrift „Adressbücher“, Today-Pane-Titel", search_placeholder, results)
+
     def settings_style():
         # Einstellungen: Inhalt mittig (max. 800 px), Kästchen/Optionsfelder im macOS-Stil,
         # Zahlenfeld ohne Systempfeile, Ansichtskacheln ohne Optionsfeld, Kontoeinstellungen als Karten
