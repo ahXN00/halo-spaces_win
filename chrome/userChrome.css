@@ -1745,6 +1745,45 @@ findbar .findbar-textbox:focus {
 #folderTree li[data-folder-type="trash"] > .container .icon { mask-image: var(--mi-trash) !important; }
 #folderTree li[data-folder-type="outbox"] > .container .icon { mask-image: var(--mi-outbox) !important; }
 
+/* Ordnermenüs („Verschieben“, „Kopieren“, Kontextmenüs von Mail und
+   Ordnerliste): dieselben Umriss-Symbole in Akzentfarbe wie Ordnerliste und
+   Toolbar-Knopf statt Thunderbirds gefüllter grauer Ordner; im markierten
+   Eintrag in der Schriftfarbe der Auswahl, deaktiviert grau. Nur in
+   Dokumenten, deren CSP data:-Bilder erlaubt (Hauptfenster, Ordner- und
+   Mailansicht) – in Dialogen mit strengerer CSP fiele die Maske aus und das
+   Symbol verschwände ganz; dort bleibt Thunderbirds Symbol. Die Variablen
+   werden je Eintrag gesetzt, sonst erbten Unterordner im Untermenü Symbol
+   und Farbe ihres (markierten) Elternordners. */
+.folderMenuItem {
+  --mt-folder-mask: var(--mi-folder);
+  --mt-folder-tint: var(--mt-accent);
+}
+.folderMenuItem[SpecialFolder="Inbox"] { --mt-folder-mask: var(--mi-inbox); }
+.folderMenuItem[SpecialFolder="Drafts"] { --mt-folder-mask: var(--mi-drafts); }
+.folderMenuItem[SpecialFolder="Templates"] { --mt-folder-mask: var(--mi-templates); }
+.folderMenuItem[SpecialFolder="Sent"] { --mt-folder-mask: var(--mi-sent); }
+.folderMenuItem[SpecialFolder="Archive"] { --mt-folder-mask: var(--mi-archive); }
+.folderMenuItem[SpecialFolder="Junk"] { --mt-folder-mask: var(--mi-junk); }
+.folderMenuItem[SpecialFolder="Trash"] { --mt-folder-mask: var(--mi-trash); }
+.folderMenuItem[SpecialFolder="Outbox"] { --mt-folder-mask: var(--mi-outbox); }
+.folderMenuItem[IsServer="true"] { --mt-folder-mask: var(--mi-server); }
+.folderMenuItem[IsServer="true"][ServerType="rss"] { --mt-folder-mask: var(--mi-rss); }
+
+menupopup > .folderMenuItem:is([_moz-menuactive]:not([disabled]), [disabled]) {
+  --mt-folder-tint: currentColor;
+}
+
+:root:has(> head > meta[http-equiv="Content-Security-Policy"][content*="data:"]) :is(menu, menuitem).folderMenuItem:not(.stub-menuitem) > .menu-icon {
+  content: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='1' height='1'/%3E") !important;
+  list-style-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='1' height='1'/%3E") !important;
+  width: 16px !important;
+  height: 16px !important;
+  background-color: var(--mt-folder-tint) !important;
+  mask: var(--mt-folder-mask) center / contain no-repeat !important;
+  fill: none !important;
+  stroke: none !important;
+}
+
 /* Knöpfe über Ordner- und Mailliste: Thunderbird zeichnet ihr Symbol als
    Hintergrundbild – das wird ausgeblendet und durch eine Masken-Ebene ersetzt */
 :is(#folderPaneGetMessages, #folderPaneWriteMessage, #folderPaneMoreButton,
@@ -1998,6 +2037,17 @@ menupopup > :is(menu, menuitem)[_moz-menuactive]:not([disabled]) {
   background-color: var(--mt-accent) !important;
   color: var(--mt-accent-text) !important;
   --menuitem-icon-fill: var(--mt-accent-text) !important;
+}
+
+/* Tastenkürzel neutral grau wie bei macOS statt Thunderbirds blaugrauem Ton;
+   im markierten Eintrag in der Schriftfarbe der Auswahl (deaktiviert grau
+   wie der Eintrag) */
+menupopup > menuitem:not([disabled]) .menu-accel {
+  color: var(--mt-text-secondary) !important;
+}
+
+menupopup > menuitem[_moz-menuactive]:not([disabled]) .menu-accel {
+  color: inherit !important;
 }
 
 menupopup > :is(menu, menuitem)[disabled] {
@@ -2272,8 +2322,12 @@ html:root.customizingUnifiedToolbar #unifiedToolbarContainer::before {
    Flächen und Schrift wie in den übrigen Ansichten statt Thunderbirds
    Standardfarben; Leerzustand ruhig in Grau mit kleinem Symbol statt großer
    blauer Lupe; Suchfeld darüber als graue Kapsel wie oben in der Toolbar.
-   Die Trefferliste behält ihr Layout (hängt an Thunderbirds Größen). */
+   Die Trefferliste behält ihr Layout (hängt an Thunderbirds Größen), nur
+   Schrift, Farben und Linien folgen den übrigen Ansichten. */
 #gloda-facet-view {
+  /* Betreffs, Personen und Schlagwörter der Filterspalte in Textfarbe statt
+     Linkblau (Zeitleiste und Markierungen behalten ihre Farbe) */
+  --linkColor: var(--mt-text) !important;
   --layout-background-0: var(--mt-window) !important;
   --layout-background-1: var(--mt-sidebar) !important;
   --layout-color-0: var(--mt-text) !important;
@@ -2300,6 +2354,40 @@ html:root.customizingUnifiedToolbar #unifiedToolbarContainer::before {
   font-size: 13px !important;
   font-weight: 600 !important;
   color: var(--mt-text) !important;
+}
+
+/* Treffer: Systemschrift statt Thunderbirds Monospace bzw. sans-serif,
+   Betreff halbfett in 13 px, Auszug in 12 px grau; Linien zwischen den
+   Treffern und beim Überfahren als Haarlinie statt hellgrau (dunkel grell) */
+#gloda-facet-view :is(.message, .message-body) {
+  font-family: var(--mt-font) !important;
+}
+
+#gloda-facet-view .message-subject {
+  font-size: 13px !important;
+  font-weight: 600 !important;
+}
+
+#gloda-facet-view .message-body {
+  font-size: 12px !important;
+  color: var(--mt-text-secondary) !important;
+}
+
+#gloda-facet-view .message:not(:last-child) {
+  border-block-end-color: var(--mt-separator) !important;
+}
+
+#gloda-facet-view .message:hover {
+  border-color: var(--mt-separator) !important;
+  box-shadow: none !important;
+  background-color: var(--mt-hover) !important;
+}
+
+/* Schlagwort als Plakette in seiner Farbe, ohne zusätzlichen Rand */
+#gloda-facet-view .message-tag {
+  border: none !important;
+  border-radius: 4px !important;
+  font-size: 11px !important;
 }
 
 .glodaTabToolbar .remote-gloda-search {

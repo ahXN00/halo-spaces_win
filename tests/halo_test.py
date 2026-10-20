@@ -1359,6 +1359,19 @@ def folder_checks(m, results):
                     side: csOf(gd.querySelector(".facets-sidebar")).backgroundColor, sidebar: colorOf(gd, "var(--mt-sidebar)", "backgroundColor"),
                     empty: csOf(empty).color, secondary: colorOf(gd, "var(--mt-text-secondary)"), img: csOf(img).width };
                   out.view.contrast = contrast(rgba(out.view.empty), rgba(out.view.bg));
+                  // Treffer mit denselben Klassen wie glodaFacet.js nachgebaut (Gloda indiziert im Testprofil
+                  // nicht verlässlich rechtzeitig); Thunderbirds Regeln hängen nur an den Klassen
+                  const mk = (tag, cls, text) => { const e = gd.createElementNS("http://www.w3.org/1999/xhtml", tag); e.className = cls;
+                    if (text) e.textContent = text; return e; };
+                  const box = mk("div", "halo-test"), m1 = mk("div", "message"), m2 = mk("div", "message");
+                  const subj = mk("span", "message-subject", "Betreff"), tag = mk("span", "message-tag", "To Do"),
+                        body = mk("div", "message-body", "Auszug"), bar = mk("span", "bar-link", "Anna Beispiel");
+                  m1.append(subj, tag, body); box.append(m1, m2, bar); gd.getElementById("main-column").append(box);
+                  out.results = { font: csOf(view).fontFamily, msg: csOf(m1).fontFamily, bodyFont: csOf(body).fontFamily,
+                    subj: [csOf(subj).color, csOf(subj).fontSize, csOf(subj).fontWeight], text: colorOf(gd, "var(--mt-text)"),
+                    body: [csOf(body).color, csOf(body).fontSize], line: csOf(m1).borderBottomColor, sep: colorOf(gd, "var(--mt-separator)"),
+                    person: csOf(bar).color, tag: [csOf(tag).borderTopStyle, csOf(tag).borderTopLeftRadius] };
+                  box.remove();
                 }
                 const rs = tab.panel?.querySelector(".remote-gloda-search");
                 out.field = rs && { border: csOf(rs).borderTopStyle, radius: parseFloat(csOf(rs).borderTopLeftRadius), height: Math.round(rs.getBoundingClientRect().height),
@@ -1381,6 +1394,92 @@ def folder_checks(m, results):
               and bool(f) and f["border"] == "none" and f["radius"] >= 14 and f["height"] >= 26 and same_color(f["bg"], f["control"]))
         return ok, f"Seite {v}; Suchfeld {f}"
     check("Globale Suche: Ergebnis-Tab in den Flächen der übrigen Ansichten, Leerhinweis grau (Kontrast ≥ 4,5:1), Suchfeld als Kapsel", gloda_page, results)
+
+    def gloda_results():
+        g = gloda_tab()
+        r, v = g.get("results") or {}, g.get("view") or {}
+        ok = (bool(r) and r["msg"] == r["font"] and r["bodyFont"] == r["font"] and "monospace" not in r["bodyFont"]
+              and same_color(r["subj"][0], r["text"]) and r["subj"][1] == "13px" and r["subj"][2] == "600"
+              and same_color(r["body"][0], v.get("secondary")) and r["body"][1] == "12px"
+              and same_color(r["line"], r["sep"]) and same_color(r["person"], r["text"])
+              and r["tag"] == ["none", "4px"])
+        return ok, f"{r}"
+    check("Globale Suche: Treffer in Systemschrift statt Monospace, Betreff und Personen in Textfarbe statt Linkblau, Linien als Haarlinie",
+          gloda_results, results)
+
+    def menu_accel():
+        # Tastenkürzel in Menüs (z. B. „Markieren“): neutral grau statt blaugrau, im markierten Eintrag in Auswahl-Schrift.
+        # Eigenes kleines Menü im Hauptfenster (Einträge geschlossener Menüs haben keine berechneten Stile)
+        res = m.js(FOLDER_JS + r"""
+          await toMail();
+          const p = d.createXULElement("menupopup"), mi = d.createXULElement("menuitem"), off = d.createXULElement("menuitem");
+          mi.setAttribute("label", "Als ungelesen"); mi.setAttribute("acceltext", "M");
+          off.setAttribute("label", "Als gelesen"); off.setAttribute("acceltext", "M"); off.setAttribute("disabled", "true");
+          p.append(mi, off); (d.getElementById("mainPopupSet") || d.documentElement).append(p);
+          p.openPopupAtScreen(w.screenX + 300, w.screenY + 200, false);
+          const out = {};
+          try {
+            out.state = await until(() => p.state == "open" && p.state, 4000) || p.state;
+            const acc = mi.querySelector(".menu-accel"), acc2 = off.querySelector(".menu-accel");
+            if (!acc) return out;
+            Object.assign(out, { color: csOf(acc).color, secondary: colorOf(d, "var(--mt-text-secondary)"),
+                                 disabled: [csOf(acc2).color, csOf(off).color] });
+            mi.setAttribute("_moz-menuactive", "true"); await wait(100);
+            out.active = [csOf(acc).color, csOf(mi).color, colorOf(d, "var(--mt-accent-text)")];
+          } finally { p.hidePopup(); await wait(300); p.remove(); }
+          return out;""")
+        ok = (bool(res.get("color")) and same_color(res["color"], res["secondary"]) and same_color(res["disabled"][0], res["disabled"][1])
+              and same_color(res["active"][0], res["active"][1]) and same_color(res["active"][0], res["active"][2]))
+        return ok, f"{res}"
+    check("Menüs: Tastenkürzel neutral grau, im markierten Eintrag in der Schriftfarbe der Auswahl", menu_accel, results)
+
+    def folder_menu_icons():
+        # Ordnermenü „Verschieben“ (Toolbar): Umriss-Symbole wie die Ordnerliste in Akzentfarbe, Papierkorb und Konto
+        # mit eigenem Symbol; markiertes Konto in der Schrift der Auswahl, ohne dass sein Untermenü das erbt
+        res = m.js(FOLDER_JS + r"""
+          await toMail();
+          const P = d.getElementById("toolbarMoveToPopup");
+          const mask = v => { const e = d.createElementNS("http://www.w3.org/1999/xhtml", "div"); e.style.maskImage = v;
+            d.documentElement.append(e); const r = csOf(e).maskImage; e.remove(); return r; };
+          const icon = x => x.querySelector(":scope > .menu-icon");
+          const info = x => { const s = csOf(icon(x)); return { label: x.getAttribute("label"), mask: s.maskImage, bg: s.backgroundColor, w: s.width }; };
+          const out = { accent: colorOf(d, "var(--mt-accent)"), folder: mask("var(--mi-folder)"), serverMask: mask("var(--mi-server)"),
+                        trashMask: mask("var(--mi-trash)") };
+          P.openPopupAtScreen(w.screenX + 300, w.screenY + 200, false);
+          try {
+            out.state = await until(() => P.state == "open" && P.state, 4000) || P.state;
+            const server = [...P.children].find(x => x.getAttribute("IsServer") == "true");
+            const plain = [...P.children].find(x => x.classList.contains("folderMenuItem") && !x.hasAttribute("IsServer"));
+            if (!server || !plain || !icon(server)) return { ...out, fehlt: [!!server, !!plain] };
+            server.openMenu(true);
+            out.sub_state = await until(() => server.menupopup?.state == "open" && "open", 4000) || server.menupopup?.state;
+            const kids = [...server.menupopup.children].filter(x => x.classList.contains("folderMenuItem"));
+            const trash = kids.find(x => x.getAttribute("SpecialFolder") == "Trash"), sub = kids.find(x => x.getAttribute("SpecialFolder") == "none");
+            Object.assign(out, { plain: info(plain), trash: trash && info(trash), sub: sub && info(sub) });
+            server.setAttribute("_moz-menuactive", "true"); await wait(100);
+            out.server = info(server); out.server_color = csOf(server).color; out.trash_active = trash && csOf(icon(trash)).backgroundColor;
+          } finally { P.hidePopup(); await wait(400); }
+          // Ordner- und Mailansicht erlauben data:-Bilder (sonst fielen die Masken dort aus)
+          const scope = ':has(> head > meta[http-equiv="Content-Security-Policy"][content*="data:"])';
+          const a3 = tm.currentAbout3Pane;
+          out.scope = [d, a3.document, a3.messageBrowser?.contentDocument].map(x => !!x && x.documentElement.matches(scope));
+          return out;""")
+        if not res or "fehlt" in res or "plain" not in res:
+            return False, f"{res}"
+        acc, trash, sub = res["accent"], res.get("trash") or {}, res.get("sub")
+        flags = {
+            "Ordner": res["plain"]["mask"] == res["folder"] and same_color(res["plain"]["bg"], acc) and res["plain"]["w"] == "16px",
+            "Konto markiert": res["server"]["mask"] == res["serverMask"] and same_color(res["server"]["bg"], res["server_color"]),
+            "Papierkorb": trash.get("mask") == res["trashMask"] and same_color(trash.get("bg"), acc) and same_color(res.get("trash_active"), acc),
+            "Unterordner": not sub or (sub["mask"] == res["folder"] and same_color(sub["bg"], acc)),
+            "CSP erlaubt data:": res["scope"] == [True, True, True]}
+        detail = {k: v for k, v in res.items() if k not in ("folder", "serverMask", "trashMask")}
+        for k in ("plain", "server", "trash", "sub"):
+            if detail.get(k):
+                detail[k] = {**detail[k], "mask": detail[k]["mask"][:40]}
+        return all(flags.values()), f"{flags} {detail}"
+    check("Ordnermenüs (Verschieben): Umriss-Symbole in Akzentfarbe wie die Ordnerliste statt Thunderbirds gefüllter Ordner",
+          folder_menu_icons, results)
 
     def suggestions():
         res = m.js(FOLDER_JS + r"""
