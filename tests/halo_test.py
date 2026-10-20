@@ -560,7 +560,8 @@ def run_checks(m, version, profile, results):
           const f = x => x ? `${p(x.getDate())}.${p(x.getMonth() + 1)}.${x.getFullYear()} ${p(x.getHours())}:${p(x.getMinutes())}` : "-";
           const out = {};
           for (const t of ["Lunch für 2h um 12 Uhr", "Workshop für 1.5h morgen um 10 Uhr", "Meeting 14:00 für 2h", "Arzt Freitag morgen 8 Uhr",
-                           "Arzt morgen 8 Uhr", "Termin 1.3.25", "Call 11-1pm", "Call 2-4pm", "Party 22-2 Uhr", "Arbeit 9-5"]) {
+                           "Arzt morgen 8 Uhr", "Termin 1.3.25", "Call 11-1pm", "Call 2-4pm", "Party 22-2 Uhr", "Arbeit 9-5",
+                           "Schicht 18-7 Uhr", "Standup 11-12am", "Gottesdienst Karfreitag morgen 10 Uhr"]) {
             const r = parse(t, new Date(2026, 9, 20, 15, 0));
             out[t] = `${r.title} | ${f(r.start)} – ${f(r.end)}`;
           }
@@ -576,9 +577,12 @@ def run_checks(m, version, profile, results):
             "Call 2-4pm": "Call | 20.10.2026 14:00 – 20.10.2026 16:00",
             "Party 22-2 Uhr": "Party | 20.10.2026 22:00 – 21.10.2026 02:00",
             "Arbeit 9-5": "Arbeit | 20.10.2026 09:00 – 20.10.2026 17:00",
+            "Schicht 18-7 Uhr": "Schicht | 20.10.2026 18:00 – 21.10.2026 07:00",
+            "Standup 11-12am": "Standup | 20.10.2026 11:00 – 20.10.2026 12:00",
+            "Gottesdienst Karfreitag morgen 10 Uhr": "Gottesdienst Karfreitag | 21.10.2026 10:00 – 21.10.2026 11:00",
         }
         bad = [f"„{k}“ → {res.get(k)}" for k, v in expected.items() if res.get(k) != v]
-        return not bad, "; ".join(bad) or f"{len(expected)} Eingaben richtig (Dauer, „Freitag morgen“, Jahr „25“, am/pm, über Mitternacht)"
+        return not bad, "; ".join(bad) or f"{len(expected)} Eingaben richtig (Dauer, „Freitag morgen“, „Karfreitag morgen“, Jahr „25“, am/pm, „12am“, über Mitternacht)"
     check("Schnellfenster: Dauer, Wochentag mit „morgen“, zweistelliges Jahr, Zeiträume", natural_rules, results)
 
     def quick_late_allday():
@@ -594,14 +598,25 @@ def run_checks(m, version, profile, results):
             Cu.evalInSandbox("enhancer", g).openQuickCreate(w, "event", null, { start: new Date(2026, 9, 21), allDay: true });
             const p = d.getElementById("mcQuickPanel"); const f = p.__mc;
             out = { start: f.startDate.value, time: f.startTime.value, end: f.endDate.value, allDay: f.allDay.checked };
+            p.hidePopup();
+            // „+“ der Today-Pane mit heute als Tag: 0:00 am Folgetag statt 23:00 heute (Beginn in der Vergangenheit)
+            const tp = w.TodayPane; const origStart = tp.start;
+            tp.start = { year: 2026, month: 9, day: 20 };
+            try {
+              Cu.evalInSandbox("enhancer", g).openQuickCreate(w, "event", d.getElementById("todaypane-new-event-button"));
+              out.todayPane = { start: f.startDate.value, time: f.startTime.value };
+            } finally {
+              tp.start = origStart;
+            }
           } finally {
             Cu.evalInSandbox("Date = globalThis.__mcRealDate; delete globalThis.__mcRealDate;", g);
           }
           d.getElementById("mcQuickPanel").hidePopup(); await wait(400);
           return out;''' % ADDON_ID)
-        ok = res == {"start": "2026-10-21", "time": "23:00", "end": "2026-10-21", "allDay": True}
+        ok = res == {"start": "2026-10-21", "time": "23:00", "end": "2026-10-21", "allDay": True,
+                     "todayPane": {"start": "2026-10-21", "time": "00:00"}}
         return ok, f"{res}"
-    check("Schnellfenster: ganztägig um 23 Uhr bleibt am angeklickten Tag", quick_late_allday, results)
+    check("Schnellfenster: ganztägig um 23 Uhr bleibt am angeklickten Tag, „+“ der Today-Pane um 23 Uhr beginnt morgen 0 Uhr", quick_late_allday, results)
 
     def quick_checks():
         # ganztägig mit Ende vor dem Beginn → ein Tag; Aufgabe mit Erinnerung bekommt eine Fälligkeit

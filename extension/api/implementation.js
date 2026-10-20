@@ -2423,11 +2423,12 @@ function parseNatural(text, now = new Date()) {
     allDay = true;
   }
   const dayNames = Object.keys(NL_WEEKDAYS).filter(k => k.length > 3).join("|");
-  // relative Tage („morgen“ nach einem Wochentag ist der Vormittag: „Freitag morgen 8 Uhr“)
+  // relative Tage („morgen“ nach einem Wochentag ist der Vormittag: „Freitag
+  // morgen 8 Uhr“ – nur nach dem ganzen Wort, nach „Karfreitag“ bleibt es morgen)
   let m = take(new RegExp(`${B}(übermorgen|day after tomorrow)${E}`, "iu"));
   if (m) {
     day = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 2);
-  } else if ((m = take(new RegExp(`${B}(heute|today|(?<!(?:${dayNames})\\s+)morgen|tomorrow)${E}`, "iu")))) {
+  } else if ((m = take(new RegExp(`${B}(heute|today|(?<!${B}(?:${dayNames})\\s+)morgen|tomorrow)${E}`, "iu")))) {
     const plus = /^(morgen|tomorrow)$/i.test(m[1]) ? 1 : 0;
     day = new Date(now.getFullYear(), now.getMonth(), now.getDate() + plus);
   }
@@ -2481,6 +2482,10 @@ function parseNatural(text, now = new Date()) {
   if (range) {
     startMin = toMinutes(range[1], range[2], range[3]);
     endMin = toMinutes(range[4], range[5], range[6]);
+    // „11-12am“ meint umgangssprachlich bis Mittag, nicht bis Mitternacht
+    if (!range[3] && /^a/i.test(range[6]) && endMin == 0) {
+      endMin = 12 * 60;
+    }
     // nur das Ende hat am/pm: der Beginn übernimmt es, wenn er dann vor dem Ende
     // liegt („2-4pm“ → 14–16 Uhr, aber „11-1pm“ → 11–13 Uhr)
     if (!range[3] && range[6] && toMinutes(range[1], range[2], range[6]) < endMin) {
@@ -2510,8 +2515,9 @@ function parseNatural(text, now = new Date()) {
     result.start = new Date(base.getFullYear(), base.getMonth(), base.getDate(), Math.floor(startMin / 60), startMin % 60);
     let end = endMin != null ? endMin : startMin + (duration ?? 60);
     if (endMin != null && end <= startMin) {
-      // Ende vor dem Beginn: „9-5“ → 17:00, „22-2 Uhr“ → 02:00 am Folgetag
-      end += !range[6] && end < 12 * 60 && end + 12 * 60 > startMin ? 12 * 60 : 24 * 60;
+      // Ende vor dem Beginn: „9-5“ → 17:00, „22-2 Uhr“ → 02:00 am Folgetag;
+      // 12-Stunden-Lesart nur bei Beginn bis Mittag („18-7 Uhr“ endet um 7 Uhr früh)
+      end += !range[6] && startMin < 13 * 60 && end < 12 * 60 && end + 12 * 60 > startMin ? 12 * 60 : 24 * 60;
     }
     result.end = new Date(base.getFullYear(), base.getMonth(), base.getDate(), Math.floor(end / 60), end % 60);
     if (result.end <= result.start) {
@@ -6388,9 +6394,13 @@ class CardEnhancer {
         day = new Date(ts.year, ts.month, ts.day, now.getHours(), now.getMinutes());
       }
     } catch {}
-    // ein anderer Tag als heute bleibt auch nach 23 Uhr dieser Tag (23:00 statt 0:00 am Folgetag)
+    // ein anderer Tag als heute bleibt auch nach 23 Uhr dieser Tag (23:00 statt
+    // 0:00 am Folgetag); heute – auch per „+“ der Today-Pane – wie bisher 0:00 am
+    // Folgetag statt eines Beginns in der Vergangenheit (Datum vergleichen, die
+    // Today-Pane liefert ein eigenes Date-Objekt)
     const nextHour = Math.min(now.getHours() + 1, 23);
-    let start = new Date(day.getFullYear(), day.getMonth(), day.getDate(), day === now ? now.getHours() + 1 : nextHour, 0);
+    const isToday = day.getFullYear() == now.getFullYear() && day.getMonth() == now.getMonth() && day.getDate() == now.getDate();
+    let start = new Date(day.getFullYear(), day.getMonth(), day.getDate(), isToday ? now.getHours() + 1 : nextHour, 0);
     if (preset?.start) {
       start = preset.allDay
         ? new Date(preset.start.getFullYear(), preset.start.getMonth(), preset.start.getDate(), nextHour, 0)
