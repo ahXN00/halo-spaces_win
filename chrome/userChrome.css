@@ -2828,6 +2828,20 @@ calendar-minimonth:not(#calMinimonth, #today-minimonth, #from-minimonth, #to-min
 
 /* Vorschau der Wiederholung: Monate mit Haarlinie und 10 px Radius statt
    1 px Zinkgrau (dunkel #71717A) */
+/* Wiederholung: „Repeat“ mittig zur Auswahlliste (Thunderbird rückt die
+   Beschriftung passend zu seiner eigenen, anders hohen Liste 6 px ein);
+   Zahlenfelder 28 px hoch wie die Liste – die Regel für Dialogfelder greift
+   hier nicht */
+#calendar-event-dialog-recurrence .recurrence-pattern-hbox-label {
+  margin-block-start: 11px !important;
+}
+
+#calendar-event-dialog-recurrence input.input-inline {
+  box-sizing: border-box !important;
+  height: 28px !important;
+  min-height: 0 !important;
+}
+
 #recurrencePreview calendar-minimonth {
   border: var(--mt-hairline) solid var(--mt-pane-line) !important;
   border-radius: 10px !important;
@@ -4598,7 +4612,8 @@ search-bar {
    in der Akzentfarbe mit weißem Haken bzw. Punkt */
 checkbox > .checkbox-check,
 radio > .radio-check,
-#paneDeck input:is([type="checkbox"], [type="radio"]):not(.toggle-button) {
+#paneDeck input:is([type="checkbox"], [type="radio"]):not(.toggle-button),
+#mcQuickPanel input[type="checkbox"] {
   appearance: none !important;
   box-sizing: border-box !important;
   width: 16px !important;
@@ -4612,8 +4627,15 @@ radio > .radio-check,
 }
 
 checkbox > .checkbox-check,
-#paneDeck input[type="checkbox"]:not(.toggle-button) {
+#paneDeck input[type="checkbox"]:not(.toggle-button),
+#mcQuickPanel input[type="checkbox"] {
   border-radius: 4px !important;
+}
+
+/* Schnellfenster: Kästchen („Ganztägig“, „Fällig“) bündig mit den Feldern
+   darunter – der Abstand kommt dort aus der Lücke der Zeile */
+#mcQuickPanel input[type="checkbox"] {
+  margin: 0 !important;
 }
 
 radio > .radio-check,
@@ -4627,7 +4649,8 @@ radio > .radio-check,
    overrides/check.svg ist Thunderbirds kräftiger Haken mit context-fill
    (nicht global/icons/check.svg: das leitet Thunderbird auf einen dünnen um) */
 checkbox[checked] > .checkbox-check,
-#paneDeck input[type="checkbox"]:not(.toggle-button):checked {
+#paneDeck input[type="checkbox"]:not(.toggle-button):checked,
+#mcQuickPanel input[type="checkbox"]:checked {
   border-color: transparent !important;
   background: var(--mt-accent) url("chrome://messenger/skin/overrides/check.svg") center / 12px no-repeat !important;
   -moz-context-properties: fill !important;
@@ -4651,7 +4674,8 @@ radio[selected] > .radio-check,
 }
 
 :is(checkbox, radio)[disabled] > :is(.checkbox-check, .radio-check),
-#paneDeck input:is([type="checkbox"], [type="radio"]):disabled {
+#paneDeck input:is([type="checkbox"], [type="radio"]):disabled,
+#mcQuickPanel input[type="checkbox"]:disabled {
   opacity: 0.45 !important;
 }
 
@@ -6350,6 +6374,18 @@ timepicker-grids .time-picker-more-control-label {
    die Statusleiste des Hauptfensters setzt die Außenabstände der Labels auf 0 */
 #calendar-event-window #status-bar .statusbarpanel > label + label {
   margin-inline-start: 4px !important;
+}
+
+/* ohne den hellen Prägeschatten von macOS – dunkel wirkte die Schrift verschwommen */
+#calendar-event-window #status-bar :is(label, description) {
+  text-shadow: none !important;
+}
+
+/* Kategorien: Farbpunkte mit feinem Ring – helle (hell) bzw. dunkle (dunkel)
+   Kategoriefarben verschwanden sonst in der Menüfläche; weiche Übergänge
+   statt harter Stopps, sonst wirkt der Punkt eckig */
+#item-categories > menupopup > menuitem .menu-text {
+  background-image: radial-gradient(circle 5.5px at 5px 50%, var(--item-color) 3.6px, color-mix(in srgb, var(--mt-text) 30%, transparent) 4.3px 4.6px, transparent 5.2px) !important;
 }
 
 /* Reiter Beschreibung/Anhänge/Teilnehmer als Segment-Kapseln */
@@ -8195,8 +8231,8 @@ notification-message toolbarbutton.notification-button > .toolbarbutton-menubutt
   font-variant-numeric: tabular-nums !important;
 }
 
-#mcQuickPanel .mc-qc-ctrl :is(input, select):hover,
-#mcQuickPanel .mc-qc-ctrl :is(input, select):focus {
+#mcQuickPanel .mc-qc-ctrl :is(input:not([type="checkbox"]), select):hover,
+#mcQuickPanel .mc-qc-ctrl :is(input:not([type="checkbox"]), select):focus {
   background: var(--mt-control) !important;
   outline: none !important;
 }
@@ -8275,8 +8311,12 @@ notification-message toolbarbutton.notification-button > .toolbarbutton-menubutt
   background: var(--mc-qc-color, var(--mt-accent)) !important;
 }
 
+/* Name 8 px hinter dem Farbpunkt (Lücke der Karte): ohne den eigenen
+   Innenabstand der Auswahl, den Pfeil zeichnet ::after */
 #mcQuickPanel .mc-qc-calsel {
   flex: 1 !important;
+  padding-inline: 0 !important;
+  margin-inline: 0 !important;
   height: 38px !important;
   border: none !important;
   background: transparent !important;

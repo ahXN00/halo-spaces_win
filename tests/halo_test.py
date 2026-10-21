@@ -1952,7 +1952,7 @@ def calendar_checks(m, results):
           for (const x of [...Services.wm.getEnumerator(null)]) if (!x.location.href.includes("messenger.xhtml")) x.close();
           const c = testCalendar(); const e = new CalEvent(); e.title = "Halo Linientermin"; e.calendar = c;
           const s = cal.dtz.now(); s.minute = 0; s.second = 0; const en = s.clone(); en.hour += 1; e.startDate = s; e.endDate = en;
-          e.setProperty("DESCRIPTION", "Erfundene Beschreibung zum Kontrast."); e.setProperty("TRANSP", "OPAQUE"); const saved = await c.addItem(e);
+          e.setProperty("DESCRIPTION", "Erfundene Beschreibung zum Kontrast."); e.setProperty("TRANSP", "OPAQUE"); e.setCategories(["Business"]); const saved = await c.addItem(e);
           const out = { dark };
           let dw = null;
           try {
@@ -1969,6 +1969,13 @@ def calendar_checks(m, results):
             const labs = fb ? [...fb.querySelectorAll(":scope > label")].filter(l => !l.hidden && vis(l)) : [];
             out.status = labs.length >= 2 ? Math.round((labs[1].getBoundingClientRect().left - labs[0].getBoundingClientRect().right) * 10) / 10 : null;
             out.statusText = labs.map(l => l.value || l.textContent).join("|");
+            out.shadows = [...new Set([...dw.document.querySelectorAll("#status-bar :is(label, description)")].map(l => csOf(l).textShadow))];
+            // Kategorien: Farbpunkte im Menü mit feinem Ring, Farbchip der gewählten Kategorie im Feld mit Haarlinie
+            const cats = id.getElementById("item-categories"), cp = id.getElementById("item-categories-popup") || cats?.menupopup;
+            const mt = cp && [...cp.querySelectorAll(":scope > menuitem .menu-text")][0];
+            out.catDot = mt ? csOf(mt).backgroundImage.slice(0, 20) : null;
+            const chip = cats?.shadowRoot?.querySelector('[part~="color"]');
+            out.catChip = chip ? csOf(chip).boxShadow : null;
             let bg = null;
             for (let el = ed; el && el.nodeType == 1; el = el.parentElement) { const b = csOf(el).backgroundColor; if (!/rgba\(.*, 0\)$/.test(b) && b != "transparent") { bg = b; break; } }
             out.desc = body ? { color: csOf(body).color, body: csOf(body).backgroundColor, field: bg } : null;
@@ -1983,9 +1990,11 @@ def calendar_checks(m, results):
         ok_desc = bool(desc) and (rgba_alpha(desc["body"]) == 0 or not res["dark"]) and (
             contrast(desc["color"], desc["field"]) >= 4.5 if res["dark"] else luminance(desc["color"]) < 0.2)
         ok = (len(seps) >= 2 and all(rgba_alpha(c) <= 0.12 and float(wd[:-2]) <= 1 for c, wd in seps)
-              and res.get("status") is not None and res["status"] >= 3 and ok_desc)
+              and res.get("status") is not None and res["status"] >= 3 and ok_desc
+              and res.get("shadows") == ["none"] and (res.get("catDot") or "").startswith("radial-gradient")
+              and res.get("catChip") not in (None, "none"))
         return ok, f"{res}"
-    check("Termin-Dialog: Trennlinien als Haarlinie, „Time as: Busy“ mit Abstand, Beschreibung lesbar (dunkel ≥ 4,5:1)", event_dialog_lines, results)
+    check("Termin-Dialog: Trennlinien als Haarlinie, „Time as: Busy“ mit Abstand ohne Prägeschatten, Beschreibung lesbar (dunkel ≥ 4,5:1), Kategorie-Farbpunkte mit Ring", event_dialog_lines, results)
 
     def reminder_dialog():
         # Erinnerungen anpassen: Liste ohne native Rahmenzeichnung, mit Haarlinie; Trenner neben den Überschriften fein
@@ -2037,6 +2046,11 @@ def calendar_checks(m, results):
             const ml = iw.document.getElementById("item-repeat"); ml.value = "custom"; later(() => iw.editRepeat ? iw.editRepeat() : iw.updateRepeat());
             rw = await winUrl("calendar-event-dialog-recurrence"); if (!rw) return { recurrence: false };
             await pause(1500);
+            const rd = rw.document, mid = el => { const r = el.getBoundingClientRect(); return r.top + r.height / 2; };
+            const lab = [...rd.querySelectorAll("label.recurrence-pattern-hbox-label")].find(vis), pl = rd.getElementById("period-list");
+            const dd = rd.getElementById("daily-days");
+            out.align = lab && pl ? Math.round((mid(lab) - mid(pl)) * 10) / 10 : null;
+            out.heights = [pl && Math.round(pl.getBoundingClientRect().height * 10) / 10, dd && vis(dd) ? Math.round(dd.getBoundingClientRect().height * 10) / 10 : null];
             out.months = [...rw.document.querySelectorAll("#recurrencePreview calendar-minimonth")].filter(vis).map(mm => { const st = csOf(mm);
               return { bg: st.backgroundColor, bw: st.borderTopWidth, border: st.borderTopColor, radius: st.borderTopLeftRadius,
                        busy: [...mm.querySelectorAll("td[busy]")].length }; });
@@ -2051,8 +2065,10 @@ def calendar_checks(m, results):
         ok = (len(ms) >= 1 and all(rgba_alpha(x["bg"]) == 0 and float(x["bw"][:-2]) <= 1 and rgba_alpha(x["border"]) <= 0.12
                                    and not same_color(x["border"], "rgb(113, 113, 122)") and float(x["radius"][:-2]) >= 10 for x in ms)
               and any(x["busy"] for x in ms))
+        al, hs = res.get("align"), res.get("heights") or [None, None]
+        ok = ok and al is not None and abs(al) <= 1 and None not in hs and abs(hs[0] - 28) <= 1 and abs(hs[1] - 28) <= 1
         return ok, f"{res}"
-    check("Wiederholung: Vorschau-Monate mit Haarlinie und 10 px Radius, ohne Fläche, Belegt-Punkte bleiben", recurrence_preview, results)
+    check("Wiederholung: Vorschau-Monate mit Haarlinie und 10 px Radius, ohne Fläche, Belegt-Punkte bleiben; „Repeat“ mittig zur Liste, Zahlenfeld 28 px", recurrence_preview, results)
 
     def agenda_days():
         # Today-Pane: Tagesspalte (ca. 38 px) eines Tags mit nur einem Eintrag ragte bis auf 2–6 px an den nächsten Tag
@@ -2130,6 +2146,38 @@ def calendar_checks(m, results):
         ok = bool(sel) and (luminance(sel) > 0.08 and rgba_alpha(sel) == 1 if res["dark"] else same_color(sel, "rgb(255, 255, 255)"))
         return ok, f"{res}"
     check("Schnellfenster: gewähltes Segment heller als die Spur (auch dunkel)", quick_segment, results)
+
+    def quick_allday_calrow():
+        # Schnellfenster: „All Day“ als macOS-Kästchen (früher grau gefülltes Systemkästchen ohne Rand, wirkte deaktiviert);
+        # Kalendername 8 px hinter dem Farbpunkt statt ca. 21 px (Innenabstand der Auswahl)
+        res = m.js(CAL_CHECK_JS + r"""
+          await toWeek();
+          const li = [...d.querySelectorAll('#unifiedToolbarContent li[item-id="new-event"]')].find(vis);
+          li.querySelector("button").click();
+          const qp = await till(() => { const q = d.getElementById("mcQuickPanel"); return q?.state == "open" && q; }, 4000);
+          if (!qp) return { open: false, visibility: d.visibilityState };
+          await pause(300);
+          const out = { open: true, dark, checkBg: colorOf(d, "var(--mt-check-bg)", "backgroundColor"), accent: colorOf(d, "var(--mt-accent)", "backgroundColor") };
+          try {
+            const f = qp.__mc; if (!vis(f.allDay)) { f.summary.click(); await pause(600); }
+            const cb = f.allDay, st = csOf(cb);
+            out.cb = { app: st.appearance, bw: st.borderTopWidth, bg: st.backgroundColor, w: Math.round(cb.getBoundingClientRect().width) };
+            const was = cb.checked; cb.click(); await pause(250);
+            out.cbOn = { checked: cb.checked, bg: csOf(cb).backgroundColor, img: csOf(cb).backgroundImage.slice(0, 20) };
+            if (cb.checked != was) { cb.click(); await pause(150); }
+            const sel = f.calendar, card = sel.closest(".mc-qc-calcard");
+            out.calGap = Math.round((sel.getBoundingClientRect().left + parseFloat(csOf(sel).paddingInlineStart)
+              - (card.getBoundingClientRect().left + parseFloat(csOf(card).paddingInlineStart) + 12)) * 10) / 10;
+            return out;
+          } finally { await shutPop(qp); }""")
+        if not res.get("open"):
+            return res.get("visibility") == "hidden", f"Schnellfenster nicht offen {res}"
+        cb, on = res.get("cb") or {}, res.get("cbOn") or {}
+        ok = (cb.get("app") == "none" and float(cb["bw"][:-2]) >= 0.5 and same_color(cb["bg"], res["checkBg"])
+              and on.get("checked") and same_color(on["bg"], res["accent"]) and on["img"].startswith("url(")
+              and res.get("calGap") is not None and res["calGap"] <= 10)
+        return ok, f"{res}"
+    check("Schnellfenster: „Ganztägig“ als macOS-Kästchen, Kalendername dicht am Farbpunkt", quick_allday_calrow, results)
 
     def enable_badge():
         # Kalenderliste: Plakette „Aktivieren“ als graue Kapsel statt schieferblauer Fläche mit weißer Großschrift
