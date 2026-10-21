@@ -2454,6 +2454,145 @@ html:root.customizingUnifiedToolbar #unifiedToolbarContainer::before {
 }
 
 
+/* ---------- Seltene Dialoge ---------- */
+
+/* Filterprotokoll: Protokollfläche mit Haarlinie und 8 px wie die Listen in
+   Dialogen (die dunkle Fläche selbst setzt noscroll.css im Inhaltsprozess) */
+#viewLogWindow #logView {
+  border: var(--mt-hairline) solid var(--mt-pane-line) !important;
+  border-radius: 8px !important;
+}
+
+/* „Ordner komprimieren?“: Thunderbird zeichnet das Fragezeichen ohne
+   context-fill schwarz (dunkel unsichtbar) – in der Akzentfarbe */
+#folderCompactDialog #contentWrapper > img {
+  -moz-context-properties: fill, fill-opacity !important;
+  fill: var(--mt-accent) !important;
+  fill-opacity: 1 !important;
+}
+
+/* Suchordner → Ordner auswählen: Liste in der Inhaltsfläche mit Haarlinie
+   statt tiefschwarz (dunkel) mit hartem Rahmen, Hover neutral statt
+   blaustichig; die Kästchen kommen aus dem Kästchen-Block in spaces.css */
+#folderPickerTree {
+  background-color: var(--mt-window) !important;
+  border: var(--mt-hairline) solid var(--mt-pane-line) !important;
+  border-radius: 8px !important;
+}
+
+#folderPickerTree tr.table-layout:not(.selected):hover {
+  background-color: var(--mt-hover) !important;
+}
+
+/* Filterliste und Nachrichten suchen sind <window>, nicht <dialog> – die
+   Feldregeln der Dialoge greifen dort nicht: Suchfeld und Textfeld der
+   Bedingung mit Haarlinie statt dunklem Rand; nur background-color, damit
+   die Lupe (Hintergrundbild) bleibt; Höhe wie die Auswahllisten daneben */
+:root:is([windowtype="mailnews:search"], [windowtype="mailnews:filterlist"]) input:not([type="checkbox"], [type="radio"]) {
+  border: var(--mt-hairline) solid var(--mt-pane-line) !important;
+  border-radius: 7px !important;
+  background-color: var(--mt-window) !important;
+  box-shadow: none !important;
+}
+
+:root:is([windowtype="mailnews:search"], [windowtype="mailnews:filterlist"]) input:not([type="checkbox"], [type="radio"]):focus {
+  outline: none !important;
+  border-color: var(--mt-accent) !important;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--mt-accent) 22%, transparent) !important;
+}
+
+/* „Öffnen von …“ (Anhang ohne gespeicherte Aktion): das Toolkit-Fenster
+   zeichnet seine Knöpfe nativ – „Cancel“ eckig mit Verlauf neben dem
+   flachen „OK“. Wie in den übrigen Dialogen: grau, Standardknopf in der
+   Akzentfarbe. Das Benutzer-Stylesheet erreicht das Schatten-DOM des
+   Dialogs, aber nur ohne Vorfahren – daher auf das Dokument begrenzt */
+@-moz-document url("chrome://mozapps/content/downloads/unknownContentType.xhtml") {
+  button[part~="dialog-button"] {
+    appearance: none !important;
+    border: none !important;
+    background-color: var(--mt-control) !important;
+    color: var(--mt-text) !important;
+  }
+
+  button[part~="dialog-button"]:not([disabled]):hover {
+    background-color: var(--mt-control-hover) !important;
+  }
+
+  button[part~="dialog-button"][default]:not([disabled]) {
+    background-color: var(--mt-accent) !important;
+    color: var(--mt-accent-text) !important;
+  }
+
+  button[part~="dialog-button"][default]:not([disabled]):hover {
+    background-color: color-mix(in srgb, var(--mt-accent) 88%, black) !important;
+  }
+
+  button[part~="dialog-button"][disabled] {
+    opacity: 0.45 !important;
+  }
+}
+
+/* Druckvorschau: Firefox-Proton-Akzent (hell #0062FA, dunkel Türkis) und
+   lilaschwarzes Panel auf System-Akzent und Fensterfarbe umstellen; die
+   abgeleiteten Farben (Knopf, Link, Fokusring) folgen den Grundwerten */
+@-moz-document url("chrome://global/content/print.html") {
+  :root {
+    --color-accent-primary: var(--mt-accent) !important;
+    --color-accent-primary-hover: color-mix(in srgb, var(--mt-accent) 88%, black) !important;
+    --color-accent-primary-active: color-mix(in srgb, var(--mt-accent) 78%, black) !important;
+    --color-accent-primary-selected: var(--mt-accent) !important;
+    --text-color-accent-primary-selected: var(--mt-accent-text) !important;
+    --button-text-color-primary: var(--mt-accent-text) !important;
+    --button-text-color-primary-hover: var(--mt-accent-text) !important;
+    --focus-outline-color: var(--mt-accent) !important;
+    --link-color: var(--mt-accent) !important;
+    --background-color-canvas: var(--mt-window) !important;
+    background-color: var(--mt-window) !important;
+  }
+}
+
+/* Gespeicherte Dateien (about:downloads): Fläche, Knopf, Suchfeld und Liste
+   wie im übrigen Design statt eckigem Toolkit-Grau (dunkel Navy-Grund) */
+#aboutDownloads,
+#aboutDownloads > body,
+#aboutDownloads #downloadTopBox {
+  background-color: var(--mt-window) !important;
+  color: var(--mt-text) !important;
+}
+
+#aboutDownloads #downloadTopBox {
+  border-bottom-color: var(--mt-pane-line) !important;
+}
+
+#aboutDownloads #clearDownloads {
+  appearance: none !important;
+  border: none !important;
+  border-radius: 999px !important;
+  background-color: var(--mt-control) !important;
+  color: var(--mt-text) !important;
+  min-height: 28px !important;
+  padding-inline: 14px !important;
+  font-size: 13px !important;
+}
+
+#aboutDownloads #clearDownloads:not([disabled]):hover {
+  background-color: var(--mt-control-hover) !important;
+}
+
+#aboutDownloads #searchBox {
+  border: var(--mt-hairline) solid var(--mt-pane-line) !important;
+  border-radius: 7px !important;
+  background-color: var(--mt-window) !important;
+  color: var(--mt-text) !important;
+}
+
+#aboutDownloads #msgDownloadsRichListBox {
+  appearance: none !important;
+  border: var(--mt-hairline) solid var(--mt-pane-line) !important;
+  border-radius: 8px !important;
+  background-color: var(--mt-window) !important;
+}
+
 /* ==== Bereiche: Kalender, Aufgaben, Adressbuch, Chat, Einstellungen ==== */
 
 /* Toolbar-Zeile über der Seitenleiste im Seitenleisten-Grau wie in Apples
@@ -5057,7 +5196,8 @@ search-bar {
 checkbox > .checkbox-check,
 radio > .radio-check,
 #paneDeck input:is([type="checkbox"], [type="radio"]):not(.toggle-button),
-#mcQuickPanel input[type="checkbox"] {
+#mcQuickPanel input[type="checkbox"],
+#folderPickerTree input[type="checkbox"] {
   appearance: none !important;
   box-sizing: border-box !important;
   width: 16px !important;
@@ -5072,7 +5212,8 @@ radio > .radio-check,
 
 checkbox > .checkbox-check,
 #paneDeck input[type="checkbox"]:not(.toggle-button),
-#mcQuickPanel input[type="checkbox"] {
+#mcQuickPanel input[type="checkbox"],
+#folderPickerTree input[type="checkbox"] {
   border-radius: 4px !important;
 }
 
@@ -5101,9 +5242,19 @@ radio > .radio-check,
    (nicht global/icons/check.svg: das leitet Thunderbird auf einen dünnen um) */
 checkbox[checked] > .checkbox-check,
 #paneDeck input[type="checkbox"]:not(.toggle-button):checked,
-#mcQuickPanel input[type="checkbox"]:checked {
+#mcQuickPanel input[type="checkbox"]:checked,
+#folderPickerTree input[type="checkbox"]:checked {
   border-color: transparent !important;
   background: var(--mt-accent) url("chrome://messenger/skin/overrides/check.svg") center / 12px no-repeat !important;
+  -moz-context-properties: fill !important;
+  fill: var(--mt-accent-text) !important;
+}
+
+/* Ordnerwahl der Suchordner: Ordner, deren Unterordner nur teilweise
+   gewählt sind, mit Strich statt Haken (ebenfalls chrome:, gleiche CSP) */
+#folderPickerTree input[type="checkbox"]:indeterminate {
+  border-color: transparent !important;
+  background: var(--mt-accent) url("chrome://global/skin/icons/minus.svg") center / 10px no-repeat !important;
   -moz-context-properties: fill !important;
   fill: var(--mt-accent-text) !important;
 }
@@ -6848,6 +6999,23 @@ dialog menulist {
   border-radius: 8px !important;
   background-color: var(--mt-window) !important;
   padding: 4px !important;
+}
+
+/* Filterliste, Nachrichten suchen (<window>, nicht <dialog>) und OpenPGP-
+   Schlüssel: Listen ebenso mit Haarlinie statt hartem Rahmen; ohne
+   appearance zeichnet macOS die Filterliste sonst eckig. Kein overflow:
+   clip – richlistbox und tree scrollen selbst */
+:root:is([windowtype="mailnews:filterlist"], [windowtype="mailnews:search"]) richlistbox,
+#pgpKeyList {
+  appearance: none !important;
+  border: var(--mt-hairline) solid var(--mt-pane-line) !important;
+  border-radius: 8px !important;
+}
+
+/* +/− der Bedingungs- und Aktionszeilen mittig zu Auswahllisten und Feld
+   (im Suchordner-Dialog saßen sie 2 px zu hoch) */
+:is(#searchTermList, #filterActionList) > richlistitem .small-button {
+  align-self: center !important;
 }
 
 /* Auswahl abgerundet in Akzentfarbe (unfokussiert grau) – nur in reinen

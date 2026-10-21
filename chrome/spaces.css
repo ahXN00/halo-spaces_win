@@ -2601,7 +2601,8 @@ search-bar {
 checkbox > .checkbox-check,
 radio > .radio-check,
 #paneDeck input:is([type="checkbox"], [type="radio"]):not(.toggle-button),
-#mcQuickPanel input[type="checkbox"] {
+#mcQuickPanel input[type="checkbox"],
+#folderPickerTree input[type="checkbox"] {
   appearance: none !important;
   box-sizing: border-box !important;
   width: 16px !important;
@@ -2616,7 +2617,8 @@ radio > .radio-check,
 
 checkbox > .checkbox-check,
 #paneDeck input[type="checkbox"]:not(.toggle-button),
-#mcQuickPanel input[type="checkbox"] {
+#mcQuickPanel input[type="checkbox"],
+#folderPickerTree input[type="checkbox"] {
   border-radius: 4px !important;
 }
 
@@ -2645,9 +2647,19 @@ radio > .radio-check,
    (nicht global/icons/check.svg: das leitet Thunderbird auf einen dünnen um) */
 checkbox[checked] > .checkbox-check,
 #paneDeck input[type="checkbox"]:not(.toggle-button):checked,
-#mcQuickPanel input[type="checkbox"]:checked {
+#mcQuickPanel input[type="checkbox"]:checked,
+#folderPickerTree input[type="checkbox"]:checked {
   border-color: transparent !important;
   background: var(--mt-accent) url("chrome://messenger/skin/overrides/check.svg") center / 12px no-repeat !important;
+  -moz-context-properties: fill !important;
+  fill: var(--mt-accent-text) !important;
+}
+
+/* Ordnerwahl der Suchordner: Ordner, deren Unterordner nur teilweise
+   gewählt sind, mit Strich statt Haken (ebenfalls chrome:, gleiche CSP) */
+#folderPickerTree input[type="checkbox"]:indeterminate {
+  border-color: transparent !important;
+  background: var(--mt-accent) url("chrome://global/skin/icons/minus.svg") center / 10px no-repeat !important;
   -moz-context-properties: fill !important;
   fill: var(--mt-accent-text) !important;
 }
@@ -4392,6 +4404,23 @@ dialog menulist {
   border-radius: 8px !important;
   background-color: var(--mt-window) !important;
   padding: 4px !important;
+}
+
+/* Filterliste, Nachrichten suchen (<window>, nicht <dialog>) und OpenPGP-
+   Schlüssel: Listen ebenso mit Haarlinie statt hartem Rahmen; ohne
+   appearance zeichnet macOS die Filterliste sonst eckig. Kein overflow:
+   clip – richlistbox und tree scrollen selbst */
+:root:is([windowtype="mailnews:filterlist"], [windowtype="mailnews:search"]) richlistbox,
+#pgpKeyList {
+  appearance: none !important;
+  border: var(--mt-hairline) solid var(--mt-pane-line) !important;
+  border-radius: 8px !important;
+}
+
+/* +/− der Bedingungs- und Aktionszeilen mittig zu Auswahllisten und Feld
+   (im Suchordner-Dialog saßen sie 2 px zu hoch) */
+:is(#searchTermList, #filterActionList) > richlistitem .small-button {
+  align-self: center !important;
 }
 
 /* Auswahl abgerundet in Akzentfarbe (unfokussiert grau) – nur in reinen

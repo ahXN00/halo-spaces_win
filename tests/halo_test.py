@@ -1345,6 +1345,169 @@ def compose_checks(m, results):
     check("Verfassen: schmales Fenster zeigt nur Symbole statt gekürzter Beschriftungen, Formatleiste bleibt im Fenster; breit wieder mit Beschriftung", narrow_toolbar, results)
 
 
+DIALOG_READING_JS = READING_JS + r"""
+  const { setTimeout: modT } = ChromeUtils.importESModule("resource://gre/modules/Timer.sys.mjs");
+  const nap = ms => new Promise(r => modT(r, ms));
+  const tillM = async (fn, ms = 8000) => { for (let t = 0; t < ms; t += 100) { const v = fn(); if (v) return v; await nap(100); } return fn(); };
+  const winOf = (part, ms = 10000) => tillM(() => [...Services.wm.getEnumerator(null)].find(x => x.location.href.includes(part) && x.document.readyState == "complete"), ms);
+  const colorIn = (doc, value, prop = "color") => { const e = doc.createElementNS("http://www.w3.org/1999/xhtml", "div"); e.style[prop] = value;
+    (doc.body || doc.documentElement).append(e); const c = doc.defaultView.getComputedStyle(e)[prop]; e.remove(); return c; };"""
+
+
+def dialog_checks(m, results):
+    """Seltene Dialoge: Ordnerwahl der Suchordner, Filterprotokoll, „Ordner komprimieren?“, Filterliste/Suche/OpenPGP,
+    Druckvorschau, Gespeicherte Dateien, „Öffnen von …“."""
+
+    def folder_picker():
+        # Suchordner → „Choose…“: Liste in der Inhaltsfläche mit Haarlinie (dunkel vorher tiefschwarz), Kästchen im macOS-Stil
+        # mit chrome://-Haken (die CSP sperrt data:); im Suchordner-Dialog +/− mittig zur Bedingungszeile
+        res = m.js(COMPOSE_CHECK_JS + r"""
+          const f = await testFolder(); tm.switchToTab(0); await pause(500); const a3 = tm.currentAbout3Pane; a3.displayFolder(f.URI); await pause(800);
+          return await dialog(() => a3.commandController.doCommand("cmd_newVirtualFolder"), "virtualFolderProperties", async (dw, dd) => {
+            const row = dd.querySelector("#searchTermList > richlistitem");
+            const btn = [...row.querySelectorAll(".small-button")].find(vis), ml = [...row.querySelectorAll("menulist")].find(vis);
+            const out = { mids: [mid(btn), mid(ml)] };
+            // die Ordnerwahl ist modal zum Dialog – über dessen Zeitgeber öffnen, sonst wartet dieses Skript, bis sie zu ist
+            dw.setTimeout(() => dd.getElementById("folderListPicker").click(), 0);
+            const lw = await winUrl("virtualFolderListEdit"); if (!lw) return { ...out, picker: false };
+            try {
+              await pause(1200); const ld = lw.document, t = ld.getElementById("folderPickerTree");
+              const cb = await till(() => t.querySelector('input[type="checkbox"]:checked'), 4000);
+              const s = csOf(t), c = cb && csOf(cb);
+              return { ...out, picker: true, bg: s.backgroundColor, window: colorOf(ld, "var(--mt-window)", "backgroundColor"), radius: s.borderTopLeftRadius,
+                       line: s.borderTopColor, paneLine: colorOf(ld, "var(--mt-pane-line)"), cb: c && [c.appearance, c.backgroundImage, c.backgroundColor], accent: colorOf(ld, "AccentColor") };
+            } finally { await shut(lw); } }); """)
+        ok = (res.get("picker") and same_color(res["bg"], res["window"]) and not same_color(res["bg"], "rgb(0, 0, 0)") and res["radius"] == "8px"
+              and same_color(res["line"], res["paneLine"]) and res["cb"] and res["cb"][0] == "none" and res["cb"][1].startswith('url("chrome://')
+              and same_color(res["cb"][2], res["accent"]) and None not in res["mids"] and abs(res["mids"][0] - res["mids"][1]) <= 1)
+        return ok, f"{res}"
+    check("Suchordner: Ordnerwahl in der Inhaltsfläche mit Haarlinie und 8 px, Kästchen im macOS-Stil mit Haken; +/− mittig zur Bedingungszeile", folder_picker, results)
+
+    def filter_windows():
+        # Filterliste, Filterprotokoll und Nachrichten suchen sind <window>: Listen und Felder trotzdem mit Haarlinie statt hartem Rahmen;
+        # Protokoll dunkel ohne weiße Fläche (Inhaltsprozess, noscroll.css)
+        res = m.js(COMPOSE_CHECK_JS + r"""
+          const look = el => { const s = csOf(el), dd = el.ownerDocument;
+            return { app: s.appearance, radius: s.borderTopLeftRadius, line: s.borderTopColor, paneLine: colorOf(dd, "var(--mt-pane-line)"), img: s.backgroundImage,
+                     h: Math.round(el.getBoundingClientRect().height) }; };
+          const out = {};
+          const f = await testFolder(); w.MsgFilters(null, f);
+          const lw = await winUrl("FilterListDialog"); if (!lw) throw new Error("Filterliste nicht offen");
+          try {
+            await pause(1000); const ld = lw.document;
+            out.list = look(ld.getElementById("filterList")); out.search = look(ld.getElementById("searchBox"));
+            later(() => ld.getElementById("filterLogButton").click());
+            const vw = await winUrl("viewLog"); if (!vw) throw new Error("Filterprotokoll nicht offen");
+            try {
+              const lv = vw.document.getElementById("logView");
+              await till(() => lv.currentURI?.spec?.endsWith("filterlog.html"), 6000); await pause(1200);
+              out.log = look(lv);
+              const snap = await lv.browsingContext.currentWindowGlobal.drawSnapshot(new DOMRect(20, 20, 4, 4), 1, "rgb(255,0,255)");
+              const cv = vw.document.createElementNS("http://www.w3.org/1999/xhtml", "canvas"); cv.width = snap.width; cv.height = snap.height;
+              const cx = cv.getContext("2d"); cx.drawImage(snap, 0, 0); out.pixel = [...cx.getImageData(1, 1, 1, 1).data];
+            } finally { await shut(vw); }
+          } finally { await shut(lw); }
+          later(() => w.searchAllMessages());
+          const sw = await winUrl("SearchDialog"); if (!sw) throw new Error("Suchfenster nicht offen");
+          try { await pause(1000); const sd = sw.document;
+            out.terms = look(sd.getElementById("searchTermList")); out.field = look([...sd.querySelectorAll("#searchTermList input:not([type=checkbox])")].find(vis));
+          } finally { await shut(sw); }
+          later(() => w.openKeyManager());
+          const kw = await winUrl("KeyManager"); if (!kw) throw new Error("OpenPGP-Schlüssel nicht offen");
+          try { await pause(1000); out.keys = look(kw.document.getElementById("pgpKeyList")); } finally { await shut(kw); }
+          out.dark = dark; return out;""")
+        hair = lambda r, rad: r["radius"] == rad and same_color(r["line"], r["paneLine"])
+        px = res.get("pixel") or [255, 255, 255, 255]
+        log_ok = (sum(px[:3]) < 200) if res["dark"] else (min(px[:3]) >= 250)
+        ok = (res["list"]["app"] == "none" and hair(res["list"], "8px") and hair(res["search"], "7px") and res["search"]["img"] != "none"
+              and hair(res["log"], "8px") and log_ok and hair(res["terms"], "8px") and hair(res["field"], "7px") and res["field"]["h"] <= 30
+              and hair(res["keys"], "8px"))
+        return ok, f"{res}"
+    check("Filterliste, Filterprotokoll, Suche, OpenPGP: Listen und Felder mit Haarlinie und Radius statt hartem Rahmen, Protokoll dunkel ohne weiße Fläche", filter_windows, results)
+
+    def compact_icon():
+        # „Ordner komprimieren?“: Fragezeichen in der Akzentfarbe statt schwarz (dunkel unsichtbar); nie „Compact now“
+        res = m.js(COMPOSE_CHECK_JS + r"""
+          const bag = Cc["@mozilla.org/hash-property-bag;1"].createInstance(Ci.nsIWritablePropertyBag2); bag.setPropertyAsAString("compactSize", "120 MB");
+          w.openDialog("chrome://messenger/content/compactFoldersDialog.xhtml", "", "chrome,dialog,centerscreen", bag);
+          const cw = await winUrl("compactFoldersDialog"); if (!cw) throw new Error("Dialog nicht offen");
+          try { await pause(800); const cd = cw.document, img = cd.querySelector("#contentWrapper > img"), s = csOf(img), r = img.getBoundingClientRect();
+            // gezeichnet prüfen: fill wirkt nur mit -moz-context-properties (berechnet nicht abfragbar)
+            const cv = cd.createElementNS("http://www.w3.org/1999/xhtml", "canvas"); cv.width = Math.ceil(r.width); cv.height = Math.ceil(r.height);
+            const cx = cv.getContext("2d"); cx.drawWindow(cw, r.left, r.top, r.width, r.height, "rgb(128,128,128)");
+            const acc = rgba(colorOf(cd, "AccentColor")), px = cx.getImageData(0, 0, cv.width, cv.height).data; let hits = 0;
+            for (let i = 0; i < px.length; i += 4) if (Math.abs(px[i] - acc[0]) + Math.abs(px[i + 1] - acc[1]) + Math.abs(px[i + 2] - acc[2]) < 40) hits++;
+            return { fill: s.fill, accent: colorOf(cd, "AccentColor"), accentPixels: hits };
+          } finally { await shut(cw); }""")
+        ok = same_color(res["fill"], res["accent"]) and not same_color(res["fill"], "rgb(0, 0, 0)") and res["accentPixels"] >= 50
+        return ok, f"{res}"
+    check("„Ordner komprimieren?“: Fragezeichen in der Akzentfarbe statt schwarz", compact_icon, results)
+
+    def downloads():
+        # Gespeicherte Dateien (about:downloads) bekommt das Design: Kapsel-Knopf, Fläche in Fensterfarbe (dunkel nicht Navy)
+        res = m.js(COMPOSE_CHECK_JS + r"""
+          tm.switchToTab(0); await pause(300); await w.openSavedFilesWnd(); await pause(2000);
+          const t = tm.tabInfo.find(x => x.browser?.currentURI?.spec == "about:downloads"); if (!t) throw new Error("Tab fehlt");
+          try { const dd = t.browser.contentDocument; await till(() => dd.getElementById("clearDownloads") && dd.defaultView.__mcTheme, 5000); await pause(400);
+            const b = csOf(dd.getElementById("clearDownloads")), l = csOf(dd.getElementById("msgDownloadsRichListBox"));
+            return { theme: !!dd.defaultView.__mcTheme, radius: b.borderTopLeftRadius, bg: b.backgroundColor, control: colorOf(dd, "var(--mt-control)", "backgroundColor"),
+                     body: csOf(dd.body).backgroundColor, window: colorOf(dd, "var(--mt-window)", "backgroundColor"), list: [l.borderTopLeftRadius, l.borderTopColor],
+                     paneLine: colorOf(dd, "var(--mt-pane-line)") };
+          } finally { tm.closeTab(t); await pause(300); }""")
+        ok = (res["theme"] and res["radius"] == "999px" and same_color(res["bg"], res["control"]) and same_color(res["body"], res["window"])
+              and not same_color(res["body"], "rgb(26, 32, 44)") and res["list"][0] == "8px" and same_color(res["list"][1], res["paneLine"]))
+        return ok, f"{res}"
+    check("Gespeicherte Dateien: Design auch in about:downloads – Kapsel-Knopf, Fensterfarbe, Liste mit Haarlinie", downloads, results)
+
+    def print_preview():
+        # Druckvorschau einer Mail: Knopf „Print/Save“ in der Systemakzentfarbe statt Proton-Blau bzw. -Türkis, Panel neutral; nie drucken
+        res = m.js(DIALOG_READING_JS + r"""
+          await showMail("Halo Jetzt");
+          w.setTimeout(() => a3.commandController.doCommand("cmd_print"), 0);
+          const all = () => { const out = []; const walk = bc => { out.push(bc); bc.children.forEach(walk); }; walk(w.browsingContext); return out; };
+          const pd = await tillM(() => all().map(bc => { try { return bc.window?.document; } catch { return null; } })
+            .find(x => x && x.documentURI == "chrome://global/content/print.html" && x.getElementById("print-button")), 12000);
+          if (!pd) return { open: false };
+          try { await nap(1500); const pw = pd.defaultView, s = pw.getComputedStyle(pd.getElementById("print-button"));
+            return { open: true, btn: s.backgroundColor, text: s.color, accent: colorIn(pd, "AccentColor"), accentText: colorIn(pd, "AccentColorText"),
+                     root: pw.getComputedStyle(pd.documentElement).backgroundColor,
+                     sheet: colorIn(pd, "var(--mt-sheet)", "backgroundColor"), window: colorIn(pd, "var(--mt-window)", "backgroundColor") };
+          } finally { try { pd.getElementById("cancel-button")?.click(); } catch {} await nap(800);
+            try { if (!pd.defaultView.closed) pd.defaultView.close(); } catch {} await nap(400); }""")
+        ok = (res.get("open") and same_color(res["btn"], res["accent"]) and same_color(res["text"], res["accentText"])
+              and (same_color(res["root"], res["sheet"]) or same_color(res["root"], res["window"])) and not same_color(res["root"], "rgb(28, 27, 34)"))
+        return ok, f"{res}"
+    check("Druckvorschau: Hauptknopf in der Systemakzentfarbe statt Proton-Blau/-Türkis, Panel neutral", print_preview, results)
+
+    def open_with():
+        # Anhang ohne gespeicherte Aktion → „Öffnen von …“: Knöpfe flach wie in den übrigen Dialogen (Cancel grau, OK in Akzentfarbe)
+        # statt nativem eckigem Knopf neben flachem; nie OK – sonst würde die Datei geschrieben/geöffnet
+        res = m.js(DIALOG_READING_JS + r"""
+          const doc = await showMail("Halo Anhänge"); const mw = doc.defaultView;
+          const a = await tillM(() => mw.currentAttachments?.find(x => x.name == "Notizen.txt"), 4000); if (!a) return { open: false, why: "Anhang fehlt" };
+          const mi = Cc["@mozilla.org/mime;1"].getService(Ci.nsIMIMEService).getFromTypeAndExtension(a.contentType, "txt");
+          if (Cc["@mozilla.org/uriloader/handler-service;1"].getService(Ci.nsIHandlerService).exists(mi) && !mi.alwaysAskBeforeHandling)
+            return { open: false, why: "gespeicherte Aktion – der Dialog käme nicht" };
+          w.setTimeout(() => a.open(mw.browsingContext), 0);
+          const x = await winOf("unknownContentType"); if (!x) return { open: false, why: "Dialog nicht offen" };
+          const dl = x.document.getElementById("unknownContentType");
+          try { await nap(800); const sr = dl.shadowRoot, ok = sr.querySelector('[dlgtype="accept"]'), cancel = sr.querySelector('[dlgtype="cancel"]');
+            const look = b => { const s = x.getComputedStyle(b); return [s.appearance, s.backgroundColor, s.borderTopLeftRadius, Math.round(b.getBoundingClientRect().height)]; };
+            const out = { open: true, cancel: look(cancel), control: colorIn(x.document, "var(--mt-control)", "backgroundColor"), accent: colorIn(x.document, "AccentColor") };
+            // OK ist anfangs gesperrt (Sicherheitsverzögerung) – zum Messen freigeben, nie anklicken
+            ok.disabled = true; await nap(100); out.disabled = x.getComputedStyle(ok).opacity;
+            ok.disabled = false; await nap(150); out.ok = look(ok);
+            return out;
+          } finally { try { dl.cancelDialog(); } catch {} await tillM(() => x.closed, 3000); if (!x.closed) x.close(); await nap(300); }""")
+        if not res.get("open"):
+            return False, f"{res}"
+        c, o = res["cancel"], res["ok"]
+        ok = (c[0] == "none" and o[0] == "none" and c[2] == "999px" and o[2] == "999px" and c[3] == o[3]
+              and same_color(c[1], res["control"]) and same_color(o[1], res["accent"]) and float(res["disabled"]) < 1)
+        return ok, f"{res}"
+    check("„Öffnen von …“: Knöpfe als flache Kapseln wie in den Dialogen (Cancel grau, OK in Akzentfarbe) statt nativem Knopf", open_with, results)
+
+
 FOLDER_JS = r"""
   const { MailServices } = ChromeUtils.importESModule("resource:///modules/MailServices.sys.mjs");
   try { MailServices.accounts.localFoldersServer; } catch { MailServices.accounts.createLocalMailAccount(); await wait(500); }
@@ -3014,6 +3177,7 @@ def run_checks(m, version, profile, results):
     reading_checks(m, results)
     compose_checks(m, results)
     folder_checks(m, results)
+    dialog_checks(m, results)
     menu_checks(m, results)
     calendar_checks(m, results)
 

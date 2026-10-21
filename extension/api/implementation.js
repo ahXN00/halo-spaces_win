@@ -2716,7 +2716,7 @@ const ThemeSheet = {
   wanted(doc) {
     const url = doc?.documentURI || "";
     return url.startsWith("chrome://") ||
-      /^about:(addressbook|preferences|addons|accountsettings|accountsetup|message|3pane|import|profiling)/.test(url);
+      /^about:(addressbook|preferences|addons|accountsettings|accountsetup|message|3pane|import|profiling|downloads)/.test(url);
   },
   apply(win) {
     if (!this.active || !win || win.__mcTheme == this.uri || !this.wanted(win.document)) {

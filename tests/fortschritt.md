@@ -282,7 +282,7 @@ Vorher-Bilder: `tests/shots/tour/vorher/` (hell-*/dunkel-*), Paket `tests/shots/
 - [ ] `einst-dlg-kategorie` – Einstellungen → Kalender: Neue Kategorie: offen
 - [x] `einst-dlg-systemintegration` – Einstellungen → Systemintegration (Standardprogramm): erledigt (Runde 1, Befunde 0–11: geprüft, nichts geändert – Trennlinie (Befund 9) war schon Haarlinie)
 - [x] `einst-dlg-verzeichnisse` – Einstellungen → Verfassen → LDAP-Verzeichnisse verwalten: erledigt (Commit „Einstellungen: …“ (Runde 1, Befunde 12–23)) – „Edit“ so hoch und normal wie „Add“/„Delete“ (Adressbuch-Regel für #editButton begrenzt)
-- [ ] `einst-dlg-junk-protokoll` – Einstellungen → Datenschutz → Junk-Protokoll anzeigen: offen
+- [x] `einst-dlg-junk-protokoll` – Einstellungen → Datenschutz → Junk-Protokoll anzeigen: erledigt (Commit „Dialoge: …“ (Runde 1, Befunde 0–11)) – Protokollfläche dunkel in Fensterfarbe statt weiß, mit Haarlinie und 8 px (wie dlg-filterprotokoll)
 - [x] `einst-dlg-hauptpasswort` – Einstellungen → Hauptpasswort ändern: übersprungen: verlangt vorher eine macOS-Anmeldung (Systempasswort) – bewusst ausgelassen
 - [ ] `einst-konfiguration` – Konfiguration bearbeiten (about:config): offen
 
@@ -316,34 +316,34 @@ Vorher-Bilder: `tests/shots/tour/vorher/` (hell-*/dunkel-*), Paket `tests/shots/
 
 ## 13. Seltene Dialoge (`dialoge`)
 
-- [ ] `dlg-ordner-eigenschaften` – Ordner-Eigenschaften: offen
-- [ ] `dlg-ordner-neu` – Neuer Ordner: offen
+- [x] `dlg-ordner-eigenschaften` – Ordner-Eigenschaften: übersprungen (Runde 1, Befunde 0–11): schon erledigt – Haken per chrome://-Grafik sichtbar, Felder 28 px
+- [x] `dlg-ordner-neu` – Neuer Ordner: übersprungen (Runde 1, Befunde 0–11): schon erledigt – Name-Feld und Ordnerauswahl gleich hoch (28 px)
 - [ ] `dlg-ordner-umbenennen` – Ordner umbenennen: offen
-- [ ] `dlg-suchordner` – Neuer Suchordner (gespeicherte Suche): offen
-- [ ] `dlg-filterliste` – Nachrichtenfilter (Liste): offen
-- [ ] `dlg-filter-editor` – Filterregeln bearbeiten (Filter-Editor): offen
-- [ ] `dlg-filterprotokoll` – Nachrichtenfilter → Filterprotokoll: offen
-- [ ] `dlg-suchordner-ordnerwahl` – Suchordner → Ordner auswählen (Ordnerliste zum Durchsuchen): offen
-- [ ] `dlg-suche` – Nachrichten suchen (erweiterte Suche): offen
+- [x] `dlg-suchordner` – Neuer Suchordner (gespeicherte Suche): erledigt (Commit „Dialoge: …“ (Runde 1, Befunde 0–11)) – +/− mittig zur Bedingungszeile statt 2 px zu hoch; übersprungen (schon erledigt): Felder 28 px wie die Auswahllisten
+- [x] `dlg-filterliste` – Nachrichtenfilter (Liste): erledigt (Commit „Dialoge: …“ (Runde 1, Befunde 0–11)) – Filterliste mit Haarlinie und 8 px statt eckigem macOS-Rahmen (dunkel hell), Suchfeld mit Haarlinie statt dunklem Rand (Lupe bleibt); übersprungen (schon erledigt): „Edit…“ so hoch wie die übrigen Knöpfe
+- [x] `dlg-filter-editor` – Filterregeln bearbeiten (Filter-Editor): übersprungen (Runde 1, Befunde 0–11): schon erledigt – Listen ohne macOS-Rahmen, Felder und Auswahllisten gleich hoch, +/− mittig, Haken sichtbar
+- [x] `dlg-filterprotokoll` – Nachrichtenfilter → Filterprotokoll: erledigt (Commit „Dialoge: …“ (Runde 1, Befunde 0–11)) – Protokollfläche dunkel in Fensterfarbe (#1E1E1E) statt weißer Insel, mit Haarlinie und 8 px Radius; gilt auch für das Junk-Protokoll
+- [x] `dlg-suchordner-ordnerwahl` – Suchordner → Ordner auswählen (Ordnerliste zum Durchsuchen): erledigt (Commit „Dialoge: …“ (Runde 1, Befunde 0–11)) – Liste in der Inhaltsfläche (dunkel #1E1E1E statt schwarz) mit Haarlinie und 8 px, Hover neutral statt blaustichig, Kästchen im macOS-Stil mit Haken (teilweise gewählt mit Strich) statt grauer Systemkästchen
+- [x] `dlg-suche` – Nachrichten suchen (erweiterte Suche): erledigt (Commit „Dialoge: …“ (Runde 1, Befunde 0–11)) – Bedingungsliste mit Haarlinie und 8 px statt hartem eckigem Rahmen, Textfeld mit Haarlinie statt hartem Rand
 - [ ] `dlg-lesen-nach-datum` – Nach Datum als gelesen markieren: offen
 - [ ] `dlg-schlagwort` – Neues Schlagwort (aus der Mailliste): offen
-- [ ] `dlg-druckvorschau` – Druckvorschau einer Mail: offen
+- [x] `dlg-druckvorschau` – Druckvorschau einer Mail: erledigt (Commit „Dialoge: …“ (Runde 1, Befunde 0–11)) – Knopf „Save/Print“, Segment, Fokusring und Link in der Systemakzentfarbe statt Proton-Blau (hell) bzw. Türkis (dunkel); Panel neutral wie die Unterdialoge
 - [ ] `dlg-ueber` – Über Thunderbird: offen
 - [ ] `dlg-aktivitaeten` – Aktivitäten: offen
-- [ ] `dlg-downloads` – Gespeicherte Dateien (about:downloads): offen
-- [ ] `dlg-openpgp` – OpenPGP-Schlüssel verwalten: offen
+- [x] `dlg-downloads` – Gespeicherte Dateien (about:downloads): erledigt (Commit „Dialoge: …“ (Runde 1, Befunde 0–11)) – Seite bekommt das Design: Fläche in Fensterfarbe (dunkel statt Navy), „Clear List“ als graue Kapsel, Suchfeld und Liste mit Haarlinie statt eckiger Toolkit-Rahmen
+- [x] `dlg-openpgp` – OpenPGP-Schlüssel verwalten: erledigt (Commit „Dialoge: …“ (Runde 1, Befunde 0–11)) – Schlüsselliste mit Haarlinie und 8 px statt hartem Rahmen (dunkel hell)
 - [ ] `dlg-openpgp-schluessel-erzeugen` – OpenPGP: Neues Schlüsselpaar erzeugen (Assistent): offen
-- [ ] `dlg-ordner-komprimieren` – Rückfrage „Ordner komprimieren?“ (mit Kästchen und „Weitere Informationen“): offen
+- [x] `dlg-ordner-komprimieren` – Rückfrage „Ordner komprimieren?“ (mit Kästchen und „Weitere Informationen“): erledigt (Commit „Dialoge: …“ (Runde 1, Befunde 0–11)) – Fragezeichen in der Akzentfarbe statt schwarz (dunkel unsichtbar)
 - [ ] `dlg-verlauf-loeschen` – Neueste Chronik löschen (nur ansehen): offen
 - [ ] `dlg-fehlerbehebung` – Informationen zur Fehlerbehebung (about:support): offen
 - [ ] `dlg-import` – Importieren (about:import): offen
 - [ ] `dlg-export` – Exportieren: offen
-- [ ] `dlg-hinweis` – Hinweis (Services.prompt.alert): offen
+- [x] `dlg-hinweis` – Hinweis (Services.prompt.alert): übersprungen (Runde 1, Befunde 0–11): schon erledigt – Rückfragen dunkel neutral statt violettgrau
 - [ ] `dlg-fehler` – Fehlermeldung (Senden fehlgeschlagen, erfunden): offen
-- [ ] `dlg-bestaetigung` – Bestätigung (OK/Abbrechen): offen
+- [x] `dlg-bestaetigung` – Bestätigung (OK/Abbrechen): übersprungen (Runde 1, Befunde 0–11): schon erledigt – Rückfragen dunkel neutral statt violettgrau
 - [ ] `dlg-drei-knoepfe` – Frage mit drei Knöpfen und Kästchen: offen
 - [ ] `dlg-eingabe` – Eingabe (Text): offen
 - [ ] `dlg-anmeldung` – Anmeldung (Benutzer und Passwort, leer): offen
 - [x] `dlg-abonnieren` – Abonnieren (Newsgruppen/IMAP-Ordner): übersprungen: braucht ein News- oder IMAP-Konto (Netzwerk) – im Testprofil nicht vorhanden
-- [ ] `dlg-anhang-oeffnen` – Anhang öffnen: Dialog „Öffnen von …“ (Programmauswahl): offen
+- [x] `dlg-anhang-oeffnen` – Anhang öffnen: Dialog „Öffnen von …“ (Programmauswahl): erledigt (Commit „Dialoge: …“ (Runde 1, Befunde 0–11)) – „Cancel“ und „OK“ als flache Kapseln wie in den übrigen Dialogen (grau, OK in Akzentfarbe, gesperrt blass) statt eckigem nativem Knopf neben flachem
 - [x] `dlg-dateiauswahl` – Dateiauswahl (Anhängen, Kontaktbild …): übersprungen: nativ: macOS-Dateidialog – nicht gestaltbar
