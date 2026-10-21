@@ -4506,6 +4506,70 @@ def run_checks(m, version, profile, results):
         return ok, f"{res}"
     check("Einstellungen: Arbeitstage, Chat-Vorschau (dunkel „Dark“), Schlagwörter lesbar, Knöpfe, Update-Chronik, Ports, schmales Fenster, Schriftgröße, Kryptographie-Module", settings_details, results)
 
+    def account_pages():
+        # Kontoeinstellungen: „Add-ons and Themes“ einzeilig, Seiten dunkel in --mt-window, Überschrift mit 12 px
+        # Abstand zur ersten Karte, Junk ohne doppelten Kartenabstand und mit niedrigen Adressbuch-Zeilen, deren
+        # Auswahl das Kästchen nicht verdeckt, „Default: 587“ mit Abstand, Archiv-Beispiel mit Haarlinie und 8 px
+        res = m.js(r"""
+          w.resizeTo(1500, 950); w.MsgAccountManager(null);
+          const aw = await until(() => tm.currentTabInfo.browser?.contentWindow?.document.getElementById("accounttree") && tm.currentTabInfo.browser.contentWindow, 8000);
+          await wait(1200); const ad = aw.document;
+          const cs = e => e.ownerDocument.defaultView.getComputedStyle(e); const R = e => e.getBoundingClientRect();
+          const out = { dark: w.matchMedia("(prefers-color-scheme: dark)").matches };
+          out.footer = [...ad.querySelectorAll("#accountTreeBox .sidebar-footer-label")].filter(e => R(e).width).map(e => [Math.round(R(e).height), cs(e).whiteSpace]);
+          const probe = ad.createElementNS("http://www.w3.org/1999/xhtml", "div"); probe.style.color = "var(--mt-window)"; ad.documentElement.append(probe);
+          const line = ad.createElementNS("http://www.w3.org/1999/xhtml", "div"); line.style.color = "var(--mt-pane-line)"; ad.documentElement.append(line);
+          const winColor = cs(probe).color, lineColor = cs(line).color; probe.remove(); line.remove();
+          const tree = ad.getElementById("accounttree");
+          const page = async tag => { const li = [...tree.querySelectorAll("li")].find(l => (l.getAttribute("PageTag") || "") == tag);
+            if (!li) return null; tree.selectedIndex = tree.rows.indexOf(li);
+            return await until(() => { const d = ad.getElementById("contentFrame").contentDocument;
+              return d?.readyState == "complete" && d.location.href.includes(tag) && d.getElementById("containerBox") && d; }, 8000); };
+          const sub = async () => { const f = await until(() => [...ad.querySelectorAll(".dialogFrame")].find(fr => fr.contentDocument?.readyState == "complete" && fr.contentDocument.location.href != "about:blank"), 8000);
+            await wait(600); return f?.contentDocument; };
+          const headGap = d => { const h = d.querySelector("#containerBox > .dialogheader"); const f = [...d.querySelectorAll("#containerBox fieldset")].find(e => R(e).width);
+            return h && f ? Math.round(R(f).top - R(h).bottom) : null; };
+          out.gap = {}; out.bg = {};
+          for (const tag of ["am-copies.xhtml", "am-junk.xhtml", "am-offline.xhtml", "am-smtp.xhtml"]) {
+            const d = await page(tag); if (!d) { out.gap[tag] = "fehlt"; continue; } await wait(500);
+            out.bg[tag] = cs(d.documentElement).backgroundColor == winColor;
+            if (tag != "am-smtp.xhtml") out.gap[tag] = headGap(d);
+            if (tag == "am-junk.xhtml") {
+              const fs = [...d.querySelectorAll("#containerBox > div > fieldset")].filter(e => R(e).width);
+              out.junkGap = fs.length > 1 ? Math.round(R(fs[1]).top - R(fs[0]).bottom) : null;
+              const wl = d.getElementById("whiteListAbURI"); const items = [...wl.children].filter(e => R(e).width);
+              out.rows = items.map(e => Math.round(R(e).height));
+              const it = items[0], cb = it.querySelector("checkbox"), was = cb.checked;
+              cb.checked = true; wl.selectedIndex = 0; await wait(200);
+              out.sel = cs(it).backgroundColor != cs(it.querySelector(".checkbox-check")).backgroundColor;
+              cb.checked = was;
+            }
+            if (tag == "am-copies.xhtml") {
+              const b = d.getElementById("archiveHierarchyButton"); b.scrollIntoView({ block: "center" });
+              setTimeout(() => b.click(), 0); const sd = await sub();
+              if (sd) { const p = sd.getElementById("archiveTree").parentElement;
+                out.archive = [cs(p).borderTopColor == lineColor, cs(p).borderTopLeftRadius, parseFloat(cs(p).borderTopWidth) <= 1];
+                const dl = sd.querySelector("dialog"); if (dl?.cancelDialog) dl.cancelDialog(); else sd.defaultView.close(); await wait(600); }
+            }
+            if (tag == "am-smtp.xhtml") {
+              const b = d.getElementById("addButton"); setTimeout(() => b.click(), 0); const sd = await sub();
+              if (sd) { const sp = sd.getElementById("smtp.port"), l1 = sp.nextElementSibling, l2 = sd.getElementById("smtp.defaultPort");
+                out.smtp = [Math.round(R(l1).left - R(sp).right), Math.round(R(l2).left - R(l1).right)];
+                const dl = sd.querySelector("dialog"); if (dl?.cancelDialog) dl.cancelDialog(); else sd.defaultView.close(); await wait(600); }
+            }
+          }
+          tm.closeTab(tm.currentTabInfo);
+          return out;""")
+        ok = (bool(res["footer"]) and all(h < 30 and ws == "nowrap" for h, ws in res["footer"])
+              and all(res["bg"].values()) and len(res["bg"]) == 4
+              and all(isinstance(v, int) and 10 <= v <= 16 for v in res["gap"].values())
+              and res.get("junkGap") is not None and res["junkGap"] <= 16
+              and res.get("rows") and all(22 <= h <= 30 for h in res["rows"]) and res.get("sel") is True
+              and res.get("archive") == [True, "8px", True]
+              and res.get("smtp") and min(res["smtp"]) >= 4)
+        return ok, f"{res}"
+    check("Kontoeinstellungen: Fußzeile einzeilig, Fläche --mt-window, Abstände Überschrift/Karten, Junk-Adressbücher, SMTP-Port, Archiv-Beispiel", account_pages, results)
+
     def no_placeholder_in_ui():
         # Platzhalter für blockierte Bilder nur in Mails – nicht in der Oberfläche (Lupe im Suchfeld)
         res = m.js('''
@@ -4778,8 +4842,10 @@ def run_checks(m, version, profile, results):
     def auto_update():
         res = m.js('''
           const last = await until(() => Services.prefs.getIntPref("extensions.mailcards.autoUpdateLast", 0), 25000);
-          return { last, ageSec: last ? Math.round(Date.now() / 1000 - last) : null };''')
-        return bool(res["last"]) and res["ageSec"] < 600, f"Update-Prüfung beim Start gelaufen: {res}"
+          // seit dem Start dieses Thunderbird-Prozesses (statt fester 10 Minuten: unter Last dauert der Lauf länger)
+          const start = Math.floor(Services.startup.getStartupInfo().process / 1000);
+          return { last, ageSec: last ? Math.round(Date.now() / 1000 - last) : null, sinceStart: last ? last - start : null };''')
+        return bool(res["last"]) and res["sinceStart"] is not None and res["sinceStart"] >= -5, f"Update-Prüfung beim Start gelaufen: {res}"
     check("Updates: Prüfung beim Start", auto_update, results)
 
     ENH_JS = '''

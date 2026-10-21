@@ -5298,6 +5298,48 @@ input[type="number"]:is(.size2, .size3, .size4, .size5)::-moz-number-spin-box {
   clear: both !important;
 }
 
+/* Kontoseiten dunkel in --mt-window wie die Einstellungen statt Thunderbirds
+   leicht blaustichigem #18181B (Kante unter der Toolbar); #containerBox gibt
+   es nur in den am-*-Seiten, in am-smtp/am-im liegt es in einer weiteren vbox */
+:root:has(#containerBox),
+:root:has(#containerBox) > body {
+  background-color: var(--mt-window) !important;
+}
+
+/* große Seitenüberschrift mit 12 px Abstand zur ersten Karte – sonst klebt sie
+   in Kopien/Verfassen/Junk darauf; der dünne Trenner (Speicherplatz) entfällt,
+   damit alle Seiten gleich aussehen */
+#containerBox > .dialogheader {
+  margin-block-end: 12px !important;
+}
+
+#containerBox > .dialogheader + separator.thin {
+  display: none !important;
+}
+
+/* Junk: zwei leere Trenner zwischen den Karten ergäben 48 statt 12 px Abstand
+   (nur Trenner direkt hinter einer Karte; dünne vor Knopfzeilen bleiben) */
+#containerBox > div:has(> fieldset) + separator:not(.thin),
+#containerBox > div:has(> fieldset) + separator:not(.thin) + separator:not(.thin) {
+  display: none !important;
+}
+
+/* Junk: Adressbücher als Kästchenliste – Zeilen ~28 px statt 40 px, die
+   Auswahl nur grau, sonst verschwindet ein angehaktes Kästchen in der
+   Akzentfläche */
+#containerBox #whiteListAbURI > richlistitem {
+  padding-block: 0 !important;
+}
+
+#containerBox #whiteListAbURI checkbox {
+  margin-block: 2px !important;
+}
+
+#containerBox #whiteListAbURI > richlistitem[selected] {
+  background: var(--mt-selected-unfocused) !important;
+  color: var(--mt-text) !important;
+}
+
 /* ---------- Add-ons-Verwaltung ---------- */
 #sidebar:has(categories-box) {
   background: var(--mt-sidebar) !important;
@@ -6681,6 +6723,18 @@ dialog richlistbox:not(:where(#searchTermList, #filterActionList)) > richlistite
 dialog richlistbox:not(:where(#searchTermList, #filterActionList)):focus > richlistitem[selected] {
   background-color: var(--mt-accent) !important;
   color: var(--mt-accent-text) !important;
+}
+
+/* Archiv-Optionen: Beispiel-Ordneransicht mit Haarlinie und 8 px wie die
+   Listen in Dialogen statt hartem grauem Rahmen aus accountManage.css */
+#archiveOptions fieldset > div {
+  border: var(--mt-hairline) solid var(--mt-pane-line) !important;
+  border-radius: 8px !important;
+}
+
+/* Postausgang-Server: „Default: 587“ mit Abstand zum Port-Feld statt „Default:587“ */
+#smtp\.port ~ label {
+  margin-inline-start: 6px !important;
 }
 
 /* Trennlinie über OK/Abbrechen (Link-, Tabellen-, Bild-Dialog …) als
@@ -9036,16 +9090,16 @@ notification-message toolbarbutton.notification-button > .toolbarbutton-menubutt
   background: color-mix(in srgb, var(--mt-accent) 88%, black) !important;
 }
 
-/* Einstellungen unten links („Add-ons und Themes“): einzeilig wie die
-   Kategorien darüber, bei schmaler Leiste mit „…“ */
-#pref-category-box .sidebar-footer-label {
+/* Einstellungen und Kontoeinstellungen unten links („Add-ons und Themes“):
+   einzeilig wie die Kategorien darüber, bei schmaler Leiste mit „…“ */
+:is(#pref-category-box, #accountTreeBox) .sidebar-footer-label {
   white-space: nowrap !important;
   overflow: hidden !important;
   text-overflow: ellipsis !important;
   min-width: 0 !important;
 }
 
-#pref-category-box .sidebar-footer-link {
+:is(#pref-category-box, #accountTreeBox) .sidebar-footer-link {
   min-width: 0 !important;
   /* Thunderbirds 6px Außenabstand weg: bündig mit den Kategorien, Text passt */
   margin-inline: 0 !important;

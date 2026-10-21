@@ -288,16 +288,16 @@ Vorher-Bilder: `tests/shots/tour/vorher/` (hell-*/dunkel-*), Paket `tests/shots/
 
 ## 11. Kontoeinstellungen und Kontoassistenten (`konten`)
 
-- [ ] `konto-start` – Kontoeinstellungen: Local Folders: offen
-- [ ] `konto-server` – Kontoeinstellungen: Server-Einstellungen: offen
-- [ ] `konto-kopien` – Kontoeinstellungen: Kopien & Ordner: offen
-- [ ] `konto-verfassen` – Kontoeinstellungen: Verfassen & Adressieren: offen
-- [ ] `konto-junk` – Kontoeinstellungen: Junk: offen
-- [ ] `konto-speicher` – Kontoeinstellungen: Speicherplatz: offen
-- [ ] `konto-smtp` – Kontoeinstellungen: Postausgang-Server (SMTP): offen
+- [x] `konto-start` – Kontoeinstellungen: Local Folders: erledigt (Commit „Kontoeinstellungen: …“ (Runde 1, Befunde 0–11)) – „Add-ons and Themes“ unten links einzeilig (bei schmaler Leiste mit „…“) wie in den Einstellungen; dunkel Fläche --mt-window statt #18181B
+- [x] `konto-server` – Kontoeinstellungen: Server-Einstellungen: erledigt (Commit „Kontoeinstellungen: …“ (Runde 1, Befunde 0–11)) – „Add-ons and Themes“ unten links einzeilig (bei schmaler Leiste mit „…“) wie in den Einstellungen; dunkel Fläche --mt-window statt #18181B; übersprungen (schon erledigt): Haken per chrome://-Grafik, „Edit…“ so hoch wie „Add…“, Zahlenfelder ohne Systemrahmen/-pfeile, Unterdialoge dunkel neutral (--mt-sheet) statt Marineblau
+- [x] `konto-kopien` – Kontoeinstellungen: Kopien & Ordner: erledigt (Commit „Kontoeinstellungen: …“ (Runde 1, Befunde 0–11)) – „Add-ons and Themes“ unten links einzeilig (bei schmaler Leiste mit „…“) wie in den Einstellungen; dunkel Fläche --mt-window statt #18181B; Überschrift mit 12 px Abstand zur ersten Karte statt 0 px; übersprungen (schon erledigt): Haken per chrome://-Grafik, „Edit…“ so hoch wie „Add…“, Zahlenfelder ohne Systemrahmen/-pfeile, Unterdialoge dunkel neutral (--mt-sheet) statt Marineblau
+- [x] `konto-verfassen` – Kontoeinstellungen: Verfassen & Adressieren: erledigt (Commit „Kontoeinstellungen: …“ (Runde 1, Befunde 0–11)) – „Add-ons and Themes“ unten links einzeilig (bei schmaler Leiste mit „…“) wie in den Einstellungen; dunkel Fläche --mt-window statt #18181B; Überschrift mit 12 px Abstand zur ersten Karte statt 0 px
+- [x] `konto-junk` – Kontoeinstellungen: Junk: erledigt (Commit „Kontoeinstellungen: …“ (Runde 1, Befunde 0–11)) – „Add-ons and Themes“ unten links einzeilig (bei schmaler Leiste mit „…“) wie in den Einstellungen; dunkel Fläche --mt-window statt #18181B; Überschrift mit 12 px Abstand zur ersten Karte; zwischen den Karten 12 statt 48 px; Adressbuch-Zeilen 28 statt 40 px, Auswahl grau statt Akzentfläche (angehaktes Kästchen bleibt sichtbar)
+- [x] `konto-speicher` – Kontoeinstellungen: Speicherplatz: erledigt (Commit „Kontoeinstellungen: …“ (Runde 1, Befunde 0–11)) – „Add-ons and Themes“ unten links einzeilig (bei schmaler Leiste mit „…“) wie in den Einstellungen; dunkel Fläche --mt-window statt #18181B; Abstand Überschrift–Karte 12 px wie auf den übrigen Seiten (dünner Trenner entfällt)
+- [x] `konto-smtp` – Kontoeinstellungen: Postausgang-Server (SMTP): erledigt (Commit „Kontoeinstellungen: …“ (Runde 1, Befunde 0–11)) – „Add-ons and Themes“ unten links einzeilig (bei schmaler Leiste mit „…“) wie in den Einstellungen; dunkel Fläche --mt-window statt #18181B; übersprungen (schon erledigt): Haken per chrome://-Grafik, „Edit…“ so hoch wie „Add…“, Zahlenfelder ohne Systemrahmen/-pfeile, Unterdialoge dunkel neutral (--mt-sheet) statt Marineblau
 - [ ] `konto-hinzufuegen-menue` – Kontoeinstellungen: Konto hinzufügen (Menü): offen
-- [ ] `konto-smtp-dialog` – Postausgang-Server hinzufügen (Dialog, ohne Speichern): offen
-- [ ] `konto-archiv-optionen` – Kontoeinstellungen → Kopien & Ordner → Archiv-Optionen (Unterdialog): offen
+- [x] `konto-smtp-dialog` – Postausgang-Server hinzufügen (Dialog, ohne Speichern): erledigt (Commit „Kontoeinstellungen: …“ (Runde 1, Befunde 0–11)) – „Default: 587“ mit 6 px Abstand zum Port-Feld und zwischen Text und Wert statt „Default:587“ am Feld; übersprungen (schon erledigt): Haken per chrome://-Grafik, „Edit…“ so hoch wie „Add…“, Zahlenfelder ohne Systemrahmen/-pfeile, Unterdialoge dunkel neutral (--mt-sheet) statt Marineblau
+- [x] `konto-archiv-optionen` – Kontoeinstellungen → Kopien & Ordner → Archiv-Optionen (Unterdialog): erledigt (Commit „Kontoeinstellungen: …“ (Runde 1, Befunde 0–11)) – Beispiel-Ordneransicht mit Haarlinie und 8 px Radius statt hartem grauem bzw. dunkel hellem 1-px-Rahmen
 - [ ] `konto-einrichten` – E-Mail-Konto einrichten (Account Hub, ohne Netz): offen
 - [ ] `konto-feed-assistent` – Feed-Konto anlegen (Assistent, abgebrochen): offen
 - [ ] `konto-news-assistent` – Newsgruppen-Konto (Assistent, abgebrochen): offen
