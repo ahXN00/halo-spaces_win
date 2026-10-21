@@ -5020,6 +5020,15 @@ addon-page-header h1,
   padding-top: 3px !important;
 }
 
+/* Windows/Linux: Pillen und Eingabefeld sind dort mit den Schriftmaßen des
+   Systems höher (einzeilig 30 statt 26 px), mit 3 px stünde die Beschriftung
+   2 px zu hoch */
+@media not (-moz-platform: macos) {
+  #MsgHeadersToolbar .address-label-container {
+    padding-top: 4.5px !important;
+  }
+}
+
 /* umbrochene Pillenzeilen beginnen bündig mit der ersten: alle Pillen mit
    gleichem Abstand vorn, keinem hinten (Thunderbird gibt den Abstand vorn
    nur der ersten Pille im Feld). Das leere Eingabefeld bleibt unverändert */

@@ -857,7 +857,9 @@ def reading_checks(m, results):
           const doc = await showMail("Halo Anhänge");
           doc.defaultView.toggleAttachmentList?.(true, true); await wait(900);
           const list = doc.getElementById("attachmentList");
-          list.selectedIndex = 0; list.focus(); await wait(400);
+          // Hauptfenster vorn, sonst bekommt die Liste unter Linux (xvfb) keinen Fokus und bleibt grau
+          w.focus(); await until(() => Services.focus.activeWindow == w, 3000);
+          list.selectedIndex = 0; list.focus(); await until(() => list.matches(":focus-within"), 2000); await wait(400);
           const item = list.querySelector(".attachmentItem[selected]");
           const focused = { bg: cs(item).backgroundColor, radius: parseFloat(cs(item).borderTopLeftRadius), outline: cs(item).outlineStyle };
           a3.threadTree.focus(); await wait(300);
@@ -1184,8 +1186,11 @@ def compose_checks(m, results):
         v = [float(x) for x in re.findall(r"-?[\d.]+", c)][:3]
         if res.get("dark"):
             ok = len(v) == 3 and max(abs(v[0] - v[1]), abs(v[1] - v[2]), abs(v[0] - v[2])) <= 3 and not same_color(c, "rgb(66, 65, 77)")
-        else:
+        elif sys.platform == "darwin":
             ok = len(v) == 3 and min(v) >= 250
+        else:
+            # hell bleibt Thunderbirds Fläche – unter Linux das helle Grau von GTK (246, 245, 244)
+            ok = len(v) == 3 and min(v) >= 240 and max(v) - min(v) <= 3
         return bool(res.get("open")) and ok, f"{res}"
     check("Rückfragen: neutrale Fläche (dunkel ohne violettgrauen Farbstich, hell weiß)", common_dialog, results)
 
@@ -1237,14 +1242,17 @@ def compose_checks(m, results):
         res = m.js(COMPOSE_CHECK_JS + r"""
           return await withCompose({}, async (cw, cd) => {
             cw.CustomizeMailToolbar("compose-toolbox", "CustomizeComposeToolbar");
+            // macOS als Sheet im Fenster, Linux/Windows als eigenes Fenster (toolbar.customization.usesheet)
             const frame = cd.getElementById("customizeToolbarSheetIFrame");
-            const d2 = await till(() => { const x = frame?.contentDocument; return x?.readyState == "complete" && x.getElementById("palette-box")?.querySelector("toolbarspring") && x; }, 8000);
+            const ready = x => x?.readyState == "complete" && x.getElementById("palette-box")?.querySelector("toolbarspring") && x;
+            const d2 = await till(() => ready(frame?.contentDocument)
+              || ready([...Services.wm.getEnumerator(null)].find(x => x.location.href.includes("customizeToolbar"))?.document), 8000);
             if (!d2) return { open: false };
             await pause(800);
             const box = d2.getElementById("palette-box"), spring = box.querySelector("toolbarspring"), s = csOf(box);
             const out = { open: true, border: parseFloat(s.borderTopWidth), radius: parseFloat(s.borderTopLeftRadius), bg: s.backgroundColor,
                           spring: [csOf(spring).borderTopStyle, parseFloat(csOf(spring).borderTopLeftRadius)] };
-            try { frame.contentWindow.onClose(); } catch {} await pause(800);
+            try { d2.defaultView.onClose(); } catch {} await pause(800);
             return out; });""")
         ok = res.get("open") and res["border"] == 0 and res["radius"] >= 8 and rgba_alpha(res["bg"]) <= 0.15 and res["spring"][0] == "dashed" and res["spring"][1] >= 4
         return ok, f"{res}"
@@ -1902,9 +1910,11 @@ def calendar_checks(m, results):
               await shutPop(dml.menupopup);
             }
             // Uhrzeitfeld: Raster
+            // unter Linux (xvfb, ohne Fenstermanager) schließt sich das Popup gleich wieder – das Raster ist mit
+            // popupshowing aber aufgebaut und gestaltet, gemessen wird dann am geschlossenen Popup
             const tml = id.querySelector("#event-starttime timepicker menulist");
             tml.open = true;
-            if (await isOpen(tml.menupopup)) {
+            if (await isOpen(tml.menupopup) || tml.menupopup.querySelector(".time-picker-hour-box-class[selected]")) {
               await pause(500);
               const g = tml.menupopup.querySelector("timepicker-grids"), hb = g.querySelector(".time-picker-hour-box-class"), sh = g.querySelector(".time-picker-hour-box-class[selected]");
               out.time = { border: [csOf(hb).borderLeftColor, csOf(hb).borderLeftWidth], radius: csOf(hb).borderTopLeftRadius,
