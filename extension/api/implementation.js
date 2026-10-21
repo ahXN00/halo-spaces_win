@@ -3504,6 +3504,8 @@ class CardEnhancer {
       return !!org && !card.firstName && !card.lastName;
     };
     const COMPANY_AVATAR = "resource://mailcards/icons/company-avatar.svg";
+    // neuer Kontakt noch ohne Namen: Person auf dem Verlauf statt Initialen
+    const PERSON_AVATAR = "resource://mailcards/icons/person-avatar.svg";
     // großes Bild ohne Foto: Initialen auf dem Verlauf der Liste (statt
     // Thunderbirds Umriss-Figur)
     const initialsImage = text => {
@@ -3599,9 +3601,9 @@ class CardEnhancer {
           return;
         }
         const generate = () => {
-          const { card, name, first, last } = info();
+          const { card, name, first, last, person } = info();
           const text = initialOf(name, { firstName: first ?? card?.firstName, lastName: last ?? card?.lastName });
-          const url = card && isCompany(card) ? COMPANY_AVATAR : text ? initialsImage(text) : "";
+          const url = card && isCompany(card) ? COMPANY_AVATAR : text ? initialsImage(text) : person ? PERSON_AVATAR : "";
           if (url && url != photo.getAttribute("src")) {
             photo.__mcGenerated = url;
             photo.src = url;
@@ -3645,8 +3647,18 @@ class CardEnhancer {
       const editHeading = cw.document.getElementById("editContactHeadingName");
       const fixEditPhoto = hookPhoto(cw.document.querySelector("#photoInput .contact-photo"), () => {
         const val = id => cw.document.getElementById(id)?.value?.trim();
-        return { card: cw.detailsPane?.currentCard, name: editHeading?.textContent,
-          first: val("vcard-n-firstname"), last: val("vcard-n-lastname") };
+        const card = cw.detailsPane?.currentCard;
+        const first = val("vcard-n-firstname");
+        const last = val("vcard-n-lastname");
+        if (card) {
+          return { card, name: editHeading?.textContent, first, last };
+        }
+        // neuer Kontakt: Überschrift ist anfangs der Platzhalter „New Contact“ –
+        // Initialen nur aus den Feldern (Anzeigename, Vor-/Nachname, E-Mail)
+        const email = cw.document.querySelector('#vcard-email input[type="email"]')?.value?.trim();
+        const name = val("vCardDisplayName") || [first, last].filter(Boolean).join(" ") ||
+          (email ? email.split("@")[0] : "");
+        return { card: null, name, first, last, person: true };
       });
       if (fixEditPhoto && editHeading) {
         const mo = new cw.MutationObserver(fixEditPhoto);
@@ -4082,12 +4094,14 @@ class CardEnhancer {
       const menu = cw.document.getElementById("sortContext");
       // Abschnittstitel, damit klar ist, dass „Anzeigename“ eine Auswahl ist
       if (menu && !menu.querySelector(".mc-caption")) {
-        const caption = (label, before, sep) => {
+        const caption = (label, before, sep, section) => {
           if (!before) {
             return;
           }
           const c = cw.document.createXULElement("menucaption");
           c.className = "mc-caption";
+          // Abschnitt für das CSS (Tabellenansicht blendet „Sort“ aus)
+          c.setAttribute("mc-section", section);
           c.setAttribute("label", label);
           // „View“ folgt ohne Thunderbirds Trenner auf „Sort“: eigene Trennlinie davor
           const s = sep ? cw.document.createXULElement("menuseparator") : null;
@@ -4101,9 +4115,9 @@ class CardEnhancer {
             s?.remove();
           });
         };
-        caption(tr("Show Names As"), menu.querySelector('menuitem[name="format"]'));
-        caption(tr("Sort"), menu.querySelector('menuitem[name="sort"]'));
-        caption(tr("View"), menu.querySelector('menuitem[value="addrbook"]'), true);
+        caption(tr("Show Names As"), menu.querySelector('menuitem[name="format"]'), false, "format");
+        caption(tr("Sort"), menu.querySelector('menuitem[name="sort"]'), false, "sort");
+        caption(tr("View"), menu.querySelector('menuitem[value="addrbook"]'), true, "view");
         // Thunderbirds Trenner vor „Table layout“ ausblenden: „View“ (Address
         // Book, Table layout, Merge Duplicate Contacts) hat innen keine Linie
         let tbSep = menu.querySelector("#sortContextTableLayout")?.previousElementSibling;

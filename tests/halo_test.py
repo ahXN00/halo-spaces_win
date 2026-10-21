@@ -3340,11 +3340,37 @@ def run_checks(m, version, profile, results):
       .map(e => e.localName == "menuseparator" ? "|" : e.localName == "menucaption" ? "#" + e.getAttribute("label") : (e.getAttribute("value") || e.id || "item"));
     const hiddenP = new Promise(r => sc.addEventListener("popuphidden", r, { once: true }));
     sc.hidePopup(); await Promise.race([hiddenP, wait(2000)]);
+    // neuer Kontakt ohne Namen: Personen-Silhouette statt Initialen aus „New Contact“,
+    // nach Eingabe von Vor- und Nachname deren Initialen
+    {
+      ab.detailsPane.editNewContact(); await wait(800);
+      const ph = ad.querySelector("#photoInput .contact-photo");
+      const srcOf = () => decodeURIComponent(ph?.getAttribute("src") || "");
+      const before = srcOf();
+      const typeIn = (id, v) => { const f = ad.getElementById(id); f.value = v; f.dispatchEvent(new ab.InputEvent("input", { bubbles: true })); };
+      typeIn("vcard-n-firstname", "Test"); typeIn("vcard-n-lastname", "Person"); await wait(500);
+      const after = srcOf();
+      out.newContact = { before: before.slice(-40), person: before.endsWith("person-avatar.svg"),
+        initials: after.startsWith("data:") && after.includes(">TP<"), heading: ad.getElementById("editContactHeadingName")?.textContent };
+      ab.detailsPane.isDirty = false;
+      ad.getElementById("cancelEditButton").click(); await wait(600);
+    }
     // breiter Detailbereich (> 64em): Kopf bleibt auf der Achse
     const dp = ad.getElementById("detailsPane");
     out.wide = { pane: Math.round(R(dp).width) };
     // Tabellenansicht: kleines Foto, erste Karte ohne Scrollen sichtbar, Kopf auf der Achse
     ab.cardsPane.toggleLayout(true); await wait(1500); await pick("Jonas Ärmel"); await wait(600);
+    // Darstellungsmenü in der Tabelle: ohne Sortierung kein leerer Titel „Sort“
+    {
+      w.focus(); abTab.browser.focus(); await wait(200);
+      const shown = new Promise(r => sc.addEventListener("popupshown", r, { once: true }));
+      sc.openPopup(list, "after_start"); await Promise.race([shown, wait(3000)]); await wait(300);
+      out.sortMenuState = sc.state;
+      out.sortMenuTable = [...sc.children].filter(e => !e.hidden && e.getClientRects().length > 0)
+        .map(e => e.localName == "menuseparator" ? "|" : e.localName == "menucaption" ? "#" + e.getAttribute("mc-section") : (e.getAttribute("value") || e.id || "item"));
+      const hid = new Promise(r => sc.addEventListener("popuphidden", r, { once: true }));
+      sc.hidePopup(); await Promise.race([hid, wait(2000)]);
+    }
     const lh2 = d.querySelector("#mcListHeader .mc-lh-more"), search = d.querySelector("#unifiedToolbarContent global-search-bar, #unifiedToolbarContent search-bar, #unifiedToolbarContent .search-bar");
     out.table = { photoW: Math.round(R(photo).width), photoMid: Math.round(mid(photo) - mid(body)),
       emTop: Math.round(R(em).top), paneBottom: Math.round(R(dp).bottom), dpW: Math.round(R(dp).width),
@@ -3360,8 +3386,19 @@ def run_checks(m, version, profile, results):
     // Liste: Kontaktkopf weg, Listenkopf mittig mit Verlaufs-Kreis
     const lrow = [...ad.querySelectorAll("#books li.listRow")].find(li => li.textContent.includes("Halo Liste"));
     ab.booksList.selectedIndex = ab.booksList.rows.indexOf(lrow); await wait(1200);
-    ad.getElementById("books").focus(); await wait(300);
     const lc = lrow.querySelector(".listRow-container") || lrow.firstElementChild;
+    // Auswahl unfokussiert grau, fokussiert wie die Ordnerliste akzentgetönt
+    list.focus(); await wait(300);
+    const bgBlur = cs(lc).backgroundColor;
+    const tint = ad.createElement("span"); ad.body.append(tint);
+    tint.style.backgroundColor = "var(--mt-selected-unfocused)"; const unfocused = cs(tint).backgroundColor;
+    tint.style.backgroundColor = "color-mix(in srgb, var(--mt-accent) 22%, transparent)"; const focused = cs(tint).backgroundColor;
+    tint.remove();
+    // Hauptfenster und Tab nach vorn, sonst gilt :focus-within nicht
+    w.focus(); abTab.browser.focus(); ad.getElementById("books").focus(); await wait(300);
+    const licon = lrow.querySelector(".listRow-icon");
+    out.listSel = { bgBlur, bgFocus: cs(lc).backgroundColor, unfocused, focused, fw: ad.getElementById("books").matches(":focus-within"),
+      icon: [cs(licon).backgroundColor, cs(licon).maskImage.startsWith('url("data:'), Math.round(R(licon).width)] };
     const brow = ad.querySelector("#books .bookRow > .bookRow-container");
     out.listRow = { border: cs(lc).borderTopWidth, radius: cs(lc).borderTopLeftRadius, font: cs(lc).fontSize,
       h: Math.round(R(lc).height), bookH: Math.round(R(brow).height), bg: cs(lc).backgroundColor,
@@ -3461,6 +3498,26 @@ def run_checks(m, version, profile, results):
               and "mcHideDuplicates" in sm[view:] and "sortContextTableLayout" in sm[view:] and "addrbook" in sm[view:])
         return ok, f"note={c.get('noteFont')} listAvatar={la} sortMenu={sm}"
     check("Adressbuch: Notiz so groß wie die Werte; Verteilerliste in der Liste im Verlaufskreis; Darstellungsmenü mit je einer Trennlinie zwischen den Abschnitten", ab_list_menu, results)
+
+    def ab_list_select_new():
+        # Verteilerliste in der Bücherliste: Auswahl unfokussiert grau, fokussiert
+        # akzentgetönt wie die Ordnerliste, Symbol in der Akzentfarbe; Tabellen-
+        # ansicht ohne leeren Titel „Sort“ und ohne doppelte Linie; neuer
+        # Kontakt ohne Namen mit Silhouette statt „NC“, danach mit Initialen
+        res = ab_views()
+        ls, st, nc = res.get("listSel") or {}, res.get("sortMenuTable") or [], res.get("newContact") or {}
+        # keine Linie am Rand oder doppelt; jeder Titel nach dem ersten mit Linie davor und Eintrag danach
+        seps_ok = (bool(st) and st[0] != "|" and st[-1] != "|" and "#sort" not in st
+                   and all(not (x == "|" and y == "|") for x, y in zip(st, st[1:]))
+                   and all(i + 1 < len(st) and st[i + 1] != "|" and not st[i + 1].startswith("#") and (i == 0 or st[i - 1] == "|")
+                           for i, x in enumerate(st) if x.startswith("#")))
+        ok = (bool(ls) and same_color(ls["bgBlur"], ls["unfocused"]) and same_color(ls["bgFocus"], ls["focused"])
+              and not same_color(ls["bgFocus"], ls["bgBlur"])
+              and same_color(ls["icon"][0], res["accent"]) and ls["icon"][1] and ls["icon"][2] == 18
+              and seps_ok and "sortContextTableLayout" in st
+              and nc.get("person") is True and nc.get("initials") is True)
+        return ok, f"listSel={ls} sortMenuTable={st} state={res.get('sortMenuState')} newContact={nc}"
+    check("Adressbuch: Verteilerliste in der Bücherliste fokussiert akzentgetönt mit Akzentsymbol; Tabellen-Darstellungsmenü ohne leeres „Sort“; neuer Kontakt mit Silhouette statt „NC“", ab_list_select_new, results)
 
     def ab_search_dialog():
         # Adressen suchen: Bedingungen und Ergebnisse als Flächen mit Haarlinie
