@@ -7976,7 +7976,7 @@ class CardEnhancer {
       },
     };
     const hw = w.openDialog("resource://mailcards/about/halo.html", "halo-spaces",
-      `chrome,dialog=yes,centerscreen,resizable=no,width=360,height=${(api.mac ? 438 : 390) + (platformNote ? 64 : 0)}`);
+      `chrome,dialog=yes,centerscreen,resizable=no,width=360,height=${(api.mac ? 441 : 390) + (platformNote ? 64 : 0)}`);
     // erst lädt das Fenster about:blank, dann unsere Seite – darauf warten
     let tries = 0;
     const wire = () => {

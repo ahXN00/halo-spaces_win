@@ -3848,14 +3848,100 @@ def run_checks(m, version, profile, results):
           const size = sel => parseFloat(hw?.getComputedStyle(hw.document.querySelector(sel)).fontSize);
           const head = icon && h1 && ver ? { offsets: [mid(icon), mid(h1), mid(ver)],
             stacked: icon.bottom <= h1.top && h1.bottom <= ver.top + 1, sizes: [size("h1"), size("#version")] } : null;
+          // nicht scrollbar (früher 3 px zu niedrig); Status in deckender Farbe, sonst malt Gecko das Emoji blass
+          const overflow = hw ? hw.document.documentElement.scrollHeight - hw.innerHeight : null;
+          const status = hw ? hw.getComputedStyle(hw.document.getElementById("emoji-status")).color : null;
           w.openLinkExternally = orig; hw?.close();
-          return { window: !!hw, opened, address, room, head };''')
+          return { window: !!hw, opened, address, room, head, overflow, status };''')
         url = res.get("opened") or ""
         ok = url.startswith("https://buymeacoffee.com/diversion?") and "utm_content=about-window" in url
         head = res.get("head") or {}
         centered = head and all(o is not None and abs(o) <= 2 for o in head["offsets"]) and head["stacked"] and head["sizes"][1] < 12
-        return ok and centered and not res["address"] and res["room"] is not None and 10 <= res["room"] <= 30, f"{res}"
-    check("Info-Fenster: Logo, Name und Version mittig untereinander; „Say Thanks“ öffnet die Spendenseite, keine Mailadresse unten", donate, results)
+        # Einstellungsseite (eingebettet, nicht per Marionette erreichbar): Sekundärfarbe ohne Alpha in der Datei
+        import re
+        opts = open(os.path.join(ROOT, "extension", "options", "options.css")).read()
+        opaque = not re.search(r"--text-secondary:\s*rgba", opts) and (res.get("status") or "").startswith("rgb(")
+        return (ok and centered and not res["address"] and res["room"] is not None and 16 <= res["room"] <= 22
+                and res.get("overflow") is not None and res["overflow"] <= 0 and opaque), f"{res}"
+    check("Info-Fenster: Logo, Name und Version mittig untereinander; „Say Thanks“ öffnet die Spendenseite, keine Mailadresse unten; "
+          "nicht scrollbar, unten 18 px; Emojis in Status und Hinweisen in voller Farbe", donate, results)
+
+    def addons_manager():
+        # Add-ons-Verwaltung (Thunderbird 140+, Bausteine im Schatten-DOM): Seitenleiste 34 px/13 px, Seite und Kopf in
+        # --mt-window (dunkel kein #18181B), Suchfeld als Kapsel ohne Rahmen, Werkzeug und „…“ gleich (24 × 24, ohne
+        # Fläche), Schalter mit weißem Knopf, Menüs wie halo (12 px, 22-px-Zeilen, Akzent), Detailansicht mit
+        # Haarlinien ohne Doppellinie, eingebettete Einstellungen ohne eigene Fläche
+        res = m.js(r'''
+          w.resizeTo(1500, 900);
+          const ID = "mail-cards@sebastian.local";
+          w.openAddonsMgr("addons://list/extension");
+          const ad = await until(() => { const x = tm.currentTabInfo.browser?.contentDocument; return x?.querySelector(`addon-card[addon-id="${ID}"] .extension-options-button`) && x; }, 8000);
+          await wait(800);
+          const aw = ad.defaultView; const cs = (e, p) => aw.getComputedStyle(e, p); const R = e => e.getBoundingClientRect();
+          const probe = (prop, v) => { const p = ad.createElement("div"); p.style[prop] = v; ad.body.append(p); const c = cs(p)[prop]; p.remove(); return c; };
+          const bg = v => probe("backgroundColor", v), fg = v => probe("color", v);
+          const out = {};
+          const btns = [...ad.querySelectorAll("categories-box moz-page-nav-button")].map(b => b.shadowRoot?.querySelector("a[href], button")).filter(b => b && R(b).height);
+          out.nav = btns.map(b => [Math.round(R(b).height), cs(b).fontSize, Math.round(R(b.querySelector(".page-nav-icon") || b).width)]);
+          const sel = btns.find(b => b.matches("[selected]"));
+          out.navSel = !!sel && cs(sel).backgroundColor == bg("var(--mt-selected-unfocused)");
+          const win = bg("var(--mt-window)");
+          out.page = [ad.documentElement, ad.querySelector(".sticky-container"), ad.querySelector(".main-search"), ad.querySelector(".main-heading")].map(e => !!e && cs(e).backgroundColor == win);
+          const inp = ad.querySelector("search-addons moz-input-search")?.shadowRoot?.querySelector("#input");
+          out.search = inp ? [cs(inp).borderTopColor, parseFloat(cs(inp).borderTopLeftRadius), cs(inp).backgroundColor == bg("var(--mt-control)"), Math.round(R(inp).height)] : null;
+          const knobs = c => [c.querySelector(".extension-options-button"), c.querySelector(".more-options-button")?.shadowRoot?.querySelector('[part="button"]')]
+            .map(b => b ? [Math.round(R(b).width * 2) / 2, Math.round(R(b).height * 2) / 2, cs(b).backgroundColor, cs(b).borderTopLeftRadius] : null);
+          const card = ad.querySelector(`addon-card[addon-id="${ID}"]`);
+          out.knobs = [knobs(card)];
+          const tb = card.querySelector("moz-toggle")?.shadowRoot?.querySelector('button[aria-pressed="true"]');
+          out.toggleDot = tb ? cs(tb, "::before").backgroundColor : null;
+          out.menus = [];
+          for (const [btnSel, listSel] of [[`addon-card[addon-id="${ID}"] .more-options-button`, `addon-card[addon-id="${ID}"] addon-options > panel-list`],
+                                           ["addon-page-header .page-options-menu .more-options-button", "addon-page-options > panel-list"]]) {
+            ad.querySelector(btnSel).click();
+            const pl = await until(() => { const p = ad.querySelector(listSel); return p?.open && R(p).height && p; }, 4000);
+            await wait(300);
+            if (!pl) { out.menus.push(null); continue; }
+            const ib = [...pl.querySelectorAll("panel-item")].find(i => !i.disabled && !i.hidden && R(i).height)?.shadowRoot.querySelector("button");
+            InspectorUtils.addPseudoClassLock(ib, ":hover"); const hover = cs(ib).backgroundColor; InspectorUtils.removePseudoClassLock(ib, ":hover");
+            const hr = [...pl.querySelectorAll("hr")].find(h => R(h).width);
+            const back = cs(pl).backgroundColor.match(/[\d.]+/g).map(Number);
+            out.menus.push({ radius: cs(pl).borderTopLeftRadius, border: cs(pl).borderTopWidth, bg: cs(pl).backgroundColor == bg("var(--mt-tooltip-bg)"),
+              blue: Math.abs(back[0] - back[2]) > 6, itemRadius: cs(ib).borderTopLeftRadius, itemH: Math.round(R(ib).height),
+              hover: hover == bg("var(--mt-accent)"), hr: hr ? cs(hr).borderTopColor == fg("var(--mt-separator)") : null });
+            pl.hide(); await wait(300);
+          }
+          w.openAddonsMgr("addons://detail/" + encodeURIComponent(ID));
+          const tg = await until(() => { const t = ad.querySelector("addon-details .tab-group"); return t && R(t).height && t; }, 6000); await wait(800);
+          const row = [...ad.querySelectorAll('addon-details section[name="details"] > .addon-detail-row')].find(e => R(e).height > 0);
+          out.detail = tg && row ? { tgBottom: cs(tg).borderBottomWidth, gap: Math.round(R(row).top - R(tg).bottom), rowLine: cs(row).borderTopColor == fg("var(--mt-separator)"),
+            tgTop: cs(tg).borderTopColor == fg("var(--mt-separator)") } : null;
+          out.knobs.push(knobs(ad.querySelector("addon-card")));
+          w.openAddonsMgr("addons://detail/" + encodeURIComponent(ID) + "/preferences");
+          const br = await until(() => { const b = ad.querySelector("addon-card .addon-inline-options"); return b && R(b).height > 100 && b; }, 8000);
+          await wait(1500);
+          out.inline = br ? cs(br).backgroundColor : null;
+          if (br) {
+            // Schnappschuss mit Magenta als Grund: ist die Seite durchsichtig, bleibt der Rand magenta
+            const snap = await br.browsingContext.currentWindowGlobal.drawSnapshot(new DOMRect(2, 2, 4, 4), 1, "rgb(255,0,255)");
+            const cv = ad.createElement("canvas"); cv.width = snap.width; cv.height = snap.height; const cx = cv.getContext("2d"); cx.drawImage(snap, 0, 0);
+            out.inlinePixel = [...cx.getImageData(1, 1, 1, 1).data];
+          }
+          tm.closeTab(tm.currentTabInfo); await wait(300);
+          return out;''')
+        nav_ok = len(res["nav"]) >= 4 and all(32 <= h <= 36 and f == "13px" and i == 18 for h, f, i in res["nav"]) and res["navSel"]
+        s = res.get("search") or [None, 0, False, 0]
+        search_ok = rgba_alpha(s[0]) == 0 and s[1] >= 14 and s[2] and 26 <= s[3] <= 30
+        knobs_ok = all(k and all(b and b[0] == 24 and b[1] == 24 and b[2] == "rgba(0, 0, 0, 0)" and b[3] == "50%" for b in k) for k in res["knobs"])
+        menus_ok = len(res["menus"]) == 2 and all(mn and mn["radius"] == "12px" and mn["border"] == "0px" and mn["bg"] and not mn["blue"]
+                                                   and mn["itemRadius"] == "6px" and mn["itemH"] >= 22 and mn["hover"] and mn["hr"] is not False for mn in res["menus"])
+        dt = res.get("detail") or {}
+        detail_ok = dt.get("tgBottom") == "0px" and dt.get("gap") is not None and abs(dt["gap"]) <= 1 and dt.get("rowLine") and dt.get("tgTop")
+        inline_ok = res.get("inline") == "rgba(0, 0, 0, 0)" and res.get("inlinePixel") == [255, 0, 255, 255]
+        ok = nav_ok and all(res["page"]) and search_ok and knobs_ok and res.get("toggleDot") == "rgb(255, 255, 255)" and menus_ok and detail_ok and inline_ok
+        return ok, f"{res}"
+    check("Add-ons: Seitenleiste 34 px/13 px, Seite und Kopf in Fensterfarbe, Suchfeld als Kapsel, Symbolknöpfe gleich, Schalter weiß, "
+          "Menüs wie macOS, Detailansicht mit Haarlinien ohne Doppellinie, Einstellungen ohne eigene Fläche", addons_manager, results)
 
     def tasks_view():
         # Leeranzeige, iCloud-Platzhalter ausgeblendet, Hinweis neben dem Plus, Kapsel-Knöpfe

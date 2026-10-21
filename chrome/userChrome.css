@@ -5375,7 +5375,7 @@ addon-card .card,
   box-shadow: none !important;
 }
 
-:is(addon-list, addon-page-header, .main-search, .addon-details) button:not(.toggle-button, [role="switch"]),
+:is(addon-list, addon-page-header, .main-search, .addon-details) button:not(.toggle-button, [role="switch"], .extension-options-button),
 .main-search button {
   min-height: 28px !important;
   border: none !important;
@@ -5398,6 +5398,118 @@ addon-page-header h1,
 .header-name {
   font-size: 22px !important;
   font-weight: 700 !important;
+}
+
+/* Thunderbird 140+: Seitenleiste aus moz-page-nav-button (die Regeln für
+   categories-box > .category oben stammen aus Thunderbird 128). Thunderbird
+   setzt Höhe, Schrift und Symbolgröße als Variablen an der Gruppe im
+   Schatten-DOM (48/44 px, 1,1 bzw. 1 rem) – am Knopf selbst gesetzt gelten
+   überall 34 px und 13 px; den oberen Abstand lässt halo, wie er ist */
+categories-box moz-page-nav-button {
+  --page-nav-button-height: 34px !important;
+  --page-nav-button-font-size: 13px !important;
+  --page-nav-button-icon-size: 18px !important;
+  --page-nav-button-gap: 10px !important;
+  --page-nav-button-border-radius: 8px !important;
+  --page-nav-button-padding: 0 10px !important;
+  --page-nav-button-text-color: var(--mt-text) !important;
+  --page-nav-button-text-color-hover: var(--mt-text) !important;
+  --page-nav-button-background-color-hover: var(--mt-hover) !important;
+  --page-nav-button-background-color-selected: var(--mt-selected-unfocused) !important;
+}
+
+/* eine Fläche wie der klebende Kopf (.sticky-container) – dunkel kein
+   Firefox-Blauschwarz #18181B unter Inhalt, Überschrift und Statusleiste */
+:root:has(#sidebar > categories-box) {
+  --in-content-page-background: var(--mt-window) !important;
+  background-color: var(--mt-window) !important;
+}
+
+/* Thunderbird malt Suchzeile und Überschrift darin noch einmal in
+   --layout-background-0 */
+:root:has(#sidebar > categories-box) :is(.main-search, .main-heading) {
+  background: var(--mt-window) !important;
+}
+
+/* Thunderbird 140+: Suchfeld „Search addons.thunderbird.net“ liegt im
+   Schatten-DOM von moz-input-search – die Regel search-addons input oben
+   trifft es nicht mehr. Die Tokens am Host gelten im Schatten-DOM: graue
+   Kapsel ohne Rahmen wie die Suche oben rechts, Fokus als Akzent-Halo */
+search-addons moz-input-search {
+  --input-text-border: 1px solid transparent !important;
+  --input-text-border-radius: 999px !important;
+  --input-search-border-radius: 999px !important;
+  --input-text-background-color: var(--mt-control) !important;
+  --input-text-min-height: 28px !important;
+  --focus-outline: 3px solid color-mix(in srgb, var(--mt-accent) 30%, transparent) !important;
+}
+
+/* Symbolknöpfe im Kartenkopf (Werkzeug und „…“): gleich groß (24 × 24),
+   ohne Fläche, dezenter Hover – das Werkzeug fiel sonst unter die
+   Kapselregel oben (24 × 28, grau gefüllt). Kein background-Kurzschreiber,
+   das Werkzeugsymbol ist ein background-image. Der „…“-Knopf liegt im
+   Schatten-DOM: extension/parts.css */
+addon-card .extension-options-button {
+  width: 24px !important;
+  height: 24px !important;
+  min-width: 24px !important;
+  min-height: 24px !important;
+  border: none !important;
+  border-radius: 50% !important;
+  background-color: transparent !important;
+  box-shadow: none !important;
+}
+
+addon-card .extension-options-button:not(:disabled):hover {
+  background-color: var(--mt-hover) !important;
+}
+
+/* Ein/Aus-Schalter: weißer Knopf wie in macOS und auf der halo-Einstellungsseite
+   (dunkel sonst #18181B); macOS-Schalter haben hell und dunkel einen weißen Knopf */
+addon-card moz-toggle {
+  --toggle-dot-background-color-on-pressed: #FFFFFF !important;
+}
+
+/* Detailansicht: Haarlinien statt harter Linien; Reiterleiste ohne eigene
+   Linie unten (dort trennt die erste Zeile), leere Beschreibung ohne ihr
+   16-px-Band – sonst eine Doppellinie unter den Reitern */
+addon-details .tab-group {
+  border-top-color: var(--mt-separator) !important;
+  border-bottom: none !important;
+}
+
+addon-details .addon-detail-row:not(.addon-detail-help-row),
+addon-details .addon-detail-sitepermissions,
+addon-permissions-list .addon-permissions-list-wrapper:not(:first-child) {
+  border-top-color: var(--mt-separator) !important;
+}
+
+addon-details .addon-detail-description-wrapper:has(> .addon-detail-description:empty) {
+  display: none !important;
+}
+
+/* eingebettete Einstellungen ohne eigene Fläche (Thunderbird: Canvas) – eine
+   Ebene mit der Karte statt weißer bzw. dunkler Insel darin */
+addon-card .addon-inline-options {
+  background-color: transparent !important;
+}
+
+/* Menüs der Add-ons-Verwaltung („…“ an der Karte, Zahnrad im Kopf) wie die
+   übrigen halo-Menüs: 12 px Radius ohne Rahmen, 22-px-Zeilen mit 6 px Radius,
+   Markierung in Akzentfarbe, Haarlinien-Trenner. Feste Fläche wie die
+   Tooltips – im Inhalt gibt es keine Unschärfe von macOS. Nur diese beiden
+   Menüs, panel-list steckt auch in anderen Seiten. Die Zeilen liegen im
+   Schatten-DOM: extension/parts.css */
+:is(addon-options, addon-page-options) > panel-list {
+  --panel-separator-color: var(--mt-separator) !important;
+  --panel-separator-padding: 5px 9px !important;
+  background-color: var(--mt-tooltip-bg) !important;
+  border: none !important;
+  border-radius: 12px !important;
+  box-shadow: var(--mt-shadow), 0 8px 24px rgba(0, 0, 0, 0.14) !important;
+  padding: 5px !important;
+  color: var(--mt-text) !important;
+  font: 13px var(--mt-font) !important;
 }
 
 /* ---------- Verfassen-Fenster wie Apple Mail ---------- */

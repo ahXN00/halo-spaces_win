@@ -305,13 +305,13 @@ Vorher-Bilder: `tests/shots/tour/vorher/` (hell-*/dunkel-*), Paket `tests/shots/
 
 ## 12. Add-ons und halo.spaces-Fenster (`addons`)
 
-- [ ] `addons-erweiterungen` – Add-ons: Erweiterungen: offen
-- [ ] `addons-themes` – Add-ons: Themes: offen
-- [ ] `addons-detail` – Add-ons: halo.spaces (Details): offen
-- [ ] `addons-halo-einstellungen` – halo.spaces-Einstellungen (im Add-ons-Manager): offen
-- [ ] `addons-karten-menue` – Add-ons: Menü einer Erweiterung (…): offen
-- [ ] `addons-werkzeuge-menue` – Add-ons: Zahnrad-Menü (Updates, Add-on aus Datei installieren, Tastenkombinationen …): offen
-- [ ] `halo-info` – Hilfe → halo.spaces … (Info-Fenster): offen
+- [x] `addons-erweiterungen` – Add-ons: Erweiterungen: erledigt (Commit „Add-ons: …“ (Runde 1, Befunde 0–11)) – Seitenleiste 34-px-Zeilen in 13 px mit 18-px-Symbolen statt 48/44 px und zwei Schriftgrößen; dunkel Seite, Suchzeile und Überschrift in --mt-window statt #18181B; Suchfeld als graue Kapsel ohne Rahmen; Werkzeug und „…“ gleich (24 × 24, ohne Fläche); Schalter dunkel mit weißem Knopf
+- [x] `addons-themes` – Add-ons: Themes: erledigt (Commit „Add-ons: …“ (Runde 1, Befunde 0–11)) – Seitenleiste 34-px-Zeilen in 13 px mit 18-px-Symbolen statt 48/44 px und zwei Schriftgrößen; dunkel Seite, Suchzeile und Überschrift in --mt-window statt #18181B; Suchfeld als graue Kapsel ohne Rahmen
+- [x] `addons-detail` – Add-ons: halo.spaces (Details): erledigt (Commit „Add-ons: …“ (Runde 1, Befunde 0–11)) – Seitenleiste 34-px-Zeilen in 13 px mit 18-px-Symbolen statt 48/44 px und zwei Schriftgrößen; dunkel Seite, Suchzeile und Überschrift in --mt-window statt #18181B; Suchfeld als graue Kapsel ohne Rahmen; Haarlinien statt harter Linien, keine Doppellinie mit leerem Band unter den Reitern; Werkzeug und „…“ gleich
+- [x] `addons-halo-einstellungen` – halo.spaces-Einstellungen (im Add-ons-Manager): erledigt (Commit „Add-ons: …“ (Runde 1, Befunde 0–11)) – eingebettete Seite ohne eigene Fläche (hell keine weiße Insel, dunkel kein dunkleres Loch); Emojis in den Hinweisen in voller Farbe (Sekundärfarbe deckend)
+- [x] `addons-karten-menue` – Add-ons: Menü einer Erweiterung (…): erledigt (Commit „Add-ons: …“ (Runde 1, Befunde 0–11)) – wie die halo-Menüs: 12 px Radius ohne blaustichige Fläche und Rahmen, 22-px-Zeilen mit 6 px, Markierung in Akzentfarbe statt blauem Rechteckring, Haarlinien-Trenner; Befund 10 doppelt zu 0 (feste Fläche --mt-tooltip-bg statt durchscheinend, im Inhalt gibt es keine macOS-Unschärfe)
+- [x] `addons-werkzeuge-menue` – Add-ons: Zahnrad-Menü (Updates, Add-on aus Datei installieren, Tastenkombinationen …): erledigt (Commit „Add-ons: …“ (Runde 1, Befunde 0–11)) – wie addons-karten-menue
+- [x] `halo-info` – Hilfe → halo.spaces … (Info-Fenster): erledigt (Commit „Add-ons: …“ (Runde 1, Befunde 0–11)) – Fenster 441 statt 438 px hoch, nicht mehr 3 px scrollbar, unten 18 px; Torten-Emoji im Status in voller Farbe
 - [x] `addons-empfehlungen` – Add-ons: Empfehlungen: übersprungen: lädt Inhalte aus dem Netz (addons.thunderbird.net) – im Testprofil ausgelassen
 
 ## 13. Seltene Dialoge (`dialoge`)
