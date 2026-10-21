@@ -1900,6 +1900,13 @@ body.layout-table #viewContactName {
   column-gap: 0 !important;
 }
 
+/* Notiz in derselben Größe wie die übrigen Werte (erbte sonst 12 px) */
+#detailsBody #notes > div {
+  font-size: 14px !important;
+  line-height: 1.35 !important;
+  color: var(--mt-text) !important;
+}
+
 /* Links (E-Mail, Telefon, Webseite) in der Akzentfarbe, ohne Unterstrich */
 #detailsBody a {
   color: var(--mt-accent) !important;
@@ -3157,6 +3164,20 @@ addon-page-header h1,
   font: 600 15px var(--mt-font) !important;
 }
 
+/* Verteilerlisten: Thunderbirds Umriss-Symbol weiß und kleiner auf demselben
+   Verlauf statt frei stehend ohne Kreis (wie der Listenkopf in den Details) */
+:is(#cards, #selectedCards) contact-avatar.is-mail-list {
+  background: linear-gradient(180deg, #B4CAE4, #8A97C5) !important;
+  color: #fff !important;
+  box-shadow: none !important;
+  box-sizing: border-box !important;
+  padding: 9px !important;
+}
+
+#selectedCards contact-avatar.is-mail-list {
+  padding: 6px !important;
+}
+
 /* Firmen ohne Foto: Gebäude auf demselben Verlauf (wie Apple Kontakte) */
 :is(#cards, #selectedCards) contact-avatar.mc-company {
   background: url("resource://mailcards/icons/company-avatar.svg") center / cover no-repeat !important;
@@ -3218,6 +3239,21 @@ addon-page-header h1,
 
 #abContactsPanel :is(label[control], #AbPickerHeader, #peopleSearchInput) {
   margin-inline: 8px !important;
+}
+
+/* ---------- Adressen suchen (erweiterte Suche): Bedingungen und Ergebnisse
+   als ruhige Flächen mit Haarlinie und 8 px Radius statt hartem eckigem
+   Rahmen bzw. schwarzer Liste (dunkel); Teiler als eine Haarlinie ---------- */
+#searchAddressBookWindow :is(#searchTermList, #abResultsTree) {
+  background-color: var(--mt-window) !important;
+  border: var(--mt-hairline) solid var(--mt-pane-line) !important;
+  border-radius: 8px !important;
+}
+
+#searchAddressBookWindow #gray_horizontal_splitter {
+  border: none !important;
+  border-top: var(--mt-hairline) solid var(--mt-pane-line) !important;
+  background: transparent !important;
 }
 
 /* ---------- Kontakt bearbeiten / neuer Kontakt – wie Apple Kontakte:

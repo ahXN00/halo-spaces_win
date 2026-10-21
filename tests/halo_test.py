@@ -3047,6 +3047,38 @@ def run_checks(m, version, profile, results):
         return ok, f"{res}"
     check("Mindestbreiten: Fenster wird nicht schmaler als die Bereiche", min_widths, results)
 
+    def ab_min_width_unselected():
+        # Adressbuch ohne Auswahl: das Fenster lässt sich wieder schmaler ziehen
+        # (früher sperrte der ausgeblendete Kalender die Breite auf die aktuelle);
+        # nach Wahl eines Kontakts bleiben die Details mindestens so breit wie vorgegeben
+        res = m.js(r"""
+          w.resizeTo(1500, 900); await wait(800);
+          tm.openTab("addressBookTab", {});
+          const tab = tm.currentTabInfo;
+          const ab = await until(() => { const c = tab.browser?.contentWindow; return c?.document?.getElementById("cards")?.view?.rowCount && c; }, 8000);
+          const ad = ab.document, list = ad.getElementById("cards"), dp = ad.getElementById("detailsPane");
+          const out = {};
+          try {
+            await wait(800);
+            list.selectedIndices = []; await wait(800);
+            out.hidden = dp.hidden || !dp.getClientRects().length;
+            w.resizeTo(1500, 900); await wait(1000);
+            w.resizeTo(1250, 900); await wait(1200);
+            out.narrow = w.outerWidth;
+            list.selectedIndex = 0; await wait(1000);
+            w.resizeTo(600, 900); await wait(1500);
+            const r = dp.getBoundingClientRect();
+            out.pane = Math.round(r.width); out.min = parseFloat(ab.getComputedStyle(dp).minWidth);
+            out.inside = r.right <= ab.innerWidth + 1; out.window = w.outerWidth;
+          } finally {
+            tm.closeTab(tab); w.resizeTo(1500, 900); await wait(800);
+          }
+          return out;""")
+        ok = (res["hidden"] and res["narrow"] < 1450 and res["pane"] >= res["min"] - 1 and res["min"] >= 560
+              and res["inside"] and res["window"] > 600)
+        return ok, f"{res}"
+    check("Adressbuch ohne Auswahl: Fenster lässt sich verkleinern, Details danach mindestens so breit wie vorgegeben", ab_min_width_unselected, results)
+
     def today_closed():
         # Today-Pane aus: keine graue Fläche oben rechts neben dem Knopf
         res = m.js('''
@@ -3297,7 +3329,17 @@ def run_checks(m, version, profile, results):
     const telType = ad.querySelector("#phoneNumbers .entry-type"), note = ad.querySelector("#notes > div");
     out.contact = { photoMid: Math.round(mid(photo) - mid(body)), photoW: Math.round(R(photo).width),
       link: link && [cs(link).textDecorationLine, cs(link).color],
-      edges: [em.querySelector("h2"), firstVal, telType, note].map(e => e ? Math.round(R(e).left) : null) };
+      edges: [em.querySelector("h2"), firstVal, telType, note].map(e => e ? Math.round(R(e).left) : null),
+      // Notiz so groß wie die übrigen Werte
+      noteFont: note && [cs(note).fontSize, cs(firstVal).fontSize] };
+    // Darstellungsmenü „…“: drei Abschnitte mit genau einer Trennlinie dazwischen
+    const sc = ad.getElementById("sortContext");
+    const shownP = new Promise(r => sc.addEventListener("popupshown", r, { once: true }));
+    sc.openPopup(list, "after_start"); await Promise.race([shownP, wait(3000)]); await wait(300);
+    out.sortMenu = [...sc.children].filter(e => !e.hidden && cs(e).display != "none")
+      .map(e => e.localName == "menuseparator" ? "|" : e.localName == "menucaption" ? "#" + e.getAttribute("label") : (e.getAttribute("value") || e.id || "item"));
+    const hiddenP = new Promise(r => sc.addEventListener("popuphidden", r, { once: true }));
+    sc.hidePopup(); await Promise.race([hiddenP, wait(2000)]);
     // breiter Detailbereich (> 64em): Kopf bleibt auf der Achse
     const dp = ad.getElementById("detailsPane");
     out.wide = { pane: Math.round(R(dp).width) };
@@ -3328,6 +3370,11 @@ def run_checks(m, version, profile, results):
     // Auswahlfarbe einer gewählten Buchzeile zum Vergleich
     ab.booksList.selectedIndex = 0; await wait(1200);
     await pick("Halo Liste");
+    // Zeile der Verteilerliste: Symbol weiß und klein auf dem Verlauf
+    const lav = list.getRowAtIndex?.(list.selectedIndex)?.querySelector("contact-avatar.is-mail-list");
+    const limg = lav?.shadowRoot?.querySelector("img");
+    out.listAvatar = lav && { bg: cs(lav).backgroundImage.includes("linear-gradient"), color: cs(lav).color,
+      w: Math.round(R(lav).width), img: limg ? Math.round(R(limg).width) : null };
     const ch = ad.querySelector("#viewContact .contact-header"), lh = ad.querySelector("#viewContact .list-header");
     const lname = ad.getElementById("viewListName"), av = lh.querySelector(".recipient-avatar");
     out.list = { headerDisplay: cs(ch).display, photoRects: photo.getClientRects().length, hidden: ch.hidden,
@@ -3399,6 +3446,40 @@ def run_checks(m, version, profile, results):
               and ta["search"][2] >= cv["search"][1] - 2 and ta["line"] == "none" and cv["line"] != "none")
         return ok, f"{res}"
     check("Adressbuch-Tabelle: kleines Foto mit sichtbaren Karten; „…“ nicht über der Suche, Knöpfe an ihrem Platz", ab_table, results)
+
+    def ab_list_menu():
+        # Notiz in 14 px wie die übrigen Werte; Verteilerliste in der Kontaktliste
+        # mit weißem, kleinem Symbol auf dem Verlauf statt frei stehendem Umriss;
+        # Darstellungsmenü: „Show Names As“ | „Sort“ | „View“ – je genau eine
+        # Trennlinie, innerhalb von „View“ keine
+        res = ab_views()
+        c, la, sm = res["contact"], res.get("listAvatar"), res.get("sortMenu") or []
+        view = sm.index("#View") if "#View" in sm else -1
+        ok = (c.get("noteFont") == ["14px", "14px"]
+              and bool(la) and la["bg"] and la["color"] == "rgb(255, 255, 255)" and la["img"] is not None and la["img"] <= 24
+              and sm.count("|") == 2 and view > 0 and sm[view - 1] == "|" and "|" not in sm[view:]
+              and "mcHideDuplicates" in sm[view:] and "sortContextTableLayout" in sm[view:] and "addrbook" in sm[view:])
+        return ok, f"note={c.get('noteFont')} listAvatar={la} sortMenu={sm}"
+    check("Adressbuch: Notiz so groß wie die Werte; Verteilerliste in der Liste im Verlaufskreis; Darstellungsmenü mit je einer Trennlinie zwischen den Abschnitten", ab_list_menu, results)
+
+    def ab_search_dialog():
+        # Adressen suchen: Bedingungen und Ergebnisse als Flächen mit Haarlinie
+        # und 8 px Radius (dunkel keine schwarze Liste), Teiler als eine Linie
+        res = m.js(COMPOSE_CHECK_JS + r"""
+          later(() => w.MsgSearchAddresses());
+          const sw = await winUrl("abSearchDialog"); if (!sw) throw new Error("Adressen suchen nicht offen");
+          await pause(1000);
+          try {
+            const sd = sw.document, t = sd.getElementById("abResultsTree"), l = sd.getElementById("searchTermList"), sp = sd.getElementById("gray_horizontal_splitter");
+            return { tree: [csOf(t).backgroundColor, csOf(t).borderTopLeftRadius, csOf(t).borderTopColor],
+                     terms: [csOf(l).backgroundColor, csOf(l).borderTopLeftRadius, csOf(l).borderTopColor],
+                     split: [csOf(sp).borderTopWidth, csOf(sp).borderBottomWidth],
+                     win: colorOf(sd, "var(--mt-window)", "backgroundColor"), line: colorOf(sd, "var(--mt-pane-line)", "borderTopColor") };
+          } finally { await shut(sw); }""")
+        ok = (all(same_color(x[0], res["win"]) and x[1] == "8px" and same_color(x[2], res["line"]) for x in (res["tree"], res["terms"]))
+              and res["tree"][0] != "rgb(0, 0, 0)" and res["split"][1] == "0px" and res["split"][0] in ("1px", "0.5px"))
+        return ok, f"{res}"
+    check("Adressen suchen: Bedingungen und Ergebnisse als Flächen mit Haarlinie, keine schwarze Liste, Teiler als eine Linie", ab_search_dialog, results)
 
     def ab_edit_dialogs():
         # Bearbeiten gleich nach dem Öffnen: das Layout (Weitere Felder) greift

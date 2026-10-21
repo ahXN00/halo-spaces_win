@@ -3112,20 +3112,54 @@ class CardEnhancer {
     const root = d.documentElement;
     const tabmail = d.getElementById("tabmail");
     const FLEX = ["messagePane", "detailsPane", "preferencesContainer", "calendarDisplayBox", "conversationsBox"];
-    let observed = null;
+    // Elemente im Hauptdokument nur im passenden Tab (ausgeblendete Tabs behalten
+    // ihre Breite: der Kalender maß sonst 560×0 px und sperrte die Fensterbreite)
+    const MODE = { calendarDisplayBox: ["calendar", "tasks"], conversationsBox: ["chat"] };
+    const shown = el => {
+      const r = el?.getBoundingClientRect();
+      return !!r && r.width > 0 && r.height > 0 && (el.checkVisibility?.() ?? true);
+    };
+    let observed = new Set();
     const ro = new w.ResizeObserver(() => update());
-    const flexElement = () => {
+    // { width, min, watch }: Breite und Mindestbreite des Bereichs, der beim
+    // Verkleinern schrumpft, und die zu beobachtenden Elemente
+    const measure = () => {
       const tab = tabmail?.currentTabInfo;
-      const docs = [tab?.chromeBrowser?.contentDocument, tab?.browser?.contentDocument, d].filter(Boolean);
+      const mode = tab?.mode?.name;
+      const bd = tab?.browser?.contentDocument;
+      if (mode == "addressBookTab" && bd?.getElementById("cardsPane")) {
+        // Adressbuch: ohne Auswahl ist die Detailspalte ausgeblendet – dann zählt
+        // der freie Platz rechts der Liste; das Ein- und Ausblenden meldet der
+        // ResizeObserver (kein resize-Ereignis)
+        const cw = bd.defaultView;
+        const dp = bd.getElementById("detailsPane"), cp = bd.getElementById("cardsPane");
+        const watch = [dp, cp].filter(Boolean);
+        const min = (dp && parseFloat(cw.getComputedStyle(dp).minWidth)) || 560;
+        if (shown(dp)) {
+          return { width: dp.getBoundingClientRect().width, min: parseFloat(cw.getComputedStyle(dp).minWidth) || 0, watch };
+        }
+        if (!shown(cp)) {
+          return { watch };
+        }
+        if (bd.body.classList.contains("layout-table")) {
+          return { width: cp.getBoundingClientRect().width, min, watch };
+        }
+        return { width: cw.innerWidth - cp.getBoundingClientRect().right, min, watch };
+      }
+      const docs = [tab?.chromeBrowser?.contentDocument, bd, d].filter(Boolean);
       for (const doc of docs) {
         for (const id of FLEX) {
+          if (doc == d && MODE[id] && !MODE[id].includes(mode)) {
+            continue;
+          }
           const el = doc.getElementById(id);
-          if (el && el.getBoundingClientRect().width > 0) {
-            return el;
+          if (shown(el)) {
+            const min = parseFloat(el.ownerDocument.defaultView.getComputedStyle(el).minWidth) || 0;
+            return { width: el.getBoundingClientRect().width, min, watch: [el] };
           }
         }
       }
-      return null;
+      return { watch: [] };
     };
     let later = null;
     const update = () => {
@@ -3137,18 +3171,25 @@ class CardEnhancer {
           later = w.setTimeout(update, 350);
           return;
         }
-        const el = flexElement();
-        if (el !== observed) {
-          observed && ro.unobserve(observed);
-          el && ro.observe(el);
-          observed = el;
+        const { width, min, watch } = measure();
+        const next = new Set(watch);
+        for (const el of observed) {
+          if (!next.has(el)) {
+            ro.unobserve(el);
+          }
         }
-        if (!el) {
+        for (const el of next) {
+          if (!observed.has(el)) {
+            ro.observe(el);
+          }
+        }
+        observed = next;
+        // ohne sichtbares Element keine Mindestbreite (nie innerWidth sperren)
+        if (width === undefined) {
           root.style.removeProperty("min-width");
           return;
         }
-        const min = parseFloat(el.ownerDocument.defaultView.getComputedStyle(el).minWidth) || 0;
-        const slack = Math.max(0, el.getBoundingClientRect().width - min);
+        const slack = Math.max(0, width - min);
         // nie unter 800 px (dann wäre schon die Toolbar zu eng)
         const value = Math.max(800, Math.round(w.innerWidth - slack));
         // nur bei echter Änderung schreiben (jedes Setzen gestaltet das Fenster neu)
@@ -4041,22 +4082,43 @@ class CardEnhancer {
       const menu = cw.document.getElementById("sortContext");
       // Abschnittstitel, damit klar ist, dass „Anzeigename“ eine Auswahl ist
       if (menu && !menu.querySelector(".mc-caption")) {
-        const caption = (label, before) => {
+        const caption = (label, before, sep) => {
           if (!before) {
             return;
           }
           const c = cw.document.createXULElement("menucaption");
           c.className = "mc-caption";
           c.setAttribute("label", label);
+          // „View“ folgt ohne Thunderbirds Trenner auf „Sort“: eigene Trennlinie davor
+          const s = sep ? cw.document.createXULElement("menuseparator") : null;
+          if (s) {
+            s.className = "mc-caption-sep";
+            before.before(s);
+          }
           before.before(c);
-          restorers.push(() => c.remove());
+          restorers.push(() => {
+            c.remove();
+            s?.remove();
+          });
         };
         caption(tr("Show Names As"), menu.querySelector('menuitem[name="format"]'));
         caption(tr("Sort"), menu.querySelector('menuitem[name="sort"]'));
-        caption(tr("View"), menu.querySelector('menuitem[value="addrbook"]'));
+        caption(tr("View"), menu.querySelector('menuitem[value="addrbook"]'), true);
+        // Thunderbirds Trenner vor „Table layout“ ausblenden: „View“ (Address
+        // Book, Table layout, Merge Duplicate Contacts) hat innen keine Linie
+        let tbSep = menu.querySelector("#sortContextTableLayout")?.previousElementSibling;
+        while (tbSep && tbSep.localName != "menuseparator") {
+          tbSep = tbSep.previousElementSibling;
+        }
+        if (tbSep && !tbSep.hidden && menu.querySelector(".mc-caption-sep")) {
+          tbSep.hidden = true;
+          restorers.push(() => {
+            tbSep.hidden = false;
+          });
+        }
       }
       if (menu && !cw.document.getElementById("mcHideDuplicates")) {
-        const sep = cw.document.createXULElement("menuseparator");
+        // ohne eigenen Trenner: gehört zum Abschnitt „View“
         const item = cw.document.createXULElement("menuitem");
         item.id = "mcHideDuplicates";
         item.setAttribute("type", "checkbox");
@@ -4069,11 +4131,8 @@ class CardEnhancer {
           // Liste neu aufbauen (ausgeschaltet kommen die Doppelten zurück)
           cw.booksList?.dispatchEvent(new cw.CustomEvent("select"));
         });
-        menu.append(sep, item);
-        restorers.push(() => {
-          sep.remove();
-          item.remove();
-        });
+        menu.append(item);
+        restorers.push(() => item.remove());
       }
       // aktuelle Liste sofort bereinigen
       cw.booksList?.dispatchEvent(new cw.CustomEvent("select"));
