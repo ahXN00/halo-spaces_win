@@ -3250,6 +3250,231 @@ def run_checks(m, version, profile, results):
         return ok, f"{res}"
     check("Adressbuch: Kontakt bearbeiten in Systemschrift, Überschriften über den Feldern, Wichtiges zuerst, Weiteres auf Wunsch, Initialen mittig über dem Namen", contact_edit, results)
 
+    ab_views_res = {}
+
+    def ab_views():
+        # Kontakt-, Listen-, Auswahl-, Tabellen- und Leeransicht einmal messen
+        if not ab_views_res:
+            ab_views_res.update(m.js(r"""
+  const { MailServices } = ChromeUtils.importESModule("resource:///modules/MailServices.sys.mjs");
+  const { VCardUtils } = ChromeUtils.importESModule("resource:///modules/VCardUtils.sys.mjs");
+  const book = MailServices.ab.getDirectory("jsaddrbook://abook.sqlite");
+  const mk = props => { const c = Cc["@mozilla.org/addressbook/cardproperty;1"].createInstance(Ci.nsIAbCard);
+    for (const [k, v] of Object.entries(props)) if (!["DisplayName", "PrimaryEmail"].includes(k)) c.setProperty(k, v);
+    c.displayName = props.DisplayName; c.primaryEmail = props.PrimaryEmail; return c; };
+  const has = name => book.childCards.some(c => c.displayName == name);
+  // was hier angelegt wird, am Ende wieder entfernen (spätere Prüfungen zählen Kontakte)
+  const made = [];
+  if (!has("Anna Beispiel")) book.addCard(mk({ FirstName: "Anna", LastName: "Beispiel", DisplayName: "Anna Beispiel", PrimaryEmail: "anna@example.invalid", Company: "Beispiel GmbH", JobTitle: "Leitung", WorkPhone: "+43 1 234" }));
+  if (!has("Ben Muster")) made.push(book.addCard(mk({ FirstName: "Ben", LastName: "Muster", DisplayName: "Ben Muster", PrimaryEmail: "ben@example.invalid" })));
+  if (!has("Jonas Ärmel")) made.push(book.addCard(VCardUtils.vCardToAbCard("BEGIN:VCARD\r\nVERSION:4.0\r\nFN:Jonas Ärmel\r\nN:Ärmel;Jonas;;;\r\nEMAIL;PREF=1:jonas@example.invalid\r\nTEL;TYPE=work:+43 1 777\r\nNOTE:Erfundener Testkontakt\r\nEND:VCARD\r\n")));
+  if (!book.childNodes.some(l => l.dirName == "Halo Liste")) {
+    const l = Cc["@mozilla.org/addressbook/directoryproperty;1"].createInstance(Ci.nsIAbDirectory);
+    l.isMailList = true; l.dirName = "Halo Liste"; l.listNickName = "haloliste";
+    const ml = book.addMailList(l);
+    for (const c of book.childCards) if (["Anna Beispiel", "Ben Muster", "Jonas Ärmel"].includes(c.displayName)) ml.addCard(c);
+  }
+  if (!MailServices.ab.directories.some(b => b.dirName == "Halo Leer")) MailServices.ab.newAddressBook("Halo Leer", "", Ci.nsIAbManager.JS_DIRECTORY_TYPE);
+  tm.openTab("addressBookTab", {});
+  const ab = await until(() => tm.currentTabInfo.browser?.contentWindow?.cardsPane && tm.currentTabInfo.browser.contentWindow, 8000);
+  await wait(1500);
+  const abTab = tm.currentTabInfo;
+  const ad = ab.document, cs = e => ab.getComputedStyle(e);
+  const R = e => e.getBoundingClientRect(), mid = e => { const r = R(e); return (r.left + r.right) / 2; };
+  const list = ad.getElementById("cards");
+  const rows = () => [...Array(list.view.rowCount).keys()];
+  const pick = async name => { list.selectedIndex = rows().find(k => list.view.getCardFromRow(k)?.displayName == name); await wait(900); };
+  // Hilfselement für die berechnete Akzentfarbe
+  const probe = ad.createElement("span"); probe.style.color = "AccentColor"; ad.body.append(probe);
+  const accent = cs(probe).color; probe.remove();
+  const out = { accent };
+  try {
+    // Kontakt: Kopf mittig, Links in Akzentfarbe, eine Kante in den Karten
+    await pick("Jonas Ärmel");
+    const body = ad.getElementById("detailsBody"), photo = ad.getElementById("viewContactPhoto");
+    const em = ad.querySelector("#emailAddresses");
+    const firstVal = em.querySelector(".entry-value"), link = em.querySelector("a");
+    const telType = ad.querySelector("#phoneNumbers .entry-type"), note = ad.querySelector("#notes > div");
+    out.contact = { photoMid: Math.round(mid(photo) - mid(body)), photoW: Math.round(R(photo).width),
+      link: link && [cs(link).textDecorationLine, cs(link).color],
+      edges: [em.querySelector("h2"), firstVal, telType, note].map(e => e ? Math.round(R(e).left) : null) };
+    // breiter Detailbereich (> 64em): Kopf bleibt auf der Achse
+    const dp = ad.getElementById("detailsPane");
+    out.wide = { pane: Math.round(R(dp).width) };
+    // Tabellenansicht: kleines Foto, erste Karte ohne Scrollen sichtbar, Kopf auf der Achse
+    ab.cardsPane.toggleLayout(true); await wait(1500); await pick("Jonas Ärmel"); await wait(600);
+    const lh2 = d.querySelector("#mcListHeader .mc-lh-more"), search = d.querySelector("#unifiedToolbarContent global-search-bar, #unifiedToolbarContent search-bar, #unifiedToolbarContent .search-bar");
+    out.table = { photoW: Math.round(R(photo).width), photoMid: Math.round(mid(photo) - mid(body)),
+      emTop: Math.round(R(em).top), paneBottom: Math.round(R(dp).bottom), dpW: Math.round(R(dp).width),
+      more: lh2 && [Math.round(lh2.getBoundingClientRect().left), Math.round(lh2.getBoundingClientRect().right)],
+      search: search && [search.localName, Math.round(search.getBoundingClientRect().left), Math.round(search.getBoundingClientRect().width)],
+      line: w.getComputedStyle(d.getElementById("unifiedToolbarContainer"), "::before").content,
+      firstBtn: [...d.querySelectorAll("#unifiedToolbarContent > li:not([item-id=spacer])")].filter(e => e.getClientRects().length && e.getBoundingClientRect().width).map(e => [e.getAttribute("item-id"), Math.round(e.getBoundingClientRect().left)]).slice(0, 6) };
+    ab.cardsPane.toggleLayout(false); await wait(1500);
+    out.cardsView = { photoW: Math.round(R(photo).width),
+      more: lh2 && [Math.round(lh2.getBoundingClientRect().left), Math.round(lh2.getBoundingClientRect().right)],
+      search: search && [Math.round(search.getBoundingClientRect().left), Math.round(search.getBoundingClientRect().width)],
+      line: w.getComputedStyle(d.getElementById("unifiedToolbarContainer"), "::before").content };
+    // Liste: Kontaktkopf weg, Listenkopf mittig mit Verlaufs-Kreis
+    const lrow = [...ad.querySelectorAll("#books li.listRow")].find(li => li.textContent.includes("Halo Liste"));
+    ab.booksList.selectedIndex = ab.booksList.rows.indexOf(lrow); await wait(1200);
+    ad.getElementById("books").focus(); await wait(300);
+    const lc = lrow.querySelector(".listRow-container") || lrow.firstElementChild;
+    const brow = ad.querySelector("#books .bookRow > .bookRow-container");
+    out.listRow = { border: cs(lc).borderTopWidth, radius: cs(lc).borderTopLeftRadius, font: cs(lc).fontSize,
+      h: Math.round(R(lc).height), bookH: Math.round(R(brow).height), bg: cs(lc).backgroundColor,
+      // eingerückt unter seinem Buch
+      indent: Math.round(R(lrow.querySelector(".listRow-icon")).left - R(lrow.parentElement.closest("li").querySelector(".bookRow-icon")).left) };
+    // Auswahlfarbe einer gewählten Buchzeile zum Vergleich
+    ab.booksList.selectedIndex = 0; await wait(1200);
+    await pick("Halo Liste");
+    const ch = ad.querySelector("#viewContact .contact-header"), lh = ad.querySelector("#viewContact .list-header");
+    const lname = ad.getElementById("viewListName"), av = lh.querySelector(".recipient-avatar");
+    out.list = { headerDisplay: cs(ch).display, photoRects: photo.getClientRects().length, hidden: ch.hidden,
+      listMid: Math.round(mid(lname) - mid(body)), font: [cs(lname).fontSize, cs(lname).fontWeight],
+      avatar: [Math.round(R(av).width), cs(av).backgroundImage.slice(0, 15), Math.round(mid(av) - mid(body))] };
+    // Mehrfachauswahl
+    ad.getElementById("cards").focus();
+    list.selectedIndices = rows().filter(k => ["Anna Beispiel", "Ben Muster", "Jonas Ärmel"].includes(list.view.getCardFromRow(k)?.displayName)); await wait(1200);
+    const cnt = ad.getElementById("viewSelectionCount"), sel = ad.getElementById("selectedCards");
+    const avs = [...sel.querySelectorAll("contact-avatar")];
+    out.multi = { headerDisplay: cs(ch).display, photoRects: photo.getClientRects().length,
+      countMid: Math.round(mid(cnt) - mid(sel)), font: cs(cnt).fontSize, n: avs.length,
+      avatars: avs.map(a => [cs(a).backgroundImage.includes("linear-gradient"), cs(a).color, cs(a).fontSize]) };
+    // leeres Buch
+    const erow = [...ad.querySelectorAll("#books li")].find(li => li.textContent.includes("Halo Leer"));
+    ab.booksList.selectedIndex = ab.booksList.rows.indexOf(erow); await wait(1500);
+    const slot = list.shadowRoot?.querySelector('slot[name="placeholders"]') || ad.querySelector('#cards > slot[name="placeholders"]');
+    const btn = ad.getElementById("placeholderCreateContact"), empty = ad.getElementById("placeholderEmptyBook");
+    out.empty = { opacity: slot && cs(slot).opacity, btn: [btn.getClientRects().length, cs(btn).fontSize, cs(btn).color],
+      emptyColor: cs(empty).color, tert: cs(ad.documentElement).getPropertyValue("--mt-text-tertiary").trim() };
+    ab.booksList.selectedIndex = 0; await wait(1200);
+  } finally {
+    tm.closeTab(abTab);
+    const ml = book.childNodes.find(l => l.dirName == "Halo Liste"); if (ml) book.deleteDirectory(ml);
+    if (made.length) book.deleteCards(made);
+    const eb = MailServices.ab.directories.find(b => b.dirName == "Halo Leer"); if (eb) MailServices.ab.deleteAddressBook(eb.URI);
+    await wait(500);
+  }
+  return out;"""))
+        return ab_views_res
+
+    def ab_heads():
+        # Verteilerliste und Mehrfachauswahl: kein leerer Kontaktkreis, Kopf mittig
+        # und groß (Liste im Verlauf der Initialen-Kreise); Mitglieder-Kreise wie
+        # in der Liste; Kontaktkopf auch im breiten Detailbereich (Tabelle) mittig
+        res = ab_views()
+        li, mu, ta = res["list"], res["multi"], res["table"]
+        ok = (li["headerDisplay"] == "none" and li["photoRects"] == 0 and abs(li["listMid"]) <= 2
+              and li["font"] == ["28px", "700"] and li["avatar"][0] == 120 and li["avatar"][1] == "linear-gradient" and abs(li["avatar"][2]) <= 2
+              and mu["headerDisplay"] == "none" and mu["photoRects"] == 0 and abs(mu["countMid"]) <= 2 and mu["font"] == "28px"
+              and mu["n"] >= 3 and all(a == [True, "rgb(255, 255, 255)", "15px"] for a in mu["avatars"])
+              and abs(res["contact"]["photoMid"]) <= 2 and abs(ta["photoMid"]) <= 2 and ta["dpW"] > 840)
+        return ok, f"{res}"
+    check("Adressbuch: Verteilerliste und Mehrfachauswahl ohne leeren Kreis, Kopf mittig; Mitglieder-Kreise im Verlauf; Kontaktkopf auch breit mittig", ab_heads, results)
+
+    def ab_details_cards():
+        # Detailkarten: Links in der Akzentfarbe ohne Unterstrich, Überschrift,
+        # Bezeichnungen, Werte ohne Bezeichnung und Notiz an einer Kante;
+        # Verteilerliste in der Bücherliste wie die Buchzeilen; leeres Buch mit
+        # kräftigem „New Contact“ statt halb durchsichtigem Hinweis
+        res = ab_views()
+        c, lr, e = res["contact"], res["listRow"], res["empty"]
+        edges = c["edges"]
+        ok = (c["link"] == ["none", res["accent"]] and None not in edges and max(edges) - min(edges) <= 1
+              and lr["border"] == "0px" and lr["radius"] == "8px" and lr["font"] == "13px" and abs(lr["h"] - lr["bookH"]) <= 1 and lr["indent"] >= 16
+              and e["opacity"] == "1" and e["btn"] == [1, "13px", res["accent"]])
+        return ok, f"{res}"
+    check("Adressbuch: Links in Akzentfarbe, Karteninhalt an einer Kante, Verteilerliste in der Bücherliste wie Buchzeilen, leeres Buch mit kräftigem Knopf", ab_details_cards, results)
+
+    def ab_table():
+        # Tabellenansicht: kleines Foto, erste Karte ohne Scrollen sichtbar;
+        # „…“ des Listenkopfs nicht über dem Suchfeld, Knöpfe rechts davon,
+        # Suche so breit wie in der Kartenansicht, ohne Trennlinie ohne Spalte
+        res = ab_views()
+        ta, cv = res["table"], res["cardsView"]
+        btns = [b[1] for b in ta["firstBtn"]]
+        ok = (ta["photoW"] <= 100 and ta["emTop"] < ta["paneBottom"] and cv["photoW"] == 260
+              and ta["more"] and ta["search"] and ta["more"][1] <= ta["search"][1] and btns and min(btns) >= ta["more"][1]
+              and ta["search"][2] >= cv["search"][1] - 2 and ta["line"] == "none" and cv["line"] != "none")
+        return ok, f"{res}"
+    check("Adressbuch-Tabelle: kleines Foto mit sichtbaren Karten; „…“ nicht über der Suche, Knöpfe an ihrem Platz", ab_table, results)
+
+    def ab_edit_dialogs():
+        # Bearbeiten gleich nach dem Öffnen: das Layout (Weitere Felder) greift
+        # auch, wenn vcard-edit erst nach dem ersten Aufruf definiert wird;
+        # Kontaktbild-Dialog zeigt Hinweis und Symbol (Dateifeld durchsichtig,
+        # Fläche als Karte); Unterdialoge im Tab auf neutraler Fläche (dunkel
+        # nicht Thunderbirds Blaugrau)
+        res = m.js(r"""
+  const { MailServices } = ChromeUtils.importESModule("resource:///modules/MailServices.sys.mjs");
+  const book = MailServices.ab.getDirectory("jsaddrbook://abook.sqlite");
+  if (!book.childCards.some(c => c.displayName == "Anna Beispiel")) {
+    const c = Cc["@mozilla.org/addressbook/cardproperty;1"].createInstance(Ci.nsIAbCard);
+    c.setProperty("FirstName", "Anna"); c.setProperty("LastName", "Beispiel");
+    c.displayName = "Anna Beispiel"; c.primaryEmail = "anna@example.invalid"; book.addCard(c);
+  }
+  const out = { race: [] };
+  // Wettlauf: Tab neu öffnen und ohne Wartezeit bearbeiten – das Layout greift trotzdem
+  for (let n = 0; n < 3; n++) {
+    tm.openTab("addressBookTab", {});
+    const tab = tm.currentTabInfo;
+    const ab = await until(() => { const c = tab.browser?.contentWindow; return c?.document?.getElementById("cards")?.view?.rowCount && c; }, 8000);
+    const ad = ab.document, list = ad.getElementById("cards");
+    list.selectedIndex = [...Array(list.view.rowCount).keys()].find(k => list.view.getCardFromRow(k)?.displayName == "Anna Beispiel");
+    await until(() => !ad.getElementById("editButton").hidden && ad.getElementById("editButton").getClientRects().length, 4000);
+    ad.getElementById("editButton").click();
+    await until(() => ad.querySelector("#addr-book-edit-n .mc-more-button"), 4000);
+    const url = ad.getElementById("addr-book-edit-url");
+    out.race.push({ more: !!ad.querySelector("#addr-book-edit-n .mc-more-button"), url: url ? url.getClientRects().length : null,
+      layout: ab.customElements.get("vcard-edit")?.prototype.__mcLayout === true });
+    if (n == 2) {
+      // Kontaktbild-Dialog: Hinweis sichtbar, Feld durchsichtig, Fläche als Karte
+      ad.getElementById("photoButton").click();
+      const dlg = await until(() => ad.getElementById("photoDialog")?.open && ad.getElementById("photoDialog"), 4000);
+      const fi = ad.getElementById("dialogFileInput"), dt = ad.getElementById("photoDropTarget");
+      const lab = ad.querySelector('label[for="dialogFileInput"]');
+      out.photo = { open: !!dlg, bg: ab.getComputedStyle(fi).backgroundColor, border: ab.getComputedStyle(fi).borderTopWidth,
+        radius: ab.getComputedStyle(dt).borderTopLeftRadius, label: lab?.getClientRects().length,
+        // Hinweis unter dem Symbol (nicht darüber), Knopfleiste ohne eigene Fläche
+        below: Math.round(lab.getBoundingClientRect().top + parseFloat(ab.getComputedStyle(lab).paddingTop) - dt.getBoundingClientRect().top),
+        menu: ab.getComputedStyle(ad.querySelector("#photoDialog .dialog-menu-container")).backgroundColor,
+        dlgBg: ab.getComputedStyle(ad.getElementById("photoDialog")).backgroundColor,
+        sheet: ab.getComputedStyle(ad.documentElement).getPropertyValue("--mt-sheet").trim() };
+      ad.getElementById("photoDialog").close(); await wait(300);
+    }
+    ab.detailsPane.isDirty = false;
+    ad.getElementById("cancelEditButton").click(); await wait(400);
+    if (n == 2) {
+      // Unterdialog „Neue Verteilerliste“: neutrale Fläche
+      w.setTimeout(() => ab.createList(), 0);
+      const fr = await until(() => [...ad.querySelectorAll(".dialogFrame")].find(f => f.contentDocument?.readyState == "complete" && f.contentDocument.location.href != "about:blank"), 6000);
+      await wait(800);
+      const box = ad.querySelector(".dialogBox"), sd = fr.contentDocument, sw = fr.contentWindow;
+      const dlg = sd.querySelector("dialog");
+      out.sub = { box: ab.getComputedStyle(box).backgroundColor, root: sw.getComputedStyle(sd.documentElement).backgroundColor,
+        dialog: dlg && sw.getComputedStyle(dlg).backgroundColor, subAttr: sd.documentElement.hasAttribute("subdialog"),
+        sheet: sw.getComputedStyle(sd.documentElement).getPropertyValue("--mt-sheet").trim() };
+      (sd.querySelector("dialog")?.getButton?.("cancel") || null)?.click();
+      await wait(600);
+    }
+    tm.closeTab(tab); await wait(300);
+  }
+  return out;""")
+        import re
+        ph, sub = res.get("photo", {}), res.get("sub", {})
+        def neutral(c):
+            v = [int(x) for x in re.findall(r"\d+", c or "")[:3]]
+            return len(v) == 3 and max(v) - min(v) <= 4
+        ok = (len(res["race"]) == 3 and all(r == {"more": True, "url": 0, "layout": True} for r in res["race"])
+              and ph.get("open") and ph.get("bg") in ("rgba(0, 0, 0, 0)", "transparent") and ph.get("border") == "0px"
+              and ph.get("radius") == "12px" and ph.get("label", 0) > 0 and ph.get("below", 0) >= 90
+              and ph.get("menu") in ("rgba(0, 0, 0, 0)", "transparent") and neutral(ph.get("dlgBg"))
+              and sub.get("subAttr") and all(neutral(sub.get(k)) for k in ("box", "root", "dialog"))
+              and sub.get("box") != "rgb(26, 32, 44)" and sub.get("box") == sub.get("dialog"))
+        return ok, f"{res}"
+    check("Adressbuch: Bearbeiten-Layout auch sofort nach dem Öffnen; Kontaktbild-Dialog mit Hinweis; Unterdialoge auf neutraler Fläche", ab_edit_dialogs, results)
+
     OPEN_BOOKS_JS = r"""
           tm.openTab("addressBookTab", {});
           const cw = await until(() => { const c = tm.currentTabInfo?.browser?.contentWindow; return c?.document?.getElementById("mcBooksHeader") && c; }, 8000);

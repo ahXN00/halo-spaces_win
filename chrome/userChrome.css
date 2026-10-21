@@ -41,6 +41,8 @@
   --mt-segment-selected: #FFFFFF;
   /* Warnrot (überfällige Aufgaben, hohe Priorität) wie macOS systemRed */
   --mt-red: #FF3B30;
+  /* Fläche der Unterdialoge im Tab (Einstellungen, Adressbuch) */
+  --mt-sheet: #FFFFFF;
   --mt-font: -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif;
 }
 
@@ -69,6 +71,7 @@
     --mt-tab-selected: #3A3A3C;
     --mt-segment-selected: #636366;
     --mt-red: #FF6961;
+    --mt-sheet: #2A2A2C;
   }
 }
 
@@ -4082,6 +4085,29 @@ calendar-event-box :is(.alarm-icons-box, .item-classification-icon, .item-recurr
   margin-inline-start: 0 !important;
 }
 
+/* Verteilerlisten unter dem Buch wie die Buchzeilen: rund, ohne Rahmen */
+#books .listRow > .listRow-container {
+  min-height: 34px !important;
+  /* Einrückung unter dem Buch (Thunderbird: 51 px) bleibt */
+  padding-inline-end: 8px !important;
+  border: none !important;
+  border-radius: 8px !important;
+  outline: none !important;
+  background: transparent !important;
+  color: var(--mt-text) !important;
+  font-size: 13px !important;
+  align-items: center !important;
+}
+
+#books .listRow > .listRow-container:hover {
+  background: color-mix(in srgb, var(--mt-text) 5%, transparent) !important;
+}
+
+#books .listRow.selected > .listRow-container {
+  background: var(--mt-selected-unfocused) !important;
+  color: var(--mt-text) !important;
+}
+
 #cardCount {
   font-size: 11px !important;
   color: var(--mt-text-tertiary) !important;
@@ -4110,6 +4136,23 @@ calendar-event-box :is(.alarm-icons-box, .item-classification-icon, .item-recurr
 
 #cards {
   background: var(--mt-window) !important;
+}
+
+/* leeres Buch: „New Contact“ ist der einzige Handlungsknopf – nicht wie
+   deaktiviert (Thunderbird blendet den ganzen Hinweis auf 50 %) */
+#cards > slot[name="placeholders"] {
+  opacity: 1 !important;
+}
+
+#cards > slot[name="placeholders"] > div {
+  color: var(--mt-text-tertiary) !important;
+  text-shadow: none !important;
+}
+
+#placeholderCreateContact {
+  font-size: 13px !important;
+  font-weight: 500 !important;
+  color: var(--mt-accent) !important;
 }
 
 #cards .card-layout > td {
@@ -4188,9 +4231,18 @@ calendar-event-box :is(.alarm-icons-box, .item-classification-icon, .item-recurr
 #viewContact > header {
   justify-content: center !important;
   padding-top: 40px !important;
+  /* Thunderbird begrenzt auf 64em linksbündig – sonst steht der Kopf im
+     breiten Detailbereich links neben der Achse von Knöpfen und Karten */
+  max-inline-size: none !important;
 }
 
-#viewContact .contact-header {
+/* nur den sichtbaren Kopf umgestalten: bei Verteilerliste und Mehrfachauswahl
+   blendet Thunderbird den Kontaktkopf per hidden aus */
+#viewContact .contact-header[hidden] {
+  display: none !important;
+}
+
+#viewContact .contact-header:not([hidden]) {
   display: flex !important;
   flex-direction: column !important;
   align-items: center !important;
@@ -4208,6 +4260,50 @@ calendar-event-box :is(.alarm-icons-box, .item-classification-icon, .item-recurr
 #viewContact .contact-headings {
   align-items: center !important;
   text-align: center !important;
+}
+
+/* Verteilerliste und Mehrfachauswahl: Kopf mittig wie beim Kontakt, die
+   Liste mit einem Kreis im Verlauf der Initialen-Kreise */
+#viewContact :is(.list-header, .selection-header):not([hidden]) {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  text-align: center !important;
+  gap: 14px !important;
+  margin-block-end: 15px !important;
+}
+
+:is(#viewListName, #viewSelectionCount) {
+  font-size: 28px !important;
+  font-weight: 700 !important;
+  color: var(--mt-text) !important;
+}
+
+#viewContact .list-header .recipient-avatar {
+  width: 120px !important;
+  height: 120px !important;
+  margin: 0 !important;
+  padding: 30px !important;
+  box-sizing: border-box !important;
+  border-radius: 50% !important;
+  background: linear-gradient(180deg, #B4CAE4, #8A97C5) !important;
+  color: #fff !important;
+  box-shadow: none !important;
+}
+
+/* Tabellenansicht: der Detailbereich unter der Tabelle ist niedrig – kleines
+   Foto, damit die Datenkarten ohne Scrollen sichtbar sind */
+body.layout-table #viewContactPhoto {
+  width: 96px !important;
+  height: 96px !important;
+}
+
+body.layout-table #viewContact > header {
+  padding-top: 16px !important;
+}
+
+body.layout-table #viewContactName {
+  font-size: 22px !important;
 }
 
 #viewContactName {
@@ -4248,8 +4344,21 @@ calendar-event-box :is(.alarm-icons-box, .item-classification-icon, .item-recurr
   margin-bottom: 6px !important;
 }
 
+/* Überschrift, Bezeichnungen, Werte ohne Bezeichnung und Notizen an einer Kante */
 #detailsBody .entry-list {
   font-size: 14px !important;
+  margin-inline-start: 0 !important;
+  column-gap: 0 !important;
+}
+
+/* Links (E-Mail, Telefon, Webseite) in der Akzentfarbe, ohne Unterstrich */
+#detailsBody a {
+  color: var(--mt-accent) !important;
+  text-decoration: none !important;
+}
+
+#detailsBody a:hover {
+  text-decoration: underline !important;
 }
 
 /* Bezeichnungen (Work, Home, Organization, Title) in der Systemschrift und
@@ -4262,7 +4371,11 @@ calendar-event-box :is(.alarm-icons-box, .item-classification-icon, .item-recurr
   letter-spacing: 0 !important;
   color: var(--mt-text-tertiary) !important;
   opacity: 1 !important;
-  margin-inline-end: 6px !important;
+  margin-inline-end: 0 !important;
+}
+
+#detailsBody .entry-type:not(:empty) {
+  margin-inline-end: 12px !important;
 }
 
 /* Aktionen mittig als Kapseln, „Bearbeiten“ oben rechts */
@@ -5481,7 +5594,9 @@ addon-page-header h1,
 
 /* Initialen-Kreise im Adressbuch wie Apple: Verlauf Blaugrau → Lavendel,
    weiße halbfette Initialen mit ~54 % des Kreisdurchmessers */
-#cards contact-avatar:not(.is-mail-list) {
+/* (auch die kleinen Kreise der Mitgliederliste bei Mehrfachauswahl und
+   Verteilerliste) */
+:is(#cards, #selectedCards) contact-avatar:not(.is-mail-list) {
   background: linear-gradient(180deg, #B4CAE4, #8A97C5) !important;
   color: #fff !important;
   box-shadow: none !important;
@@ -5489,8 +5604,12 @@ addon-page-header h1,
   letter-spacing: 0 !important;
 }
 
+#selectedCards contact-avatar:not(.is-mail-list) {
+  font: 600 15px var(--mt-font) !important;
+}
+
 /* Firmen ohne Foto: Gebäude auf demselben Verlauf (wie Apple Kontakte) */
-#cards contact-avatar.mc-company {
+:is(#cards, #selectedCards) contact-avatar.mc-company {
   background: url("resource://mailcards/icons/company-avatar.svg") center / cover no-repeat !important;
 }
 
@@ -5585,6 +5704,41 @@ addon-page-header h1,
 #editContactForm #photoButton {
   order: -1 !important;
   border-radius: 50% !important;
+}
+
+/* Kontaktbild-Dialog: Ablagefläche als ruhige Karte statt Pille; das
+   unsichtbare Dateifeld darüber bleibt durchsichtig (sonst verdeckt es
+   Hinweis und Symbol), der Fokusring sitzt an der Fläche */
+#photoDropTarget {
+  border-radius: 12px !important;
+  background-color: var(--mt-control) !important;
+  /* Personensymbol grau über dem Hinweis statt schwarzer Kopf hinter dem Text */
+  background-size: 56px !important;
+  background-position: center 36px !important;
+  -moz-context-properties: fill, stroke !important;
+  fill: transparent !important;
+  stroke: var(--mt-text-tertiary) !important;
+}
+
+#photoDropTarget > label {
+  padding-top: 76px !important;
+  color: var(--mt-text-secondary) !important;
+}
+
+/* Knopfleiste ohne eigene (dunkel blaugraue) Fläche */
+#photoDialog .dialog-menu-container {
+  background: transparent !important;
+}
+
+#dialogFileInput {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  outline: none !important;
+}
+
+#photoDropTarget:focus-within {
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--mt-accent) 22%, transparent) !important;
 }
 
 #editContactForm .contact-photo {
@@ -6163,7 +6317,7 @@ dialog {
 /* Dialog-Knöpfe liegen im Schatten-DOM: extension/parts.css */
 
 /* Eingabefelder und Auswahllisten in Dialogen */
-dialog :is(input:not([type="checkbox"], [type="radio"], [type="color"], [type="range"]), textarea),
+dialog :is(input:not([type="checkbox"], [type="radio"], [type="color"], [type="range"], [type="file"]), textarea),
 dialog search-textbox {
   /* 28 px samt Innenabstand und Rand – so hoch wie Auswahllisten daneben;
      content-box, weil .narrow-Felder (4em, z. B. Tabelle einfügen) sonst
@@ -6175,6 +6329,16 @@ dialog search-textbox {
   border-radius: 7px !important;
   background-color: var(--mt-window) !important;
   box-shadow: none !important;
+}
+
+/* Unterdialoge im Tab (Neue Verteilerliste, Neues Adressbuch, Kontaktbild,
+   Einstellungen): neutrale Fläche statt Thunderbirds Blaugrau im Dunkelmodus */
+.dialogBox,
+:root[subdialog],
+:root[subdialog] > body,
+:root[subdialog] dialog,
+#photoDialog {
+  background-color: var(--mt-sheet) !important;
 }
 
 dialog :is(input, textarea):focus {
@@ -6912,7 +7076,7 @@ menupopup menucaption {
 }
 
 /* feine Linie an der rechten Kante der Kontaktliste, wie über der Mailliste */
-:root[mc-tab="addressBookTab"] #unifiedToolbarContainer::before {
+:root[mc-tab="addressBookTab"]:not([mc-ab-table]) #unifiedToolbarContainer::before {
   content: "" !important;
   position: absolute !important;
   inset-inline-start: var(--mc-ab-list-right, -10px) !important;

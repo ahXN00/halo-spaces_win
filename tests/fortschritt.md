@@ -207,30 +207,30 @@ Vorher-Bilder: `tests/shots/tour/vorher/` (hell-*/dunkel-*), Paket `tests/shots/
 
 ## 8. Adressbuch (`kontakte`)
 
-- [ ] `ab-kontakt` – Adressbuch: Kontakt ansehen: offen
+- [x] `ab-kontakt` – Adressbuch: Kontakt ansehen: erledigt (Commit „Adressbuch: …“ (Runde 1, Befunde 0–11)) – E-Mail- und Telefon-Links in der Systemakzentfarbe ohne Unterstrich; Überschrift, Bezeichnungen, Werte ohne Bezeichnung und Notiz in den Detailkarten an einer Kante; Kopf (Foto, Name) auch im Detailbereich über 64em auf der Achse von Knöpfen und Karten
 - [ ] `ab-firma` – Adressbuch: Firma ansehen: offen
 - [ ] `ab-langer-name` – Adressbuch: langer Name und Firma: offen
-- [ ] `ab-geburtstag` – Adressbuch: Kontakt mit Geburtstag und Notiz: offen
-- [ ] `ab-bearbeiten` – Adressbuch: Kontakt bearbeiten: offen
+- [x] `ab-geburtstag` – Adressbuch: Kontakt mit Geburtstag und Notiz: erledigt (Commit „Adressbuch: …“ (Runde 1, Befunde 0–11)) – Notiz, Geburtstag und E-Mail an einer Kante statt drei; Links in Akzentfarbe
+- [x] `ab-bearbeiten` – Adressbuch: Kontakt bearbeiten: erledigt (Commit „Adressbuch: …“ (Runde 1, Befunde 0–11)) – Bearbeiten-Layout („More name fields“, seltene Felder eingeklappt) greift auch, wenn der Tab gerade erst geöffnet wurde (eigene Funktion wartet auf die Definition von vcard-edit)
 - [ ] `ab-neu` – Adressbuch: neuer Kontakt: offen
-- [ ] `ab-foto-dialog` – Adressbuch: Kontaktbild wählen (Dialog): offen
-- [ ] `ab-verteiler` – Adressbuch: Verteilerliste: offen
-- [ ] `ab-leeres-buch` – Adressbuch: leeres Buch: offen
+- [x] `ab-foto-dialog` – Adressbuch: Kontaktbild wählen (Dialog): erledigt (Commit „Adressbuch: …“ (Runde 1, Befunde 0–11)) – Hinweis und Personensymbol sichtbar (Dateifeld durchsichtig statt deckend), Ablagefläche als Karte mit 12 px Radius statt Pille, Symbol grau über dem Text, Fokusring an der Fläche; Fläche und Knopfleiste dunkel neutral statt Blaugrau
+- [x] `ab-verteiler` – Adressbuch: Verteilerliste: erledigt (Commit „Adressbuch: …“ (Runde 1, Befunde 0–11)) – Verteilerliste in der Bücherliste wie die Buchzeilen (rund, ohne Rahmen, 13 px, 34 px hoch, eingerückt); Listenkopf ohne leeren 260-px-Kreis, mittig mit Listen-Kreis im Initialen-Verlauf und 28-px-Namen; Links in Akzentfarbe
+- [x] `ab-leeres-buch` – Adressbuch: leeres Buch: erledigt (Commit „Adressbuch: …“ (Runde 1, Befunde 0–11)) – Hinweis nicht mehr halb durchsichtig, „New Contact“ 13 px in Akzentfarbe statt wie deaktiviert
 - [ ] `ab-suche` – Adressbuch: Suche: offen
-- [ ] `ab-mehrfachauswahl` – Adressbuch: mehrere Kontakte ausgewählt: offen
+- [x] `ab-mehrfachauswahl` – Adressbuch: mehrere Kontakte ausgewählt: erledigt (Commit „Adressbuch: …“ (Runde 1, Befunde 0–11)) – kein leerer 260-px-Kreis mehr, „3 selected contacts“ mittig 28 px; Kreise der Mitgliederliste im Blaugrau-Verlauf mit weißen Initialen statt Thunderbird-Grau/Navy
 - [ ] `ab-schmal-1100` – Adressbuch im schmalen Fenster (1100 px bzw. kleinste mögliche Breite): offen
 - [ ] `ab-sortieren` – Adressbuch: Listenoptionen (Sortieren): offen
-- [ ] `ab-tabelle` – Adressbuch als Tabelle (Listenoptionen → Tabellenansicht): offen
+- [x] `ab-tabelle` – Adressbuch als Tabelle (Listenoptionen → Tabellenansicht): erledigt (Commit „Adressbuch: …“ (Runde 1, Befunde 0–11)) – „…“ des Listenkopfs nicht mehr über dem Suchfeld (Knöpfe bleiben an ihrem Platz, Kopfzeile endet davor, keine Trennlinie ohne Spalte); Foto 96 px, Name 22 px, erste Datenkarte ohne Scrollen sichtbar; Kopf mittig über den Karten
 - [ ] `ab-tabelle-spalten` – Adressbuch-Tabelle: Spaltenauswahl: offen
 - [ ] `ab-toolbar-neues-buch` – Adressbuch-Toolbar: „Neues Adressbuch“ (Menü): offen
 - [ ] `ab-account-hub` – Adressbuch hinzufügen (Account Hub, „+“ in der Bücherliste): offen
 - [ ] `ab-neu-menue` – Adressbuch: „Neues Adressbuch“-Menü (Rechtsklick auf „+“): offen
 - [ ] `ab-kontext-kontakt` – Kontextmenü: Kontakt: offen
 - [ ] `ab-kontext-buch` – Kontextmenü: Adressbuch: offen
-- [ ] `ab-neue-liste` – Neue Verteilerliste (Unterdialog): offen
-- [ ] `ab-neues-buch` – Neues Adressbuch (Unterdialog): offen
-- [ ] `ab-carddav` – Neues CardDAV-Adressbuch (Unterdialog, ohne Netz): offen
-- [ ] `ab-ldap` – Neues LDAP-Verzeichnis (Unterdialog, ohne Netz): offen
+- [x] `ab-neue-liste` – Neue Verteilerliste (Unterdialog): erledigt (Commit „Adressbuch: …“ (Runde 1, Befunde 0–11)) – Unterdialog dunkel neutral (--mt-sheet #2A2A2C) statt Thunderbirds Blaugrau rgb(26, 32, 44); gilt für alle Unterdialoge im Tab (auch Einstellungen)
+- [x] `ab-neues-buch` – Neues Adressbuch (Unterdialog): erledigt (Commit „Adressbuch: …“ (Runde 1, Befunde 0–11)) – Unterdialog dunkel neutral statt Blaugrau (wie ab-neue-liste)
+- [x] `ab-carddav` – Neues CardDAV-Adressbuch (Unterdialog, ohne Netz): erledigt (Commit „Adressbuch: …“ (Runde 1, Befunde 0–11)) – Unterdialog dunkel neutral statt Blaugrau (wie ab-neue-liste)
+- [x] `ab-ldap` – Neues LDAP-Verzeichnis (Unterdialog, ohne Netz): erledigt (Commit „Adressbuch: …“ (Runde 1, Befunde 0–11)) – Unterdialog dunkel neutral statt Blaugrau (wie ab-neue-liste)
 - [ ] `ab-adressen-suchen` – Adressen suchen (erweiterte Suche): offen
 
 ## 9. Chat (`chat`)

@@ -3346,7 +3346,14 @@ class CardEnhancer {
           }
         }
         const cr = cards?.getBoundingClientRect();
-        if (cr?.width) {
+        // Tabellenansicht: die Liste reicht bis zum Fensterrand – Knöpfe und
+        // Suche bleiben an ihrem Platz, die Kopfzeile endet davor, und die
+        // Trennlinie entfällt (keine Spaltenkante darunter)
+        const table = el.ownerDocument.body.classList.contains("layout-table");
+        d.documentElement.toggleAttribute("mc-ab-table", table);
+        if (cr?.width && table) {
+          setBarVar(d, "--mc-ab-list-right", `${Math.round(edge - 6 - rowLeft)}px`);
+        } else if (cr?.width) {
           // Knöpfe nie über der Kontaktliste
           edge = Math.max(this.mcButtonsLeft ? edge : 0, shift + cr.right + 6);
           setBarVar(d, "--mc-ab-list-right", `${Math.round(shift + cr.right - rowLeft)}px`);
@@ -3605,121 +3612,143 @@ class CardEnhancer {
         mo.observe(editHeading, { childList: true, characterData: true, subtree: true });
         restorers.push(() => mo.disconnect());
       }
-      // Bearbeiten wie Apple Kontakte: sichtbar sind Vor- und Nachname, E-Mail,
-      // Telefon und Adressen; leere seltene Felder erst nach „Weitere Felder“,
-      // Präfix, zweiter Vorname, Suffix, Spitzname, Anzeigename nach
-      // „Weitere Namensfelder“. Was schon ausgefüllt ist, bleibt immer sichtbar.
-      const EditCard = cw.customElements?.get("vcard-edit");
-      if (EditCard && !EditCard.prototype.__mcLayout) {
-        const OPTIONAL = {
-          url: ["url"],
-          tz: ["tz"],
-          impp: ["impp"],
-          "bday-anniversary": ["bday", "anniversary"],
-          note: ["note"],
-          org: ["title", "role", "org"],
-          custom: ["x-custom1", "x-custom2", "x-custom3", "x-custom4"],
-        };
-        const NAME_PARTS = ["prefix", "middlename", "suffix"];
-        const filled = value => [value].flat().some(v => v != null && String(v).trim());
-        const moreButton = (onClick) => {
-          const b = cw.document.createElement("button");
-          b.type = "button";
-          b.className = "mc-more-button";
-          b.addEventListener("click", onClick);
-          return b;
-        };
-        const label = (b, open, more, fewer) => {
-          if (b) {
-            b.textContent = tr(open ? fewer : more);
-            b.setAttribute("aria-expanded", String(open));
-          }
-        };
-        const markOptional = ve => {
-          const entries = ve.vCardProperties?.entries || [];
-          for (const [id, keys] of Object.entries(OPTIONAL)) {
-            const fs = ve.querySelector(`#addr-book-edit-${id}`);
-            fs?.setAttribute("mc-optional", "");
-            fs?.toggleAttribute("mc-filled", entries.some(e => keys.includes(e.name) && filled(e.value)));
-          }
-        };
-        const markNames = n => {
-          for (const part of NAME_PARTS) {
-            const el = n.querySelector(`#n-list-component-${part}`);
-            el?.toggleAttribute("mc-filled", filled(el.querySelector("input")?.value));
-          }
-          const nick = n.querySelector("vcard-nickname");
-          nick?.toggleAttribute("mc-filled", filled(nick.querySelector("input")?.value));
-        };
-        const setNames = (n, open) => {
-          if (open) {
-            // gleich als Felder zeigen statt Thunderbirds einzelner „+“-Knöpfe
-            for (const part of NAME_PARTS) {
-              const el = n.querySelector(`#n-list-component-${part}`);
-              if (el?.classList.contains("hasButton")) {
-                el.querySelector("label").hidden = false;
-                el.querySelector("input").hidden = false;
-                el.querySelector("button").hidden = true;
-                el.classList.remove("hasButton");
-              }
-            }
-          } else {
-            markNames(n);
-          }
-          n.classList.toggle("mc-more", open);
-          label(n.__mcButton, open, "More name fields", "Fewer name fields");
-        };
-        const setMore = (ve, open) => {
-          if (!open) {
-            markOptional(ve);
-          }
-          ve.classList.toggle("mc-more", open);
-          label(ve.__mcButton, open, "More fields", "Fewer fields");
-        };
-        const layout = ve => {
-          const n = ve.querySelector("#addr-book-edit-n");
-          if (!n || !ve.vCardProperties) {
-            return;
-          }
-          markOptional(ve);
-          n.__mcButton = moreButton(() => setNames(n, !n.classList.contains("mc-more")));
-          n.append(n.__mcButton);
-          setNames(n, false);
-          if (!ve.__mcButton) {
-            ve.__mcButton = moreButton(() => setMore(ve, !ve.classList.contains("mc-more")));
-          }
-          if (!ve.__mcButton.isConnected) {
-            ve.after(ve.__mcButton);
-          }
-          setMore(ve, false);
-        };
-        const origUpdate = EditCard.prototype.updateView;
-        EditCard.prototype.updateView = function (...args) {
-          const result = origUpdate.apply(this, args);
-          try {
-            layout(this);
-          } catch (e) {
-            log("contact edit layout error", e);
-          }
-          return result;
-        };
-        EditCard.prototype.__mcLayout = true;
-        restorers.push(() => {
-          EditCard.prototype.updateView = origUpdate;
-          delete EditCard.prototype.__mcLayout;
-          for (const el of cw.document.querySelectorAll(".mc-more-button")) {
-            el.remove();
-          }
-        });
-        for (const ve of cw.document.querySelectorAll("vcard-edit")) {
-          layout(ve);
-        }
-      }
       // schon angezeigte Fotos ebenfalls prüfen
       for (const el of cw.document.querySelectorAll("contact-avatar")) {
         fixAvatar(el, () =>
           el.closest(".card-container")?.querySelector(".name")?.textContent ||
           cw.document.getElementById("viewContactName")?.textContent || "");
+      }
+    };
+
+    // Bearbeiten wie Apple Kontakte: sichtbar sind Vor- und Nachname, E-Mail,
+    // Telefon und Adressen; leere seltene Felder erst nach „Weitere Felder“,
+    // Präfix, zweiter Vorname, Suffix, Spitzname, Anzeigename nach
+    // „Weitere Namensfelder“. Was schon ausgefüllt ist, bleibt immer sichtbar.
+    const hookEditLayout = cw => {
+      const restorers = { push: fn => this.addWinRestorer(cw, fn) };
+      // vcard-edit definiert erst edit.mjs am Ende des Dokuments – läuft der
+      // erste Aufruf früher, auf die Definition warten statt das Fenster
+      // ungepatcht zu lassen
+      const EditCard = cw.customElements?.get("vcard-edit");
+      if (!EditCard) {
+        if (cw.customElements && !cw.__mcLayoutWait) {
+          cw.__mcLayoutWait = true;
+          cw.customElements.whenDefined("vcard-edit").then(() => {
+            cw.__mcLayoutWait = false;
+            try {
+              hookEditLayout(cw);
+            } catch (e) {
+              log("contact edit layout error", e);
+            }
+          });
+        }
+        return;
+      }
+      if (EditCard.prototype.__mcLayout) {
+        return;
+      }
+      const OPTIONAL = {
+        url: ["url"],
+        tz: ["tz"],
+        impp: ["impp"],
+        "bday-anniversary": ["bday", "anniversary"],
+        note: ["note"],
+        org: ["title", "role", "org"],
+        custom: ["x-custom1", "x-custom2", "x-custom3", "x-custom4"],
+      };
+      const NAME_PARTS = ["prefix", "middlename", "suffix"];
+      const filled = value => [value].flat().some(v => v != null && String(v).trim());
+      const moreButton = (onClick) => {
+        const b = cw.document.createElement("button");
+        b.type = "button";
+        b.className = "mc-more-button";
+        b.addEventListener("click", onClick);
+        return b;
+      };
+      const label = (b, open, more, fewer) => {
+        if (b) {
+          b.textContent = tr(open ? fewer : more);
+          b.setAttribute("aria-expanded", String(open));
+        }
+      };
+      const markOptional = ve => {
+        const entries = ve.vCardProperties?.entries || [];
+        for (const [id, keys] of Object.entries(OPTIONAL)) {
+          const fs = ve.querySelector(`#addr-book-edit-${id}`);
+          fs?.setAttribute("mc-optional", "");
+          fs?.toggleAttribute("mc-filled", entries.some(e => keys.includes(e.name) && filled(e.value)));
+        }
+      };
+      const markNames = n => {
+        for (const part of NAME_PARTS) {
+          const el = n.querySelector(`#n-list-component-${part}`);
+          el?.toggleAttribute("mc-filled", filled(el.querySelector("input")?.value));
+        }
+        const nick = n.querySelector("vcard-nickname");
+        nick?.toggleAttribute("mc-filled", filled(nick.querySelector("input")?.value));
+      };
+      const setNames = (n, open) => {
+        if (open) {
+          // gleich als Felder zeigen statt Thunderbirds einzelner „+“-Knöpfe
+          for (const part of NAME_PARTS) {
+            const el = n.querySelector(`#n-list-component-${part}`);
+            if (el?.classList.contains("hasButton")) {
+              el.querySelector("label").hidden = false;
+              el.querySelector("input").hidden = false;
+              el.querySelector("button").hidden = true;
+              el.classList.remove("hasButton");
+            }
+          }
+        } else {
+          markNames(n);
+        }
+        n.classList.toggle("mc-more", open);
+        label(n.__mcButton, open, "More name fields", "Fewer name fields");
+      };
+      const setMore = (ve, open) => {
+        if (!open) {
+          markOptional(ve);
+        }
+        ve.classList.toggle("mc-more", open);
+        label(ve.__mcButton, open, "More fields", "Fewer fields");
+      };
+      const layout = ve => {
+        const n = ve.querySelector("#addr-book-edit-n");
+        if (!n || !ve.vCardProperties) {
+          return;
+        }
+        markOptional(ve);
+        n.__mcButton = moreButton(() => setNames(n, !n.classList.contains("mc-more")));
+        n.append(n.__mcButton);
+        setNames(n, false);
+        if (!ve.__mcButton) {
+          ve.__mcButton = moreButton(() => setMore(ve, !ve.classList.contains("mc-more")));
+        }
+        if (!ve.__mcButton.isConnected) {
+          ve.after(ve.__mcButton);
+        }
+        setMore(ve, false);
+      };
+      const origUpdate = EditCard.prototype.updateView;
+      EditCard.prototype.updateView = function (...args) {
+        const result = origUpdate.apply(this, args);
+        try {
+          layout(this);
+        } catch (e) {
+          log("contact edit layout error", e);
+        }
+        return result;
+      };
+      EditCard.prototype.__mcLayout = true;
+      restorers.push(() => {
+        EditCard.prototype.updateView = origUpdate;
+        delete EditCard.prototype.__mcLayout;
+        for (const el of cw.document.querySelectorAll(".mc-more-button")) {
+          el.remove();
+        }
+      });
+      for (const ve of cw.document.querySelectorAll("vcard-edit")) {
+        layout(ve);
       }
     };
 
@@ -4072,6 +4101,7 @@ class CardEnhancer {
         if (cw && url.startsWith("about:addressbook")) {
           try {
             hookAvatars(cw);
+            hookEditLayout(cw);
             hookBooksHeader(cw, winRestorers);
             hookSplitterReset(cw.document);
           } catch (e) {
