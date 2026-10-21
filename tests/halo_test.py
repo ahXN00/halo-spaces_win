@@ -2022,6 +2022,62 @@ def calendar_checks(m, results):
         return ok, f"{res}"
     check("Erinnerungen anpassen: Liste und Trenner als Haarlinie ohne native Rahmen", reminder_dialog, results)
 
+    def recurrence_preview():
+        # Wiederholung: Monate der Vorschau mit Haarlinie und 10 px Radius statt 1 px Zinkgrau (dunkel #71717A), ohne Fläche
+        res = m.js(CAL_CHECK_JS + r"""
+          for (const x of [...Services.wm.getEnumerator(null)]) if (!x.location.href.includes("messenger.xhtml")) x.close();
+          const out = { dark };
+          let dw = null, rw = null;
+          try {
+            await toCalendar(); w.createEventWithDialog(testCalendar(), null, null, "Halo Wiederholungsvorschau");
+            dw = await winUrl("calendar-event-dialog.xhtml"); if (!dw) return { dialog: false };
+            const iw = await till(() => { const f = dw.document.getElementById("calendar-item-panel-iframe")?.contentWindow;
+              return f?.document.readyState == "complete" && f.document.getElementById("item-repeat") && f; }, 8000);
+            await pause(800);
+            const ml = iw.document.getElementById("item-repeat"); ml.value = "custom"; later(() => iw.editRepeat ? iw.editRepeat() : iw.updateRepeat());
+            rw = await winUrl("calendar-event-dialog-recurrence"); if (!rw) return { recurrence: false };
+            await pause(1500);
+            out.months = [...rw.document.querySelectorAll("#recurrencePreview calendar-minimonth")].filter(vis).map(mm => { const st = csOf(mm);
+              return { bg: st.backgroundColor, bw: st.borderTopWidth, border: st.borderTopColor, radius: st.borderTopLeftRadius,
+                       busy: [...mm.querySelectorAll("td[busy]")].length }; });
+          } finally {
+            if (rw && !rw.closed) { rw.close(); await till(() => rw.closed, 4000); }
+            if (dw && !dw.closed) { dw.close(); await till(() => dw.closed, 4000); }
+          }
+          return out;""")
+        if res.get("dialog") is False or res.get("recurrence") is False:
+            return False, f"Dialog nicht offen {res}"
+        ms = res.get("months") or []
+        ok = (len(ms) >= 1 and all(rgba_alpha(x["bg"]) == 0 and float(x["bw"][:-2]) <= 1 and rgba_alpha(x["border"]) <= 0.12
+                                   and not same_color(x["border"], "rgb(113, 113, 122)") and float(x["radius"][:-2]) >= 10 for x in ms)
+              and any(x["busy"] for x in ms))
+        return ok, f"{res}"
+    check("Wiederholung: Vorschau-Monate mit Haarlinie und 10 px Radius, ohne Fläche, Belegt-Punkte bleiben", recurrence_preview, results)
+
+    def agenda_days():
+        # Today-Pane: Tagesspalte (ca. 38 px) eines Tags mit nur einem Eintrag ragte bis auf 2–6 px an den nächsten Tag
+        res = m.js(CAL_CHECK_JS + r"""
+          const c = testCalendar(); const added = [];
+          try {
+            for (const [dd, title] of [[5, "Halo Agenda Einzeltag"], [6, "Halo Agenda Folgetag"]]) {
+              const e = new CalEvent(); e.title = title; e.calendar = c; const s = today(); s.day += dd; const en = s.clone(); en.day += 1;
+              e.startDate = s; e.endDate = en; added.push(await c.addItem(e)); }
+            await toMail(); if (!w.TodayPane?.isVisible) d.getElementById("calendar_toggle_todaypane_command").doCommand();
+            await pause(2000);
+            const lis = [...d.querySelectorAll("#agenda > li.agenda-listitem")].filter(vis);
+            const out = { pairs: [], single: 0 };
+            lis.forEach((li, i) => { const h = li.querySelector(":scope > .agenda-date-header"); if (!h || h.hidden) return;
+              const next = lis.slice(i + 1).find(x => { const nh = x.querySelector(":scope > .agenda-date-header"); return nh && !nh.hidden; });
+              if (!next) return;
+              const single = lis[i + 1] == next; if (single) out.single++;
+              out.pairs.push([h.dataset.mcDay, single, Math.round(next.querySelector(":scope > .agenda-date-header").getBoundingClientRect().top - h.getBoundingClientRect().bottom)]); });
+            return out;
+          } finally { for (const it of added) try { await c.deleteItem(it); } catch {} }""")
+        ps = res.get("pairs") or []
+        ok = res.get("single", 0) >= 1 and len(ps) >= 2 and all(gap >= 12 for _, _, gap in ps)
+        return ok, f"{res}"
+    check("Today-Pane: Tage mit nur einem Eintrag ragen nicht in den nächsten Tag", agenda_days, results)
+
     def occurrence_prompt():
         # Rückfrage wiederholter Termin: Titelkasten ohne harten Rahmen, Kapselknöpfe ohne alte Kalendersymbole
         res = m.js(CAL_CHECK_JS + r"""

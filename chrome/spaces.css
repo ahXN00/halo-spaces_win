@@ -381,6 +381,13 @@ calendar-minimonth:not(#calMinimonth, #today-minimonth, #from-minimonth, #to-min
   --mmDayBorderRadius: 6px !important;
 }
 
+/* Vorschau der Wiederholung: Monate mit Haarlinie und 10 px Radius statt
+   1 px Zinkgrau (dunkel #71717A) */
+#recurrencePreview calendar-minimonth {
+  border: var(--mt-hairline) solid var(--mt-pane-line) !important;
+  border-radius: 10px !important;
+}
+
 calendar-minimonth:not(#calMinimonth, #today-minimonth, #from-minimonth, #to-minimonth) .minimonth-week {
   font-weight: 400 !important;
   font-size: 11px !important;
@@ -3424,6 +3431,13 @@ addon-page-header h1,
 
 #agenda > li.agenda-listitem:has(> .agenda-date-header:not([hidden])) {
   margin-top: 14px !important;
+}
+
+/* Tagesspalte (38 px) darf nicht in den nächsten Tag ragen: Tage mit nur
+   einem Eintrag (28 px) bekommen die Höhe der Spalte („22“ klebte sonst an
+   „FRI“) */
+#agenda > li.agenda-listitem:has(> .agenda-date-header:not([hidden])):is(:has(+ li.agenda-listitem > .agenda-date-header:not([hidden])), :last-child) {
+  min-height: 40px !important;
 }
 
 /* Tagesspalte: Wochentag klein, Tageszahl groß, heute rot */
