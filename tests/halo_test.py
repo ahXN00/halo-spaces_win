@@ -3164,6 +3164,43 @@ def run_checks(m, version, profile, results):
         return ok, f"{res}"
     check("Chat: leerer Zustand ruhig ohne Dauer-Fokusring, Statuskapsel 13 px mit flachem Punkt, kein Hover auf deaktivierten Knöpfen, langer Statustext mit „…“, Knöpfe und Suche überlappen bei keiner Fensterbreite", chat_toolbar, results)
 
+    def side_line():
+        # Trennlinie der Seitenleiste läuft in der Toolbar-Zeile ohne Versatz und
+        # ohne Farbsprung weiter: --mc-side-right ist die Außenkante samt der
+        # 1-px-Linie der Seitenleiste, die Linie oben liegt auf dem letzten Pixel davor
+        res = m.js(r"""
+          const out = {};
+          const pixels = async r => { const cv = d.createElementNS("http://www.w3.org/1999/xhtml", "canvas");
+            cv.width = Math.round(r.width); cv.height = Math.round(r.height); const ctx = cv.getContext("2d");
+            try { const bm = await w.browsingContext.currentWindowGlobal.drawSnapshot(new w.DOMRect(r.left, r.top, r.width, r.height), 1, "white"); ctx.drawImage(bm, 0, 0); }
+            catch { ctx.drawWindow(w, r.left, r.top, r.width, r.height, "white"); }
+            const data = ctx.getImageData(0, 0, cv.width, cv.height).data;
+            return (x, y) => { const i = (Math.round(y) * cv.width + Math.round(x)) * 4; return [data[i], data[i + 1], data[i + 2]]; }; };
+          try {
+            w.resizeTo(1500, 900); await wait(800);
+            for (const [mode, id] of [["chat", "listPaneBox"], ["calendar", "calSidebar"]]) {
+              tm.openTab(mode, {}); await wait(1500);
+              const rowEl = d.getElementById("unifiedToolbarContainer"), row = rowEl.getBoundingClientRect();
+              const side = parseFloat(w.getComputedStyle(rowEl).getPropertyValue("--mc-side-right"));
+              const paneEl = d.getElementById(id), pane = paneEl.getBoundingClientRect();
+              const bg = w.getComputedStyle(rowEl).backgroundImage;
+              // je ein Bildpunkt links von, auf und rechts von der Linie, über und unter der Toolbar-Kante
+              const px = await pixels(new w.DOMRect(Math.round(pane.right) - 3, row.bottom - 4, 5, 8));
+              const col = x => ({ up: px(x, 1), down: px(x, 6) });
+              out[mode] = { off: row.left + side - pane.right, border: w.getComputedStyle(paneEl).borderInlineEndWidth,
+                layers: (bg.match(/linear-gradient/g) || []).length, cols: [col(1), col(2), col(3)] };
+            }
+          } finally {
+            await toMail();
+          }
+          return out;""")
+        def same(a, b):
+            return all(abs(x - y) <= 6 for x, y in zip(a, b))
+        ok = all(v["border"] == "1px" and abs(v["off"]) <= 0.5 and v["layers"] == 2
+                 and all(same(c["up"], c["down"]) for c in v["cols"]) for v in res.values())
+        return ok, f"{res}"
+    check("Bereiche: Trennlinie der Seitenleiste läuft in der Toolbar-Zeile ohne Versatz und Farbsprung weiter (Chat, Kalender)", side_line, results)
+
     def today_closed():
         # Today-Pane aus: keine graue Fläche oben rechts neben dem Knopf
         res = m.js('''

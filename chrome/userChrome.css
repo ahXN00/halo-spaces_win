@@ -2457,14 +2457,23 @@ html:root.customizingUnifiedToolbar #unifiedToolbarContainer::before {
 /* ==== Bereiche: Kalender, Aufgaben, Adressbuch, Chat, Einstellungen ==== */
 
 /* Toolbar-Zeile über der Seitenleiste im Seitenleisten-Grau wie in Apples
-   Apps (--mc-side-right misst die Erweiterung) */
+   Apps (--mc-side-right misst die Erweiterung: Außenkante der Seitenleiste
+   samt ihrer 1-px-Linie). Die Linie liegt daher auf dem letzten Pixel davor
+   und über dem Seitenleisten-Grau – genau wie die Linie der Seitenleiste
+   darunter, ohne Versatz und ohne Farbsprung an der Toolbar-Kante. */
 :root:is([mc-tab="calendar"], [mc-tab="tasks"], [mc-tab="chat"], [mc-tab="addressBookTab"], [mc-tab="preferencesTab"], [mc-tab="contentTab"]) #unifiedToolbarContainer {
-  background: linear-gradient(
-    to right,
-    var(--mt-sidebar) 0 var(--mc-side-right, 0px),
-    var(--mt-sidebar-border) var(--mc-side-right, 0px) calc(var(--mc-side-right, 0px) + 1px),
-    var(--mt-window) calc(var(--mc-side-right, 0px) + 1px)
-  ) !important;
+  background:
+    linear-gradient(
+      to right,
+      transparent calc(var(--mc-side-right, 0px) - 1px),
+      var(--mt-sidebar-border) calc(var(--mc-side-right, 0px) - 1px) var(--mc-side-right, 0px),
+      transparent var(--mc-side-right, 0px)
+    ),
+    linear-gradient(
+      to right,
+      var(--mt-sidebar) var(--mc-side-right, 0px),
+      var(--mt-window) var(--mc-side-right, 0px)
+    ) !important;
 }
 
 /* ---------- Kalender wie Apple Kalender ---------- */
