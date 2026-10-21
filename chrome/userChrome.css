@@ -37,6 +37,8 @@
   --mt-pane-line: rgba(0, 0, 0, 0.11);
   --mt-tabbar: #E9E9EB;
   --mt-tab-selected: #F9F9FA;
+  /* gewähltes Segment eines Umschalters (heller als die Spur) */
+  --mt-segment-selected: #FFFFFF;
   --mt-font: -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif;
 }
 
@@ -63,6 +65,7 @@
     --mt-pane-line: rgba(255, 255, 255, 0.10);
     --mt-tabbar: #262628;
     --mt-tab-selected: #3A3A3C;
+    --mt-segment-selected: #636366;
   }
 }
 
@@ -2622,6 +2625,24 @@ html:root.customizingUnifiedToolbar #unifiedToolbarContainer::before {
   opacity: 0.75 !important;
 }
 
+/* Plakette „Aktivieren“ deaktivierter Kalender: graue Kapsel statt
+   Thunderbirds fest schieferblauer Fläche mit weißer fetter Großschrift */
+#calendar-list > li > button.calendar-enable-button {
+  background: var(--mt-control) !important;
+  color: var(--mt-text-secondary) !important;
+  border: none !important;
+  border-radius: 999px !important;
+  padding: 1px 8px !important;
+  font-size: 11px !important;
+  font-weight: 500 !important;
+  text-transform: none !important;
+}
+
+#calendar-list > li > button.calendar-enable-button:is(:hover, :focus-visible, :active) {
+  background: var(--mt-control-hover) !important;
+  color: var(--mt-text) !important;
+}
+
 #sideButtonsBottom {
   display: none !important;
 }
@@ -3159,8 +3180,10 @@ calendar-month-day-box-item[allday] .event-name-label:not([data-mc-emoji])::befo
 }
 
 /* mehrtägig: Tagesstücke zu einem durchgehenden Balken verbinden – über den
-   Innenabstand der Tageszelle hinweg, innen ohne Rundung; Titel nur im
-   ersten Stück je Woche (data-mc-join-l/-r setzt die Erweiterung) */
+   Innenabstand der Tageszelle hinweg, innen ohne Rundung; Titel läuft über
+   alle Stücke weiter: jedes Folgestück rückt ihn um seinen Abstand zum
+   ersten Stück ein (--mc-span-x, data-mc-join-l/-r und data-mc-span setzt
+   die Erweiterung) – die Tageslisten schneiden sonst nach einer Spalte ab */
 calendar-month-day-box-item[allday][data-mc-join-r] {
   margin-inline-end: -6px !important;
   border-start-end-radius: 0 !important;
@@ -3173,7 +3196,23 @@ calendar-month-day-box-item[allday][data-mc-join-l] {
   border-end-start-radius: 0 !important;
 }
 
+calendar-month-day-box-item[allday][data-mc-join-r] {
+  padding-inline-end: 0 !important;
+}
+
+calendar-month-day-box-item[allday][data-mc-join-l] {
+  padding-inline-start: 0 !important;
+}
+
 calendar-month-day-box-item[allday][data-mc-join-l] .event-name-label {
+  text-indent: calc(-1 * var(--mc-span-x, 0px)) !important;
+}
+
+calendar-month-day-box-item[allday][data-mc-join-r] .event-name-label {
+  text-overflow: clip !important;
+}
+
+calendar-month-day-box-item[allday][data-mc-join-l]:not([data-mc-span]) .event-name-label {
   visibility: hidden !important;
 }
 
@@ -6278,6 +6317,12 @@ timepicker-grids .time-picker-more-control-label {
   opacity: 0.7 !important;
 }
 
+/* Trennlinien im Raster (tr.separator): Thunderbird zeichnet sie 1 px in der
+   Feldrahmenfarbe – deutlich härter als die Haarlinie unter der Toolbar */
+#calendar-event-dialog-inner #event-grid .separator td {
+  border-block-end: var(--mt-hairline) solid var(--mt-pane-line) !important;
+}
+
 /* Statuszeile unten („Time as: Busy“) dezent */
 .statusbar.chromeclass-status {
   background: var(--mt-window) !important;
@@ -6285,6 +6330,12 @@ timepicker-grids .time-picker-more-control-label {
   color: var(--mt-text-tertiary) !important;
   font-size: 11px !important;
   padding: 3px 12px !important;
+}
+
+/* Beschriftung und Wert getrennt („Time as: Busy“ statt „Time as:Busy“) –
+   die Statusleiste des Hauptfensters setzt die Außenabstände der Labels auf 0 */
+#calendar-event-window #status-bar .statusbarpanel > label + label {
+  margin-inline-start: 4px !important;
 }
 
 /* Reiter Beschreibung/Anhänge/Teilnehmer als Segment-Kapseln */
@@ -6361,9 +6412,45 @@ dialog tabpanels:not(#event-grid-tabpanels) {
   border: none !important;
 }
 
+/* color-scheme: das eingebettete Editor-Dokument folgt dem Schema des
+   Dialogs (dunkel sonst schwarze Schrift auf dunklem Feld, siehe
+   event-description.css) */
 #item-description {
   border: var(--mt-hairline) solid var(--mt-pane-line) !important;
   border-radius: 8px !important;
+  color-scheme: light dark !important;
+}
+
+/* Rückfrage wiederholter Termin („Nur diesen / alle …“): Titelkasten als
+   ruhige graue Fläche statt eckigem Feldrahmen; ohne Thunderbirds alte
+   Kalendersymbole neben den Kapselknöpfen */
+#occurrence-prompt-header {
+  border: none !important;
+  border-radius: 10px !important;
+  background: var(--mt-control) !important;
+  color: var(--mt-text) !important;
+}
+
+#accept-buttons-box > .occurrence-accept-buttons {
+  list-style-image: none !important;
+}
+
+#accept-buttons-box > .occurrence-accept-buttons .button-icon {
+  display: none !important;
+}
+
+/* Erinnerungen anpassen: Liste ohne native Rahmenzeichnung (harter dunkler
+   bzw. heller Rand), Trenner neben den Überschriften als Haarlinie */
+#calendar-event-dialog-reminder #reminder-listbox {
+  appearance: none !important;
+  border: var(--mt-hairline) solid var(--mt-pane-line) !important;
+  border-radius: 8px !important;
+  background-color: var(--mt-window) !important;
+}
+
+#calendar-event-dialog-reminder separator.groove {
+  border: none !important;
+  border-top: var(--mt-hairline) solid var(--mt-separator) !important;
 }
 
 #status-bar.statusbar {
@@ -7978,8 +8065,9 @@ notification-message toolbarbutton.notification-button > .toolbarbutton-menubutt
   font-weight: 500 !important;
 }
 
+/* gewähltes Segment heller als die Spur – auch dunkel, wie bei macOS */
 #mcQuickPanel .mc-qc-seg > button[selected] {
-  background: var(--mt-window) !important;
+  background: var(--mt-segment-selected) !important;
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.12) !important;
 }
 

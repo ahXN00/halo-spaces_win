@@ -7,3 +7,16 @@
 body {
   font: 13px -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
 }
+
+/* Dunkel: Variablen gibt es hier nicht, daher der Wert von --mt-text. Ohne
+   diese Regel stand die Beschreibung schwarz auf dem dunklen Feld */
+:root {
+  color-scheme: light dark;
+}
+
+@media (prefers-color-scheme: dark) {
+  body {
+    color: #F5F5F7 !important;
+    background-color: transparent !important;
+  }
+}

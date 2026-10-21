@@ -5308,9 +5308,11 @@ class CardEnhancer {
     };
     // Mehrtägige ganztägige Termine in Monat/Mehrwochen als durchgehender
     // Balken wie in Apple Kalender: jedes Tagesstück weiß, ob es links/rechts
-    // weitergeht (innerhalb einer Wochenzeile); der Titel steht nur im
-    // ersten Stück je Woche
+    // weitergeht (innerhalb einer Wochenzeile); der Titel läuft über alle
+    // Stücke weiter: Folgestücke rücken ihn um ihren Abstand zum ersten
+    // Stück derselben Zeile ein (--mc-span-x, data-mc-span)
     const annotateSpans = root => {
+      const joined = [];
       for (const el of root.querySelectorAll("calendar-month-day-box-item")) {
         let left = false;
         let right = false;
@@ -5331,6 +5333,34 @@ class CardEnhancer {
         } catch {}
         el.toggleAttribute("data-mc-join-l", left);
         el.toggleAttribute("data-mc-join-r", right);
+        if (left) {
+          joined.push(el);
+        } else if (el.hasAttribute("data-mc-span")) {
+          el.removeAttribute("data-mc-span");
+          el.style.removeProperty("--mc-span-x");
+        }
+      }
+      for (const el of joined) {
+        let dx = null;
+        try {
+          const id = el.occurrence?.hashId;
+          const row = el.closest("tr");
+          const first = id && row && [...row.querySelectorAll("calendar-month-day-box-item[allday]:not([data-mc-join-l])")]
+            .find(x => x.occurrence?.hashId == id);
+          const a = el.querySelector(".event-name-label")?.getBoundingClientRect();
+          const b = first?.querySelector(".event-name-label")?.getBoundingClientRect();
+          // ohne Layout (verdeckte Ansicht) den letzten Einzug behalten; nie
+          // gemessene Folgestücke zeigen keinen Titel
+          if (a?.width && b?.width) {
+            dx = Math.round((a.left - b.left) * 10) / 10;
+          }
+        } catch {}
+        if (dx !== null) {
+          if (el.style.getPropertyValue("--mc-span-x") != `${dx}px`) {
+            el.style.setProperty("--mc-span-x", `${dx}px`);
+          }
+          el.setAttribute("data-mc-span", "");
+        }
       }
     };
     const hookCalendarEmoji = () => {
@@ -5356,20 +5386,37 @@ class CardEnhancer {
           }
         });
         mo.observe(root, { childList: true, subtree: true, characterData: true });
+        // Spaltenbreiten ändern sich mit dem Fenster – Einzug der Balkentitel neu messen
+        let ro = null;
+        if (id == "view-box" && w.ResizeObserver) {
+          ro = new w.ResizeObserver(() => {
+            if (!pending) {
+              pending = true;
+              w.setTimeout(run, 16);
+            }
+          });
+          // auch die Ansichten selbst: beim Wechsel zu Monat/Mehrwochen bekommen sie erst dann eine Größe
+          for (const v of [root, ...root.querySelectorAll(":scope > *")]) {
+            ro.observe(v);
+          }
+        }
         const prefObs = { observe: () => { resetEmojiRules(); annotateEmoji(root); } };
         Services.prefs.addObserver(EMOJI_PREF, prefObs);
         Services.prefs.addObserver(EMOJI_CUSTOM_PREF, prefObs);
         run();
         this.restorers.push(() => {
           mo.disconnect();
+          ro?.disconnect();
           Services.prefs.removeObserver(EMOJI_PREF, prefObs);
           Services.prefs.removeObserver(EMOJI_CUSTOM_PREF, prefObs);
           for (const label of root.querySelectorAll("[data-mc-emoji]")) {
             label.removeAttribute("data-mc-emoji");
           }
-          for (const el of root.querySelectorAll("[data-mc-join-l], [data-mc-join-r]")) {
+          for (const el of root.querySelectorAll("[data-mc-join-l], [data-mc-join-r], [data-mc-span]")) {
             el.removeAttribute("data-mc-join-l");
             el.removeAttribute("data-mc-join-r");
+            el.removeAttribute("data-mc-span");
+            el.style.removeProperty("--mc-span-x");
           }
           delete root.__mcEmoji;
         });

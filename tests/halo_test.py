@@ -1945,6 +1945,153 @@ def calendar_checks(m, results):
         return ok, f"{res}"
     check("Termin-Dialog: Schrift 13 px auch in der Beschreibung, Abstand Beschriftung–Feld; Minimonat und Uhrzeit-Raster ruhig mit Akzent", event_dialog, results)
 
+    def event_dialog_lines():
+        # Termin-Dialog: Trennlinien im Raster als Haarlinie (Thunderbird: 1 px Feldrahmenfarbe); Statuszeile mit Abstand
+        # zwischen Beschriftung und Wert („Time as: Busy“ statt „Time as:Busy“); Beschreibung dunkel lesbar (früher schwarz auf #1E1E1E)
+        res = m.js(CAL_CHECK_JS + r"""
+          for (const x of [...Services.wm.getEnumerator(null)]) if (!x.location.href.includes("messenger.xhtml")) x.close();
+          const c = testCalendar(); const e = new CalEvent(); e.title = "Halo Linientermin"; e.calendar = c;
+          const s = cal.dtz.now(); s.minute = 0; s.second = 0; const en = s.clone(); en.hour += 1; e.startDate = s; e.endDate = en;
+          e.setProperty("DESCRIPTION", "Erfundene Beschreibung zum Kontrast."); e.setProperty("TRANSP", "OPAQUE"); const saved = await c.addItem(e);
+          const out = { dark };
+          let dw = null;
+          try {
+            await toCalendar(); w.modifyEventWithDialog(saved, true);
+            dw = await winUrl("calendar-event-dialog"); if (!dw) return { dialog: false };
+            const iw = await till(() => { const f = dw.document.getElementById("calendar-item-panel-iframe")?.contentWindow;
+              return f?.document.readyState == "complete" && f.document.getElementById("event-grid") && f; }, 8000);
+            const id = iw.document, ed = id.getElementById("item-description");
+            const body = await till(() => { const b = ed.contentDocument?.body; return b && /Erfundene/.test(b.textContent) && b; }, 6000);
+            await pause(1800);
+            out.seps = [...id.querySelectorAll("#event-grid tr.separator td")].filter(vis).map(td => [csOf(td).borderBottomColor, csOf(td).borderBottomWidth]);
+            // Statuszeile „Time as: Busy“ (nur bei gesetzter Verfügbarkeit sichtbar)
+            const fb = await till(() => { const p = dw.document.getElementById("status-freebusy"); return vis(p) && p; }, 3000);
+            const labs = fb ? [...fb.querySelectorAll(":scope > label")].filter(l => !l.hidden && vis(l)) : [];
+            out.status = labs.length >= 2 ? Math.round((labs[1].getBoundingClientRect().left - labs[0].getBoundingClientRect().right) * 10) / 10 : null;
+            out.statusText = labs.map(l => l.value || l.textContent).join("|");
+            let bg = null;
+            for (let el = ed; el && el.nodeType == 1; el = el.parentElement) { const b = csOf(el).backgroundColor; if (!/rgba\(.*, 0\)$/.test(b) && b != "transparent") { bg = b; break; } }
+            out.desc = body ? { color: csOf(body).color, body: csOf(body).backgroundColor, field: bg } : null;
+          } finally {
+            if (dw && !dw.closed) { dw.close(); await till(() => dw.closed, 4000); }
+            try { await c.deleteItem(saved); } catch {}
+          }
+          return out;""")
+        if res.get("dialog") is False:
+            return False, "Termin-Dialog nicht offen"
+        seps, desc = res.get("seps") or [], res.get("desc") or {}
+        ok_desc = bool(desc) and (rgba_alpha(desc["body"]) == 0 or not res["dark"]) and (
+            contrast(desc["color"], desc["field"]) >= 4.5 if res["dark"] else luminance(desc["color"]) < 0.2)
+        ok = (len(seps) >= 2 and all(rgba_alpha(c) <= 0.12 and float(wd[:-2]) <= 1 for c, wd in seps)
+              and res.get("status") is not None and res["status"] >= 3 and ok_desc)
+        return ok, f"{res}"
+    check("Termin-Dialog: Trennlinien als Haarlinie, „Time as: Busy“ mit Abstand, Beschreibung lesbar (dunkel ≥ 4,5:1)", event_dialog_lines, results)
+
+    def reminder_dialog():
+        # Erinnerungen anpassen: Liste ohne native Rahmenzeichnung, mit Haarlinie; Trenner neben den Überschriften fein
+        res = m.js(CAL_CHECK_JS + r"""
+          for (const x of [...Services.wm.getEnumerator(null)]) if (!x.location.href.includes("messenger.xhtml")) x.close();
+          const c = testCalendar(); const e = new CalEvent(); e.title = "Halo Erinnerungstermin"; e.calendar = c;
+          const s = cal.dtz.now(); s.minute = 0; s.second = 0; s.day += 1; const en = s.clone(); en.hour += 1; e.startDate = s; e.endDate = en;
+          const saved = await c.addItem(e);
+          const out = { dark };
+          let dw = null, rw = null;
+          try {
+            await toCalendar(); w.modifyEventWithDialog(saved, true);
+            dw = await winUrl("calendar-event-dialog.xhtml"); if (!dw) return { dialog: false };
+            const iw = await till(() => { const f = dw.document.getElementById("calendar-item-panel-iframe")?.contentWindow;
+              return f?.document.readyState == "complete" && f.document.getElementById("item-alarm") && f; }, 8000);
+            await pause(800);
+            const ml = iw.document.getElementById("item-alarm"); ml.value = "custom"; later(() => iw.updateReminder());
+            rw = await winUrl("calendar-event-dialog-reminder"); if (!rw) return { reminder: false };
+            await pause(1200);
+            const rd = rw.document, lb = rd.getElementById("reminder-listbox");
+            out.list = { appearance: csOf(lb).appearance, border: csOf(lb).borderTopColor, bw: csOf(lb).borderTopWidth };
+            out.seps = [...rd.querySelectorAll("separator.groove")].filter(vis).map(x => [csOf(x).borderTopColor, csOf(x).borderTopWidth]);
+          } finally {
+            if (rw && !rw.closed) { rw.close(); await till(() => rw.closed, 4000); }
+            if (dw && !dw.closed) { dw.close(); await till(() => dw.closed, 4000); }
+            try { await c.deleteItem(saved); } catch {}
+          }
+          return out;""")
+        if res.get("dialog") is False or res.get("reminder") is False:
+            return False, f"Dialog nicht offen {res}"
+        lst, seps = res.get("list") or {}, res.get("seps") or []
+        ok = (lst.get("appearance") == "none" and rgba_alpha(lst["border"]) <= 0.12 and float(lst["bw"][:-2]) <= 1
+              and len(seps) >= 2 and all(float(wd[:-2]) <= 1 and not same_color(c, "rgba(128, 128, 128, 0.6)") and rgba_alpha(c) <= 0.12 for c, wd in seps))
+        return ok, f"{res}"
+    check("Erinnerungen anpassen: Liste und Trenner als Haarlinie ohne native Rahmen", reminder_dialog, results)
+
+    def occurrence_prompt():
+        # Rückfrage wiederholter Termin: Titelkasten ohne harten Rahmen, Kapselknöpfe ohne alte Kalendersymbole
+        res = m.js(CAL_CHECK_JS + r"""
+          const { CalRecurrenceInfo } = ChromeUtils.importESModule("resource:///modules/CalRecurrenceInfo.sys.mjs");
+          for (const x of [...Services.wm.getEnumerator(null)]) if (!x.location.href.includes("messenger.xhtml")) x.close();
+          const c = testCalendar(); const e = new CalEvent(); e.title = "Halo Serientermin"; e.calendar = c;
+          const s = cal.dtz.now(); s.minute = 0; s.second = 0; s.day -= 7; const en = s.clone(); en.hour += 1; e.startDate = s; e.endDate = en;
+          e.recurrenceInfo = new CalRecurrenceInfo(e); e.recurrenceInfo.appendRecurrenceItem(cal.createRecurrenceRule("RRULE:FREQ=WEEKLY;COUNT=10"));
+          const saved = await c.addItem(e);
+          const out = {};
+          let pw = null;
+          try {
+            await toCalendar(); w.switchToView("week"); await pause(800);
+            const occ = saved.recurrenceInfo.getNextOccurrence(cal.dtz.now()) || saved;
+            later(() => w.calendarViewController.deleteOccurrences([occ], false, false));
+            pw = await winUrl("calendar-occurrence-prompt"); if (!pw) return { prompt: false };
+            await pause(1000);
+            const pd = pw.document, h = pd.getElementById("occurrence-prompt-header");
+            out.header = { bw: csOf(h).borderTopWidth, radius: csOf(h).borderTopLeftRadius };
+            out.buttons = [...pd.querySelectorAll(".occurrence-accept-buttons")].filter(vis).map(b => { const ic = b.querySelector(".button-icon");
+              return { img: csOf(b).listStyleImage, icon: !!ic && vis(ic) }; });
+          } finally {
+            if (pw && !pw.closed) { pw.close(); await till(() => pw.closed, 4000); await pause(500); }
+            try { await c.deleteItem(saved); } catch {}
+          }
+          return out;""")
+        if res.get("prompt") is False:
+            return False, "Rückfrage nicht offen"
+        b = res.get("buttons") or []
+        ok = res["header"]["bw"] == "0px" and len(b) >= 2 and all(x["img"] == "none" and not x["icon"] for x in b)
+        return ok, f"{res}"
+    check("Rückfrage wiederholter Termin: Titelkasten ohne harten Rahmen, Knöpfe ohne alte Kalendersymbole", occurrence_prompt, results)
+
+    def quick_segment():
+        # Schnellfenster: gewähltes Segment („Termin“/„Aufgabe“) heller als die Spur – dunkel früher dunkler (#1E1E1E)
+        res = m.js(CAL_CHECK_JS + r"""
+          await toWeek();
+          const li = [...d.querySelectorAll('#unifiedToolbarContent li[item-id="new-event"]')].find(vis);
+          li.querySelector("button").click();
+          const qp = await till(() => { const q = d.getElementById("mcQuickPanel"); return q?.state == "open" && q; }, 4000);
+          if (!qp) return { open: false, visibility: d.visibilityState };
+          await pause(300);
+          try {
+            const sel = qp.querySelector(".mc-qc-seg > button[selected]");
+            return { open: true, dark, sel: sel ? csOf(sel).backgroundColor : null, track: csOf(qp.querySelector(".mc-qc-seg")).backgroundColor };
+          } finally { await shutPop(qp); }""")
+        if not res.get("open"):
+            return res.get("visibility") == "hidden", f"Schnellfenster nicht offen {res}"
+        sel = res.get("sel")
+        ok = bool(sel) and (luminance(sel) > 0.08 and rgba_alpha(sel) == 1 if res["dark"] else same_color(sel, "rgb(255, 255, 255)"))
+        return ok, f"{res}"
+    check("Schnellfenster: gewähltes Segment heller als die Spur (auch dunkel)", quick_segment, results)
+
+    def enable_badge():
+        # Kalenderliste: Plakette „Aktivieren“ als graue Kapsel statt schieferblauer Fläche mit weißer Großschrift
+        res = m.js(CAL_CHECK_JS + r"""
+          const c = testCalendar(); c.setProperty("disabled", true);
+          try {
+            await toCalendar();
+            const b = await till(() => [...d.querySelectorAll("#calendar-list button.calendar-enable-button")].find(vis), 4000);
+            if (!b) return { badge: false };
+            return { bg: csOf(b).backgroundColor, color: csOf(b).color, tt: csOf(b).textTransform, weight: csOf(b).fontWeight, radius: csOf(b).borderTopLeftRadius };
+          } finally { c.setProperty("disabled", false); await pause(500); }""")
+        if res.get("badge") is False:
+            return False, "Plakette nicht sichtbar"
+        ok = (not same_color(res["bg"], "rgb(107, 128, 164)") and not same_color(res["color"], "rgb(255, 255, 255)")
+              and res["tt"] == "none" and int(res["weight"]) <= 600)
+        return ok, f"{res}"
+    check("Kalenderliste: Plakette „Aktivieren“ als graue Kapsel ohne Großschrift", enable_badge, results)
+
     def print_minimonths():
         # Drucken: „Von“/„Bis“-Minikalender passen ins Formular, Pfeile sichtbar, Knöpfe ohne helle Fläche (dunkel)
         res = m.js(CAL_CHECK_JS + r"""
@@ -1982,6 +2129,23 @@ def rgba_alpha(c):
     import re
     v = re.findall(r"-?[\d.]+(?:e-?\d+)?", c or "")
     return float(v[3]) if len(v) > 3 else 1.0
+
+
+def luminance(c):
+    """Relative Luminanz (WCAG) aus rgb()/rgba()/color(srgb …)."""
+    import re
+    v = [float(x) for x in re.findall(r"-?[\d.]+(?:e-?\d+)?", c or "")][:3]
+    if len(v) < 3:
+        return 0.0
+    k = 1 if (c or "").startswith("color(") else 255
+    lin = lambda x: x / 12.92 if x <= 0.03928 else ((x + 0.055) / 1.055) ** 2.4
+    return sum(f * lin(x / k) for f, x in zip((0.2126, 0.7152, 0.0722), v))
+
+
+def contrast(a, b):
+    """Kontrastverhältnis (WCAG) zweier Farben."""
+    la, lb = luminance(a), luminance(b)
+    return (max(la, lb) + 0.05) / (min(la, lb) + 0.05)
 
 
 def same_color(a, b, tol=2):
@@ -3143,18 +3307,21 @@ def run_checks(m, version, profile, results):
     check("Aufgaben: Leeranzeige, iCloud-Platzhalter ausgeblendet, Hinweis neben dem Plus, Kapseln", tasks_view, results)
 
     def month_spans():
-        # mehrtägige ganztägige Termine als durchgehender Balken; Kalendersymbol ohne Emoji
+        # mehrtägige ganztägige Termine als durchgehender Balken; Titel läuft über alle Stücke weiter (früher nach
+        # einer Spalte „Konferenz in Wi…“); Kalendersymbol ohne Emoji
         res = m.js(r'''
           w.resizeTo(1500, 900);
           const c = testCalendar();
           const mk = async (title, dd, days) => { const e = new CalEvent(); e.title = title; e.calendar = c;
             const s = cal.createDateTime(); s.resetTo(2026, 9, dd, 0, 0, 0, cal.dtz.floating); s.isDate = true; const en = s.clone(); en.day += days;
             e.startDate = s; e.endDate = en; return await c.addItem(e); };
-          const made = [await mk("Halo Mehrtagig", 23, 4), await mk("Qwrtz Abgabe", 27, 1)];
+          const made = [await mk("Halo Mehrtagig Konferenz in Wien", 23, 4), await mk("Qwrtz Abgabe", 27, 1)];
           await toCalendar(); w.switchToView("month"); w.currentView().goToDay(cal.createDateTime("20261015")); await wait(1500);
           const all = [...d.querySelectorAll("calendar-month-day-box-item")];
-          const parts = all.filter(e => e.occurrence?.title == "Halo Mehrtagig").map(e => { const b = e.getBoundingClientRect();
-            return { l: Math.round(b.left), r: Math.round(b.right), t: Math.round(b.top), jl: e.hasAttribute("data-mc-join-l"), jr: e.hasAttribute("data-mc-join-r") }; });
+          const parts = all.filter(e => e.occurrence?.title == "Halo Mehrtagig Konferenz in Wien").map(e => { const b = e.getBoundingClientRect();
+            const lab = e.querySelector(".event-name-label"), cs = w.getComputedStyle(lab);
+            return { l: Math.round(b.left), r: Math.round(b.right), t: Math.round(b.top), jl: e.hasAttribute("data-mc-join-l"), jr: e.hasAttribute("data-mc-join-r"),
+                     ll: Math.round(lab.getBoundingClientRect().left * 10) / 10, vis: cs.visibility, indent: parseFloat(cs.textIndent), ov: cs.textOverflow }; });
           const plain = all.find(e => e.occurrence?.title == "Qwrtz Abgabe")?.querySelector(".event-name-label");
           const icon = plain ? w.getComputedStyle(plain, "::before").maskImage : null;
           for (const e of made) { try { await c.deleteItem(e); } catch {} }
@@ -3167,8 +3334,13 @@ def run_checks(m, version, profile, results):
             not r[0]["jl"] and not r[-1]["jr"]
             and all(abs(r[i + 1]["l"] - r[i]["r"]) <= 2 and r[i]["jr"] and r[i + 1]["jl"] for i in range(len(r) - 1))
             for r in rows)
-        return joined and res["icon"].startswith("url(") and not res["emoji"], f"{res}"
-    check("Kalender: mehrtägige Termine als Balken, Kalendersymbol ohne Emoji", month_spans, results)
+        # Folgestücke: Titel sichtbar, um den Abstand zum ersten Stück eingerückt; Stücke mit Fortsetzung schneiden ohne „…“
+        flow = joined and all(
+            all(q["vis"] == "visible" and abs(q["indent"] + (q["ll"] - r[0]["ll"])) <= 1 for q in r[1:])
+            and all(q["ov"] == "clip" for q in r[:-1])
+            for r in rows)
+        return joined and flow and res["icon"].startswith("url(") and not res["emoji"], f"{res}"
+    check("Kalender: mehrtägige Termine als Balken, Titel läuft über alle Stücke weiter, Kalendersymbol ohne Emoji", month_spans, results)
 
     def month_more():
         # volle Tage zeigen „+N weitere“ – danach bleibt die Ansicht ruhig (früher setzte
