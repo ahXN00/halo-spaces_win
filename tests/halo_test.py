@@ -4423,6 +4423,77 @@ def run_checks(m, version, profile, results):
         return ok, f"{res}"
     check("Einstellungen: Schrift 13 px, Seitenleiste bündig, Listen/DNS/Export als ruhige Karten, Offline-Dialog untereinander", settings_cards, results)
 
+    def settings_details():
+        # Einstellungen: Arbeitstage mittig und mit Abstand, Chat-Vorschau mit Abstand/Rahmen und dunkel als
+        # Variante „Dark“, Schlagwörter lesbar, „Verzeichnisse bearbeiten“ wie die übrigen Knöpfe (Bearbeiten im
+        # Adressbuch bleibt groß), Update-Chronik mit Abstand, Port-Felder ohne Pfeile, schmales Fenster ohne Abschneiden
+        res = m.js(ADDRESS_EDIT_JS.replace('ad.getElementById("editButton").click(); await wait(1200);', '') + r"""
+          const abEdit = ad.getElementById("editButton"); const out = { abEdit: [ab.getComputedStyle(abEdit).height, ab.getComputedStyle(abEdit).fontWeight] };
+          tm.closeTab(tm.currentTabInfo);
+          const dark = w.matchMedia("(prefers-color-scheme: dark)").matches;
+          w.resizeTo(1500, 950); w.openPreferencesTab("paneGeneral"); await wait(2500);
+          const cw = tm.currentTabInfo.browser.contentWindow; const cd = cw.document;
+          const cs = e => e.ownerDocument.defaultView.getComputedStyle(e);
+          // color-mix() liefert „color(srgb 0–1 …)“ statt rgb()
+          const rgb = c => { const n = c.match(/[\d.]+/g).slice(0, 3).map(Number); return c.startsWith("color(") ? n.map(x => x * 255) : n; };
+          const lum = c => { const [r, g, b] = c.map(x => { x /= 255; return x <= 0.03928 ? x / 12.92 : ((x + 0.055) / 1.055) ** 2.4; }); return 0.2126 * r + 0.7152 * g + 0.0722 * b; };
+          const contrast = (a, b) => { const [x, y] = [lum(a), lum(b)].sort((p, q) => q - p); return Math.round((x + 0.05) / (y + 0.05) * 100) / 100; };
+          const mid = r => (r.left + r.right) / 2;
+          const bg = rgb(cs(cd.getElementById("tagList")).backgroundColor);
+          out.tags = [...cd.querySelectorAll("#tagList > richlistitem:not([selected]) > label")].map(l => contrast(rgb(cs(l).color), bg));
+          // Update-Chronik: Hinweis „No updates installed yet“ nicht am Listenrand
+          cw.gSubDialog.open("chrome://mozapps/content/update/history.xhtml");
+          let fr = await until(() => [...cd.querySelectorAll(".dialogFrame")].find(f => f.contentDocument?.readyState == "complete" && f.contentDocument.getElementById("historyItems")), 8000);
+          if (fr) { await wait(400); const hi = fr.contentDocument.getElementById("historyItems"), lb = hi.querySelector(":scope > label");
+            out.history = lb ? [Math.round(lb.getBoundingClientRect().left - hi.getBoundingClientRect().left), Math.round(lb.getBoundingClientRect().top - hi.getBoundingClientRect().top)] : "kein Hinweis";
+            cw.gSubDialog._topDialog?.close(); await wait(400); }
+          // Verbindungs-Einstellungen: Port-Felder ohne Pfeile, Wert mittig
+          cw.gSubDialog.open("chrome://messenger/content/preferences/connection.xhtml");
+          fr = await until(() => [...cd.querySelectorAll(".dialogFrame")].find(f => f.contentDocument?.readyState == "complete" && f.contentDocument.getElementById("networkProxyHTTP_Port")), 8000);
+          if (fr) { await wait(400); const pt = fr.contentDocument.getElementById("networkProxyHTTP_Port");
+            out.port = [cs(pt).appearance, cs(pt).textAlign, cs(pt).borderTopLeftRadius];
+            cw.gSubDialog._topDialog?.close(); await wait(400); }
+          cw.gotoPref("paneCompose"); await wait(1500);
+          const eb = cd.getElementById("editButton"), ar = cd.getElementById("attachment_reminder_button");
+          out.edit = [Math.abs(eb.getBoundingClientRect().height - ar.getBoundingClientRect().height) <= 1, cs(eb).fontWeight];
+          cw.gotoPref("paneChat"); await wait(1500);
+          const pb = cd.getElementById("previewBox"); const pl = pb.parentNode.querySelector(":scope > label");
+          out.preview = [Math.round(pb.getBoundingClientRect().left - pl.getBoundingClientRect().right), cs(pb).borderTopLeftRadius, parseFloat(cs(pb).borderTopWidth) <= 1];
+          const body = await until(() => cd.querySelector("#previewBox browser")?.contentDocument?.body, 5000);
+          out.chat = [Services.prefs.getCharPref("messenger.options.messagesStyle.variant"), dark,
+            body ? Math.round(lum(rgb(body.ownerDocument.defaultView.getComputedStyle(body).backgroundColor)) * 100) / 100 : null];
+          cw.gotoPref("paneCalendar"); await wait(1500);
+          const days = [0, 1, 2, 3, 4, 5, 6].map(i => cd.getElementById("dayoff" + i)).filter(Boolean);
+          days[1].scrollIntoView({ block: "center" }); await wait(300);
+          const labs = days.map(b => b.querySelector(".checkbox-label").getBoundingClientRect());
+          out.days = [days.length, Math.max(...days.map((b, i) => Math.abs(mid(b.querySelector(".checkbox-check").getBoundingClientRect()) - mid(labs[i])))),
+            Math.min(...labs.slice(1).map((l, i) => l.left - labs[i].right))];
+          // kleinste Fensterbreite: keine Seite breiter als der Inhaltsbereich
+          w.resizeTo(800, 900); await wait(800);
+          out.narrow = {};
+          for (const p of ["paneGeneral", "paneAppearance", "paneCompose", "panePrivacy", "paneChat", "paneCalendar", "paneQrExport"]) {
+            cw.gotoPref(p); await wait(700);
+            const c = cd.getElementById("preferencesContainer");
+            // abgeschnitten ist, was über die sichtbare Fläche (Innenabstand eingeschlossen) hinausragt
+            const right = c.getBoundingClientRect().left + c.clientWidth;
+            const over = [...cd.querySelectorAll(`#paneDeck [data-category="${p}"] :is(fieldset, .subcategory, #forwardMessageMode, #addExtension)`)]
+              .filter(e => e.getBoundingClientRect().width && e.getBoundingClientRect().right > right + 1).length;
+            out.narrow[p] = [c.scrollWidth - c.clientWidth, over];
+          }
+          w.resizeTo(1500, 950); await wait(500);
+          tm.closeTab(tm.currentTabInfo);
+          return out;""")
+        narrow_ok = all(v[0] <= 1 and v[1] == 0 for v in res["narrow"].values())
+        chat = res["chat"]
+        chat_ok = (chat[0] == "Dark" and chat[2] is not None and chat[2] < 0.2) if chat[1] else (chat[0] != "Dark" and chat[2] is not None and chat[2] > 0.5)
+        ok = (res["abEdit"] == ["38px", "500"] and res["tags"] and min(res["tags"]) >= 4.5
+              and isinstance(res.get("history"), list) and res["history"][0] >= 6 and res["history"][1] >= 4
+              and res.get("port") == ["none", "center", "7px"] and res["edit"] == [True, "400"]
+              and res["preview"][0] >= 6 and res["preview"][1:] == ["8px", True] and chat_ok
+              and res["days"][0] == 7 and res["days"][1] <= 1 and res["days"][2] >= 4 and narrow_ok)
+        return ok, f"{res}"
+    check("Einstellungen: Arbeitstage, Chat-Vorschau (dunkel „Dark“), Schlagwörter lesbar, Knöpfe, Update-Chronik, Ports, schmales Fenster", settings_details, results)
+
     def no_placeholder_in_ui():
         # Platzhalter für blockierte Bilder nur in Mails – nicht in der Oberfläche (Lupe im Suchfeld)
         res = m.js('''

@@ -2004,7 +2004,9 @@ body.layout-table #viewContactName {
   width: auto !important;
 }
 
-#editButton {
+/* nur „Bearbeiten“ im Adressbuch – #editButton gibt es auch in den
+   Einstellungen (Verzeichnisse), im LDAP-, Filter- und Identitäten-Dialog */
+#detailsActions #editButton {
   height: 38px !important;
   padding: 0 18px !important;
   border: none !important;
@@ -2016,7 +2018,7 @@ body.layout-table #viewContactName {
   box-shadow: none !important;
 }
 
-#editButton:hover {
+#detailsActions #editButton:hover {
   background: var(--mt-control-hover) !important;
 }
 
@@ -2454,6 +2456,40 @@ search-bar {
   font-weight: 400 !important;
 }
 
+/* Chat → Darstellung: Vorschau mit Abstand zu „Preview:“ und als Fläche mit
+   Haarlinie und 8 px statt eckiger Insel in der Karte */
+#paneDeck #previewBox {
+  margin-inline-start: 8px !important;
+  border: var(--mt-hairline) solid var(--mt-pane-line) !important;
+  border-radius: 8px !important;
+  overflow: hidden !important;
+}
+
+/* Schlagwortliste: Namen wie in der Mailliste abgedunkelt (hell) bzw.
+   aufgehellt (dunkel) – die Grundfarben (Orange, Blau) sind sonst kaum
+   lesbar; currentColor ist die Farbe des Eintrags */
+#tagList > richlistitem:not([selected]) > label {
+  color: color-mix(in srgb, currentColor 60%, black) !important;
+}
+
+@media (prefers-color-scheme: dark) {
+  #tagList > richlistitem:not([selected]) > label {
+    color: color-mix(in srgb, currentColor 55%, white) !important;
+  }
+}
+
+/* Arbeitstage im Kalender: Kästchen mittig über dem Tag und die Tage mit
+   Abstand („Wed Thu“ statt „WedThu“) */
+#paneDeck .dayOffCheckbox {
+  min-width: 32px !important;
+  margin-inline: 2px !important;
+}
+
+/* Update-Chronik: Hinweis „Keine Updates“ mit Abstand zum Listenrand */
+#historyItems > label {
+  margin: 4px 5px !important;
+}
+
 /* Knöpfe, Auswahllisten und Felder im Apple-Stil */
 #paneDeck :is(button:not(.close-icon, .icon-only, [type="checkbox"], .arrowhead), menulist) {
   min-height: 28px !important;
@@ -2518,6 +2554,21 @@ search-bar {
   inline-size: min(100%, 800px) !important;
 }
 
+/* Kleinste Fensterbreite: Inhalt schrumpft mit statt rechts abgeschnitten
+   (sonst bestimmt die längste Zeile die Breite, z. B. in „Verfassen“);
+   Zeilen mit Auswahllisten (Weiterleiten als, Verzeichnis, Adressbücher)
+   und die Kacheln „Sortierung und Gruppierung“ brechen dann um */
+#preferencesContainer .paneDeckContainer {
+  min-width: 0 !important;
+}
+
+#paneDeck hbox:has(> #forwardMessageMode),
+#paneDeck [data-category="paneCompose"] hbox:has(> menulist, > hbox > menulist),
+#paneDeck #defaultViewFlags {
+  flex-wrap: wrap !important;
+  row-gap: 6px !important;
+}
+
 /* Abschnittsüberschriften wie in den übrigen Bereichen */
 #paneDeck h2 {
   font-size: 15px !important;
@@ -2557,6 +2608,13 @@ checkbox > .checkbox-check,
 #paneDeck input[type="checkbox"]:not(.toggle-button),
 #mcQuickPanel input[type="checkbox"] {
   border-radius: 4px !important;
+}
+
+/* senkrechte Kästchen (Arbeitstage): Kästchen über der Beschriftung, ohne
+   den seitlichen Abstand, der es sonst aus der Mitte schiebt */
+checkbox[orient="vertical"] > .checkbox-check {
+  margin-inline: 0 !important;
+  margin-block-end: 3px !important;
 }
 
 /* Schnellfenster: Kästchen („Ganztägig“, „Fällig“) bündig mit den Feldern
@@ -2611,13 +2669,15 @@ radio[selected] > .radio-check,
   outline-offset: 0 !important;
 }
 
-/* Zahlenfelder (z. B. „5 Minuten“ im Chat) wie die übrigen Felder: ohne
-   Systempfeile, Wert mittig; appearance: none, sonst zeichnet macOS seinen
-   eigenen Feldrahmen statt der Haarlinie */
+/* Zahlenfelder (z. B. „5 Minuten“ im Chat, Ports in den Verbindungs-
+   Einstellungen) wie die übrigen Felder: ohne Systempfeile, Wert mittig;
+   appearance: none, sonst zeichnet macOS seinen eigenen Feldrahmen statt
+   der Haarlinie */
 #paneDeck input[type="number"],
 input[type="number"].size2,
 input[type="number"].size3,
-input[type="number"].size4 {
+input[type="number"].size4,
+input[type="number"].size5 {
   appearance: none !important;
   min-height: 26px !important;
   padding-inline: 8px !important;
@@ -2629,7 +2689,7 @@ input[type="number"].size4 {
 }
 
 #paneDeck input[type="number"]::-moz-number-spin-box,
-input[type="number"]:is(.size2, .size3, .size4)::-moz-number-spin-box {
+input[type="number"]:is(.size2, .size3, .size4, .size5)::-moz-number-spin-box {
   display: none !important;
 }
 

@@ -3008,6 +3008,7 @@ class CardEnhancer {
       chromeURLs: ["chrome://messenger/content/messenger.xhtml"],
       onLoadWindow: w => this.watchMainWindow(w),
     });
+    this.watchChatVariant();
     // Verfassen-Fenster: Symbolleiste nur mit Symbolen, sobald Beschriftungen
     // gekürzt würden (siehe watchComposeToolbar)
     const composeCleanups = new Set();
@@ -3022,6 +3023,61 @@ class CardEnhancer {
           cleanup();
         } catch {}
       }
+    });
+  }
+
+  // Chat-Stil „Thunderbird“ (mail): im Dunkelmodus die mitgelieferte Variante
+  // „Dark“ statt der weißen „Light“ – für Vorschau in den Einstellungen und
+  // Unterhaltungen. Nur der Standardwert wird umgestellt; wer eine Variante
+  // oder einen anderen Stil gewählt hat, behält ihn.
+  watchChatVariant() {
+    const VARIANT = "messenger.options.messagesStyle.variant";
+    const defaults = Services.prefs.getDefaultBranch("");
+    let original;
+    try {
+      original = defaults.getCharPref(VARIANT);
+    } catch {
+      return;
+    }
+    const sync = w => {
+      const theme = Services.prefs.getCharPref("messenger.options.messagesStyle.theme", "mail");
+      const dark = theme == "mail" && w.matchMedia("(prefers-color-scheme: dark)").matches;
+      const want = dark ? "Dark" : original;
+      if (defaults.getCharPref(VARIANT) != want) {
+        defaults.setCharPref(VARIANT, want);
+        debugLog("Chat-Variante (Standard)", want);
+      }
+    };
+    const queries = new Map();
+    // anderer Stil gewählt: Standard zurück, sonst fehlte dort die Variante
+    const themeObserver = () => {
+      const w = Services.wm.getMostRecentWindow("mail:3pane");
+      if (w) {
+        sync(w);
+      }
+    };
+    Services.prefs.addObserver("messenger.options.messagesStyle.theme", themeObserver);
+    ExtensionSupport.registerWindowListener("mail-cards-chatvariant", {
+      chromeURLs: ["chrome://messenger/content/messenger.xhtml"],
+      onLoadWindow: w => {
+        const mq = w.matchMedia("(prefers-color-scheme: dark)");
+        const onChange = () => sync(w);
+        mq.addEventListener("change", onChange);
+        queries.set(w, () => mq.removeEventListener("change", onChange));
+        w.addEventListener("unload", () => queries.delete(w), { once: true });
+        sync(w);
+      },
+    });
+    this.restorers.push(() => {
+      ExtensionSupport.unregisterWindowListener("mail-cards-chatvariant");
+      Services.prefs.removeObserver("messenger.options.messagesStyle.theme", themeObserver);
+      for (const remove of queries.values()) {
+        try {
+          remove();
+        } catch {}
+      }
+      queries.clear();
+      defaults.setCharPref(VARIANT, original);
     });
   }
 
