@@ -689,6 +689,25 @@ hr[is="pane-splitter"],
   font-size: 13px !important;
 }
 
+/* Gruppenköpfe der Tabelle („Gestern (1/2)“ bei „Gruppiert nach Sortierung“)
+   laufen über die leeren Nachbarzellen statt gekürzt zu werden – sonst fehlt
+   die Zählung; jede Ebene (Zelle, Thread-Container, Betreffzeile, Text) kann
+   bei Thunderbird selbst abschneiden. Halbfett wie in der Kartenansicht. */
+#threadTree tr[is="thread-row"][data-properties~="dummy"] td.subjectcol-column,
+#threadTree tr[is="thread-row"][data-properties~="dummy"] td.subjectcol-column * {
+  overflow: visible !important;
+  text-overflow: clip !important;
+}
+
+#threadTree tr[is="thread-row"][data-properties~="dummy"] td.subjectcol-column {
+  position: relative;
+  z-index: 1;
+}
+
+#threadTree tr[is="thread-row"][data-properties~="dummy"] .subject-line {
+  font-weight: 600 !important;
+}
+
 #threadTree thead th,
 #threadTree thead th button {
   font-size: 13px !important;
@@ -877,6 +896,21 @@ hr[is="pane-splitter"],
 
 #threadTree tr[is="thread-card"] button.twisty::before {
   content: none !important;
+}
+
+/* Betreff bündig mit Absender und Vorschau: kein Spaltenabstand vor dem
+   Betreff, wenn der Thread-Knopf fehlt (Thunderbirds dichteabhängiger
+   column-gap bleibt sonst vor den ausgeblendeten Spalten stehen), dafür
+   derselbe Einzug von 3 px wie der Absender (Thunderbirds Innenabstand);
+   Konversationen behalten ihren Abstand über margin-inline-end am Knopf,
+   Gruppenköpfe ihr eigenes Layout */
+#threadTree tr[is="thread-card"]:not([data-properties~="dummy"]) .thread-card-dynamic-row {
+  column-gap: 0 !important;
+  padding-inline-start: 3px !important;
+}
+
+#threadTree tr[is="thread-card"]:not([data-properties~="dummy"]) .thread-card-icon-info {
+  margin-inline-start: 4px !important;
 }
 
 #threadTree:focus-within tr[is="thread-card"]:is(.selected, [aria-selected="true"]) button.twisty {

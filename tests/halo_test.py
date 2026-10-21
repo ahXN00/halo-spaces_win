@@ -16,6 +16,7 @@ import argparse
 import glob
 import json
 import os
+import re
 import shutil
 import socket
 import subprocess
@@ -548,6 +549,71 @@ def maillist_checks(m, results):
                                    and int(h["weight"]) >= 600 and h["detailSize"] == "11px" for h in res)
         return ok, f"{res}"
     check("Mailliste: Gruppenköpfe (Heute, Gestern …) ganz lesbar, halbfett, ohne Absenderbild", group_headers, results)
+
+    def group_headers_table():
+        # Tabelle gruppiert: Gruppenköpfe laufen über die leeren Nachbarzellen,
+        # die Zählung „(ungelesen/gesamt)“ bleibt sichtbar (früher „Gestern (1…“)
+        res = m.js(MAILLIST_JS + r"""
+          await showFolder(); await asTable();
+          const v = a3.gViewWrapper; v.sort(Ci.nsMsgViewSortType.byDate, Ci.nsMsgViewSortOrder.descending);
+          v.showGroupedBySort = true; await wait(1200);
+          const out = [];
+          try {
+            const heads = await until(() => { const h = tableRows().filter(r => props(r).includes("dummy")); return h.length >= 2 && h; }, 8000) || [];
+            const tree = ad.getElementById("threadTree").getBoundingClientRect();
+            for (const r of heads) {
+              const td = r.querySelector("td.subjectcol-column"), line = td.querySelector(".subject-line"), span = line.querySelector("span");
+              const rg = ad.createRange(); rg.selectNodeContents(span); const t = rg.getBoundingClientRect();
+              // jede Ebene zwischen Text und Zelle: entweder sichtbar überlaufend oder breit genug
+              const clip = []; for (let e = span; e && e != r; e = e.parentElement) {
+                const c = cs(e); if ((c.overflowX != "visible" || c.textOverflow == "ellipsis") && e.getBoundingClientRect().right < t.right - 1) clip.push(e.className || e.localName); }
+              // Nachbarzellen unter dem überlaufenden Text: ohne eigene Fläche, die ihn verdecken könnte
+              const cover = [...r.children].filter(c => c != td && !c.hidden && rgba(cs(c).backgroundColor)[3] > 0)
+                .filter(c => { const b = c.getBoundingClientRect(); return b.right > t.left && b.left < t.right; }).map(c => c.className);
+              out.push({ text: span.textContent, clip, cover, right: Math.round(t.right), treeRight: Math.round(tree.right), weight: cs(line).fontWeight });
+            }
+          } finally { v.showGroupedBySort = false; v.showThreaded = true; await wait(800); }
+          return out;""")
+        # Zählung „(n)“ bzw. „(ungelesen/gesamt)“; mindestens ein Kopf mit Ungelesenem
+        ok = (len(res) >= 2 and any("/" in h["text"] for h in res)
+              and all(not h["clip"] and not h["cover"] and h["right"] <= h["treeRight"] and re.search(r"\(\d+(/\d+)?\)$", h["text"])
+                      and int(h["weight"]) >= 600 for h in res))
+        return ok, f"{res}"
+    check("Mailliste: Gruppenköpfe der Tabelle ganz lesbar samt Zählung, halbfett", group_headers_table, results)
+
+    def card_alignment():
+        # Betreff bündig mit Absender und Vorschau (früher 3 px eingerückt durch
+        # Thunderbirds column-gap); Konversation: Abstand zum Thread-Knopf;
+        # mit Stern: Abstand zwischen Betreff und Symbolen – je Dichte
+        res = m.js(MAILLIST_JS + r"""
+          await showFolder(); await asCards(); a3.gViewWrapper.showThreaded = true; await wait(600); cmd("cmd_collapseAllThreads"); await wait(800);
+          const hdr = list.msgDatabase.getMsgHdrForMessageID("halo-ml-4@example.invalid"); list.markMessagesFlagged([hdr], true); await wait(600);
+          const L = (r, sel) => r.querySelector(sel).getBoundingClientRect();
+          const out = {};
+          try {
+            for (const density of [0, 1, 2]) {
+              Services.prefs.setIntPref("mail.uidensity", density); await wait(1200);
+              const single = await until(() => cards().find(r => !r.classList.contains("children") && !props(r).includes("dummy")
+                                                          && subjectOf(r).includes("Halo Ungelesen") && r.querySelector(".mc-preview")?.textContent), 6000);
+              const conv = cards().find(r => r.classList.contains("children") && r.classList.contains("collapsed") && subjectOf(r).includes("Halo Faden"));
+              const star = cards().find(r => subjectOf(r).includes("Halo Schlagwort Work"));
+              if (!single || !conv || !star) { out[density] = { fehlt: [!!single, !!conv, !!star] }; continue; }
+              // Anfang des Textes (nicht der Kästen – Absender und Vorschau haben Innenabstand)
+              const T = (r, sel) => { const g = ad.createRange(); g.selectNodeContents(r.querySelector(sel)); return g.getBoundingClientRect(); };
+              const sn = T(single, ".sender").left;
+              const sub = L(star, ".subject"), icons = L(star, ".thread-card-icon-info");
+              out[density] = { subject: Math.round(T(single, ".subject").left - sn), preview: Math.round(T(single, ".mc-preview").left - sn),
+                               twisty: Math.round(L(conv, ".thread-card-subject-container").left - L(conv, "button.twisty").right),
+                               icons: icons.width > 0 ? Math.round(icons.left - sub.right) : null };
+            }
+          } finally {
+            Services.prefs.clearUserPref("mail.uidensity"); list.markMessagesFlagged([hdr], false); await wait(1000);
+          }
+          return out;""")
+        ok = len(res) == 3 and all("fehlt" not in v and abs(v["subject"]) <= 1 and abs(v["preview"]) <= 1 and v["twisty"] >= 2
+                                   and v["icons"] is not None and v["icons"] >= 2 for v in res.values())
+        return ok, f"{res}"
+    check("Mailliste: Betreff der Karte bündig mit Absender und Vorschau, Abstand zu Thread-Knopf und Symbolen", card_alignment, results)
 
     def thread_sender():
         # zugeklappt: Name und Bild der neuesten Mail (Carla), aufgeklappt die Wurzel (Ben)

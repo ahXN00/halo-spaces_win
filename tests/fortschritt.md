@@ -7,7 +7,7 @@ Vorher-Bilder: `tests/shots/tour/vorher/` (hell-*/dunkel-*), Paket `tests/shots/
 
 ## 1. Mailliste (`mailliste`)
 
-- [x] `mail-karten` – Mailliste als Karten, Posteingang mit ausgewählter Mail: erledigt (Commit „Mailliste: …“ (Runde 1)) – Datum ungelesener Karten normal statt fett; zugeklappte Konversation mit Ungelesenem hat den Akzent-Punkt, Thread-Knopf als graue Kapsel ohne Stern/Akzentrahmen; Runde 1 Leseansicht: Uhrzeit/Datum der Karten im Format der Regionaleinstellungen wie im Mailkopf (Commit „Leseansicht: …“)
+- [x] `mail-karten` – Mailliste als Karten, Posteingang mit ausgewählter Mail: erledigt (Commit „Mailliste: …“ (Runde 1)) – Datum ungelesener Karten normal statt fett; zugeklappte Konversation mit Ungelesenem hat den Akzent-Punkt, Thread-Knopf als graue Kapsel ohne Stern/Akzentrahmen; Runde 1 Leseansicht: Uhrzeit/Datum der Karten im Format der Regionaleinstellungen wie im Mailkopf (Commit „Leseansicht: …“); Runde 2: Betreff bündig mit Absender und Vorschau statt 3 px eingerückt (kein column-gap vor dem Betreff, dafür 3 px Einzug wie der Absender; Vorschau 3 statt 4 px; 4 px vor den Symbolen; Thread-Knopf bündig mit dem Absender, 4 px Abstand zum Betreff; Commit „Mailliste: …“ (Runde 2))
 - [x] `mail-karten-ohne-auswahl` – Posteingang ohne Auswahl (leere Leseansicht): erledigt (Runde 1: geprüft, kein eigener Befund; Datum/Thread-Knopf wie bei mail-karten)
 - [x] `mail-tabelle` – Mailliste als Tabelle: erledigt (Commit „Mailliste: …“ (Runde 1)) – Schrift 13 px wie Karten und Spaltenkopf; Ungelesen-Punkt in Akzentfarbe statt Grün/Ring; kein Funkelstern vor neuen Mails; Schlagwortfarben hell abgedunkelt, dunkel aufgehellt (Kontrast ≥ 4,5:1)
 - [x] `mail-tabelle-threads` – Tabelle nach Threads gruppiert, Threads aufgeklappt: erledigt (Commit „Mailliste: …“ (Runde 1)) – wie mail-tabelle (13 px, Akzent-Punkt auch für zugeklappte Konversation mit Ungelesenem, kein Stern)
@@ -22,8 +22,8 @@ Vorher-Bilder: `tests/shots/tour/vorher/` (hell-*/dunkel-*), Paket `tests/shots/
 - [x] `mail-alle-posteingaenge` – Alle Posteingänge (Sammelordner): erledigt (Runde 1: geprüft, kein Befund)
 - [x] `mail-konto-startseite` – Konto-Startseite (Local Folders ausgewählt): erledigt (Commit „Mailliste: …“ (Runde 1)) – eine ruhige Fläche (--mt-window) statt dreier getönter Bänder, Abschnitte mit Haarlinie, Kacheln als graue Knöpfe mit 6 px Radius ohne Akzentfläche beim Überfahren; Texte, Logo, Links, Wasserzeichen unverändert
 - [x] `mail-schmal-1100` – Schmales Fenster (1100 px bzw. kleinste mögliche Breite): erledigt (Runde 1: geprüft, kein Befund)
-- [x] `mail-dichte-kompakt` – Dichte „kompakt“: erledigt (Runde 1: geprüft; Thread-Knopf und Datum wie bei mail-karten)
-- [x] `mail-dichte-gross` – Dichte „Touch“ (groß): erledigt (Runde 1: geprüft; Thread-Knopf und Datum wie bei mail-karten)
+- [x] `mail-dichte-kompakt` – Dichte „kompakt“: erledigt (Runde 1: geprüft; Thread-Knopf und Datum wie bei mail-karten); Runde 2: Betreff bündig mit Absender und Vorschau statt 3 px eingerückt (kein column-gap vor dem Betreff, dafür 3 px Einzug wie der Absender; Vorschau 3 statt 4 px; 4 px vor den Symbolen; Thread-Knopf bündig mit dem Absender, 4 px Abstand zum Betreff; Commit „Mailliste: …“ (Runde 2))
+- [x] `mail-dichte-gross` – Dichte „Touch“ (groß): erledigt (Runde 1: geprüft; Thread-Knopf und Datum wie bei mail-karten); Runde 2: Betreff bündig mit Absender und Vorschau statt 3 px eingerückt (kein column-gap vor dem Betreff, dafür 3 px Einzug wie der Absender; Vorschau 3 statt 4 px; 4 px vor den Symbolen; Thread-Knopf bündig mit dem Absender, 4 px Abstand zum Betreff; Commit „Mailliste: …“ (Runde 2))
 - [x] `mail-layout-klassisch` – Layout „klassisch“ (Liste oben, Mail unten): erledigt (Commit „Mailliste: …“ (Runde 1)) – Haarlinie (--mt-pane-line) oben an der Leseansicht statt gar keiner Trennung
 - [x] `mail-layout-breit` – Layout „breit“: erledigt (Commit „Mailliste: …“ (Runde 1)) – Haarlinie oben an der Leseansicht über die volle Breite (trennt auch die Ordnerliste ab)
 - [x] `mail-ohne-leseansicht` – Leseansicht ausgeblendet (nur Liste): erledigt (Runde 1: geprüft, kein Befund; keine Linie ohne Leseansicht)
@@ -36,8 +36,8 @@ Vorher-Bilder: `tests/shots/tour/vorher/` (hell-*/dunkel-*), Paket `tests/shots/
 - [x] `mail-spaltenauswahl` – Tabelle: Spaltenauswahl (Listen-Spaltenmenü): erledigt (Runde 1: geprüft, kein Befund)
 - [x] `mail-ansichtsoptionen` – Listenkopf: Ansichtsoptionen (…): erledigt (Runde 1: geprüft, kein Befund)
 - [x] `mail-ansichtsoptionen-sortieren` – Listenkopf: Ansichtsoptionen → Sortieren nach: erledigt (Runde 1: geprüft, kein Befund)
-- [x] `mail-gruppiert` – Karten gruppiert nach Sortierung (Gruppenköpfe Heute, Gestern, Letzte 7 Tage …): erledigt (Commit „Mailliste: …“ (Runde 1)) – Gruppenköpfe nicht mehr abgeschnitten („Yesterd“, „Last 7 D“): eine Spalte ohne Bild/Vorschau, unten direkt über der ersten Mail, Titel halbfett, Anzahl 11 px sekundärgrau
-- [x] `mail-gruppiert-tabelle` – Tabelle gruppiert nach Sortierung (Gruppenköpfe): erledigt (Commit „Mailliste: …“ (Runde 1)) – wie mail-tabelle (13 px, Akzent-Punkt, kein Stern)
+- [x] `mail-gruppiert` – Karten gruppiert nach Sortierung (Gruppenköpfe Heute, Gestern, Letzte 7 Tage …): erledigt (Commit „Mailliste: …“ (Runde 1)) – Gruppenköpfe nicht mehr abgeschnitten („Yesterd“, „Last 7 D“): eine Spalte ohne Bild/Vorschau, unten direkt über der ersten Mail, Titel halbfett, Anzahl 11 px sekundärgrau; Runde 2: Betreff-Ausrichtung der Mailkarten wie mail-karten, Gruppenköpfe unverändert (Commit „Mailliste: …“ (Runde 2))
+- [x] `mail-gruppiert-tabelle` – Tabelle gruppiert nach Sortierung (Gruppenköpfe): erledigt (Commit „Mailliste: …“ (Runde 1)) – wie mail-tabelle (13 px, Akzent-Punkt, kein Stern); Runde 2: Gruppenköpfe laufen über die leeren Nachbarzellen statt gekürzt zu werden („Yesterday (1/2)“ statt „Yesterday (1…“), halbfett wie in der Kartenansicht (Commit „Mailliste: …“ (Runde 2))
 
 ## 2. Leseansicht und Mailkopf (`lesen`)
 

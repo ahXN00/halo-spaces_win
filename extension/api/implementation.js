@@ -1027,7 +1027,8 @@ const CSS = `
   font-weight: 400 !important;
   line-height: 16px;
   margin-top: 1px;
-  padding-inline-start: 4px;
+  /* 3 px wie der Innenabstand des Absenders: bündig mit Absender und Betreff */
+  padding-inline-start: 3px;
   color: color-mix(in srgb, currentColor 58%, transparent);
   white-space: normal;
   overflow: hidden;
