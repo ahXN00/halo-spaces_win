@@ -128,6 +128,24 @@ Thunderbird lehnt das Update ab. Vor einem Release die Versionshinweise im
   `DOMParser`), keine Emojis/4-Byte-Zeichen in Store-Texten.
 - Debug-Ausgaben nur bei `extensions.mailcards.debug = true`.
 
+## Aufgabenliste
+
+Bugs und Wünsche führt der Maintainer in einem privaten GitHub-Project
+„halo.spaces Aufgaben“ (Konto `sruf79`, Felder Typ = Feature/Bug und Status).
+Nur nutzen, wenn `gh project list --owner sruf79` es findet – sonst
+stillschweigend überspringen. Auf dem Testrechner lädt ein lokaler
+SessionStart-Hook die offenen Einträge in jede Sitzung.
+
+- Die Liste ist die Vorlage für die Arbeit: zu Beginn offene Einträge
+  berücksichtigen und passende Aufgaben nennen.
+- Neue Bugs/Wünsche aus dem Gespräch dort als Entwurf anlegen
+  (Typ setzen, Status Todo); Screenshots liegen in `~/halo-aufgaben/bilder/`.
+- Bei Arbeitsbeginn Status In Progress; nach Commit und Push Status Done
+  mit Commit-Hash als Notiz, dann archivieren. Teilweise Erledigtes bleibt
+  In Progress mit Notiz, was fehlt.
+- Inhalte der Liste nie öffentlich machen: keine Verweise in Commits,
+  README, Store-Texten oder öffentlichen Issues.
+
 ## Datenschutz
 
 Screenshots mit echten Mails/Kontakten (`vorschau-*.png`, `reddit/`,
