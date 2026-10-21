@@ -18,9 +18,9 @@ on:
         required: true
         default: feature
       status:
-        description: "Open, Todo oder Done"
+        description: "Todo, In Progress oder Done"
         required: true
-        default: Open
+        default: Todo
 
 env:
   PROJECT_OWNER: sruf79
