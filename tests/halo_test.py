@@ -4426,7 +4426,8 @@ def run_checks(m, version, profile, results):
     def settings_details():
         # Einstellungen: Arbeitstage mittig und mit Abstand, Chat-Vorschau mit Abstand/Rahmen und dunkel als
         # Variante „Dark“, Schlagwörter lesbar, „Verzeichnisse bearbeiten“ wie die übrigen Knöpfe (Bearbeiten im
-        # Adressbuch bleibt groß), Update-Chronik mit Abstand, Port-Felder ohne Pfeile, schmales Fenster ohne Abschneiden
+        # Adressbuch bleibt groß), Update-Chronik mit Abstand, Port-Felder ohne Pfeile, schmales Fenster ohne Abschneiden,
+        # Schriftgröße kompakt, Kryptographie-Module mit ungekürzten Namen
         res = m.js(ADDRESS_EDIT_JS.replace('ad.getElementById("editButton").click(); await wait(1200);', '') + r"""
           const abEdit = ad.getElementById("editButton"); const out = { abEdit: [ab.getComputedStyle(abEdit).height, ab.getComputedStyle(abEdit).fontWeight] };
           tm.closeTab(tm.currentTabInfo);
@@ -4441,6 +4442,15 @@ def run_checks(m, version, profile, results):
           const mid = r => (r.left + r.right) / 2;
           const bg = rgb(cs(cd.getElementById("tagList")).backgroundColor);
           out.tags = [...cd.querySelectorAll("#tagList > richlistitem:not([selected]) > label")].map(l => contrast(rgb(cs(l).color), bg));
+          // Schriftgröße neben der Schriftart kompakt statt gleich breit
+          const fsz = cd.getElementById("defaultFontSize");
+          out.size = [Math.round(fsz.getBoundingClientRect().width), Math.round(cd.getElementById("defaultFont").getBoundingClientRect().width)];
+          // Kryptographie-Module: linke Liste breit genug für die Namen, Dialog ohne Überbreite
+          cw.gSubDialog.open("chrome://pippki/content/device_manager.xhtml");
+          let fd = await until(() => [...cd.querySelectorAll(".dialogFrame")].find(f => f.contentDocument?.readyState == "complete" && f.contentDocument.getElementById("device_tree")), 8000);
+          if (fd) { await wait(400); const dd = fd.contentDocument, de = dd.documentElement;
+            out.dev = [Math.round(dd.getElementById("device_tree").getBoundingClientRect().width), de.scrollWidth <= de.clientWidth];
+            cw.gSubDialog._topDialog?.close(); await wait(400); }
           // Update-Chronik: Hinweis „No updates installed yet“ nicht am Listenrand
           cw.gSubDialog.open("chrome://mozapps/content/update/history.xhtml");
           let fr = await until(() => [...cd.querySelectorAll(".dialogFrame")].find(f => f.contentDocument?.readyState == "complete" && f.contentDocument.getElementById("historyItems")), 8000);
@@ -4490,9 +4500,11 @@ def run_checks(m, version, profile, results):
               and isinstance(res.get("history"), list) and res["history"][0] >= 6 and res["history"][1] >= 4
               and res.get("port") == ["none", "center", "7px"] and res["edit"] == [True, "400"]
               and res["preview"][0] >= 6 and res["preview"][1:] == ["8px", True] and chat_ok
-              and res["days"][0] == 7 and res["days"][1] <= 1 and res["days"][2] >= 4 and narrow_ok)
+              and res["days"][0] == 7 and res["days"][1] <= 1 and res["days"][2] >= 4 and narrow_ok
+              and res["size"][0] <= 100 and res["size"][0] < res["size"][1] / 2
+              and bool(res.get("dev")) and res["dev"][1] is True and res["dev"][0] >= 250)
         return ok, f"{res}"
-    check("Einstellungen: Arbeitstage, Chat-Vorschau (dunkel „Dark“), Schlagwörter lesbar, Knöpfe, Update-Chronik, Ports, schmales Fenster", settings_details, results)
+    check("Einstellungen: Arbeitstage, Chat-Vorschau (dunkel „Dark“), Schlagwörter lesbar, Knöpfe, Update-Chronik, Ports, schmales Fenster, Schriftgröße, Kryptographie-Module", settings_details, results)
 
     def no_placeholder_in_ui():
         # Platzhalter für blockierte Bilder nur in Mails – nicht in der Oberfläche (Lupe im Suchfeld)

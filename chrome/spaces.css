@@ -2363,6 +2363,16 @@ search-bar {
   clear: both !important;
 }
 
+/* Schriftgröße neben der Schriftart kompakt wie „Size“ bei „Message formatting“
+   statt mit flex=1 gleich breit (Pfeil stand rund 280 px vom Wert entfernt).
+   flex="1" an Liste und Hülle setzt xul.css mit !important – daher Höchstbreite;
+   der frei werdende Platz geht an die Schriftart */
+#paneDeck #fontSettings > hbox:has(> #defaultFontSize),
+#paneDeck #defaultFontSize {
+  min-width: 72px !important;
+  max-width: max-content !important;
+}
+
 /* Leere Abstandhalter von Thunderbird: über dem ersten Eintrag einer Karte
    (Kalender) und zwischen Überschrift und Karte (Passwörter, Junk) */
 #paneDeck fieldset > separator:first-child,
@@ -4234,6 +4244,13 @@ dialog separator.groove:not([orient="vertical"]) {
   display: grid !important;
   justify-items: start !important;
   row-gap: 0 !important;
+}
+
+/* Kryptographie-Module: die linke Liste kürzte alle Namen mit „…“, während
+   die Detailtabelle daneben breit und leer war – mehr Platz für die Namen */
+#device_tree {
+  flex: 2 !important;
+  min-width: 260px !important;
 }
 
 /* Rückfragen dunkel ohne violettgrauen Farbstich (Firefox-Inhaltsfarbe) –
