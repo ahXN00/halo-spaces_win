@@ -18,6 +18,7 @@ import hashlib
 import hmac
 import json
 import os
+import ssl
 import sys
 import time
 import urllib.error
@@ -28,6 +29,9 @@ API = "https://addons.thunderbird.net/api/v4"
 ADDON_ID = "mail-cards@sebastian.local"
 ENV = os.path.expanduser("~/.config/halo-spaces/atn.env")
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+# Python von python.org bringt ohne „Install Certificates“ keine Zertifikate mit –
+# dann die von macOS verwenden
+CAFILE = None if os.path.exists(ssl.get_default_verify_paths().openssl_cafile) else "/etc/ssl/cert.pem"
 
 
 def keys():
@@ -62,7 +66,7 @@ def call(method, path, data=None, content_type=None):
     if content_type:
         req.add_header("Content-Type", content_type)
     try:
-        with urllib.request.urlopen(req, timeout=120) as res:
+        with urllib.request.urlopen(req, timeout=120, context=ssl.create_default_context(cafile=CAFILE)) as res:
             return res.status, json.loads(res.read() or b"{}")
     except urllib.error.HTTPError as e:
         try:
