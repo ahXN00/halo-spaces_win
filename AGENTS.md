@@ -138,8 +138,13 @@ SessionStart-Hook die offenen Einträge in jede Sitzung.
 
 - Die Liste ist die Vorlage für die Arbeit: zu Beginn offene Einträge
   berücksichtigen und passende Aufgaben nennen.
-- Neue Bugs/Wünsche aus dem Gespräch dort als Entwurf anlegen
-  (Typ setzen, Status Todo); Screenshots liegen in `~/halo-aufgaben/bilder/`.
+- Neue Bugs/Wünsche aus dem Gespräch sofort und ohne Rückfrage dort als
+  Entwurf anlegen (Typ setzen, Status Todo); Screenshots liegen in
+  `~/halo-aufgaben/bilder/`. Ursache klären und Lösungsidee in den Eintrag
+  schreiben ist erwünscht – aber nicht gleich umsetzen und auch nicht
+  anbieten; umgesetzt wird nur, wenn der Maintainer einen Eintrag zum
+  Abarbeiten nennt. Gehört der Punkt zu einem offenen Eintrag, diesen
+  ergänzen statt einen neuen anzulegen.
 - Bei Arbeitsbeginn Status In Progress; nach Commit und Push Status Done
   mit Commit-Hash als Notiz, dann archivieren. Teilweise Erledigtes bleibt
   In Progress mit Notiz, was fehlt.
