@@ -195,13 +195,13 @@ Vorher-Bilder: `tests/shots/tour/vorher/` (hell-*/dunkel-*), Paket `tests/shots/
 
 ## 7. Aufgaben (`aufgaben`)
 
-- [ ] `aufg-liste` – Aufgaben mit ausgewählter Aufgabe: offen
-- [ ] `aufg-ueberfaellig` – Aufgaben: Filter „Überfällig“: offen
+- [x] `aufg-liste` – Aufgaben mit ausgewählter Aufgabe: erledigt (Commit „Aufgaben: …“ (Runde 1, Befunde 0–11)) – Beschreibung im Detailbereich in Systemschrift 13 px ohne 8-px-Rand, dunkel #F5F5F7 statt schwarz auf #1E1E1E (eigenes Stilblatt taskdesc.css); überfällige Aufgaben rot (--mt-red, hell #FF3B30, dunkel #FF6961), „!“ hoher Priorität im selben Rot; Spaltenköpfe ohne zweiten Strich aus tree.css; ausgewählte Zeile mit Fokus ohne eckiges Fokusrechteck; „Mark Completed“ mit schmalem Pfeil statt 24 px Leerraum; Eingabehinweis bleibt grau auch nach Wechsel des Standardkalenders; Hinweis „schreibgeschützter Kalender“ endet im schmalen Fenster vor dem Suchfeld
+- [x] `aufg-ueberfaellig` – Aufgaben: Filter „Überfällig“: erledigt (Commit „Aufgaben: …“ (Runde 1, Befunde 0–11)) – überfällige Aufgaben wieder rot erkennbar (wie aufg-liste)
 - [ ] `aufg-erledigt` – Aufgaben: Filter „Erledigt“: offen
 - [ ] `aufg-leer` – Aufgaben: keine Treffer (Leeranzeige): offen
-- [ ] `aufg-dialog` – Neue Aufgabe (Dialog): offen
-- [ ] `aufg-bearbeiten` – Aufgabe bearbeiten: offen
-- [ ] `aufg-schnellfenster` – Aufgaben: Schnellfenster „Neue Aufgabe“: offen
+- [x] `aufg-dialog` – Neue Aufgabe (Dialog): erledigt (Commit „Aufgaben: …“ (Runde 1, Befunde 0–11)) – Aufgaben-Fenster (calendar-task-dialog-inner) im Stil des Termin-Fensters: Felder grau ohne Rahmen, 32 px, Fläche --mt-window, Trennlinien als Haarlinie; Zeitkopplung als Kettensymbol aus chrome:// (CSP sperrt data:) auf der Grenze Beginn/Fällig statt leerem Knopf und altem „↵“; Zahlenfeld „% complete“ ohne Pfeile; Beschreibung schrumpft mit statt unten abgeschnitten (gilt auch im Termin-Fenster, dort werden „Notify attendees …“ wieder sichtbar); Haken bereits zuvor aus chrome:// (übersprungen)
+- [x] `aufg-bearbeiten` – Aufgabe bearbeiten: erledigt (Commit „Aufgaben: …“ (Runde 1, Befunde 0–11)) – wie aufg-dialog
+- [ ] `aufg-schnellfenster` – Aufgaben: Schnellfenster „Neue Aufgabe“: offen – Runde 1, Befunde 0–11: gewähltes Segment dunkel übersprungen: bereits mit Commit „Kalender: …“ (--mt-segment-selected) behoben
 - [ ] `aufg-kontext` – Kontextmenü: Aufgabe: offen
 - [ ] `aufg-prioritaet-menue` – Aufgabe: Priorität (Menü): offen
 

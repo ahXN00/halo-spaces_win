@@ -3410,6 +3410,177 @@ def run_checks(m, version, profile, results):
         return ok, f"{res}"
     check("Aufgaben: Leeranzeige, iCloud-Platzhalter ausgeblendet, Hinweis neben dem Plus, Kapseln", tasks_view, results)
 
+    def tasks_details():
+        # Aufgaben: Beschreibung im Detailbereich in Systemschrift 13 px ohne Body-Rand, dunkel hell lesbar (früher schwarz
+        # auf #1E1E1E); Spaltenköpfe ohne zweiten Strich aus tree.css; Menüteil von „Erledigt“ als schmaler Pfeil;
+        # überfällige Aufgaben rot (--mt-red), Auswahl mit Fokus ohne eckiges Fokusrechteck
+        res = m.js(CAL_CHECK_JS + r'''
+          w.resizeTo(1500, 900);
+          const c = testCalendar();
+          tm.openTab("tasks", {}); await pause(1500);
+          const { CalTodo } = ChromeUtils.importESModule("resource:///modules/CalTodo.sys.mjs");
+          const tree = d.getElementById("calendar-task-tree");
+          const todo = new CalTodo(); todo.title = "Halo Detailaufgabe"; todo.calendar = c; todo.priority = 1;
+          const due = cal.dtz.now(); due.day -= 2; todo.dueDate = due;
+          todo.setProperty("DESCRIPTION", "Halo Notiz"); const saved = await c.addItem(todo);
+          const out = { dark };
+          // Bildpunkte aus dem Fenster (Bäume malen Zeilen als Pseudo-Elemente – nur so prüfbar)
+          const pixels = async r => { const cv = d.createElementNS("http://www.w3.org/1999/xhtml", "canvas");
+            cv.width = Math.round(r.width); cv.height = Math.round(r.height); const ctx = cv.getContext("2d");
+            try { const bm = await w.browsingContext.currentWindowGlobal.drawSnapshot(new w.DOMRect(r.left, r.top, r.width, r.height), 1, "white"); ctx.drawImage(bm, 0, 0); }
+            catch { ctx.drawWindow(w, r.left, r.top, r.width, r.height, "white"); }
+            const data = ctx.getImageData(0, 0, cv.width, cv.height).data;
+            return (x, y) => { const i = (Math.round(y) * cv.width + Math.round(x)) * 4; return [data[i], data[i + 1], data[i + 2]]; }; };
+          try {
+            const row = await till(() => { for (let i = 0; i < tree.mTreeView.rowCount; i++) if (tree.mTreeView.getItemAtIndex?.(i)?.title == "Halo Detailaufgabe" || tree.getTaskAtRow?.(i)?.title == "Halo Detailaufgabe") return i + 1; return 0; }, 6000) - 1;
+            out.row = row;
+            if (row < 0) return out;
+            tree.focus(); tree.mTreeView.selection.select(row); await pause(900);
+            const frame = d.getElementById("calendar-task-details-description");
+            const b = await till(() => { const x = frame.contentDocument?.body; return x && /Halo Notiz/.test(x.textContent) && x; }, 4000);
+            if (b) { const cs = frame.contentWindow.getComputedStyle(b); out.desc = { font: cs.fontSize, margin: cs.marginTop, family: cs.fontFamily, color: cs.color }; }
+            // Spaltenköpfe
+            out.heads = [...d.querySelectorAll("#calendar-task-tree > treecols > treecol")].filter(vis).map(t => csOf(t).boxShadow);
+            const pick = d.querySelector("#calendar-task-tree .tree-columnpicker-button");
+            out.picker = pick ? csOf(pick).boxShadow : null;
+            out.headLine = [csOf(d.querySelector("#calendar-task-tree > treecols")).borderBottomColor, csOf(d.documentElement).getPropertyValue("--mt-pane-line").trim()];
+            out.red = csOf(d.documentElement).getPropertyValue("--mt-red").trim();
+            // „Erledigt“: Menüteil schmal, Pfeil als Maske
+            const cap = d.getElementById("task-actions-markcompleted");
+            const dm = cap?.querySelector(".toolbarbutton-menubutton-dropmarker");
+            if (dm && vis(dm)) { const a = cap.getBoundingClientRect(), r = dm.getBoundingClientRect();
+              out.marker = { w: Math.round(r.width * 10) / 10, mask: csOf(dm).maskImage.slice(0, 12), gap: Math.round((a.right - r.right) * 10) / 10,
+                            dy: Math.round(((r.top + r.bottom) - (a.top + a.bottom)) / 2 * 10) / 10 }; }
+            // ausgewählt mit Fokus: Zeilenrand links wie die Zeilenfläche daneben (kein Fokusrechteck)
+            const tc = tree.querySelector("treechildren"), tr = tc.getBoundingClientRect(), rh = tree.rowHeight || 40;
+            const top = tr.top + (row - tree.getFirstVisibleRow()) * rh;
+            w.focus(); await till(() => Services.focus.activeWindow == w, 3000); tree.focus(); await pause(400);
+            out.focused = Services.focus.activeWindow == w && (d.activeElement == tree || tree.contains(d.activeElement));
+            out.rule = /treechildren::-moz-tree-row\(current, focus\)\s*\{\s*outline: none !important/.test(await (await fetch(`resource://mailcards/theme.css`)).text());
+            const px1 = await pixels({ left: tr.left, top, width: 12, height: rh });
+            out.edge = [px1(0, rh / 2), px1(4, rh / 2), px1(6, 0), px1(6, 3)];
+            // ohne Auswahl: Text der überfälligen Zeile rot
+            tree.mTreeView.selection.clearSelection(); await pause(600);
+            const px2 = await pixels({ left: tr.left, top, width: Math.min(tr.width, 700), height: rh });
+            let redPx = 0; for (let x = 0; x < Math.min(tr.width, 700); x++) for (let y = 4; y < rh - 4; y++) { const [r, g, bb] = px2(x, y); if (r > 200 && g < 120 && bb < 120) redPx++; }
+            out.redPx = redPx;
+          } finally { try { await c.deleteItem(saved); } catch {} }
+          return out;''')
+        if res.get("row", -1) < 0:
+            return False, f"Aufgabe nicht in der Liste {res}"
+        desc, mk = res.get("desc") or {}, res.get("marker") or {}
+        fam = desc.get("family", "")
+        ok_desc = (desc.get("font") == "13px" and desc.get("margin") == "0px" and ("-apple-system" in fam or "system-ui" in fam)
+                   and same_color(desc.get("color", ""), "rgb(245, 245, 247)" if res["dark"] else "rgb(29, 29, 31)"))
+        ok_head = (len(res["heads"]) >= 3 and all(s == "none" for s in res["heads"]) and res.get("picker") in (None, "none")
+                   and same_color(res["headLine"][0], res["headLine"][1]))
+        ok_marker = bool(mk) and mk["w"] <= 12 and mk["mask"].startswith("url(") and 8 <= mk["gap"] <= 16 and abs(mk["dy"]) <= 1.5
+        e = res.get("edge") or []
+        diff = lambda a, b: max(abs(x - y) for x, y in zip(a, b))
+        # Rand nur mit fokussiertem Fenster sichtbar (parallele Läufe nehmen den Fokus) – sonst nur die Regel prüfen
+        ok_focus = res.get("rule") and (not res.get("focused") or (len(e) == 4 and diff(e[0], e[1]) <= 12 and diff(e[2], e[3]) <= 12))
+        ok_red = res.get("red", "").upper() == ("#FF6961" if res["dark"] else "#FF3B30") and res.get("redPx", 0) >= 10
+        ok = ok_desc and ok_head and ok_marker and ok_focus and ok_red
+        return ok, f"desc={ok_desc} kopf={ok_head} pfeil={ok_marker} fokus={ok_focus} rot={ok_red} {res}"
+    check("Aufgaben: Beschreibung 13 px ohne Rand und dunkel lesbar, Spaltenköpfe ohne zweiten Strich, „Erledigt“ mit schmalem Pfeil, überfällig rot, kein Fokusrechteck", tasks_details, results)
+
+    def tasks_hint():
+        # Eingabehinweis bleibt grau, auch wenn Thunderbird ihn ohne focus/blur neu setzt (Wechsel des Standardkalenders);
+        # Hinweis „schreibgeschützter Kalender“ im schmalen Fenster endet vor dem Suchfeld (früher über Lupe und „Search“)
+        res = m.js(CAL_CHECK_JS + r'''
+          w.resizeTo(1500, 900);
+          tm.openTab("tasks", {}); await pause(1500);
+          const field = d.getElementById("view-task-edit-field"), tree = d.getElementById("calendar-task-tree");
+          let ro = cal.manager.getCalendars().find(x => x.name == "Halo Nur Lesen");
+          if (!ro) { ro = cal.manager.createCalendar("storage", Services.io.newURI("moz-storage-calendar://")); ro.name = "Halo Nur Lesen"; cal.manager.registerCalendar(ro); ro.readOnly = true; }
+          const comp = cal.view.getCompositeCalendar(w); const before = comp.defaultCalendar;
+          const out = {};
+          try {
+            tree.focus(); field.removeAttribute("mc-hint");
+            comp.defaultCalendar = ro; await pause(500);
+            comp.defaultCalendar = testCalendar(); await pause(600);
+            out.hint = { shows: field.showsInstructions, attr: field.hasAttribute("mc-hint"), color: csOf(field).color,
+                         tertiary: colorOf(d, "var(--mt-text-tertiary)"), focused: d.activeElement == field };
+            w.resizeTo(1136, 760); await pause(900);
+            comp.defaultCalendar = ro; await pause(900);
+            const sb = d.querySelector('#unifiedToolbarContent > li[item-id="search-bar"]:not([hidden])')?.getBoundingClientRect();
+            const fr = field.getBoundingClientRect();
+            out.narrow = { readOnly: field.readOnly, right: Math.round(fr.right), search: sb?.width ? Math.round(sb.left) : null, width: Math.round(fr.width) };
+          } finally { comp.defaultCalendar = before; w.resizeTo(1500, 900); await pause(800); }
+          return out;''')
+        h, n = res.get("hint", {}), res.get("narrow", {})
+        ok_hint = h.get("shows") and h.get("attr") and same_color(h.get("color", ""), h.get("tertiary", "x"))
+        ok_narrow = n.get("readOnly") and n.get("search") is not None and n["right"] <= n["search"] - 8 and n["width"] > 40
+        return bool(ok_hint and ok_narrow), f"{res}"
+    check("Aufgaben: Eingabehinweis grau auch nach Kalenderwechsel, Hinweis „schreibgeschützt“ im schmalen Fenster vor dem Suchfeld", tasks_hint, results)
+
+    def task_dialog():
+        # Aufgaben-Dialog (calendar-task-dialog-inner) im selben Stil wie der Termin-Dialog: Felder grau ohne Rahmen, 32 px,
+        # Fläche --mt-window; Haken aus chrome:// (CSP sperrt data:); Zeitkopplung als Kettensymbol aus chrome:// ohne
+        # alte untere Klammer „↵“; Trennlinien als Haarlinie – Klammer und Kette auch im Termin-Dialog
+        res = m.js(CAL_CHECK_JS + r'''
+          const others = () => [...Services.wm.getEnumerator(null)].filter(x => !x.closed && !x.location.href.includes("messenger.xhtml"));
+          for (const x of others()) x.close();
+          await till(() => !others().length, 4000);
+          const out = { dark };
+          // nur ein neu geöffnetes Fenster (ein eben geschlossenes kann noch in der Liste stehen)
+          const inner = async (open, ready) => {
+            const before = new Set(Services.wm.getEnumerator(null));
+            open();
+            const dw = await till(() => [...Services.wm.getEnumerator(null)].find(x => !before.has(x) && !x.closed && x.location.href.includes("calendar-event-dialog.xhtml") && x.document.readyState == "complete"), 10000);
+            if (!dw) return null;
+            const iw = await till(() => { const f = dw.document.getElementById("calendar-item-panel-iframe")?.contentWindow;
+              return f?.document.readyState == "complete" && f.document.getElementById(ready) && f; }, 8000);
+            await pause(1200); return [dw, iw ? dw.document.getElementById("calendar-item-panel-iframe").contentDocument : null];
+          };
+          const link = id => { const kb = id.getElementById("keepduration-button"), lb = id.getElementById("link-image-bottom");
+            const st = kb ? csOf(kb, "::before") : null;
+            const kr = kb?.getBoundingClientRect(), sr = id.getElementById("event-grid-startdate-row")?.getBoundingClientRect();
+            return { bottom: lb ? csOf(lb).display : null, bg: st ? st.backgroundImage.slice(0, 45) : null, mask: st?.maskImage, w: st?.width,
+                     mid: kr && sr ? Math.round(((kr.top + kr.bottom) / 2 - sr.bottom) * 10) / 10 : null }; };
+          // Beschreibung ganz im Fenster (früher im Aufgaben-Fenster unten abgeschnitten); Zahlenfeld ohne Pfeile
+          const fits = id => { const e = id.getElementById("item-description"); const r = e?.getBoundingClientRect();
+            return r ? [Math.round(r.bottom), Math.round(id.body.getBoundingClientRect().bottom), Math.round(r.height)] : null; };
+          let dw = null;
+          try {
+            await toCalendar();
+            let r = await inner(() => w.createTodoWithDialog(testCalendar(), null, "Halo Aufgabendialog"), "todo-has-duedate");
+            if (!r || !r[1]) return { dialog: false };
+            [dw] = r; const id = r[1];
+            out.id = id.documentElement.id;
+            const t = id.getElementById("item-title"), pc = id.getElementById("percent-complete-textbox"), cat = id.getElementById("item-categories");
+            out.title = { border: csOf(t).borderTopStyle, h: csOf(t).height, bg: csOf(t).backgroundColor, cat: cat ? csOf(cat).backgroundColor : null };
+            out.percent = pc ? { h: Math.round(pc.getBoundingClientRect().height), border: csOf(pc).borderTopStyle } : null;
+            out.bg = [csOf(id.documentElement).backgroundColor, colorOf(id, "var(--mt-window)", "backgroundColor")];
+            const cb = id.getElementById("todo-has-duedate"); cb.checked = true; await pause(300);
+            const ck = cb.querySelector(".checkbox-check");
+            out.check = ck ? [csOf(ck).backgroundImage.slice(0, 20), csOf(ck).backgroundColor] : null;
+            out.taskLink = link(id); out.taskDesc = fits(id); out.spin = pc ? csOf(pc).appearance : null;
+            out.seps = [...id.querySelectorAll("tr.separator > td")].filter(vis).map(td => [csOf(td).borderBottomColor, csOf(td).borderBottomWidth]);
+            dw.close(); await till(() => dw.closed, 4000);
+            r = await inner(() => w.createEventWithDialog(testCalendar(), null, null, "Halo Termindialog Kette"), "event-all-day");
+            if (r && r[1]) { [dw] = r; const ed = r[1]; const ad = ed.getElementById("event-all-day"); ad.checked = true; await pause(300);
+              const ac = ad.querySelector(".checkbox-check"); out.eventCheck = ac ? csOf(ac).backgroundImage.slice(0, 20) : null; ad.checked = false;
+              out.eventLink = link(ed); out.eventDesc = fits(ed); }
+          } finally { if (dw && !dw.closed) { dw.close(); await till(() => dw.closed, 4000); } }
+          return out;''')
+        if res.get("dialog") is False:
+            return False, "Aufgaben-Dialog nicht offen"
+        t, p, bg = res.get("title") or {}, res.get("percent") or {}, res.get("bg") or ["", "x"]
+        lk = lambda x: (bool(x) and x["bottom"] == "none" and (x["bg"] or "").startswith('url("chrome://global/skin/icons/link.svg') and x["mask"] == "none"
+                        and x["w"] == "16px" and x["mid"] is not None and abs(x["mid"]) <= 2)
+        fit = lambda x: bool(x) and x[0] <= x[1] - 4 and x[2] >= 40
+        seps = res.get("seps") or []
+        ok = (res.get("id") == "calendar-task-dialog-inner" and t.get("border") == "none" and t.get("h") == "32px" and same_color(t.get("bg", ""), t.get("cat") or "x")
+              and p.get("h") == 32 and p.get("border") == "none" and same_color(bg[0], bg[1])
+              and res.get("check") and res["check"][0].startswith('url("chrome://') and rgba_alpha(res["check"][1]) > 0
+              and (res.get("eventCheck") or "").startswith('url("chrome://')
+              and lk(res.get("taskLink")) and lk(res.get("eventLink")) and fit(res.get("taskDesc")) and fit(res.get("eventDesc"))
+              and res.get("spin") == "textfield"
+              and len(seps) >= 2 and all(rgba_alpha(c) <= 0.12 and float(wd[:-2]) <= 1 for c, wd in seps))
+        return ok, f"{res}"
+    check("Aufgaben-Dialog: Felder und Fläche wie im Termin-Dialog, Haken sichtbar, Kettensymbol ohne alte Klammer (auch Termin-Dialog), Trennlinien als Haarlinie", task_dialog, results)
+
     def month_spans():
         # mehrtägige ganztägige Termine als durchgehender Balken; Titel läuft über alle Stücke weiter (früher nach
         # einer Spalte „Konferenz in Wi…“); Kalendersymbol ohne Emoji

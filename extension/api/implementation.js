@@ -3361,6 +3361,12 @@ class CardEnhancer {
         setVar(d.getElementById("today-minimonth"), "--mc-mm-w", `${calMm.offsetWidth}px`);
       }
       rowVar("--mc-tab-left", `${Math.round(edge)}px`);
+      // linke Kante des Suchfelds: der Hinweis „schreibgeschützter Kalender“
+      // in der Toolbar-Zeile endet davor
+      const sb = d.querySelector('#unifiedToolbarContent > li[item-id="search-bar"]:not([hidden])')?.getBoundingClientRect();
+      if (sb?.width) {
+        rowVar("--mc-search-left", `${Math.round(sb.left)}px`);
+      }
       rowVar("--mc-row-top", `${Math.round(rr.top)}px`);
       rowVar("--mc-row-h", `${Math.round(rr.height)}px`);
       const toggle2 = d.getElementById("viewToggle");
@@ -5646,6 +5652,67 @@ class CardEnhancer {
           delete field.__mcHint;
         });
       }
+      // Thunderbird setzt den Hinweis auch ohne focus/blur (Wechsel des
+      // Standardkalenders, Fensterstart) – dann über setupTaskField abgleichen;
+      // showsInstructions setzt onBlur erst danach, daher setTimeout 0
+      const te = w.taskEdit;
+      if (te?.setupTaskField && !te.__mcHintWrapped) {
+        const orig = te.setupTaskField;
+        te.setupTaskField = function (target, ...rest) {
+          const r = orig.call(this, target, ...rest);
+          if (target?.__mcHint) {
+            w.setTimeout(() => target.toggleAttribute("mc-hint", !!target.showsInstructions), 0);
+          }
+          return r;
+        };
+        te.__mcHintWrapped = true;
+        this.restorers.push(() => {
+          te.setupTaskField = orig;
+          delete te.__mcHintWrapped;
+        });
+      }
+    };
+
+    // Beschreibung im Detailbereich der Aufgaben: eigenes Inhaltsdokument
+    // (about:blank), das theme.css nicht erreicht – dunkel stand sie schwarz
+    // auf dunkler Fläche, hell in der Inhaltsschrift mit 8 px Rand. Benutzer-
+    // Stylesheet einmal je Dokument (Thunderbird tauscht nur den Inhalt aus)
+    const hookTaskDescription = () => {
+      const d = w.document;
+      const frame = d.getElementById("calendar-task-details-description");
+      if (!frame || frame.__mcDescHooked) {
+        return;
+      }
+      frame.__mcDescHooked = true;
+      const uri = `resource://mailcards/taskdesc.css?v=${extensionVersion}`;
+      const apply = () => {
+        const cw = frame.contentWindow;
+        if (!cw || cw.__mcDesc == uri || !Services.prefs.getBoolPref("extensions.mailcards.bundledTheme", true)) {
+          return;
+        }
+        try {
+          cw.windowUtils.loadSheetUsingURIString(uri, cw.windowUtils.USER_SHEET);
+          cw.__mcDesc = uri;
+        } catch (e) {
+          log("task description sheet error", String(e).slice(0, 120));
+        }
+      };
+      const tree = d.getElementById("calendar-task-tree");
+      frame.addEventListener("load", apply, true);
+      tree?.addEventListener("select", apply);
+      apply();
+      this.restorers.push(() => {
+        frame.removeEventListener("load", apply, true);
+        tree?.removeEventListener("select", apply);
+        const cw = frame.contentWindow;
+        if (cw?.__mcDesc) {
+          try {
+            cw.windowUtils.removeSheetUsingURIString(cw.__mcDesc, cw.windowUtils.USER_SHEET);
+          } catch {}
+          delete cw.__mcDesc;
+        }
+        delete frame.__mcDescHooked;
+      });
     };
 
     // Kalender und Aufgaben: ein „+“ wie in Apple Kalender – öffnet gleich das
@@ -5913,6 +5980,7 @@ class CardEnhancer {
       hookTasksEmpty();
       hookCalendarDoubleClick();
       hookTaskHint();
+      hookTaskDescription();
       hookTitle();
       labelToday();
       hookTodayPaneHeader();

@@ -1187,6 +1187,11 @@ calendar-event-box :is(.alarm-icons-box, .item-classification-icon, .item-recurr
   background-color: color-mix(in srgb, var(--mt-accent) 18%, transparent) !important;
 }
 
+/* Fokusrechteck aus messenger.css weg – die Akzentfläche zeigt den Fokus (wie macOS) */
+.calendar-task-tree treechildren::-moz-tree-row(current, focus) {
+  outline: none !important;
+}
+
 .calendar-task-tree treechildren::-moz-tree-cell-text {
   font-size: 13px !important;
   color: var(--mt-text) !important;
@@ -1194,6 +1199,16 @@ calendar-event-box :is(.alarm-icons-box, .item-classification-icon, .item-recurr
 
 .calendar-task-tree treechildren::-moz-tree-cell-text(selected) {
   color: var(--mt-text) !important;
+}
+
+/* überfällige Aufgaben rot wie bei Thunderbird (sonst überdeckt die Textfarbe
+   oben dessen Markierung) – auch ausgewählt; Priorität „!“ im selben Rot */
+.calendar-task-tree treechildren::-moz-tree-cell-text(overdue) {
+  color: var(--mt-red) !important;
+}
+
+.calendar-task-tree > treechildren::-moz-tree-image(calendar-task-tree-col-priority, highpriority) {
+  stroke: var(--mt-red) !important;
 }
 
 .calendar-task-tree treechildren::-moz-tree-cell-text(completed) {
@@ -1220,8 +1235,11 @@ calendar-event-box :is(.alarm-icons-box, .item-classification-icon, .item-recurr
   z-index: 3 !important;
   top: calc(var(--mc-row-top, 0px) + (var(--mc-row-h, 50px) - 22px) / 2) !important;
   inset-inline-start: calc(var(--mc-tab-left, 300px) + 52px) !important;
+  box-sizing: border-box !important;
   width: 360px !important;
-  max-width: calc(100vw - var(--mc-tab-left, 300px) - 520px) !important;
+  /* nie unter das Suchfeld (--mc-search-left misst die Erweiterung):
+     52 px Einzug plus 12 px Abstand */
+  max-width: min(calc(100vw - var(--mc-tab-left, 300px) - 520px), calc(var(--mc-search-left, 100vw) - var(--mc-tab-left, 300px) - 64px)) !important;
   margin: 0 !important;
   font-size: 13px !important;
   pointer-events: none !important;
@@ -1302,6 +1320,14 @@ calendar-event-box :is(.alarm-icons-box, .item-classification-icon, .item-recurr
   font-size: 12px !important;
   font-weight: 500 !important;
   color: var(--mt-text-tertiary) !important;
+  /* tree.css zeichnet je Kopf einen eigenen Strich (inset-Schatten) über der Haarlinie */
+  box-shadow: none !important;
+}
+
+.calendar-task-tree treecolpicker .tree-columnpicker-button {
+  border: none !important;
+  background: transparent !important;
+  box-shadow: none !important;
 }
 
 .calendar-task-tree > treecols > treecol:hover {
@@ -1422,6 +1448,23 @@ calendar-event-box :is(.alarm-icons-box, .item-classification-icon, .item-recurr
   border: none !important;
   background: transparent !important;
   color: inherit !important;
+}
+
+/* Menüteil von „Erledigt“ als schmaler Pfeil statt 24 px leerer Fläche
+   (appearance: none nimmt Thunderbird das Bild), Text sitzt so mittig */
+#task-actions-markcompleted .toolbarbutton-menubutton-dropmarker {
+  width: 10px !important;
+  min-width: 10px !important;
+  height: 10px !important;
+  margin-inline-start: 6px !important;
+  align-self: center !important;
+  background: currentColor !important;
+  opacity: 0.6 !important;
+  mask: var(--mi-chevron) center / 10px no-repeat !important;
+}
+
+#task-actions-markcompleted .toolbarbutton-menubutton-dropmarker::part(icon) {
+  display: none !important;
 }
 
 #task-actions-toolbar > toolbarbutton .toolbarbutton-icon {
@@ -3757,14 +3800,14 @@ dialog separator.groove:not([orient="vertical"]) {
   background-color: color-mix(in srgb, var(--mt-accent) 40%, var(--mt-window)) !important;
 }
 
-#calendar-event-dialog-inner {
+:is(#calendar-event-dialog-inner, #calendar-task-dialog-inner) {
   background: var(--mt-window) !important;
 }
 
 /* Felder einheitlich wie im übrigen Design: graue Flächen ohne Rahmen,
    alle gleich hoch (32 px), blauer Fokusring */
-#calendar-event-dialog-inner :is(input:not([type="checkbox"], [type="radio"]), textarea),
-#calendar-event-dialog-inner menulist {
+:is(#calendar-event-dialog-inner, #calendar-task-dialog-inner) :is(input:not([type="checkbox"], [type="radio"]), textarea),
+:is(#calendar-event-dialog-inner, #calendar-task-dialog-inner) menulist {
   box-sizing: border-box !important;
   max-width: 100% !important;
   min-height: 32px !important;
@@ -3776,15 +3819,34 @@ dialog separator.groove:not([orient="vertical"]) {
   appearance: none !important;
 }
 
-#calendar-event-dialog-inner :is(input, textarea):focus,
-#calendar-event-dialog-inner menulist[editable]:focus-within {
+:is(#calendar-event-dialog-inner, #calendar-task-dialog-inner) :is(input, textarea):focus,
+:is(#calendar-event-dialog-inner, #calendar-task-dialog-inner) menulist[editable]:focus-within {
   outline: none !important;
   background-color: var(--mt-window) !important;
   box-shadow: 0 0 0 2px var(--mt-accent) !important;
 }
 
-#calendar-event-dialog-inner input:not([type="checkbox"], [type="radio"]) {
+:is(#calendar-event-dialog-inner, #calendar-task-dialog-inner) input:not([type="checkbox"], [type="radio"]) {
   height: 32px !important;
+}
+
+/* Zahlenfeld („% complete“ im Aufgaben-Fenster) ohne Pfeile – appearance:
+   none oben zeigte sonst Gecko-Pfeile bzw. dunkel ein graues Kästchen */
+:is(#calendar-event-dialog-inner, #calendar-task-dialog-inner) input[type="number"] {
+  appearance: textfield !important;
+}
+
+/* Beschreibung schrumpft mit dem Fenster, statt unten abgeschnitten zu werden
+   (32-px-Felder machen das Raster höher, im Aufgaben-Fenster kommt „Status“
+   dazu; das Editorfeld hätte wie ein iframe sonst 150 px Mindesthöhe) */
+:is(#calendar-event-dialog-inner, #calendar-task-dialog-inner) :is(#event-grid-tab-vbox, #event-grid-tab-box-row, #event-grid-tabbox, #event-grid-tabpanels, #event-grid-tabpanel-description) {
+  min-height: 0 !important;
+}
+
+:is(#calendar-event-dialog-inner, #calendar-task-dialog-inner) #item-description {
+  min-height: 48px !important;
+  height: 0 !important;
+  flex: 1 1 0 !important;
 }
 
 /* Datum/Uhrzeit: das Eingabefeld liegt im Schatten-DOM der Liste – dort
@@ -3797,12 +3859,12 @@ dialog separator.groove:not([orient="vertical"]) {
 }
 
 /* Datum/Uhrzeit: ein Feld, Pfeil ohne eigenen Kasten und ohne Trennstrich */
-#calendar-event-dialog-inner menulist[editable] {
+:is(#calendar-event-dialog-inner, #calendar-task-dialog-inner) menulist[editable] {
   padding-inline: 0 !important;
   overflow: hidden !important;
 }
 
-#calendar-event-dialog-inner menulist[editable] input {
+:is(#calendar-event-dialog-inner, #calendar-task-dialog-inner) menulist[editable] input {
   min-height: 32px !important;
   padding-inline: 10px 4px !important;
   border: none !important;
@@ -3811,7 +3873,7 @@ dialog separator.groove:not([orient="vertical"]) {
 }
 
 /* (Teil im Schatten-DOM: extension/parts.css) */
-#calendar-event-dialog-inner menulist[editable] :is(dropmarker, .menulist-dropmarker) {
+:is(#calendar-event-dialog-inner, #calendar-task-dialog-inner) menulist[editable] :is(dropmarker, .menulist-dropmarker) {
   border: none !important;
   border-inline-start: none !important;
   background: transparent !important;
@@ -3841,8 +3903,13 @@ dialog separator.groove:not([orient="vertical"]) {
   content: "" !important;
   width: 16px !important;
   height: 16px !important;
-  background-color: currentColor !important;
-  mask: url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22%23000%22 stroke-width=%221.8%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22%3E%3Cpath d=%22M10 14a4.5 4.5 0 0 0 6.4 0l3-3a4.5 4.5 0 0 0-6.4-6.4l-1 1%22/%3E%3Cpath d=%22M14 10a4.5 4.5 0 0 0-6.4 0l-3 3a4.5 4.5 0 0 0 6.4 6.4l1-1%22/%3E%3C/svg%3E") center / contain no-repeat !important;
+  /* Kettensymbol aus chrome:// – die CSP des Termin-/Aufgaben-Fensters
+     sperrt data:-Bilder, die frühere Maske blieb dort unsichtbar.
+     link.svg nutzt context-fill, daher Hintergrundbild statt Maske */
+  mask: none !important;
+  background: url("chrome://global/skin/icons/link.svg") center / 14px no-repeat !important;
+  -moz-context-properties: fill !important;
+  fill: currentColor !important;
 }
 
 #keepduration-button[keep="true"] {
@@ -3856,10 +3923,23 @@ dialog separator.groove:not([orient="vertical"]) {
 /* Klammer um Beginn/Ende (Linie oben, Abstand) weg – nur die Kette bleibt,
    mittig zwischen den beiden Zeilen */
 vbox:has(> #keepduration-button) {
-  justify-content: center !important;
+  justify-content: flex-end !important;
+}
+
+/* die vbox füllt nur die Beginn-Zeile: Kette an ihr unteres Ende und um die
+   halbe eigene Höhe tiefer – so sitzt sie auf der Grenze der beiden Zeilen
+   (Thunderbirds margin-bottom: -15px schob sie sonst darüber hinaus) */
+#keepduration-button {
+  margin-block: 0 !important;
+  translate: 0 50% !important;
 }
 
 vbox:has(> #keepduration-button) > :not(#keepduration-button) {
+  display: none !important;
+}
+
+/* untere Klammerhälfte („↵“ neben Ende/Fällig) sitzt in einer eigenen vbox */
+.keepduration-link-image {
   display: none !important;
 }
 
@@ -3893,16 +3973,16 @@ timepicker-grids .time-picker-more-control-label {
 /* Schrift wie im übrigen Design (Thunderbird: 11 px, die Beschreibung
    darunter 15 px) und Abstand zwischen Beschriftung und Feld (Thunderbird:
    kein Innenabstand – „Reminder“ stieß fast ans Feld) */
-:is(#calendar-event-window, #calendar-event-dialog-inner) {
+:is(#calendar-event-window, #calendar-event-dialog-inner, #calendar-task-dialog-inner) {
   font-size: 13px !important;
 }
 
-#calendar-event-dialog-inner #event-grid th {
+:is(#calendar-event-dialog-inner, #calendar-task-dialog-inner) #event-grid th {
   padding-inline-end: 10px !important;
 }
 
 /* Trennlinien zwischen den Abschnitten fein und eingerückt */
-#calendar-event-dialog-inner separator.groove {
+:is(#calendar-event-dialog-inner, #calendar-task-dialog-inner) separator.groove {
   border: none !important;
   height: 1px !important;
   background: var(--mt-pane-line) !important;
@@ -3912,7 +3992,7 @@ timepicker-grids .time-picker-more-control-label {
 
 /* Trennlinien im Raster (tr.separator): Thunderbird zeichnet sie 1 px in der
    Feldrahmenfarbe – deutlich härter als die Haarlinie unter der Toolbar */
-#calendar-event-dialog-inner #event-grid .separator td {
+:is(#calendar-event-dialog-inner, #calendar-task-dialog-inner) #event-grid .separator td {
   border-block-end: var(--mt-hairline) solid var(--mt-pane-line) !important;
 }
 

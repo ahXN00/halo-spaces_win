@@ -1,0 +1,29 @@
+/* halo.spaces – Beschreibung im Detailbereich der Aufgaben (Inhaltsdokument
+   about:blank in #calendar-task-details-description). theme.css erreicht
+   dieses Dokument nicht; die Erweiterung lädt diese Datei dort als Benutzer-
+   Stylesheet (implementation.js, hookTaskDescription). Werte wie in
+   userChrome.css (--mt-text, --mt-font). Den Rand liefert der Rahmen
+   (spaces.css, padding 10px 20px), der Text steht so bündig mit den Details.
+   Farben nur am body: eigene Farben einer HTML-Beschreibung bleiben. */
+:root {
+  --mt-text: #1D1D1F;
+  color-scheme: light dark;
+  background: transparent !important;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --mt-text: #F5F5F7;
+  }
+}
+
+body {
+  margin: 0 !important;
+  background: transparent !important;
+  font: 13px/1.45 -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif !important;
+  color: var(--mt-text) !important;
+}
+
+a {
+  color: AccentColor !important;
+}
