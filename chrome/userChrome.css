@@ -2555,6 +2555,20 @@ html:root.customizingUnifiedToolbar #unifiedToolbarContainer::before {
   padding: 0 8px !important;
 }
 
+/* Aufgaben-Tab: Filterliste, Kalenderliste und Monatskalender teilen sich die
+   Leiste – Kalenderliste mindestens drei Zeilen hoch statt einer halben Zeile;
+   in niedrigen Fenstern weicht der Monatskalender (die Aufgabenfilter
+   brauchen ihn nicht) */
+:root[mc-tab="tasks"] #calendar-list {
+  min-height: 96px !important;
+}
+
+@media (max-height: 820px) {
+  :root[mc-tab="tasks"] #minimonth-pane {
+    display: none !important;
+  }
+}
+
 #calendar-list > li {
   position: relative !important;
   min-height: 32px !important;
@@ -3662,6 +3676,8 @@ calendar-event-box :is(.alarm-icons-box, .item-classification-icon, .item-recurr
 .calendar-task-tree treechildren::-moz-tree-cell-text(completed) {
   color: var(--mt-text-tertiary) !important;
   text-decoration: none !important;
+  /* aufrecht wie in Apple Erinnerungen (Thunderbird: kursiv) */
+  font-style: normal !important;
 }
 
 .calendar-task-tree > treechildren::-moz-tree-image(calendar-task-tree-col-completed) {
@@ -3671,8 +3687,13 @@ calendar-event-box :is(.alarm-icons-box, .item-classification-icon, .item-recurr
   list-style-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20'%3E%3Ccircle cx='10' cy='10' r='8.6' fill='none' stroke='%23B5B5BA' stroke-width='1.5'/%3E%3C/svg%3E") !important;
 }
 
+/* erledigt: gefüllter Kreis in der Akzentfarbe des Systems (folgt wie Kästchen
+   und Auswahl einer anderen Akzentfarbe) – Kontextfarben nur über resource:// */
 .calendar-task-tree > treechildren::-moz-tree-image(calendar-task-tree-col-completed, completed) {
-  list-style-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20'%3E%3Ccircle cx='10' cy='10' r='9.3' fill='%23007AFF'/%3E%3Cpath d='m6 10.3 2.7 2.7L14.2 7.4' fill='none' stroke='white' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") !important;
+  list-style-image: url("resource://mailcards/icons/task-done.svg") !important;
+  -moz-context-properties: fill, stroke !important;
+  fill: var(--mt-accent) !important;
+  stroke: var(--mt-accent-text) !important;
 }
 
 /* Hinweis „Bitte einen Kalender wählen, der Aufgaben unterstützt“ oben in
@@ -3792,6 +3813,13 @@ calendar-event-box :is(.alarm-icons-box, .item-classification-icon, .item-recurr
 }
 
 /* Detailbereich unten: helle Fläche, Titel groß, Angaben in leiser Schrift */
+/* ohne Auswahl blendet Thunderbird nur die Details aus, den Teiler nicht
+   (calendar-task-view.js: displayElement(…) && displayElement(splitter, …)
+   bricht bei false ab) – sonst zwei Haarlinien über der Statusleiste */
+#calendar-task-view-splitter:has(+ #calendar-task-details-container[hidden]) {
+  display: none !important;
+}
+
 #calendar-task-view-splitter {
   border: none !important;
   border-top: var(--mt-hairline) solid var(--mt-pane-line) !important;

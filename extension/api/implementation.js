@@ -166,6 +166,8 @@ const DE = {
   "Messages in system font": "Mails in Systemschrift",
   "like Apple Mail; messages with their own font keep it – off: Thunderbird’s fonts": "wie Apple Mail; Mails mit eigener Schrift behalten sie – aus: Thunderbirds Schriften",
   "Yesterday": "Gestern",
+  "No Results": "Keine Ergebnisse",
+  "No tasks match your search.": "Keine Aufgabe passt zur Suche.",
   "No Tasks": "Keine Aufgaben",
   "Tasks you add appear here.": "Neue Aufgaben erscheinen hier.",
   "No Task List Selected": "Keine Aufgabenliste ausgewählt",
@@ -318,6 +320,8 @@ const FR = {
   "Messages in system font": "Messages dans la police système",
   "like Apple Mail; messages with their own font keep it – off: Thunderbird’s fonts": "comme Apple Mail ; les messages avec leur propre police la gardent – désactivé : polices de Thunderbird",
   "Yesterday": "Hier",
+  "No Results": "Aucun résultat",
+  "No tasks match your search.": "Aucune tâche ne correspond à la recherche.",
   "No Tasks": "Aucune tâche",
   "Tasks you add appear here.": "Les tâches ajoutées apparaissent ici.",
   "No Task List Selected": "Aucune liste de tâches sélectionnée",
@@ -470,6 +474,8 @@ const ES = {
   "Messages in system font": "Mensajes en la fuente del sistema",
   "like Apple Mail; messages with their own font keep it – off: Thunderbird’s fonts": "como Apple Mail; los mensajes con su propia fuente la conservan – desactivado: fuentes de Thunderbird",
   "Yesterday": "Ayer",
+  "No Results": "Sin resultados",
+  "No tasks match your search.": "Ninguna tarea coincide con la búsqueda.",
   "No Tasks": "No hay tareas",
   "Tasks you add appear here.": "Las tareas que añadas aparecerán aquí.",
   "No Task List Selected": "No hay ninguna lista de tareas seleccionada",
@@ -622,6 +628,8 @@ const IT = {
   "Messages in system font": "Messaggi nel font di sistema",
   "like Apple Mail; messages with their own font keep it – off: Thunderbird’s fonts": "come Apple Mail; i messaggi con un proprio font lo mantengono – disattivato: font di Thunderbird",
   "Yesterday": "Ieri",
+  "No Results": "Nessun risultato",
+  "No tasks match your search.": "Nessuna attività corrisponde alla ricerca.",
   "No Tasks": "Nessuna attività",
   "Tasks you add appear here.": "Le attività aggiunte appaiono qui.",
   "No Task List Selected": "Nessun elenco attività selezionato",
@@ -5436,6 +5444,7 @@ class CardEnhancer {
       const d = w.document;
       const tree = d.getElementById("calendar-task-tree");
       const field = d.getElementById("view-task-edit-field");
+      const filter = d.getElementById("task-text-filter-field");
       if (!tree?.mTreeView || d.getElementById("mcTasksEmpty")) {
         return;
       }
@@ -5455,8 +5464,11 @@ class CardEnhancer {
         const empty = !tree.mTreeView || tree.mTreeView.rowCount == 0;
         // ohne Aufgabenkalender ist das Eingabefeld schreibgeschützt (Hinweis als Wert)
         const noList = !!field && (field.readOnly || field.getAttribute("aria-disabled") == "true");
-        title.textContent = noList ? tr("No Task List Selected") : tr("No Tasks");
-        text.textContent = noList ? tr("Choose a calendar that supports tasks in the sidebar.") : tr("Tasks you add appear here.");
+        // Suchfeld oben gefüllt: es gibt Aufgaben, nur passt keine zur Suche
+        const searching = !!filter?.value.trim();
+        title.textContent = searching ? tr("No Results") : noList ? tr("No Task List Selected") : tr("No Tasks");
+        text.textContent = searching ? tr("No tasks match your search.")
+          : noList ? tr("Choose a calendar that supports tasks in the sidebar.") : tr("Tasks you add appear here.");
         box.hidden = !empty;
       };
       let pending = false;
@@ -5480,6 +5492,9 @@ class CardEnhancer {
         return [name, orig];
       });
       tree.addEventListener("refresh", later);
+      for (const type of ["input", "command"]) {
+        filter?.addEventListener(type, later);
+      }
       const mo = field ? new w.MutationObserver(later) : null;
       mo?.observe(field, { attributes: true, attributeFilter: ["readonly", "aria-disabled"] });
       update();
@@ -5488,6 +5503,9 @@ class CardEnhancer {
           view[name] = orig;
         }
         tree.removeEventListener("refresh", later);
+        for (const type of ["input", "command"]) {
+          filter?.removeEventListener(type, later);
+        }
         mo?.disconnect();
         box.remove();
       });

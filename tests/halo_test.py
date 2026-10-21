@@ -3484,6 +3484,96 @@ def run_checks(m, version, profile, results):
         return ok, f"desc={ok_desc} kopf={ok_head} pfeil={ok_marker} fokus={ok_focus} rot={ok_red} {res}"
     check("Aufgaben: Beschreibung 13 px ohne Rand und dunkel lesbar, Spaltenköpfe ohne zweiten Strich, „Erledigt“ mit schmalem Pfeil, überfällig rot, kein Fokusrechteck", tasks_details, results)
 
+    def tasks_list_states():
+        # erledigte Aufgaben aufrecht (Thunderbird: kursiv) mit Kreis in der Systemakzentfarbe statt fest #007AFF;
+        # ohne Auswahl kein Teiler über der Statusleiste (früher zwei Haarlinien); Leeranzeige bei Suche ohne Treffer
+        # „No Results“ statt „No Tasks“; Kalenderliste im niedrigen Fenster ≥ 3 Zeilen, Monatskalender weicht
+        res = m.js(CAL_CHECK_JS + r"""
+          w.resizeTo(1500, 900);
+          const c = testCalendar();
+          tm.openTab("tasks", {}); await pause(1500);
+          const { CalTodo } = ChromeUtils.importESModule("resource:///modules/CalTodo.sys.mjs");
+          const tree = d.getElementById("calendar-task-tree");
+          const out = {};
+          const theme = await (await fetch("resource://mailcards/theme.css")).text();
+          const ruleOf = sel => { const i = theme.indexOf(sel + " {"); return i < 0 ? "" : theme.slice(i, theme.indexOf("}", i)); };
+          out.italic = /font-style: normal !important/.test(ruleOf(".calendar-task-tree treechildren::-moz-tree-cell-text(completed)"));
+          const doneRule = ruleOf(".calendar-task-tree > treechildren::-moz-tree-image(calendar-task-tree-col-completed, completed)");
+          out.doneRule = !/007AFF/i.test(doneRule) && doneRule.includes("resource://mailcards/icons/task-done.svg") && /fill: var\(--mt-accent\)/.test(doneRule);
+          out.svg = /context-fill/.test(await (await fetch("resource://mailcards/icons/task-done.svg")).text());
+          const pixels = async r => { const cv = d.createElementNS("http://www.w3.org/1999/xhtml", "canvas");
+            cv.width = Math.round(r.width); cv.height = Math.round(r.height); const ctx = cv.getContext("2d");
+            try { const bm = await w.browsingContext.currentWindowGlobal.drawSnapshot(new w.DOMRect(r.left, r.top, r.width, r.height), 1, "white"); ctx.drawImage(bm, 0, 0); }
+            catch { ctx.drawWindow(w, r.left, r.top, r.width, r.height, "white"); }
+            const data = ctx.getImageData(0, 0, cv.width, cv.height).data;
+            return (x, y) => { const i = (Math.round(y) * cv.width + Math.round(x)) * 4; return [data[i], data[i + 1], data[i + 2]]; }; };
+          const todo = new CalTodo(); todo.title = "Halo Erledigt"; todo.calendar = c;
+          const saved = await c.addItem(todo);
+          const done = saved.clone(); done.isCompleted = true; const savedDone = await c.modifyItem(done, saved);
+          const prevAccent = Services.prefs.getStringPref("ui.accentcolor", "");
+          try {
+            // Filter „Alle“, damit die erledigte Aufgabe in der Liste steht
+            d.getElementById("opt_all_filter")?.click(); await pause(800);
+            const row = await till(() => { for (let i = 0; i < tree.mTreeView.rowCount; i++) if (tree.getTaskAtRow?.(i)?.title == "Halo Erledigt") return i + 1; return 0; }, 6000) - 1;
+            out.row = row;
+            if (row >= 0) {
+              // andere Akzentfarbe (Rosa) – der Kreis muss ihr folgen
+              Services.prefs.setStringPref("ui.accentcolor", "#FF2D55"); await pause(800);
+              out.accent = colorOf(d, "AccentColor");
+              tree.mTreeView.selection.clearSelection(); tree.ensureRowIsVisible(row); await pause(500);
+              const col = tree.columns.getNamedColumn("calendar-task-tree-col-completed");
+              const tc = tree.querySelector("treechildren").getBoundingClientRect();
+              const cr = tree.getCoordsForCellItem(row, col, "image");
+              out.cell = [Math.round(cr.x), Math.round(cr.y), Math.round(cr.width), Math.round(cr.height)];
+              const px = await pixels({ left: tc.left, top: tc.top + (row - tree.getFirstVisibleRow()) * (tree.rowHeight || 40), width: 120, height: tree.rowHeight || 40 });
+              // kräftigstes Pixel im Kästchenbereich (weißer Haken ausgenommen)
+              let best = null, sat = -1;
+              for (let x = 0; x < 120; x++) for (let y = 0; y < (tree.rowHeight || 40); y++) { const p = px(x, y); const s = Math.max(...p) - Math.min(...p); if (s > sat) { sat = s; best = p; } }
+              out.circle = best;
+            }
+            // ohne Auswahl kein Teiler, mit Auswahl Teiler und Details sichtbar
+            tree.mTreeView.selection.clearSelection(); await pause(500);
+            const sp = d.getElementById("calendar-task-view-splitter"), det = d.getElementById("calendar-task-details-container");
+            out.splitNone = csOf(sp).display;
+            if (row >= 0) { tree.mTreeView.selection.select(row); await pause(600); }
+            out.splitSel = [csOf(sp).display, vis(det)];
+            // Suche ohne Treffer
+            const f = d.getElementById("task-text-filter-field"), box = d.getElementById("mcTasksEmpty");
+            f.value = "xyzxyz"; f.dispatchEvent(new w.Event("input", { bubbles: true })); f.dispatchEvent(new w.Event("command"));
+            await till(() => tree.mTreeView.rowCount == 0, 4000); await pause(400);
+            out.search = [tree.mTreeView.rowCount, !box.hidden, box.querySelector(".mc-te-title")?.textContent, box.querySelector(".mc-te-text")?.textContent];
+            f.value = ""; f.dispatchEvent(new w.Event("input", { bubbles: true })); f.dispatchEvent(new w.Event("command"));
+            await till(() => tree.mTreeView.rowCount > 0, 4000); await pause(400);
+            out.cleared = [tree.mTreeView.rowCount, box.hidden, box.querySelector(".mc-te-title")?.textContent];
+            // niedriges Fenster: Kalenderliste mindestens drei Zeilen, Monatskalender ausgeblendet oder ganz darunter
+            w.resizeTo(1136, 700); await pause(1000);
+            const list = d.getElementById("calendar-list"), mm = d.getElementById("minimonth-pane");
+            const lr = list.getBoundingClientRect(), mr = mm.getBoundingClientRect();
+            out.low = { h: list.clientHeight, mm: csOf(mm).display, mmTop: Math.round(mr.top), mmBottom: Math.round(mr.bottom), listBottom: Math.round(lr.bottom), win: w.innerHeight };
+            w.resizeTo(1500, 900); await pause(1000);
+            out.high = { mm: csOf(mm).display, vis: vis(mm), h: list.clientHeight };
+          } finally {
+            if (prevAccent) Services.prefs.setStringPref("ui.accentcolor", prevAccent); else Services.prefs.clearUserPref("ui.accentcolor");
+            d.getElementById("opt_throughcurrent_filter")?.click();
+            w.resizeTo(1500, 900);
+            try { await c.deleteItem(savedDone); } catch {}
+          }
+          return out;""")
+        if res.get("row", -1) < 0:
+            return False, f"erledigte Aufgabe nicht in der Liste {res}"
+        ci = res.get("circle") or [0, 0, 0]
+        ok_static = res.get("italic") and res.get("doneRule") and res.get("svg")
+        # Rosa (#FF2D55) dominiert: Rot deutlich vor Blau und Grün
+        ok_circle = ci[0] > 180 and ci[0] - ci[2] > 60 and ci[0] - ci[1] > 100
+        ok_split = res.get("splitNone") == "none" and res["splitSel"][0] != "none" and res["splitSel"][1]
+        se, cl = res.get("search") or [], res.get("cleared") or []
+        ok_search = len(se) == 4 and se[0] == 0 and se[1] and se[2] == "No Results" and se[3] == "No tasks match your search." and cl[0] > 0 and cl[1]
+        lo, hi = res.get("low") or {}, res.get("high") or {}
+        ok_low = lo.get("h", 0) >= 90 and (lo.get("mm") == "none" or lo["mmTop"] >= lo["listBottom"]) and hi.get("mm") != "none" and hi.get("vis")
+        ok = bool(ok_static and ok_circle and ok_split and ok_search and ok_low)
+        return ok, f"statisch={ok_static} kreis={ok_circle} teiler={ok_split} suche={ok_search} niedrig={ok_low} {res}"
+    check("Aufgaben: erledigt aufrecht mit Kreis in Akzentfarbe, ohne Auswahl kein Teiler, „No Results“ bei Suche, Kalenderliste im niedrigen Fenster", tasks_list_states, results)
+
     def tasks_hint():
         # Eingabehinweis bleibt grau, auch wenn Thunderbird ihn ohne focus/blur neu setzt (Wechsel des Standardkalenders);
         # Hinweis „schreibgeschützter Kalender“ im schmalen Fenster endet vor dem Suchfeld (früher über Lupe und „Search“)
