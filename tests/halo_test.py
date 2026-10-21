@@ -1215,15 +1215,22 @@ def compose_checks(m, results):
           const lw = await winUrl("FilterListDialog"); if (!lw) throw new Error("Filterliste nicht offen");
           await pause(1000);
           try {
-            out.filter = await dialog(() => lw.onNewFilter(), "FilterEditor", async (dw, dd) => ({
-              terms: csOf(dd.getElementById("searchTermList")).appearance, actions: csOf(dd.getElementById("filterActionList")).appearance }));
+            out.filter = await dialog(() => lw.onNewFilter(), "FilterEditor", async (dw, dd) => {
+              // „Apply filter when:“ bündig und gleich groß wie „Filter name:“, Kästchen eingerückt
+              const leg = dd.querySelector("#applyFiltersSettings > legend"), lab = dd.getElementById("filterName").previousElementSibling,
+                    cb = dd.getElementById("runManual");
+              return { terms: csOf(dd.getElementById("searchTermList")).appearance, actions: csOf(dd.getElementById("filterActionList")).appearance,
+                       legend: [leg.getBoundingClientRect().left, parseFloat(csOf(leg).fontSize), parseInt(csOf(leg).fontWeight)],
+                       label: [lab.getBoundingClientRect().left, parseFloat(csOf(lab).fontSize)], box: cb.getBoundingClientRect().left }; });
           } finally { await shut(lw); }
           return out;""")
         s, f = res["spell"], res["filter"]
         ok = (s["appearance"] == "none" and s["radius"] >= 6 and s["focus"] and same_color(s["focused"], s["accent"])
-              and not same_color(s["unfocused"], s["accent"]) and f["terms"] == "none" and f["actions"] == "none")
+              and not same_color(s["unfocused"], s["accent"]) and f["terms"] == "none" and f["actions"] == "none"
+              and abs(f["legend"][0] - f["label"][0]) <= 1 and abs(f["legend"][1] - f["label"][1]) < 0.5
+              and 500 <= f["legend"][2] <= 650 and f["box"] >= f["legend"][0] + 8)
         return ok, f"{res}"
-    check("Dialoge: Listen ohne harten Rahmen, Auswahl abgerundet in Akzentfarbe (Rechtschreibung), Filter-Editor ohne macOS-Rahmen", lists, results)
+    check("Dialoge: Listen ohne harten Rahmen, Auswahl abgerundet in Akzentfarbe (Rechtschreibung), Filter-Editor ohne macOS-Rahmen, „Apply filter when:“ bündig und gleich groß", lists, results)
 
     def tabs():
         res = m.js(COMPOSE_CHECK_JS + r"""

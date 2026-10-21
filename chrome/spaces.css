@@ -4428,6 +4428,26 @@ dialog menulist {
   margin-inline-start: 4px !important;
 }
 
+/* Filter-Editor: „Apply filter when:“ bündig mit „Filter name:“ und „Perform
+   these actions:“ und in deren Größe (halbfett als Überschrift) statt größer,
+   fett und eingerückt; die Kästchen darunter behalten ihren Einzug */
+#applyFiltersSettings {
+  margin-inline: 0 !important;
+  padding-inline: 4px 8px !important;
+  border: none !important;
+}
+
+#applyFiltersSettings > legend {
+  margin-inline: 0 !important;
+  padding-inline: 0 !important;
+  font-size: inherit !important;
+  font-weight: 600 !important;
+}
+
+#applyFiltersSettings > :not(legend) {
+  margin-inline-start: 10px !important;
+}
+
 /* Auswahllisten in Bedingungs- und Aktionszeilen: themeableDialog.css legt
    dort einen Verlauf in Knopffarbe über die Fläche – das halbtransparente
    Grau lag doppelt (dunkler als die übrigen Listen), im Suchfenster über
