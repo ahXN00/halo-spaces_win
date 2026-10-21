@@ -140,7 +140,9 @@ SessionStart-Hook die offenen Einträge in jede Sitzung.
   berücksichtigen und passende Aufgaben nennen.
 - Neue Bugs/Wünsche aus dem Gespräch sofort und ohne Rückfrage dort als
   Entwurf anlegen (Typ setzen, Status Todo); Screenshots liegen in
-  `~/halo-aufgaben/bilder/`. Ursache klären und Lösungsidee in den Eintrag
+  `~/halo-aufgaben/bilder/` (der Maintainer schickt sie mit `halobild <name>`,
+  siehe `tests/MAC-MINI.md` Abschnitt 10, und nennt im Gespräch nur den Namen).
+  Ursache klären und Lösungsidee in den Eintrag
   schreiben ist erwünscht – aber nicht gleich umsetzen und auch nicht
   anbieten; umgesetzt wird nur, wenn der Maintainer einen Eintrag zum
   Abarbeiten nennt. Gehört der Punkt zu einem offenen Eintrag, diesen

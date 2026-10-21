@@ -302,3 +302,35 @@ Die Datei auf den Mini kopieren, dort:
 ```bash
 git fetch ~/zweige.bundle bugfix/2026-10-20:bugfix/2026-10-20 design/durchlauf:design/durchlauf
 ```
+
+## 10. Screenshots für die Aufgabenliste
+
+Bilder zu Bugs und Wünschen liegen auf dem Mini in `~/halo-aufgaben/bilder/`
+(nicht im Repo, oft mit echten Mails). Damit sie ohne Umweg über den Chat dort
+landen, auf dem Laptop am Ende von `~/.zshrc` anhängen (Host wie in
+`~/.ssh/config`, bei Bedarf anpassen) und ein neues Terminalfenster öffnen:
+
+```bash
+halobild() {
+  [ -n "$1" ] || { echo "Aufruf: halobild <name>"; return 1; }
+  local tmp=$(mktemp -t halobild).png
+  osascript -e "set f to open for access POSIX file \"$tmp\" with write permission" \
+            -e 'write (the clipboard as «class PNGf») to f' \
+            -e 'close access f' 2>/dev/null \
+    || { echo "Kein Bild in der Zwischenablage"; rm -f "$tmp"; return 1; }
+  scp "$tmp" "halotest@halo-mini:halo-aufgaben/bilder/$1.png" && echo "→ Mini: $1.png"
+  rm -f "$tmp"
+}
+```
+
+TextEdit ersetzt beim Einfügen gern `"` durch typografische Anführungszeichen –
+vorher unter Bearbeiten → Ersetzungen „Intelligente Anführungszeichen“
+ausschalten. Prüfen mit `type halobild` („shell function“).
+
+Benutzen:
+
+1. ⌃⇧⌘4 (oder ⇧⌘5 mit „Sichern unter: Zwischenablage“) – Bild landet in der
+   Zwischenablage, keine Datei auf dem Laptop.
+2. `halobild kalender-woche-raster` – Name klein, mit Bindestrichen, ohne
+   Leerzeichen und ohne `.png`, Bereich vorneweg; gleicher Name überschreibt.
+3. Im Gespräch mit dem Agenten nur den Namen nennen („Bild: kalender-woche-raster“).
