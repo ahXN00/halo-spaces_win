@@ -1,0 +1,86 @@
+name: Add task to "halo.spaces Aufgaben"
+
+# Fügt einen Eintrag (Draft-Item) in das BESTEHENDE Project-Board ein.
+# Legt kein Board an. Läuft auf GitHub, daher auch aus Cloud-Sessions auslösbar.
+
+on:
+  workflow_dispatch:
+    inputs:
+      title:
+        description: "Titel des Eintrags"
+        required: true
+      body:
+        description: "Beschreibung"
+        required: false
+        default: ""
+      type:
+        description: "bug oder feature"
+        required: true
+        default: feature
+      status:
+        description: "Open, Todo oder Done"
+        required: true
+        default: Open
+
+env:
+  PROJECT_OWNER: sruf79
+  PROJECT_TITLE: "halo.spaces Aufgaben"
+
+jobs:
+  add:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Add item to project
+        env:
+          GH_TOKEN: ${{ secrets.PROJECT_TOKEN }}
+          TITLE: ${{ inputs.title }}
+          BODY: ${{ inputs.body }}
+          TYPE: ${{ inputs.type }}
+          STATUS: ${{ inputs.status }}
+        run: |
+          set -euo pipefail
+
+          # Bestehendes Projekt per Titel finden
+          PROJECT_ID=$(gh api graphql -F login="$PROJECT_OWNER" -f query='
+            query($login:String!){ user(login:$login){ projectsV2(first:100){ nodes{ id title } } } }' \
+            --jq ".data.user.projectsV2.nodes[] | select((.title|ascii_downcase) == (env.PROJECT_TITLE|ascii_downcase)) | .id")
+          if [ -z "$PROJECT_ID" ]; then
+            echo "::error::Projekt '$PROJECT_TITLE' nicht gefunden"; exit 1
+          fi
+
+          # Felder des Boards lesen (Single-Select: Status, ggf. Typ/Type)
+          FIELDS=$(gh api graphql -F p="$PROJECT_ID" -f query='
+            query($p:ID!){ node(id:$p){ ... on ProjectV2 { fields(first:50){ nodes{
+              ... on ProjectV2SingleSelectField { id name options { id name } } } } } } }' \
+            --jq '.data.node.fields.nodes')
+
+          # Hat das Board kein Typ-Feld, kommt der Typ als Präfix in den Titel
+          TYPE_FIELD=$(jq -c '[.[] | select(.name? and ((.name|ascii_downcase) == "typ" or (.name|ascii_downcase) == "type"))][0] // empty' <<<"$FIELDS")
+          FULL_TITLE="$TITLE"
+          if [ -z "$TYPE_FIELD" ]; then
+            case "${TYPE,,}" in
+              bug) FULL_TITLE="[Bug] $TITLE" ;;
+              *)   FULL_TITLE="[Feature] $TITLE" ;;
+            esac
+          fi
+
+          ITEM_ID=$(gh api graphql -F p="$PROJECT_ID" -f t="$FULL_TITLE" -f b="$BODY" -f query='
+            mutation($p:ID!,$t:String!,$b:String){ addProjectV2DraftIssue(input:{projectId:$p,title:$t,body:$b}){ projectItem{ id } } }' \
+            --jq '.data.addProjectV2DraftIssue.projectItem.id')
+
+          set_select() { # $1 = Feld-JSON, $2 = gewünschter Optionsname
+            local field_id option_id
+            field_id=$(jq -r '.id' <<<"$1")
+            option_id=$(jq -r --arg v "$2" '.options[] | select((.name|ascii_downcase) == ($v|ascii_downcase)) | .id' <<<"$1")
+            if [ -z "$option_id" ]; then
+              echo "::warning::Option '$2' im Feld $(jq -r .name <<<"$1") nicht gefunden"; return
+            fi
+            gh api graphql -F p="$PROJECT_ID" -F i="$ITEM_ID" -F f="$field_id" -F o="$option_id" -f query='
+              mutation($p:ID!,$i:ID!,$f:ID!,$o:String!){ updateProjectV2ItemFieldValue(input:{projectId:$p,itemId:$i,fieldId:$f,value:{singleSelectOptionId:$o}}){ projectV2Item{ id } } }' >/dev/null
+          }
+
+          STATUS_FIELD=$(jq -c '[.[] | select(.name? == "Status")][0] // empty' <<<"$FIELDS")
+          [ -n "$STATUS_FIELD" ] && set_select "$STATUS_FIELD" "$STATUS"
+          [ -n "$TYPE_FIELD" ] && set_select "$TYPE_FIELD" "$TYPE"
+
+          echo "Eintrag angelegt: $FULL_TITLE ($STATUS)"
