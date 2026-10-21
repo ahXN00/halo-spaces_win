@@ -132,8 +132,8 @@ Thunderbird lehnt das Update ab. Vor einem Release die Versionshinweise im
 
 Bugs und Wünsche führt der Maintainer in einem privaten GitHub-Project
 „halo.spaces Aufgaben“ (Konto `sruf79`, Felder Typ = Feature/Bug und Status).
-Nur nutzen, wenn `gh project list --owner sruf79` es findet – sonst
-stillschweigend überspringen. Auf dem Testrechner lädt ein lokaler
+Lokal direkt über `gh project …` (siehe unten); in Cloud-Sessions über den
+Workflow `add-task.yml` (Abschnitt „Cloud-Sessions“). Auf dem Testrechner lädt ein lokaler
 SessionStart-Hook die offenen Einträge in jede Sitzung.
 
 - Die Liste ist die Vorlage für die Arbeit: zu Beginn offene Einträge
@@ -156,8 +156,7 @@ SessionStart-Hook die offenen Einträge in jede Sitzung.
   Issues im Repo.
 - Titel auf Deutsch im Commit-Stil: `Bereich: kurze Beschreibung`
   (z. B. `Kalender: …`, `Mailliste: …`), Details in den Text.
-- Zugriff über `gh` mit Scope `project`; in Cloud-Sessions kommt das Token
-  aus `GH_TOKEN` der Umgebung `neosys.cat.cloud`.
+- Lokal: Zugriff über `gh` mit Scope `project`.
 
 ```bash
 gh project item-list 1 --owner sruf79 --limit 200 --format json      # lesen
@@ -170,6 +169,22 @@ gh project item-edit --project-id PVT_kwHODEPpks4BoBQw --id <id> \
 |---|---|---|
 | Typ | `PVTSSF_lAHODEPpks4BoBQwzhmjN8Y` | Feature `39bb4253`, Bug `ff678ae2` |
 | Status | `PVTSSF_lAHODEPpks4BoBQwzhmjN5E` | Todo `f75ad846`, In Progress `47fc9ee4`, Done `98236657` |
+
+### Cloud-Sessions
+
+In Cloud-Sessions ist die GraphQL-API gesperrt, `gh project …` geht dort
+nicht – auch nicht mit Token. Neue Einträge stattdessen über den Workflow
+anlegen (läuft auf GitHub, Token im Secret `HALO_SPACES_TASKS_TOKEN`):
+
+```bash
+gh workflow run add-task.yml -R sruf79/halo-spaces \
+  -f title="Bereich: …" -f body="…" -f type=<bug|feature> -f status=Todo
+gh run list -R sruf79/halo-spaces -w add-task.yml -L 1   # Lauf erfolgreich?
+```
+
+Lesen und Status ändern gehen in Cloud-Sessions nicht; das erledigt der
+Maintainer im Board. Das Repo ist öffentlich: Der Workflow schreibt Titel
+und Text bewusst nicht ins Log – das beim Ändern beibehalten.
 
 ## Datenschutz
 

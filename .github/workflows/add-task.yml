@@ -33,12 +33,15 @@ jobs:
       - name: Add item to project
         env:
           GH_TOKEN: ${{ secrets.HALO_SPACES_TASKS_TOKEN }}
-          TITLE: ${{ inputs.title }}
-          BODY: ${{ inputs.body }}
-          TYPE: ${{ inputs.type }}
-          STATUS: ${{ inputs.status }}
         run: |
           set -euo pipefail
+
+          # Das Repo ist öffentlich: Inhalte nicht über env/Log ausgeben,
+          # sondern direkt aus dem Event lesen.
+          TITLE=$(jq -r '.inputs.title' "$GITHUB_EVENT_PATH")
+          BODY=$(jq -r '.inputs.body // ""' "$GITHUB_EVENT_PATH")
+          TYPE=$(jq -r '.inputs.type' "$GITHUB_EVENT_PATH")
+          STATUS=$(jq -r '.inputs.status' "$GITHUB_EVENT_PATH")
 
           # Bestehendes Projekt per Titel finden
           PROJECT_ID=$(gh api graphql -F login="$PROJECT_OWNER" -f query='
@@ -73,7 +76,7 @@ jobs:
             field_id=$(jq -r '.id' <<<"$1")
             option_id=$(jq -r --arg v "$2" '.options[] | select((.name|ascii_downcase) == ($v|ascii_downcase)) | .id' <<<"$1")
             if [ -z "$option_id" ]; then
-              echo "::warning::Option '$2' im Feld $(jq -r .name <<<"$1") nicht gefunden"; return
+              echo "::warning::Option '$2' im Feld $(jq -r .name <<<"$1") nicht gefunden. Vorhanden: $(jq -r '[.options[].name] | join(", ")' <<<"$1")"; return
             fi
             gh api graphql -F p="$PROJECT_ID" -F i="$ITEM_ID" -F f="$field_id" -F o="$option_id" -f query='
               mutation($p:ID!,$i:ID!,$f:ID!,$o:String!){ updateProjectV2ItemFieldValue(input:{projectId:$p,itemId:$i,fieldId:$f,value:{singleSelectOptionId:$o}}){ projectV2Item{ id } } }' >/dev/null
@@ -83,4 +86,4 @@ jobs:
           [ -n "$STATUS_FIELD" ] && set_select "$STATUS_FIELD" "$STATUS"
           [ -n "$TYPE_FIELD" ] && set_select "$TYPE_FIELD" "$TYPE"
 
-          echo "Eintrag angelegt: $FULL_TITLE ($STATUS)"
+          echo "Eintrag angelegt (Status $STATUS)"
