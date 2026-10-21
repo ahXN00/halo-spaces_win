@@ -2456,6 +2456,25 @@ html:root.customizingUnifiedToolbar #unifiedToolbarContainer::before {
 
 /* ---------- Seltene Dialoge ---------- */
 
+/* Nachrichten suchen: Teiler zwischen Bedingungen und Treffern als eine
+   Haarlinie statt Doppellinie (dunkel hell, hell weiß/grau); Höhe bleibt,
+   der Teiler lässt sich weiter ziehen */
+:root[windowtype="mailnews:search"] #gray_horizontal_splitter {
+  border: none !important;
+  border-top: var(--mt-hairline) solid var(--mt-pane-line) !important;
+  background: transparent !important;
+}
+
+/* Aktivitäten: „Clear List“ mit Luft zum Fensterrand statt 4 px, darüber
+   eine Haarlinie statt harter grauer Linie */
+#activityManager #activityView {
+  border-bottom: var(--mt-hairline) solid var(--mt-pane-line) !important;
+}
+
+#activityManager #clearListButton {
+  margin: 10px 12px !important;
+}
+
 /* Filterprotokoll: Protokollfläche mit Haarlinie und 8 px wie die Listen in
    Dialogen (die dunkle Fläche selbst setzt noscroll.css im Inhaltsprozess) */
 #viewLogWindow #logView {
@@ -7016,6 +7035,25 @@ dialog menulist {
    (im Suchordner-Dialog saßen sie 2 px zu hoch) */
 :is(#searchTermList, #filterActionList) > richlistitem .small-button {
   align-self: center !important;
+}
+
+/* … und mit 4 px Lücke zwischen + und − statt aneinanderzustoßen */
+:is(#searchTermList, #filterActionList) > richlistitem .small-button + .small-button {
+  margin-inline-start: 4px !important;
+}
+
+/* Auswahllisten in Bedingungs- und Aktionszeilen: themeableDialog.css legt
+   dort einen Verlauf in Knopffarbe über die Fläche – das halbtransparente
+   Grau lag doppelt (dunkler als die übrigen Listen), im Suchfenster über
+   der Fensterfarbe. Wie die übrigen Auswahllisten nur --mt-control */
+richlistbox:is(#searchTermList, #filterActionList) > richlistitem menulist {
+  background-color: var(--mt-control) !important;
+  background-image: none !important;
+}
+
+richlistbox:is(#searchTermList, #filterActionList) > richlistitem menulist:not([disabled]):is(:hover, [open="true"]) {
+  background-color: var(--mt-control-hover) !important;
+  background-image: none !important;
 }
 
 /* Auswahl abgerundet in Akzentfarbe (unfokussiert grau) – nur in reinen

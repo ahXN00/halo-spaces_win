@@ -316,20 +316,20 @@ Vorher-Bilder: `tests/shots/tour/vorher/` (hell-*/dunkel-*), Paket `tests/shots/
 
 ## 13. Seltene Dialoge (`dialoge`)
 
-- [x] `dlg-ordner-eigenschaften` – Ordner-Eigenschaften: übersprungen (Runde 1, Befunde 0–11): schon erledigt – Haken per chrome://-Grafik sichtbar, Felder 28 px
+- [x] `dlg-ordner-eigenschaften` – Ordner-Eigenschaften: übersprungen (Runde 1, Befunde 0–11): schon erledigt – Haken per chrome://-Grafik sichtbar, Felder 28 px; Runde 1, Befunde 12–23: Reiter als Segment-Kapseln (Befund 12) übersprungen: schon erledigt (Regel für Reiter in allen Dialogen)
 - [x] `dlg-ordner-neu` – Neuer Ordner: übersprungen (Runde 1, Befunde 0–11): schon erledigt – Name-Feld und Ordnerauswahl gleich hoch (28 px)
 - [ ] `dlg-ordner-umbenennen` – Ordner umbenennen: offen
-- [x] `dlg-suchordner` – Neuer Suchordner (gespeicherte Suche): erledigt (Commit „Dialoge: …“ (Runde 1, Befunde 0–11)) – +/− mittig zur Bedingungszeile statt 2 px zu hoch; übersprungen (schon erledigt): Felder 28 px wie die Auswahllisten
+- [x] `dlg-suchordner` – Neuer Suchordner (gespeicherte Suche): erledigt (Commit „Dialoge: …“ (Runde 1, Befunde 0–11)) – +/− mittig zur Bedingungszeile statt 2 px zu hoch; übersprungen (schon erledigt): Felder 28 px wie die Auswahllisten; Runde 1, Befunde 12–23: Auswahllisten der Bedingungszeilen einfach grau wie die übrigen statt doppelt gelegtem Grau, +/− mit 4 px Lücke statt aneinander
 - [x] `dlg-filterliste` – Nachrichtenfilter (Liste): erledigt (Commit „Dialoge: …“ (Runde 1, Befunde 0–11)) – Filterliste mit Haarlinie und 8 px statt eckigem macOS-Rahmen (dunkel hell), Suchfeld mit Haarlinie statt dunklem Rand (Lupe bleibt); übersprungen (schon erledigt): „Edit…“ so hoch wie die übrigen Knöpfe
-- [x] `dlg-filter-editor` – Filterregeln bearbeiten (Filter-Editor): übersprungen (Runde 1, Befunde 0–11): schon erledigt – Listen ohne macOS-Rahmen, Felder und Auswahllisten gleich hoch, +/− mittig, Haken sichtbar
+- [x] `dlg-filter-editor` – Filterregeln bearbeiten (Filter-Editor): übersprungen (Runde 1, Befunde 0–11): schon erledigt – Listen ohne macOS-Rahmen, Felder und Auswahllisten gleich hoch, +/− mittig, Haken sichtbar; erledigt (Commit „Dialoge: …“ (Runde 1, Befunde 12–23)) – Auswahllisten in Bedingungs- und Aktionszeilen einfach grau wie „Filter before Spam Classification“ statt dunklerem doppeltem Grau, +/− mit 4 px Lücke
 - [x] `dlg-filterprotokoll` – Nachrichtenfilter → Filterprotokoll: erledigt (Commit „Dialoge: …“ (Runde 1, Befunde 0–11)) – Protokollfläche dunkel in Fensterfarbe (#1E1E1E) statt weißer Insel, mit Haarlinie und 8 px Radius; gilt auch für das Junk-Protokoll
 - [x] `dlg-suchordner-ordnerwahl` – Suchordner → Ordner auswählen (Ordnerliste zum Durchsuchen): erledigt (Commit „Dialoge: …“ (Runde 1, Befunde 0–11)) – Liste in der Inhaltsfläche (dunkel #1E1E1E statt schwarz) mit Haarlinie und 8 px, Hover neutral statt blaustichig, Kästchen im macOS-Stil mit Haken (teilweise gewählt mit Strich) statt grauer Systemkästchen
-- [x] `dlg-suche` – Nachrichten suchen (erweiterte Suche): erledigt (Commit „Dialoge: …“ (Runde 1, Befunde 0–11)) – Bedingungsliste mit Haarlinie und 8 px statt hartem eckigem Rahmen, Textfeld mit Haarlinie statt hartem Rand
+- [x] `dlg-suche` – Nachrichten suchen (erweiterte Suche): erledigt (Commit „Dialoge: …“ (Runde 1, Befunde 0–11)) – Bedingungsliste mit Haarlinie und 8 px statt hartem eckigem Rahmen, Textfeld mit Haarlinie statt hartem Rand; Runde 1, Befunde 12–23 (Commit „Dialoge: …“): Teiler zwischen Bedingungen und Treffern als eine Haarlinie statt Doppellinie, Auswahllisten der Bedingungen grau wie die übrigen statt weiß bzw. Fensterfarbe mit Verlauf, +/− mit 4 px Lücke
 - [ ] `dlg-lesen-nach-datum` – Nach Datum als gelesen markieren: offen
 - [ ] `dlg-schlagwort` – Neues Schlagwort (aus der Mailliste): offen
 - [x] `dlg-druckvorschau` – Druckvorschau einer Mail: erledigt (Commit „Dialoge: …“ (Runde 1, Befunde 0–11)) – Knopf „Save/Print“, Segment, Fokusring und Link in der Systemakzentfarbe statt Proton-Blau (hell) bzw. Türkis (dunkel); Panel neutral wie die Unterdialoge
 - [ ] `dlg-ueber` – Über Thunderbird: offen
-- [ ] `dlg-aktivitaeten` – Aktivitäten: offen
+- [x] `dlg-aktivitaeten` – Aktivitäten: erledigt (Commit „Dialoge: …“ (Runde 1, Befunde 12–23)) – „Clear List“ mit 12 px bzw. 10 px Abstand zum Fensterrand statt 4 px, darüber eine Haarlinie statt harter grauer Linie
 - [x] `dlg-downloads` – Gespeicherte Dateien (about:downloads): erledigt (Commit „Dialoge: …“ (Runde 1, Befunde 0–11)) – Seite bekommt das Design: Fläche in Fensterfarbe (dunkel statt Navy), „Clear List“ als graue Kapsel, Suchfeld und Liste mit Haarlinie statt eckiger Toolkit-Rahmen
 - [x] `dlg-openpgp` – OpenPGP-Schlüssel verwalten: erledigt (Commit „Dialoge: …“ (Runde 1, Befunde 0–11)) – Schlüsselliste mit Haarlinie und 8 px statt hartem Rahmen (dunkel hell)
 - [ ] `dlg-openpgp-schluessel-erzeugen` – OpenPGP: Neues Schlüsselpaar erzeugen (Assistent): offen

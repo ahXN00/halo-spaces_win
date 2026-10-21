@@ -1507,6 +1507,39 @@ def dialog_checks(m, results):
         return ok, f"{res}"
     check("„Öffnen von …“: Knöpfe als flache Kapseln wie in den Dialogen (Cancel grau, OK in Akzentfarbe) statt nativem Knopf", open_with, results)
 
+    def rule_rows():
+        # Bedingungszeilen (Suchordner-Dialog und Suchfenster): Auswahllisten nur in --mt-control ohne zweiten Verlauf (vorher doppelt
+        # grau bzw. Fensterfarbe), gleich wie die Auswahl außerhalb der Liste; +/− mit Lücke statt aneinander; im Suchfenster der Teiler
+        # als eine Haarlinie statt Doppellinie; Aktivitäten: „Clear List“ mit Luft zum Fensterrand, darüber eine Haarlinie
+        res = m.js(COMPOSE_CHECK_JS + r"""
+          const rows = dd => { const row = dd.querySelector("#searchTermList > richlistitem");
+            const ml = [...row.querySelectorAll("menulist")].find(vis), btn = [...row.querySelectorAll(".small-button")].filter(vis);
+            const other = [...dd.querySelectorAll("menulist")].find(x => vis(x) && !x.closest("richlistbox"));
+            return { img: csOf(ml).backgroundImage, bg: csOf(ml).backgroundColor, other: other && csOf(other).backgroundColor,
+                     control: colorOf(dd, "var(--mt-control)", "backgroundColor"),
+                     gap: btn.length == 2 ? btn[1].getBoundingClientRect().left - btn[0].getBoundingClientRect().right : null }; };
+          const f = await testFolder(); tm.switchToTab(0); await pause(500); const a3 = tm.currentAbout3Pane; a3.displayFolder(f.URI); await pause(800);
+          const out = {};
+          out.vf = await dialog(() => a3.commandController.doCommand("cmd_newVirtualFolder"), "virtualFolderProperties", async (dw, dd) => rows(dd));
+          later(() => w.searchAllMessages());
+          const sw = await winUrl("SearchDialog"); if (!sw) throw new Error("Suchfenster nicht offen");
+          try { await pause(1000); const sd = sw.document, s = csOf(sd.getElementById("gray_horizontal_splitter"));
+            out.search = rows(sd); out.split = { top: s.borderTopWidth, topColor: s.borderTopColor, bottom: s.borderBottomStyle, paneLine: colorOf(sd, "var(--mt-pane-line)") };
+          } finally { await shut(sw); }
+          later(() => w.openActivityMgr());
+          const aw = await winUrl("activity.xhtml"); if (!aw) throw new Error("Aktivitäten nicht offen");
+          try { await pause(800); const ad = aw.document, r = ad.getElementById("clearListButton").getBoundingClientRect(), v = csOf(ad.getElementById("activityView"));
+            out.act = { left: r.left, bottom: aw.innerHeight - r.bottom, line: v.borderBottomColor, paneLine: colorOf(ad, "var(--mt-pane-line)") };
+          } finally { await shut(aw); }
+          return out;""")
+        rows_ok = lambda r: (r["img"] == "none" and same_color(r["bg"], r["control"]) and r["other"] and same_color(r["bg"], r["other"])
+                             and r["gap"] is not None and r["gap"] >= 3)
+        sp, ac = res["split"], res["act"]
+        ok = (rows_ok(res["vf"]) and rows_ok(res["search"]) and sp["bottom"] == "none" and float(sp["top"].rstrip("px")) <= 1
+              and same_color(sp["topColor"], sp["paneLine"]) and ac["left"] >= 12 and ac["bottom"] >= 8 and same_color(ac["line"], ac["paneLine"]))
+        return ok, f"{res}"
+    check("Bedingungszeilen: Auswahllisten einfach grau wie die übrigen, +/− mit Lücke; Suche: Teiler eine Haarlinie; Aktivitäten: „Clear List“ mit Luft, Haarlinie", rule_rows, results)
+
 
 FOLDER_JS = r"""
   const { MailServices } = ChromeUtils.importESModule("resource:///modules/MailServices.sys.mjs");

@@ -4423,6 +4423,25 @@ dialog menulist {
   align-self: center !important;
 }
 
+/* … und mit 4 px Lücke zwischen + und − statt aneinanderzustoßen */
+:is(#searchTermList, #filterActionList) > richlistitem .small-button + .small-button {
+  margin-inline-start: 4px !important;
+}
+
+/* Auswahllisten in Bedingungs- und Aktionszeilen: themeableDialog.css legt
+   dort einen Verlauf in Knopffarbe über die Fläche – das halbtransparente
+   Grau lag doppelt (dunkler als die übrigen Listen), im Suchfenster über
+   der Fensterfarbe. Wie die übrigen Auswahllisten nur --mt-control */
+richlistbox:is(#searchTermList, #filterActionList) > richlistitem menulist {
+  background-color: var(--mt-control) !important;
+  background-image: none !important;
+}
+
+richlistbox:is(#searchTermList, #filterActionList) > richlistitem menulist:not([disabled]):is(:hover, [open="true"]) {
+  background-color: var(--mt-control-hover) !important;
+  background-image: none !important;
+}
+
 /* Auswahl abgerundet in Akzentfarbe (unfokussiert grau) – nur in reinen
    Textlisten: die Zeilen im Filter- und Suchdialog enthalten Menülisten
    und Felder (searchDialog.css setzt dort bewusst color: inherit) */
