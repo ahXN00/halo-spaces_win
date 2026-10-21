@@ -41,6 +41,9 @@
   --mt-segment-selected: #FFFFFF;
   /* Warnrot (überfällige Aufgaben, hohe Priorität) wie macOS systemRed */
   --mt-red: #FF3B30;
+  /* Statuspunkte im Chat wie macOS systemGreen / systemOrange */
+  --mt-status-online: #34C759;
+  --mt-status-away: #FF9500;
   /* Fläche der Unterdialoge im Tab (Einstellungen, Adressbuch) */
   --mt-sheet: #FFFFFF;
   --mt-font: -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif;
@@ -71,6 +74,8 @@
     --mt-tab-selected: #3A3A3C;
     --mt-segment-selected: #636366;
     --mt-red: #FF6961;
+    --mt-status-online: #30D158;
+    --mt-status-away: #FF9F0A;
     --mt-sheet: #2A2A2C;
   }
 }
@@ -3039,6 +3044,12 @@ calendar-minimonth:not(#calMinimonth, #today-minimonth, #from-minimonth, #to-min
   min-width: 40px !important;
 }
 
+/* Suchfeld im Chat endet links an den Chat-Knöpfen (misst die Erweiterung) */
+:root[mc-tab="chat"] #unifiedToolbarContent > li[item-id="search-bar"] {
+  max-width: min(333px, var(--mc-chat-search-max, 333px)) !important;
+  min-width: 40px !important;
+}
+
 /* Tag/Woche/Mehrere Wochen/Monat oben in der Toolbar-Zeile wie in Apple
    Kalender – mittig über dem Kalender (--mc-tab-left, --mc-row-top/-h
    misst die Erweiterung) */
@@ -4560,8 +4571,8 @@ search-bar {
   appearance: none !important;
 }
 
-#chat-toolbar > toolbarbutton:hover,
-#chat-status-selector > #statusTypeIcon:hover {
+#chat-toolbar > toolbarbutton:not([disabled]):hover,
+#chat-status-selector > #statusTypeIcon:not([disabled]):hover {
   background: var(--mt-control-hover) !important;
 }
 
@@ -4616,8 +4627,25 @@ search-bar {
   border: none !important;
 }
 
-.im-placeholder-screen :is(.im-placeholder-icon, img) {
-  opacity: 0.35 !important;
+.im-placeholder-screen .im-placeholder-desc {
+  /* Erklärtext wie im leeren Aufgaben-Zustand: 13 px in Sekundärgrau */
+  font-size: 13px !important;
+  color: var(--mt-text-secondary) !important;
+}
+
+/* Thunderbirds 80-%-Deckkraft auf der ganzen Gruppe weg: Standardknopf in
+   voller Akzentfarbe, Titel und Text bekommen ihre Farben aus den Variablen */
+.im-placeholder-screen .im-placeholder-innerbox {
+  opacity: 1 !important;
+}
+
+/* Info-Symbol des leeren Zustands (Hintergrundbild von .im-placeholder-box)
+   ruhig in Tertiärgrau, eigenes Symbol statt Thunderbirds Proton-Symbol */
+.im-placeholder-screen .im-placeholder-box {
+  background-image: url("resource://mailcards/icons/info.svg") !important;
+  -moz-context-properties: fill, fill-opacity, stroke !important;
+  fill: transparent !important;
+  stroke: var(--mt-text-tertiary) !important;
 }
 
 .im-placeholder-screen button {
@@ -7290,7 +7318,7 @@ menupopup menucaption {
   color: var(--mt-text) !important;
 }
 
-#chat-toolbar > :is(#button-add-buddy, #button-join-chat, #button-chat-accounts):hover {
+#chat-toolbar > :is(#button-add-buddy, #button-join-chat, #button-chat-accounts):not([disabled]):hover {
   background-color: var(--mt-control-hover) !important;
 }
 
@@ -7298,6 +7326,8 @@ menupopup menucaption {
   flex: none !important;
   width: max-content !important;
   max-width: max-content !important;
+  /* Statustext so groß wie „Add Contact“ und die Suche daneben */
+  font-size: 13px !important;
 }
 
 #chat-status-selector :is(button, toolbarbutton, img, .statusImageStack, #statusTypeIcon) {
@@ -7323,6 +7353,56 @@ menupopup menucaption {
 #chat-status-selector > vbox > * {
   min-width: 0 !important;
   width: auto !important;
+}
+
+/* langer Statustext (z. B. Thunderbirds Leerlauf-Text) endet mit „…“ statt
+   unter das Suchfeld zu laufen; den vollen Text zeigt Thunderbirds Tooltip */
+#chat-status-selector > vbox {
+  max-width: 160px !important;
+  overflow: hidden !important;
+}
+
+#chat-status-selector :is(#statusMessageLabel, #statusMessageInput) {
+  font-size: inherit !important;
+}
+
+#chat-status-selector #statusMessageLabel {
+  min-width: 0 !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
+}
+
+/* Statuspunkt flach wie in Nachrichten statt Thunderbirds glänzender Kugel:
+   grün verfügbar, orange abwesend, grau offline */
+#chat-status-selector > #statusTypeIcon {
+  padding: 0 !important;
+  justify-content: center !important;
+  align-items: center !important;
+}
+
+#chat-status-selector > #statusTypeIcon > .toolbarbutton-icon {
+  list-style-image: none !important;
+  width: 10px !important;
+  height: 10px !important;
+  min-width: 0 !important;
+  margin: 0 !important;
+  border-radius: 50% !important;
+  background-color: var(--mt-status-online) !important;
+}
+
+#chat-status-selector > #statusTypeIcon:is([status="unavailable"], [status="away"], [status="idle"]) > .toolbarbutton-icon {
+  background-color: var(--mt-status-away) !important;
+}
+
+#chat-status-selector > #statusTypeIcon:is([status="offline"], [status="invisible"]) > .toolbarbutton-icon {
+  background-color: var(--mt-text-tertiary) !important;
+}
+
+/* ohne Konto: Statustext gedimmt wie die Beschriftung der übrigen
+   deaktivierten Chat-Knöpfe (Thunderbird dimmt nur den Punkt) */
+#chat-status-selector:has(> #statusTypeIcon[disabled]) #statusMessageLabel {
+  opacity: 0.4 !important;
 }
 
 /* ---------- App-Menü wie die übrigen Menüs (macOS 27) ----------

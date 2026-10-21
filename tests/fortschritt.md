@@ -235,7 +235,7 @@ Vorher-Bilder: `tests/shots/tour/vorher/` (hell-*/dunkel-*), Paket `tests/shots/
 
 ## 9. Chat (`chat`)
 
-- [ ] `chat-start` – Chat ohne Konto (Startseite): offen
+- [x] `chat-start` – Chat ohne Konto (Startseite): erledigt (Commit „Chat: …“ (Runde 1, Befunde 0–11)) – Info-Symbol als eigenes Symbol in Tertiärgrau statt fast schwarzem Proton-Symbol; Gruppe ohne Thunderbirds 80-%-Deckkraft (Knopf in voller Akzentfarbe), Erklärtext 13 px in Sekundärgrau statt 15 px; „Get started“ nach dem Öffnen fokussiert, aber ohne Dauer-Ring (Ring nur per Tastatur); Statuskapsel mit flachem 10-px-Punkt (Grün/Orange/Grau) statt glänzender Kugel, Text 13 px wie „Add Contact“, ohne Konto gedimmt wie die übrigen Knöpfe; deaktivierte Knöpfe ohne Hover; langer Statustext endet nach 160 px mit „…“; Knöpfe rücken im schmalen Fenster nach links und die Suche wird kürzer statt sich zu überlagern; Mindestbreite im Chat berücksichtigt Knöpfe und kleinste Suche (die Breitensperre durch den ausgeblendeten Kalender war schon behoben)
 - [x] `chat-unterhaltung` – Chat-Unterhaltung, Kontaktliste, Status: übersprungen: braucht ein Chat-Konto (Netzwerk) – im Testprofil nicht vorhanden
 
 ## 10. Einstellungen (`einstellungen`)

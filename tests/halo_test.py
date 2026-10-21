@@ -3029,6 +3029,9 @@ def run_checks(m, version, profile, results):
           await probe("mail", () => toMail(), () => tm.currentAbout3Pane.document.getElementById("messagePane"));
           await probe("calendar", () => toCalendar(), () => d.getElementById("calendarDisplayBox"));
           await probe("settings", async () => { w.openPreferencesTab(); await wait(2000); }, () => tm.currentTabInfo.browser.contentDocument.getElementById("preferencesContainer"));
+          // Chat: früher sperrte der ausgeblendete Kalender die Breite (Fenster ließ sich nicht verkleinern)
+          await probe("chat", async () => { tm.openTab("chat", {}); await wait(1500); }, () => d.getElementById("conversationsBox"));
+          out.chat.inside = d.documentElement.getBoundingClientRect().width <= w.innerWidth + 1;
           w.resizeTo(1500, 900); await wait(800); await toMail();
           return out;''')
         # Adressbuch (Bearbeiten): schmales Fenster und weit gezogener Teiler –
@@ -3043,7 +3046,7 @@ def run_checks(m, version, profile, results):
           ab.detailsPane.isDirty = false; ad.getElementById("cancelEditButton").click(); await wait(300);
           tm.closeTab(tm.currentTabInfo); w.resizeTo(1500, 900); await wait(800); await toMail();
           return out;''')
-        ok = res["addressbook"]["inside"] and res["addressbook"]["min"] >= 560 and all(v["pane"] is not None and v["pane"] >= v["min"] - 1 and v["window"] > 600 for v in res.values())
+        ok = res["chat"]["window"] < 1400 and res["chat"]["inside"] and res["addressbook"]["inside"] and res["addressbook"]["min"] >= 560 and all(v["pane"] is not None and v["pane"] >= v["min"] - 1 and v["window"] > 600 for v in res.values())
         return ok, f"{res}"
     check("Mindestbreiten: Fenster wird nicht schmaler als die Bereiche", min_widths, results)
 
@@ -3078,6 +3081,88 @@ def run_checks(m, version, profile, results):
               and res["inside"] and res["window"] > 600)
         return ok, f"{res}"
     check("Adressbuch ohne Auswahl: Fenster lässt sich verkleinern, Details danach mindestens so breit wie vorgegeben", ab_min_width_unselected, results)
+
+    def chat_toolbar():
+        # Chat ohne Konto: leerer Zustand ruhig (Info-Symbol in Tertiärgrau, Text 13 px grau,
+        # Knopf voll deckend und ohne Dauer-Fokusring); Statuskapsel mit 13-px-Text und flachem
+        # Punkt; deaktivierte Knöpfe ohne Hover; Knöpfe und Suche überlappen nie
+        res = m.js(r"""
+          const cs = el => w.getComputedStyle(el);
+          const colorOf = (value, prop = "color") => { const e = d.createElementNS("http://www.w3.org/1999/xhtml", "div"); e.style[prop] = value;
+            d.documentElement.append(e); const c = cs(e)[prop]; e.remove(); return c; };
+          const { IMServices } = ChromeUtils.importESModule("resource:///modules/IMServices.sys.mjs");
+          const gus = IMServices.core.globalUserStatus;
+          const q = s => d.querySelector(s);
+          const search = () => q('#unifiedToolbarContent > li[item-id="search-bar"]').getBoundingClientRect();
+          const out = {};
+          try {
+            w.resizeTo(1500, 900); await wait(800);
+            tm.openTab("chat", {}); await wait(1500);
+            // leerer Zustand: Gruppe voll deckend, Erklärtext 13 px grau, Knopf in Akzentfarbe, eigenes Info-Symbol in Tertiärgrau
+            const box = d.getElementById("noConvBox"), btn = d.getElementById("openIMAccountWizardButton");
+            let dim = []; for (let e = btn; e && !e.classList?.contains("im-placeholder-screen"); e = e.parentElement) { if (parseFloat(cs(e).opacity) < 1) dim.push(e.id || e.className); }
+            const desc = d.getElementById("noAccountDesc");
+            out.empty = { inner: cs(d.getElementById("noAccountInnerBox")).opacity, dim, descSize: cs(desc).fontSize,
+              descOk: cs(desc).color == colorOf("var(--mt-text-secondary)"), btnOk: cs(btn).backgroundColor == colorOf("var(--mt-accent)", "backgroundColor"),
+              icon: cs(box).backgroundImage.includes("mailcards/icons/info.svg"), stroke: cs(box).stroke == colorOf("var(--mt-text-tertiary)") };
+            // Standardknopf: nach dem Öffnen fokussiert, aber ohne Ring; per Tastatur mit Ring
+            out.focus = { active: d.activeElement === btn, fv: btn.matches(":focus-visible"), outline: cs(btn).outlineStyle };
+            // (Fenster nach vorn, sonst greift :focus-visible nicht)
+            w.focus(); await until(() => Services.focus.activeWindow == w, 3000); await wait(200);
+            btn.blur(); btn.focus({ focusVisible: true }); await wait(100);
+            out.focus.kbFv = btn.matches(":focus-visible");
+            out.focus.kbOutline = cs(btn).outlineStyle; out.focus.kbWidth = parseFloat(cs(btn).outlineWidth);
+            btn.blur();
+            // Statuskapsel: Text 13 px wie „Add Contact“, ohne Konto gedimmt wie die übrigen Knöpfe; flacher Punkt
+            const lbl = d.getElementById("statusMessageLabel"), type = d.getElementById("statusTypeIcon"), ic = q("#statusTypeIcon > .toolbarbutton-icon");
+            const addText = q("#button-add-buddy .toolbarbutton-text"), addIcon = q("#button-add-buddy .toolbarbutton-icon");
+            const ir = ic.getBoundingClientRect(), sr = q("#chat-status-selector").getBoundingClientRect();
+            out.status = { size: cs(lbl).fontSize, addSize: cs(addText).fontSize, disabled: type.hasAttribute("disabled"),
+              lblOp: cs(lbl).opacity, addTextOp: cs(addText).opacity, dotOp: cs(ic).opacity, addIconOp: cs(addIcon).opacity,
+              img: cs(ic).listStyleImage, w: ir.width, h: ir.height, mid: Math.abs((ir.top + ir.bottom) / 2 - (sr.top + sr.bottom) / 2),
+              online: cs(ic).backgroundColor == colorOf("var(--mt-status-online)", "backgroundColor") };
+            const st = type.getAttribute("status"); type.setAttribute("status", "away"); await wait(100);
+            out.status.away = cs(ic).backgroundColor == colorOf("var(--mt-status-away)", "backgroundColor");
+            type.setAttribute("status", st);
+            // deaktivierte Knöpfe (ohne Konto) werden beim Überfahren nicht dunkler
+            out.hover = {};
+            for (const id of ["button-join-chat", "button-add-buddy"]) {
+              const b = d.getElementById(id), base = cs(b).backgroundColor;
+              InspectorUtils.addPseudoClassLock(b, ":hover");
+              out.hover[id] = { disabled: b.hasAttribute("disabled"), same: cs(b).backgroundColor == base };
+              InspectorUtils.clearPseudoClassLocks(b);
+            }
+            // Knöpfe an der Kante der Mailliste, solange Platz ist
+            out.edge1500 = Math.round(d.getElementById("chat-view-toolbox").getBoundingClientRect().left);
+            // langer Statustext endet mit „…“; Knöpfe und Suche überlappen bei keiner Fensterbreite
+            gus.setStatus(Ci.imIStatusInfo.STATUS_AWAY, "I am currently away from the computer and will be back later. ".repeat(2));
+            await wait(1500);
+            out.long = { vb: Math.round(q("#chat-status-selector > vbox").getBoundingClientRect().width), to: cs(lbl).textOverflow, ox: cs(lbl).overflowX };
+            out.widths = {};
+            for (const W of [1500, 1280, 1150, 1000, 900]) {
+              w.resizeTo(W, 900); await wait(1200);
+              const tb = d.getElementById("chat-view-toolbox").getBoundingClientRect(), s = search(), lp = d.getElementById("listPaneBox").getBoundingClientRect();
+              out.widths[W] = { win: w.outerWidth, tbl: Math.round(tb.left), tbr: Math.round(tb.right), sl: Math.round(s.left), lpr: Math.round(lp.right), inner: w.innerWidth };
+            }
+          } finally {
+            gus.setStatus(Ci.imIStatusInfo.STATUS_AVAILABLE, "");
+            w.resizeTo(1500, 900); await wait(800); await toMail();
+          }
+          return out;""")
+        e, f, st, wd = res["empty"], res["focus"], res["status"], res["widths"]
+        empty_ok = (e["inner"] == "1" and not e["dim"] and e["descSize"] == "13px" and e["descOk"] and e["btnOk"]
+                    and e["icon"] and e["stroke"])
+        focus_ok = f["active"] and not f["fv"] and f["outline"] == "none" and f["kbOutline"] != "none" and f["kbWidth"] >= 2
+        status_ok = (st["size"] == "13px" == st["addSize"] and st["img"] == "none" and abs(st["w"] - 10) <= 0.5
+                     and abs(st["h"] - 10) <= 0.5 and st["mid"] <= 1 and st["online"] and st["away"]
+                     and (not st["disabled"] or (st["lblOp"] == st["addTextOp"] and st["dotOp"] == st["addIconOp"])))
+        hover_ok = all(v["same"] for v in res["hover"].values() if v["disabled"])
+        long_ok = res["long"]["vb"] <= 161 and res["long"]["to"] == "ellipsis" and res["long"]["ox"] == "hidden"
+        widths_ok = all(v["tbr"] + 4 <= v["sl"] and v["tbl"] >= v["lpr"] and v["tbr"] <= v["inner"] for v in wd.values())
+        edge_ok = abs(wd["1500"]["tbl"] - res["edge1500"]) <= 1
+        ok = empty_ok and focus_ok and status_ok and hover_ok and long_ok and widths_ok and edge_ok
+        return ok, f"{res}"
+    check("Chat: leerer Zustand ruhig ohne Dauer-Fokusring, Statuskapsel 13 px mit flachem Punkt, kein Hover auf deaktivierten Knöpfen, langer Statustext mit „…“, Knöpfe und Suche überlappen bei keiner Fensterbreite", chat_toolbar, results)
 
     def today_closed():
         # Today-Pane aus: keine graue Fläche oben rechts neben dem Knopf

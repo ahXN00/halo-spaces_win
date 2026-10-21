@@ -3191,7 +3191,17 @@ class CardEnhancer {
         }
         const slack = Math.max(0, width - min);
         // nie unter 800 px (dann wäre schon die Toolbar zu eng)
-        const value = Math.max(800, Math.round(w.innerWidth - slack));
+        let value = Math.max(800, Math.round(w.innerWidth - slack));
+        // Chat: Kontaktspalte + Chat-Knöpfe + kleinstes Suchfeld (40 px) + was
+        // rechts der Suche liegt müssen nebeneinander passen
+        if (tabmail?.currentTabInfo?.mode?.name == "chat") {
+          const lp = d.getElementById("listPaneBox")?.getBoundingClientRect();
+          const tb = d.getElementById("chat-view-toolbox")?.getBoundingClientRect();
+          const s = d.querySelector('#unifiedToolbarContent > li[item-id="search-bar"]')?.getBoundingClientRect();
+          if (lp?.width && tb?.width && s?.width) {
+            value = Math.max(value, Math.ceil(lp.right + 12 + tb.width + 12 + 40 + (w.innerWidth - s.right)));
+          }
+        }
         // nur bei echter Änderung schreiben (jedes Setzen gestaltet das Fenster neu)
         if (Math.abs((parseFloat(root.style.minWidth) || 0) - value) >= 2) {
           root.style.minWidth = `${value}px`;
@@ -3242,6 +3252,27 @@ class CardEnhancer {
     let sidebarTip = null;
     let newPopup = null;
     this.hookMinWindowWidth(w);
+    // Leerer Chat: Thunderbird fokussiert den Standardknopf („Get started“)
+    // per Skript, Gecko zeigt dann dauerhaft den Fokusring – Fokus behalten
+    // (Return löst ihn aus), den Ring aber nur bei Tastaturbedienung zeigen
+    const ch = w.chatHandler;
+    if (ch && typeof ch._updateFocus == "function" && !ch.__mcFocusHooked) {
+      const origFocus = ch._updateFocus;
+      ch._updateFocus = function (...args) {
+        const res = origFocus.apply(this, args);
+        const el = w.document.activeElement;
+        if (el?.matches?.(".im-placeholder-screen button") && el.matches(":focus-visible")) {
+          el.blur();
+          el.focus({ focusVisible: false });
+        }
+        return res;
+      };
+      ch.__mcFocusHooked = true;
+      this.restorers.push(() => {
+        ch._updateFocus = origFocus;
+        delete ch.__mcFocusHooked;
+      });
+    }
     log("main window", { tabs: w.document.getElementById("tabmail")?.tabInfo?.length ?? null });
     // Attribut „mc-mail“ am Hauptfenster, solange ein Mail-Tab vorne ist –
     // userChrome.css färbt Toolbar- und Tab-Leiste nur dann wie Apple Mail.
@@ -3404,6 +3435,19 @@ class CardEnhancer {
       if (toggle?.width) {
         edge = Math.max(edge, toggle.right + 12);
       }
+      // Chat: Knöpfe und Suche dürfen sich nie überlagern – erst die Suche bis
+      // 160 px kürzen, dann die Knöpfe nach links rücken (höchstens bis neben
+      // die Kontaktspalte), zuletzt die Suche bis 40 px kürzen (das Suchfeld
+      // steht rechtsbündig, seine rechte Kante bleibt beim Kürzen stehen)
+      if (tab.mode.name == "chat") {
+        const tb = d.getElementById("chat-view-toolbox")?.getBoundingClientRect();
+        const s = d.querySelector('#unifiedToolbarContent > li[item-id="search-bar"]')?.getBoundingClientRect();
+        if (tb?.width && s?.width) {
+          const sideEdge = Math.max(shift + (r.width ? r.right : 0) + 12, toggle?.width ? toggle.right + 12 : 0);
+          edge = Math.max(sideEdge, Math.min(edge, s.right - 12 - 160 - tb.width));
+          setBarVar(d, "--mc-chat-search-max", `${Math.max(40, Math.floor(s.right - (edge + tb.width) - 12))}px`);
+        }
+      }
       setBarVar(d, "--mc-tab-offset", `${Math.max(0, Math.round(edge - start))}px`);
       // dieselbe Kante im Fenster und die Toolbar-Zeile – für Leisten, die
       // in diese Zeile verlegt werden (Chat)
@@ -3445,7 +3489,8 @@ class CardEnhancer {
     this.sideEdgeUpdaters ??= new Set();
     this.sideEdgeUpdaters.add(updateSideEdge);
     const sideRO = new w.ResizeObserver(updateSideEdge);
-    for (const id of ["calSidebar", "listPaneBox", "tabmail-container"]) {
+    // (chat-view-toolbox: andere Breite der Chat-Knöpfe, z. B. neuer Statustext)
+    for (const id of ["calSidebar", "listPaneBox", "tabmail-container", "chat-view-toolbox"]) {
       const el = w.document.getElementById(id);
       if (el) {
         sideRO.observe(el);
