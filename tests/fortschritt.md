@@ -155,27 +155,27 @@ Vorher-Bilder: `tests/shots/tour/vorher/` (hell-*/dunkel-*), Paket `tests/shots/
 
 ## 6. Kalender und Today-Pane (`kalender`)
 
-- [ ] `kal-tag` – Kalender: Tag: offen
-- [ ] `kal-woche` – Kalender: Woche: offen
+- [x] `kal-tag` – Kalender: Tag: erledigt (Commit „Kalender: …“ (Runde 1)) – wie kal-woche: Tagesköpfe ganz sichtbar (Ganztags-Zeile nicht mehr über den Unterlängen), Ganztags-Termine einzeilig, Rasterlinien als Haarlinie
+- [x] `kal-woche` – Kalender: Woche: erledigt (Commit „Kalender: …“ (Runde 1)) – Tagesköpfe ganz sichtbar statt abgeschnittener Unterlängen („Mondav“): Höhe über den Innenabstand statt min-height, die Thunderbird für den Versatz der deckenden Ganztags-Zeile nicht mitmisst; Lang- oder Kurzform passend gewählt („Wed Oct 21“ statt „Wednesday Oct…“); Ganztags-Termine einzeilig mit „…“ statt zweizeilig (Zeile 23 statt 44 px hoch); Rasterlinien einheitlich als Haarlinie (keine 2-px-Linie neben der Zeitleiste und unter der Ganztags-Zeile, keine doppelte Linie rechts der ausgewählten Spalte). Verbinden mehrtägiger Ganztags-Termine zu einem Balken verworfen: jede Spalte hat einen eigenen deckenden Kopf, riskanter Umbau
 - [ ] `kal-mehrwochen` – Kalender: Mehrere Wochen: offen
 - [ ] `kal-monat` – Kalender: Monat: offen
-- [ ] `kal-woche-auswahl` – Woche mit ausgewähltem Termin: offen
+- [x] `kal-woche-auswahl` – Woche mit ausgewähltem Termin: erledigt (Commit „Kalender: …“ (Runde 1)) – ausgewählte Spalte ohne doppelte Linie rechts (Kopf und Stundenraster), sonst wie kal-woche
 - [ ] `kal-woche-leer` – Leere Woche: offen
-- [ ] `kal-schmal-1100` – Woche im schmalen Fenster (1100 px bzw. kleinste mögliche Breite): offen
+- [x] `kal-schmal-1100` – Woche im schmalen Fenster (1100 px bzw. kleinste mögliche Breite): erledigt (Commit „Kalender: …“ (Runde 1)) – Tagesköpfe bleiben in ihrer Spalte und enden mit „…“ statt ohne Auslassungszeichen abgeschnitten und vom nächsten Kopf überdeckt („Sun Oct 18“ über „Mon“); Ganztags-Termine einzeilig
 - [x] `kal-suche` – Kalender: Termine suchen (Liste oben): übersprungen: nicht erreichbar – von halo.spaces bewusst ausgeblendet (Suchliste gibt es in Apple Kalender nicht)
 - [ ] `kal-today-pane` – Today-Pane in der Mailansicht: offen
-- [ ] `kal-schnellfenster` – Kalender: Schnellfenster „Neuer Termin“: offen
-- [ ] `kal-schnellfenster-datum` – Schnellfenster: Datumsauswahl (Datumsfeld „Beginn“): offen
-- [ ] `kal-schnellfenster-auswahlliste` – Schnellfenster: aufgeklappte Auswahlliste „Wiederholen“: offen
+- [x] `kal-schnellfenster` – Kalender: Schnellfenster „Neuer Termin“: erledigt (Commit „Kalender: …“ (Runde 1)) – deckende Popover-Fläche ohne Rand wie das „+“-Popover (hell #FBFBFC, dunkel #2C2C2E, neue Variable --mt-popover-bg) statt navyblau mit bläulichem bzw. grauem Rand
+- [x] `kal-schnellfenster-datum` – Schnellfenster: Datumsauswahl (Datumsfeld „Beginn“): erledigt (Commit „Kalender: …“ (Runde 1)) – Datumsauswahl als ein Popover in derselben Fläche statt eckiger Innenfläche im Navy-Rahmen; Monatsknopf und „Clear“ ohne harten Rand mit 6 px Radius, ausgewählter Tag in Akzentfarbe; rote Wochenenden bleiben
+- [x] `kal-schnellfenster-auswahlliste` – Schnellfenster: aufgeklappte Auswahlliste „Wiederholen“: erledigt (Commit „Kalender: …“ (Runde 1)) – Zeilen der Auswahlliste ohne eigene Fläche (Thunderbird hinterlegte jede Zeile mit der Panelfarbe – mit der durchscheinenden Menüfläche entstanden Kacheln); gilt für alle Auswahllisten
 - [ ] `kal-schnellfenster-kalender` – Schnellfenster: Kalendermenü mit Farbpunkten: offen
-- [ ] `kal-neu-popover` – Today-Pane: „+“ → Neuer Termin / Neue Aufgabe: offen
+- [x] `kal-neu-popover` – Today-Pane: „+“ → Neuer Termin / Neue Aufgabe: erledigt (Commit „Kalender: …“ (Runde 1)) – Pfeil zeigt auf die Mitte des „+“ statt 240 px daneben (Popover um 28 px versetzt, Lage nach dem Öffnen gemessen, auch am Bildschirmrand)
 - [ ] `kal-termin-dialog` – Neuer Termin (Dialog): offen
-- [ ] `kal-termin-bearbeiten` – Termin bearbeiten (Ort, Beschreibung): offen
+- [x] `kal-termin-bearbeiten` – Termin bearbeiten (Ort, Beschreibung): erledigt (Commit „Kalender: …“ (Runde 1)) – Beschriftungen, Felder und Reiter 13 px statt 11 px, Beschreibung in der Systemschrift 13 px statt sans-serif 15 px (eigenes Benutzer-Stylesheet im Editor, landet nicht im gespeicherten Text); 10 px Abstand zwischen Beschriftung und Feld statt ca. 3 px
 - [ ] `kal-termin-erinnerung-menue` – Termin-Dialog: Erinnerung (Auswahl): offen
 - [ ] `kal-wiederholung-dialog` – Termin: benutzerdefinierte Wiederholung: offen
 - [ ] `kal-teilnehmer-dialog` – Termin: Teilnehmer einladen: offen
-- [ ] `kal-termin-datum` – Termin-Dialog: Datumsauswahl (Minimonat im Datumsfeld): offen
-- [ ] `kal-termin-uhrzeit` – Termin-Dialog: Uhrzeit-Raster (Stunden und Minuten): offen
+- [x] `kal-termin-datum` – Termin-Dialog: Datumsauswahl (Minimonat im Datumsfeld): erledigt (Commit „Kalender: …“ (Runde 1)) – Minimonat im Datumsfeld ruhig wie in der Seitenleiste: heute rot ohne blaues Kästchen, Auswahl in Akzentfarbe mit 6 px Radius, Kalenderwochen klein und grau statt fett in Lavendel, dunkel ohne Zinkgrau; Jahres- und Heute-Knöpfe bleiben
+- [x] `kal-termin-uhrzeit` – Termin-Dialog: Uhrzeit-Raster (Stunden und Minuten): erledigt (Commit „Kalender: …“ (Runde 1)) – Uhrzeit-Raster ohne Gitterlinien, runde Zellen (6 px), 13 px statt 8 pt, Auswahl in Akzentfarbe, „»“ ohne kantigen Rahmen
 - [ ] `kal-termin-kategorien` – Termin-Dialog: Kategorien (Auswahl mit Häkchen): offen
 - [ ] `kal-termin-privatsphaere` – Termin-Dialog: Symbolleiste „Privatsphäre“ (Menü): offen
 - [ ] `kal-termin-anhang-menue` – Termin-Dialog: Symbolleiste „Anhängen“ (Menü): offen
@@ -187,7 +187,7 @@ Vorher-Bilder: `tests/shots/tour/vorher/` (hell-*/dunkel-*), Paket `tests/shots/
 - [ ] `kal-eigenschaften` – Kalender-Eigenschaften: offen
 - [ ] `kal-neuer-kalender` – Neuer Kalender (Assistent): offen
 - [ ] `kal-wiederholung-frage` – Wiederholten Termin löschen: Nachfrage: offen
-- [ ] `kal-druck` – Kalender drucken (Druckvorschau): offen
+- [x] `kal-druck` – Kalender drucken (Druckvorschau): erledigt (Commit „Kalender: …“ (Runde 1)) – Minikalender „From“/„To“ wie in der Seitenleiste und so breit wie das Formular: Jahreszahl, Sa/So und Pfeile sichtbar, dunkel ohne hellgraue Knopfflächen
 - [ ] `kal-kontext-ansicht` – Kontextmenü: Kalenderansicht (leere Stelle): offen
 - [ ] `kal-kontext-termin` – Kontextmenü: Termin: offen
 - [ ] `kal-kontext-kalenderliste` – Kontextmenü: Kalenderliste: offen

@@ -829,11 +829,18 @@ calendar-week-view, calendar-day-view {
 /* kein display-Wert: Thunderbird blendet Lang- bzw. Kurzform per [hidden] aus */
 .day-column-heading > span {
   font-weight: 400 !important;
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
+}
+
+/* Kürzen mit „…“ erst, wenn eine Form ausgeblendet ist: Thunderbird misst
+   die Breite der Langform, während beide sichtbar sind – schrumpfte sie dabei
+   mit, wählte es die Langform auch dort, wo sie nicht passt („Wednesday Oct…“
+   statt „Wed Oct 21“) */
+.day-column-heading:has(> span[hidden]) > span:not([hidden]) {
   flex-shrink: 1 !important;
   min-width: 0 !important;
   overflow: hidden !important;
-  text-overflow: ellipsis !important;
-  white-space: nowrap !important;
 }
 
 /* heute: Überschrift rot wie bei Apple, keine blaue Fläche */

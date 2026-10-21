@@ -1744,10 +1744,13 @@ def calendar_checks(m, results):
           await toWeek();
           return cols().map(({ h, hc }) => { const a = h.getBoundingClientRect(), b = hc.getBoundingClientRect();
             const el = d.elementFromPoint(a.left + a.width / 2, a.bottom - 2);
-            return { height: Math.round(a.height * 10) / 10, gap: Math.round((b.top - a.bottom) * 10) / 10, hit: !!el && h.contains(el) }; });""")
-        ok = len(res) == 7 and all(c["gap"] >= -0.6 and c["hit"] and c["height"] >= 28 for c in res)
+            const sp = [...h.children].find(s => !s.hidden && s.getBoundingClientRect().width > 0);
+            return { height: Math.round(a.height * 10) / 10, gap: Math.round((b.top - a.bottom) * 10) / 10, hit: !!el && h.contains(el),
+                     text: sp?.textContent, cut: !sp || sp.scrollWidth > sp.clientWidth + 0.5 }; });""")
+        # breites Fenster: Thunderbird wählt Lang- oder Kurzform so, dass sie passt – kein Kopf mit „…“ (früher „Wednesday Oct…“)
+        ok = len(res) == 7 and all(c["gap"] >= -0.6 and c["hit"] and c["height"] >= 28 and not c["cut"] for c in res)
         return ok, f"{res}"
-    check("Woche: Tagesköpfe ganz sichtbar (Ganztags-Zeile beginnt darunter, Unterlängen nicht abgeschnitten)", week_heads, results)
+    check("Woche: Tagesköpfe ganz sichtbar (Ganztags-Zeile beginnt darunter, Unterlängen nicht abgeschnitten, passende Lang- oder Kurzform ohne „…“)", week_heads, results)
 
     def narrow_heads():
         # schmales Fenster: Kopf nicht breiter als seine Spalte (Thunderbirds Inline-Mindestbreite), Text endet mit „…“
