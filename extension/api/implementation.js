@@ -170,6 +170,7 @@ const DE = {
   "No tasks match your search.": "Keine Aufgabe passt zur Suche.",
   "No Tasks": "Keine Aufgaben",
   "Tasks you add appear here.": "Neue Aufgaben erscheinen hier.",
+  "No tasks in this view.": "Keine Aufgaben in dieser Ansicht.",
   "No Task List Selected": "Keine Aufgabenliste ausgewählt",
   "Choose a calendar that supports tasks in the sidebar.": "Wähle links einen Kalender, der Aufgaben unterstützt.",
   "Searching": "Suche",
@@ -324,6 +325,7 @@ const FR = {
   "No tasks match your search.": "Aucune tâche ne correspond à la recherche.",
   "No Tasks": "Aucune tâche",
   "Tasks you add appear here.": "Les tâches ajoutées apparaissent ici.",
+  "No tasks in this view.": "Aucune tâche dans cette vue.",
   "No Task List Selected": "Aucune liste de tâches sélectionnée",
   "Choose a calendar that supports tasks in the sidebar.": "Choisissez dans la barre latérale un calendrier qui prend en charge les tâches.",
   "Searching": "Recherche",
@@ -478,6 +480,7 @@ const ES = {
   "No tasks match your search.": "Ninguna tarea coincide con la búsqueda.",
   "No Tasks": "No hay tareas",
   "Tasks you add appear here.": "Las tareas que añadas aparecerán aquí.",
+  "No tasks in this view.": "No hay tareas en esta vista.",
   "No Task List Selected": "No hay ninguna lista de tareas seleccionada",
   "Choose a calendar that supports tasks in the sidebar.": "Elige en la barra lateral un calendario que admita tareas.",
   "Searching": "Buscando",
@@ -632,6 +635,7 @@ const IT = {
   "No tasks match your search.": "Nessuna attività corrisponde alla ricerca.",
   "No Tasks": "Nessuna attività",
   "Tasks you add appear here.": "Le attività aggiunte appaiono qui.",
+  "No tasks in this view.": "Nessuna attività in questa vista.",
   "No Task List Selected": "Nessun elenco attività selezionato",
   "Choose a calendar that supports tasks in the sidebar.": "Scegli nella barra laterale un calendario che supporta le attività.",
   "Searching": "Ricerca",
@@ -5445,6 +5449,7 @@ class CardEnhancer {
       const tree = d.getElementById("calendar-task-tree");
       const field = d.getElementById("view-task-edit-field");
       const filter = d.getElementById("task-text-filter-field");
+      const group = d.getElementById("task-tree-filtergroup");
       if (!tree?.mTreeView || d.getElementById("mcTasksEmpty")) {
         return;
       }
@@ -5466,9 +5471,14 @@ class CardEnhancer {
         const noList = !!field && (field.readOnly || field.getAttribute("aria-disabled") == "true");
         // Suchfeld oben gefüllt: es gibt Aufgaben, nur passt keine zur Suche
         const searching = !!filter?.value.trim();
+        // Filter „Überfällig“/„Erledigt“: neue Aufgaben erscheinen dort gerade
+        // nicht – dann nicht „Neue Aufgaben erscheinen hier“ versprechen
+        const shown = tree.getAttribute("filterValue") || group?.value || "all";
+        const narrowed = ["overdue", "completed"].includes(shown);
         title.textContent = searching ? tr("No Results") : noList ? tr("No Task List Selected") : tr("No Tasks");
         text.textContent = searching ? tr("No tasks match your search.")
-          : noList ? tr("Choose a calendar that supports tasks in the sidebar.") : tr("Tasks you add appear here.");
+          : noList ? tr("Choose a calendar that supports tasks in the sidebar.")
+          : narrowed ? tr("No tasks in this view.") : tr("Tasks you add appear here.");
         box.hidden = !empty;
       };
       let pending = false;
@@ -5497,6 +5507,9 @@ class CardEnhancer {
       }
       const mo = field ? new w.MutationObserver(later) : null;
       mo?.observe(field, { attributes: true, attributeFilter: ["readonly", "aria-disabled"] });
+      // Filterwechsel (Seitenleiste oder Menü „Ansicht → Aufgaben“) setzt filterValue am Baum
+      const moFilter = new w.MutationObserver(later);
+      moFilter.observe(tree, { attributes: true, attributeFilter: ["filterValue"] });
       update();
       this.restorers.push(() => {
         for (const [name, orig] of wrapped) {
@@ -5507,6 +5520,7 @@ class CardEnhancer {
           filter?.removeEventListener(type, later);
         }
         mo?.disconnect();
+        moFilter.disconnect();
         box.remove();
       });
     };

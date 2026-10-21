@@ -3511,6 +3511,7 @@ def run_checks(m, version, profile, results):
           const saved = await c.addItem(todo);
           const done = saved.clone(); done.isCompleted = true; const savedDone = await c.modifyItem(done, saved);
           const prevAccent = Services.prefs.getStringPref("ui.accentcolor", "");
+          const comp = cal.view.getCompositeCalendar(w), prevDefault = comp.defaultCalendar;
           try {
             // Filter „Alle“, damit die erledigte Aufgabe in der Liste steht
             d.getElementById("opt_all_filter")?.click(); await pause(800);
@@ -3545,6 +3546,17 @@ def run_checks(m, version, profile, results):
             f.value = ""; f.dispatchEvent(new w.Event("input", { bubbles: true })); f.dispatchEvent(new w.Event("command"));
             await till(() => tree.mTreeView.rowCount > 0, 4000); await pause(400);
             out.cleared = [tree.mTreeView.rowCount, box.hidden, box.querySelector(".mc-te-title")?.textContent];
+            // Filter „Überfällig“ ohne Treffer: kein Versprechen „Tasks you add appear here.“ (dort erscheinen sie nicht);
+            // Filter „Offen“ ohne Treffer (nur die erledigte Aufgabe): wieder der Normaltext
+            // beschreibbarer Standardkalender, sonst gilt „No Task List Selected“ vorrangig
+            comp.defaultCalendar = c; w.taskEdit?.callOnBlurForAllTaskFields(); await pause(300);
+            d.getElementById("opt_overdue_filter")?.click();
+            await till(() => tree.mTreeView.rowCount == 0, 4000); await pause(500);
+            out.overdue = [tree.mTreeView.rowCount, !box.hidden, box.querySelector(".mc-te-title")?.textContent, box.querySelector(".mc-te-text")?.textContent];
+            d.getElementById("opt_open_filter")?.click();
+            await till(() => tree.mTreeView.rowCount == 0 && tree.getAttribute("filterValue") == "open", 4000); await pause(500);
+            out.open = [tree.mTreeView.rowCount, !box.hidden, box.querySelector(".mc-te-text")?.textContent];
+            d.getElementById("opt_all_filter")?.click(); await till(() => tree.mTreeView.rowCount > 0, 4000); await pause(300);
             // niedriges Fenster: Kalenderliste mindestens drei Zeilen, Monatskalender ausgeblendet oder ganz darunter
             w.resizeTo(1136, 700); await pause(1000);
             const list = d.getElementById("calendar-list"), mm = d.getElementById("minimonth-pane");
@@ -3555,6 +3567,7 @@ def run_checks(m, version, profile, results):
           } finally {
             if (prevAccent) Services.prefs.setStringPref("ui.accentcolor", prevAccent); else Services.prefs.clearUserPref("ui.accentcolor");
             d.getElementById("opt_throughcurrent_filter")?.click();
+            if (prevDefault) { comp.defaultCalendar = prevDefault; w.taskEdit?.callOnBlurForAllTaskFields(); }
             w.resizeTo(1500, 900);
             try { await c.deleteItem(savedDone); } catch {}
           }
@@ -3568,11 +3581,14 @@ def run_checks(m, version, profile, results):
         ok_split = res.get("splitNone") == "none" and res["splitSel"][0] != "none" and res["splitSel"][1]
         se, cl = res.get("search") or [], res.get("cleared") or []
         ok_search = len(se) == 4 and se[0] == 0 and se[1] and se[2] == "No Results" and se[3] == "No tasks match your search." and cl[0] > 0 and cl[1]
+        ov, op = res.get("overdue") or [], res.get("open") or []
+        ok_filter = (len(ov) == 4 and ov[0] == 0 and ov[1] and ov[2] == "No Tasks" and ov[3] == "No tasks in this view."
+                     and len(op) == 3 and op[0] == 0 and op[1] and op[2] == "Tasks you add appear here.")
         lo, hi = res.get("low") or {}, res.get("high") or {}
         ok_low = lo.get("h", 0) >= 90 and (lo.get("mm") == "none" or lo["mmTop"] >= lo["listBottom"]) and hi.get("mm") != "none" and hi.get("vis")
-        ok = bool(ok_static and ok_circle and ok_split and ok_search and ok_low)
-        return ok, f"statisch={ok_static} kreis={ok_circle} teiler={ok_split} suche={ok_search} niedrig={ok_low} {res}"
-    check("Aufgaben: erledigt aufrecht mit Kreis in Akzentfarbe, ohne Auswahl kein Teiler, „No Results“ bei Suche, Kalenderliste im niedrigen Fenster", tasks_list_states, results)
+        ok = bool(ok_static and ok_circle and ok_split and ok_search and ok_filter and ok_low)
+        return ok, f"statisch={ok_static} kreis={ok_circle} teiler={ok_split} suche={ok_search} filter={ok_filter} niedrig={ok_low} {res}"
+    check("Aufgaben: erledigt aufrecht mit Kreis in Akzentfarbe, ohne Auswahl kein Teiler, „No Results“ bei Suche, Leeranzeige je Filter, Kalenderliste im niedrigen Fenster", tasks_list_states, results)
 
     def tasks_hint():
         # Eingabehinweis bleibt grau, auch wenn Thunderbird ihn ohne focus/blur neu setzt (Wechsel des Standardkalenders);
