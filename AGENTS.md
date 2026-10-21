@@ -78,6 +78,31 @@ python3 tests/halo_test.py --xpi dist/….xpi --shots /tmp/shots --keep
 Zum Ausprobieren im echten Profil: `./install.sh` (Thunderbird vorher beenden).
 Das betrifft das echte Profil des Nutzers – nur auf ausdrücklichen Wunsch.
 
+## Aufgabenliste (GitHub Project)
+
+Features und Bugs stehen im Board „halo.spaces Aufgaben“:
+<https://github.com/users/sruf79/projects/1> (Nummer `1`, Besitzer `sruf79`).
+Die Einträge sind Entwürfe im Board (Draft Issues), keine Issues im Repo.
+
+- Titel auf Deutsch im Commit-Stil: `Bereich: kurze Beschreibung`
+  (z. B. `Kalender: …`, `Mailliste: …`), Details in den Text.
+- Felder: `Typ` (Feature/Bug) und `Status` (Todo/In Progress/Done) – bei
+  neuen Einträgen beide setzen. Erledigtes auf `Done`, nicht löschen.
+- Zugriff über `gh` mit Scope `project`; in Cloud-Sessions kommt das Token
+  aus `GH_TOKEN` der Umgebung `neosys.cat.cloud`.
+
+```bash
+gh project item-list 1 --owner sruf79 --limit 200 --format json      # lesen
+gh project item-create 1 --owner sruf79 --title "Bereich: …" --body "…" --format json   # neu, liefert die id
+gh project item-edit --project-id PVT_kwHODEPpks4BoBQw --id <id> \
+  --field-id <Feld> --single-select-option-id <Option>                 # Typ/Status setzen
+```
+
+| Feld | Feld-ID | Optionen |
+|---|---|---|
+| Typ | `PVTSSF_lAHODEPpks4BoBQwzhmjN8Y` | Feature `39bb4253`, Bug `ff678ae2` |
+| Status | `PVTSSF_lAHODEPpks4BoBQwzhmjN5E` | Todo `f75ad846`, In Progress `47fc9ee4`, Done `98236657` |
+
 ## Testrechner (Mac mini)
 
 Ein Mac mini übernimmt die Tests rund um die Uhr (Anleitung: `tests/MAC-MINI.md`):
