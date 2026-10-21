@@ -3,10 +3,13 @@
 # Dazu macOS auf dem eigenen Mac mini (Job mac, nur bei Push auf main oder von Hand).
 name: Test
 
+# Reine Doku- und Store-Änderungen lösen keinen Lauf aus (spart vor allem den Mac mini)
 on:
   push:
     branches: [main]
+    paths-ignore: ['**.md', 'store/**', 'LICENSE']
   pull_request:
+    paths-ignore: ['**.md', 'store/**', 'LICENSE']
   workflow_dispatch:
 
 jobs:
