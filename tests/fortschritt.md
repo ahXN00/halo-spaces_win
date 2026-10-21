@@ -240,47 +240,47 @@ Vorher-Bilder: `tests/shots/tour/vorher/` (hell-*/dunkel-*), Paket `tests/shots/
 
 ## 10. Einstellungen (`einstellungen`)
 
-- [ ] `einst-allgemein-1` – Einstellungen: Allgemein (1/4): offen
-- [ ] `einst-allgemein-2` – Einstellungen: Allgemein (2/4, gescrollt): offen
-- [ ] `einst-allgemein-3` – Einstellungen: Allgemein (3/4, gescrollt): offen
-- [ ] `einst-allgemein-4` – Einstellungen: Allgemein (4/4, gescrollt): offen
-- [ ] `einst-darstellung-1` – Einstellungen: Darstellung (1/2): offen
-- [ ] `einst-darstellung-2` – Einstellungen: Darstellung (2/2, gescrollt): offen
-- [ ] `einst-verfassen-1` – Einstellungen: Verfassen (1/3): offen
-- [ ] `einst-verfassen-2` – Einstellungen: Verfassen (2/3, gescrollt): offen
-- [ ] `einst-verfassen-3` – Einstellungen: Verfassen (3/3, gescrollt): offen
-- [ ] `einst-datenschutz-1` – Einstellungen: Datenschutz & Sicherheit (1/4): offen
-- [ ] `einst-datenschutz-2` – Einstellungen: Datenschutz & Sicherheit (2/4, gescrollt): offen
-- [ ] `einst-datenschutz-3` – Einstellungen: Datenschutz & Sicherheit (3/4, gescrollt): offen
-- [ ] `einst-datenschutz-4` – Einstellungen: Datenschutz & Sicherheit (4/4, gescrollt): offen
-- [ ] `einst-chat-1` – Einstellungen: Chat (1/2): offen
-- [ ] `einst-chat-2` – Einstellungen: Chat (2/2, gescrollt): offen
-- [ ] `einst-kalender-1` – Einstellungen: Kalender (1/3): offen
-- [ ] `einst-kalender-2` – Einstellungen: Kalender (2/3, gescrollt): offen
-- [ ] `einst-kalender-3` – Einstellungen: Kalender (3/3, gescrollt): offen
-- [ ] `einst-qr` – Einstellungen: Export für Mobilgeräte: offen
-- [ ] `einst-suche` – Einstellungen: Suche („font“): offen
+- [x] `einst-allgemein-1` – Einstellungen: Allgemein (1/4): erledigt (Commit „Einstellungen: …“ (Runde 1, Befunde 0–11)) – Grundschrift 13 px statt 12,1 px (Erklärtexte 12 px), Kategorienamen der Seitenleiste 13 px und bündig mit „Account Settings“/„Add-ons“
+- [x] `einst-allgemein-2` – Einstellungen: Allgemein (2/4, gescrollt): erledigt (Commit „Einstellungen: …“ (Runde 1, Befunde 0–11)) – Grundschrift 13 px statt 12,1 px (Erklärtexte 12 px), Kategorienamen der Seitenleiste 13 px und bündig mit „Account Settings“/„Add-ons“
+- [x] `einst-allgemein-3` – Einstellungen: Allgemein (3/4, gescrollt): erledigt (Commit „Einstellungen: …“ (Runde 1, Befunde 0–11)) – Grundschrift 13 px statt 12,1 px (Erklärtexte 12 px), Kategorienamen der Seitenleiste 13 px und bündig mit „Account Settings“/„Add-ons“; Dateitypen-Tabelle mit Haarlinie und 8 px, Kopf ohne Blaugrau (scrollt weiter); Schlagwortliste mit Haarlinie und 8 px
+- [x] `einst-allgemein-4` – Einstellungen: Allgemein (4/4, gescrollt): erledigt (Commit „Einstellungen: …“ (Runde 1, Befunde 0–11)) – Grundschrift 13 px statt 12,1 px (Erklärtexte 12 px), Kategorienamen der Seitenleiste 13 px und bündig mit „Account Settings“/„Add-ons“; Schlagwortliste mit Haarlinie und 8 px
+- [x] `einst-darstellung-1` – Einstellungen: Darstellung (1/2): erledigt (Commit „Einstellungen: …“ (Runde 1, Befunde 0–11)) – Grundschrift 13 px statt 12,1 px (Erklärtexte 12 px), Kategorienamen der Seitenleiste 13 px und bündig mit „Account Settings“/„Add-ons“
+- [x] `einst-darstellung-2` – Einstellungen: Darstellung (2/2, gescrollt): erledigt (Commit „Einstellungen: …“ (Runde 1, Befunde 0–11)) – Grundschrift 13 px statt 12,1 px (Erklärtexte 12 px), Kategorienamen der Seitenleiste 13 px und bündig mit „Account Settings“/„Add-ons“
+- [x] `einst-verfassen-1` – Einstellungen: Verfassen (1/3): erledigt (Commit „Einstellungen: …“ (Runde 1, Befunde 0–11)) – Grundschrift 13 px statt 12,1 px (Erklärtexte 12 px), Kategorienamen der Seitenleiste 13 px und bündig mit „Account Settings“/„Add-ons“; Zahlenfeld („5 minutes“) ohne macOS-Feldrahmen, mit Haarlinie wie die Textfelder; erste Karte ohne leeren Abstandhalter
+- [x] `einst-verfassen-2` – Einstellungen: Verfassen (2/3, gescrollt): erledigt (Commit „Einstellungen: …“ (Runde 1, Befunde 0–11)) – Grundschrift 13 px statt 12,1 px (Erklärtexte 12 px), Kategorienamen der Seitenleiste 13 px und bündig mit „Account Settings“/„Add-ons“; Filelink-Liste mit Haarlinie und 8 px
+- [x] `einst-verfassen-3` – Einstellungen: Verfassen (3/3, gescrollt): erledigt (Commit „Einstellungen: …“ (Runde 1, Befunde 0–11)) – Grundschrift 13 px statt 12,1 px (Erklärtexte 12 px), Kategorienamen der Seitenleiste 13 px und bündig mit „Account Settings“/„Add-ons“
+- [x] `einst-datenschutz-1` – Einstellungen: Datenschutz & Sicherheit (1/4): erledigt (Commit „Einstellungen: …“ (Runde 1, Befunde 0–11)) – Grundschrift 13 px statt 12,1 px (Erklärtexte 12 px), Kategorienamen der Seitenleiste 13 px und bündig mit „Account Settings“/„Add-ons“
+- [x] `einst-datenschutz-2` – Einstellungen: Datenschutz & Sicherheit (2/4, gescrollt): erledigt (Commit „Einstellungen: …“ (Runde 1, Befunde 0–11)) – Grundschrift 13 px statt 12,1 px (Erklärtexte 12 px), Kategorienamen der Seitenleiste 13 px und bündig mit „Account Settings“/„Add-ons“; kein leerer Abstandhalter zwischen „Passwords“/„Spam“ und Karte
+- [x] `einst-datenschutz-3` – Einstellungen: Datenschutz & Sicherheit (3/4, gescrollt): erledigt (Commit „Einstellungen: …“ (Runde 1, Befunde 0–11)) – Grundschrift 13 px statt 12,1 px (Erklärtexte 12 px), Kategorienamen der Seitenleiste 13 px und bündig mit „Account Settings“/„Add-ons“
+- [x] `einst-datenschutz-4` – Einstellungen: Datenschutz & Sicherheit (4/4, gescrollt): erledigt (Commit „Einstellungen: …“ (Runde 1, Befunde 0–11)) – Grundschrift 13 px statt 12,1 px (Erklärtexte 12 px), Kategorienamen der Seitenleiste 13 px und bündig mit „Account Settings“/„Add-ons“; Sicheres DNS als Karte, Optionen/Status als Kästen mit Haarlinie und 10 px, Aufklapp-Pfeile sichtbar als flacher Symbolknopf statt leerer grauer Scheibe
+- [x] `einst-chat-1` – Einstellungen: Chat (1/2): erledigt (Commit „Einstellungen: …“ (Runde 1, Befunde 0–11)) – Grundschrift 13 px statt 12,1 px (Erklärtexte 12 px), Kategorienamen der Seitenleiste 13 px und bündig mit „Account Settings“/„Add-ons“
+- [x] `einst-chat-2` – Einstellungen: Chat (2/2, gescrollt): erledigt (Commit „Einstellungen: …“ (Runde 1, Befunde 0–11)) – Grundschrift 13 px statt 12,1 px (Erklärtexte 12 px), Kategorienamen der Seitenleiste 13 px und bündig mit „Account Settings“/„Add-ons“
+- [x] `einst-kalender-1` – Einstellungen: Kalender (1/3): erledigt (Commit „Einstellungen: …“ (Runde 1, Befunde 0–11)) – Grundschrift 13 px statt 12,1 px (Erklärtexte 12 px), Kategorienamen der Seitenleiste 13 px und bündig mit „Account Settings“/„Add-ons“; erste Karte ohne leeres Band über „Date Text Format“; Kategorienliste mit Haarlinie und 8 px
+- [x] `einst-kalender-2` – Einstellungen: Kalender (2/3, gescrollt): erledigt (Commit „Einstellungen: …“ (Runde 1, Befunde 0–11)) – Grundschrift 13 px statt 12,1 px (Erklärtexte 12 px), Kategorienamen der Seitenleiste 13 px und bündig mit „Account Settings“/„Add-ons“; Kategorienliste mit Haarlinie und 8 px
+- [x] `einst-kalender-3` – Einstellungen: Kalender (3/3, gescrollt): erledigt (Commit „Einstellungen: …“ (Runde 1, Befunde 0–11)) – Grundschrift 13 px statt 12,1 px (Erklärtexte 12 px), Kategorienamen der Seitenleiste 13 px und bündig mit „Account Settings“/„Add-ons“
+- [x] `einst-qr` – Einstellungen: Export für Mobilgeräte: erledigt (Commit „Einstellungen: …“ (Runde 1, Befunde 0–11)) – Karten ohne Rahmen und ohne Marineblau (dunkel), Unterkasten auf der Fensterfläche, Hinweise 11 px grau statt 9,35 px, „Select all“ ohne Versalien und Fettdruck
+- [x] `einst-suche` – Einstellungen: Suche („font“): erledigt (Commit „Einstellungen: …“ (Runde 1, Befunde 0–11)) – Grundschrift 13 px statt 12,1 px (Erklärtexte 12 px), Kategorienamen der Seitenleiste 13 px und bündig mit „Account Settings“/„Add-ons“
 - [ ] `einst-menue-darstellung` – Einstellungen: Auswahl Hell/Dunkel (halo.spaces): offen
 - [ ] `einst-menue-schrift` – Einstellungen: Auswahlliste Schriftart: offen
 - [ ] `einst-menue-woche` – Einstellungen: Auswahlliste Wochenbeginn: offen
-- [ ] `einst-dlg-schriften` – Einstellungen → Schriftarten (erweitert): offen
+- [x] `einst-dlg-schriften` – Einstellungen → Schriftarten (erweitert): erledigt (Runde 1, Befunde 0–11: geprüft, nichts geändert – Fläche (Befund 2) war schon neutral (--mt-sheet), Haken sichtbar)
 - [ ] `einst-dlg-dock` – Einstellungen → Dock-Optionen: offen
-- [ ] `einst-dlg-benachrichtigung` – Einstellungen → Benachrichtigung anpassen: offen
-- [ ] `einst-dlg-schlagwort` – Einstellungen → Neues Schlagwort: offen
-- [ ] `einst-dlg-empfangsbestaetigung` – Einstellungen → Empfangsbestätigungen: offen
+- [x] `einst-dlg-benachrichtigung` – Einstellungen → Benachrichtigung anpassen: erledigt (Runde 1, Befunde 0–11: geprüft, nichts geändert – Haken in Unterdialogen (Befund 0) war schon behoben – chrome://-Haken sichtbar)
+- [x] `einst-dlg-schlagwort` – Einstellungen → Neues Schlagwort: erledigt (Runde 1, Befunde 0–11: geprüft, nichts geändert – Fläche (Befund 2) war schon neutral (--mt-sheet))
+- [x] `einst-dlg-empfangsbestaetigung` – Einstellungen → Empfangsbestätigungen: erledigt (Runde 1, Befunde 0–11: geprüft, nichts geändert – Trennlinie (Befund 9) und blaugraue Fläche (Befund 2) waren schon behoben – Haarlinie, neutrale Fläche --mt-sheet)
 - [ ] `einst-dlg-updates` – Einstellungen → Update-Chronik: offen
 - [ ] `einst-dlg-verbindung` – Einstellungen → Verbindungs-Einstellungen: offen
-- [ ] `einst-dlg-offline` – Einstellungen → Offline-Einstellungen: offen
+- [x] `einst-dlg-offline` – Einstellungen → Offline-Einstellungen: erledigt (Commit „Einstellungen: …“ (Runde 1, Befunde 0–11)) – Optionen „Send messages …“/„download …“ untereinander und einzeilig statt dreizeilig umbrochen
 - [ ] `einst-dlg-sprachen` – Einstellungen → Sprachen: offen
 - [ ] `einst-dlg-anhang-erinnerung` – Einstellungen → Anhang-Erinnerung: Schlüsselwörter: offen
-- [ ] `einst-dlg-fremdinhalte` – Einstellungen → Ausnahmen für entfernte Inhalte: offen
-- [ ] `einst-dlg-cookie-ausnahmen` – Einstellungen → Cookie-Ausnahmen: offen
-- [ ] `einst-dlg-cookies` – Einstellungen → Cookies: offen
-- [ ] `einst-dlg-passwoerter` – Einstellungen → Gespeicherte Passwörter: offen
-- [ ] `einst-dlg-zertifikate` – Einstellungen → Zertifikatverwaltung: offen
-- [ ] `einst-dlg-geraete` – Einstellungen → Kryptographie-Module: offen
+- [x] `einst-dlg-fremdinhalte` – Einstellungen → Ausnahmen für entfernte Inhalte: erledigt (Commit „Einstellungen: …“ (Runde 1, Befunde 0–11)) – Liste mit Haarlinie und 8 px statt hartem Rahmen (dunkel hell), Spaltenkopf ohne helle Linien
+- [x] `einst-dlg-cookie-ausnahmen` – Einstellungen → Cookie-Ausnahmen: erledigt (Commit „Einstellungen: …“ (Runde 1, Befunde 0–11)) – Liste mit Haarlinie und 8 px statt hartem Rahmen (dunkel hell), Spaltenkopf ohne helle Linien
+- [x] `einst-dlg-cookies` – Einstellungen → Cookies: erledigt (Commit „Einstellungen: …“ (Runde 1, Befunde 0–11)) – Liste mit Haarlinie und 8 px statt hartem Rahmen (dunkel hell), Spaltenkopf ohne helle Linien
+- [x] `einst-dlg-passwoerter` – Einstellungen → Gespeicherte Passwörter: erledigt (Commit „Einstellungen: …“ (Runde 1, Befunde 0–11)) – Liste mit Haarlinie und 8 px statt hartem Rahmen (dunkel hell), Spaltenkopf ohne helle Linien
+- [x] `einst-dlg-zertifikate` – Einstellungen → Zertifikatverwaltung: erledigt (Commit „Einstellungen: …“ (Runde 1, Befunde 0–11)) – Liste mit Haarlinie und 8 px statt hartem Rahmen (dunkel hell), Spaltenkopf ohne helle Linien
+- [x] `einst-dlg-geraete` – Einstellungen → Kryptographie-Module: erledigt (Commit „Einstellungen: …“ (Runde 1, Befunde 0–11)) – Liste mit Haarlinie und 8 px statt hartem Rahmen (dunkel hell), Spaltenkopf ohne helle Linien
 - [ ] `einst-dlg-kategorie` – Einstellungen → Kalender: Neue Kategorie: offen
-- [ ] `einst-dlg-systemintegration` – Einstellungen → Systemintegration (Standardprogramm): offen
+- [x] `einst-dlg-systemintegration` – Einstellungen → Systemintegration (Standardprogramm): erledigt (Runde 1, Befunde 0–11: geprüft, nichts geändert – Trennlinie (Befund 9) war schon Haarlinie)
 - [ ] `einst-dlg-verzeichnisse` – Einstellungen → Verfassen → LDAP-Verzeichnisse verwalten: offen
 - [ ] `einst-dlg-junk-protokoll` – Einstellungen → Datenschutz → Junk-Protokoll anzeigen: offen
 - [x] `einst-dlg-hauptpasswort` – Einstellungen → Hauptpasswort ändern: übersprungen: verlangt vorher eine macOS-Anmeldung (Systempasswort) – bewusst ausgelassen

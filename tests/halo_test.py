@@ -4341,6 +4341,10 @@ def run_checks(m, version, profile, results):
             checkbox: checked ? [cs(checked).appearance, cs(checked).borderTopLeftRadius] : null,
             radio: radio ? [cs(radio).appearance, cs(radio).borderTopLeftRadius] : null,
             tileCheck: tileCheck ? cs(tileCheck).display : null, number: num ? cs(num).appearance : null };
+          // Zahlenfeld ohne macOS-Feldrahmen: dieselbe Haarlinie und Fläche wie die Textfelder
+          const txt = [...cd.querySelectorAll("#paneDeck input[type=text]")][0];
+          out.numberLook = num && txt ? [cs(num).borderTopColor == cs(txt).borderTopColor,
+            cs(num).backgroundColor == cs(cd.getElementById("preferencesContainer")).backgroundColor] : null;
           tm.closeTab(tm.currentTabInfo);
           w.MsgAccountManager(null);
           // je nach Konto die Liste (Ausgangsserver) oder ein Eingabefeld (Kontoseite)
@@ -4350,10 +4354,74 @@ def run_checks(m, version, profile, results):
           tm.closeTab(tm.currentTabInfo);
           return out;''')
         ok = (res["width"] <= 800 and abs(res["offset"]) <= 4 and res["checkbox"] == ["none", "4px"]
-              and res["radio"] and res["radio"][0] == "none" and res["tileCheck"] == "none" and res["number"] == "textfield"
+              and res["radio"] and res["radio"][0] == "none" and res["tileCheck"] == "none" and res["number"] == "none" and res["numberLook"] == [True, True]
               and res["accountList"] in (["richlistbox", "12px"], ["input", "7px"]))
         return ok, f"{res}"
     check("Einstellungen: Inhalt mittig, Kästchen und Optionsfelder wie macOS, Kacheln, Kontoeinstellungen", settings_style, results)
+
+    def settings_cards():
+        # Einstellungen: Grundschrift 13 px, Seitenleiste bündig, Listen mit Haarlinie, sicheres DNS als Karte,
+        # Export für Mobilgeräte ohne Marineblau, leere Abstandhalter weg, Unterdialoge (Offline, Bäume)
+        res = m.js(r'''
+          w.resizeTo(1500, 950); w.openPreferencesTab("paneGeneral"); await wait(2500);
+          const cw = tm.currentTabInfo.browser.contentWindow; const cd = cw.document;
+          const cs = e => e.ownerDocument.defaultView.getComputedStyle(e);
+          const vis = sel => [...cd.querySelectorAll(sel)].find(e => e.getBoundingClientRect().width);
+          const win = cs(cd.getElementById("preferencesContainer")).backgroundColor;
+          const line = cs(cd.querySelector("#paneDeck input[type=text]")).borderTopColor;
+          const left = el => { const r = cd.createRange(); r.selectNodeContents(el); return r.getBoundingClientRect().left; };
+          const out = {};
+          const lab = vis("#paneDeck checkbox .checkbox-label"); const desc = vis("#paneDeck description");
+          const fontLab = cd.getElementById("defaultFont")?.parentNode.querySelector("label");
+          out.font = [lab && cs(lab).fontSize, fontLab && cs(fontLab).fontSize, desc && cs(desc).fontSize];
+          const cn = cd.querySelector("#category-general .category-name"), fl = cd.querySelector("#accountButton .sidebar-footer-label");
+          out.side = [Math.abs(left(cn) - left(fl)) <= 1, cs(cn).fontSize, cs(fl).fontSize];
+          out.lists = ["tagList", "handlersView"].map(id => { const e = cd.getElementById(id);
+            return [cs(e).borderTopLeftRadius, parseFloat(cs(e).borderTopWidth) <= 1, cs(e).borderTopColor == line]; });
+          out.handlers = [cs(cd.querySelector("#handlersTable thead > tr")).backgroundColor == win, cs(cd.getElementById("handlersView")).overflowY];
+          // Offline-Einstellungen: Optionen untereinander, jede einzeilig
+          const ob = cd.getElementById("offlineSettingsButton"); ob.scrollIntoView({ block: "center" }); ob.click();
+          let fr = await until(() => [...cd.querySelectorAll(".dialogFrame")].find(f => f.contentDocument?.readyState == "complete" && f.contentDocument.location.href.includes("offline")), 8000);
+          if (fr) { await wait(800); const dd = fr.contentDocument;
+            const rs = [...dd.querySelectorAll("#whengoingOnlinestate radio")].map(r => r.getBoundingClientRect());
+            out.offline = [rs.length > 1 && rs.every((r, i) => !i || (r.top >= rs[i - 1].bottom - 1 && Math.abs(r.left - rs[0].left) < 1)),
+              Math.max(...[...dd.querySelectorAll("#whengoingOnlinestate radio, #whengoingOfflinestate radio")].map(r => r.getBoundingClientRect().height))];
+            cw.gSubDialog._topDialog?.close(); await wait(600); }
+          cw.gotoPref("panePrivacy"); await wait(1500);
+          const arrow = cd.getElementById("dohDefaultArrow"); const icon = arrow?.querySelector(".button-icon");
+          // -moz-context-properties steht nicht im berechneten Stil – stroke ist ohne die Regel „none“
+          out.doh = arrow ? [cs(icon).stroke == cs(arrow).color, cs(arrow).backgroundColor,
+            Math.round(arrow.getBoundingClientRect().width) <= 28] : null;
+          const box = cd.getElementById("dohBox"), opt = cd.getElementById("dohOptionDefault");
+          out.dohBox = [cs(box).borderTopLeftRadius, cs(box).backgroundColor != "rgba(0, 0, 0, 0)",
+            cs(opt).borderTopLeftRadius, parseFloat(cs(opt).borderTopWidth) <= 1, cs(opt).borderTopColor == line];
+          out.pwSep = cs(cd.getElementById("privacyPasswordsCategory").nextElementSibling).display;
+          // Cookie-Ausnahmen: Baum mit Haarlinie und 8 px
+          const cb = cd.getElementById("cookieExceptions"); cb.scrollIntoView({ block: "center" }); cb.click();
+          fr = await until(() => [...cd.querySelectorAll(".dialogFrame")].find(f => f.contentDocument?.readyState == "complete" && f.contentDocument.querySelector("tree")), 8000);
+          if (fr) { await wait(800); const dd = fr.contentDocument; const t = dd.querySelector("tree");
+            const probe = dd.createElementNS("http://www.w3.org/1999/xhtml", "div"); probe.style.color = "var(--mt-pane-line)"; dd.documentElement.append(probe);
+            out.tree = [cs(t).borderTopLeftRadius, parseFloat(cs(t).borderTopWidth) <= 1, cs(t).borderTopColor == cs(probe).color];
+            probe.remove(); cw.gSubDialog._topDialog?.close(); await wait(600); }
+          cw.gotoPref("paneCalendar"); await wait(1500);
+          const fs = vis("#paneDeck fieldset"); const dp = cd.getElementById("datePrefsBox");
+          out.cal = [fs.firstElementChild.localName, cs(fs.firstElementChild).display, Math.round(dp.getBoundingClientRect().top - dp.closest("fieldset").getBoundingClientRect().top)];
+          cw.gotoPref("paneQrExport"); await wait(1500);
+          const qr = cd.getElementById("qrExportIntroForm"); const rgb = cs(qr).backgroundColor.match(/[\d.]+/g).map(Number);
+          out.qr = [cs(qr).borderTopStyle, cs(qr).borderTopLeftRadius, Math.abs(rgb[0] - rgb[2]) <= 3,
+            cs(cd.querySelector(".qr-small")).fontSize, cs(cd.getElementById("qrExportSelectAll")).textTransform];
+          tm.closeTab(tm.currentTabInfo);
+          return out;''')
+        ok = (res["font"] == ["13px", "13px", "12px"] and res["side"] == [True, "13px", "13px"]
+              and res["lists"] == [["8px", True, True]] * 2 and res["handlers"] == [True, "auto"]
+              and res.get("offline") and res["offline"][0] is True and res["offline"][1] <= 24
+              and res["doh"] and res["doh"][0] and res["doh"][1] == "rgba(0, 0, 0, 0)" and res["doh"][2]
+              and res["dohBox"] == ["12px", True, "10px", True, True] and res["pwSep"] == "none"
+              and res.get("tree") == ["8px", True, True]
+              and res["cal"][:2] == ["separator", "none"] and res["cal"][2] <= 20
+              and res["qr"] == ["none", "12px", True, "11px", "none"])
+        return ok, f"{res}"
+    check("Einstellungen: Schrift 13 px, Seitenleiste bündig, Listen/DNS/Export als ruhige Karten, Offline-Dialog untereinander", settings_cards, results)
 
     def no_placeholder_in_ui():
         # Platzhalter für blockierte Bilder nur in Mails – nicht in der Oberfläche (Lupe im Suchfeld)

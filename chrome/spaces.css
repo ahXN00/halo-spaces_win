@@ -2258,6 +2258,15 @@ search-bar {
   font-weight: 500 !important;
 }
 
+/* Kategorienamen 13 px und ohne Thunderbirds Einrückung (common-shared.css) –
+   Text bündig mit „Kontoeinstellungen“ und „Add-ons“ darunter, der Abstand
+   zum Symbol kommt nur aus der Lücke der Zeile */
+#categories .category-name {
+  font-size: 13px !important;
+  padding-inline-start: 0 !important;
+  margin: 0 !important;
+}
+
 /* farbige Symbolkacheln wie in den Systemeinstellungen */
 #categories .category-icon,
 .sidebar-footer-list .sidebar-footer-icon {
@@ -2313,6 +2322,12 @@ search-bar {
   background: var(--mt-window) !important;
 }
 
+/* Grundschrift 13 px wie Knöpfe und Auswahllisten (Thunderbird: 12,1 px) –
+   sonst stehen in einer Zeile zwei Größen nebeneinander */
+#paneDeck {
+  font-size: 13px !important;
+}
+
 #paneDeck h1 {
   font-size: 22px !important;
   font-weight: 700 !important;
@@ -2346,8 +2361,101 @@ search-bar {
   clear: both !important;
 }
 
+/* Leere Abstandhalter von Thunderbird: über dem ersten Eintrag einer Karte
+   (Kalender) und zwischen Überschrift und Karte (Passwörter, Junk) */
+#paneDeck fieldset > separator:first-child,
+#paneDeck .subcategory + separator:not(.thin) {
+  display: none !important;
+}
+
+/* Sicheres DNS ist ein div statt fieldset: dieselbe Karte, Optionen und
+   Status als ruhige Kästen mit Haarlinie statt hartem 1-px-Rahmen */
+#paneDeck #dohBox {
+  padding: 12px 16px 14px !important;
+  border-radius: 12px !important;
+  background: color-mix(in srgb, var(--mt-text) 2.5%, var(--mt-window)) !important;
+}
+
+#paneDeck #dohBox > legend {
+  font-size: 13px !important;
+  font-weight: 600 !important;
+  color: var(--mt-text) !important;
+}
+
+#paneDeck .privacy-detailedoption.info-box-container {
+  border: var(--mt-hairline) solid var(--mt-pane-line) !important;
+  border-radius: 10px !important;
+  background: var(--mt-window) !important;
+}
+
+/* Listen und Tabellen (Schlagwörter, Dateitypen, Kategorien, Filelink, Bäume
+   in Unterdialogen) mit Haarlinie und 8 px wie Listen in Dialogen; overflow
+   bleibt, #handlersView ist selbst der Scroll-Container */
+#paneDeck richlistbox,
+#paneDeck #handlersView,
+:root[subdialog] tree {
+  border: var(--mt-hairline) solid var(--mt-pane-line) !important;
+  border-radius: 8px !important;
+  background-color: var(--mt-window) !important;
+}
+
+/* Kopf der Dateitypen-Tabelle deckend (sticky) auf der Seitenfläche statt
+   Blaugrau, Spalten mit Haarlinien */
+#handlersTable thead > tr {
+  background-color: var(--mt-window) !important;
+}
+
+#handlersTable thead > tr > th {
+  border-block-end: var(--mt-hairline) solid var(--mt-separator) !important;
+}
+
+#handlersTable thead > tr > th:not(:first-child) {
+  border-inline-start: var(--mt-hairline) solid var(--mt-separator) !important;
+}
+
+:root[subdialog] tree > treecols {
+  appearance: none !important;
+  background: transparent !important;
+  border-bottom: var(--mt-hairline) solid var(--mt-separator) !important;
+}
+
+:root[subdialog] tree > treecols > treecol {
+  /* ohne appearance und Schatten zeichnet Thunderbird harte Kopfzellen-Linien */
+  appearance: none !important;
+  box-shadow: none !important;
+  background: transparent !important;
+  /* Spaltentrenner als Haarlinie, die Linie unten kommt von treecols */
+  border-color: var(--mt-separator) !important;
+  border-block-end: none !important;
+}
+
+/* Export für Mobilgeräte wie die übrigen Karten: ohne Rahmen und ohne
+   Marineblau im Dunkelmodus, Hinweise 11 px grau, „Alle auswählen“ normal */
+#qrExportContent .qr-panel {
+  border: none !important;
+  border-radius: 12px !important;
+  background: color-mix(in srgb, var(--mt-text) 2.5%, var(--mt-window)) !important;
+  color: var(--mt-text) !important;
+}
+
+#qrExportContent .qr-subpanel {
+  border: none !important;
+  border-radius: 8px !important;
+  background: var(--mt-window) !important;
+}
+
+#qrExportContent .qr-small {
+  font-size: 11px !important;
+  color: var(--mt-text-secondary) !important;
+}
+
+#qrExportSelectAll {
+  text-transform: none !important;
+  font-weight: 400 !important;
+}
+
 /* Knöpfe, Auswahllisten und Felder im Apple-Stil */
-#paneDeck :is(button:not(.close-icon, .icon-only, [type="checkbox"]), menulist) {
+#paneDeck :is(button:not(.close-icon, .icon-only, [type="checkbox"], .arrowhead), menulist) {
   min-height: 28px !important;
   padding-inline: 14px !important;
   border: none !important;
@@ -2358,8 +2466,30 @@ search-bar {
   font-size: 13px !important;
 }
 
-#paneDeck :is(button:not(.close-icon, .icon-only, [type="checkbox"]), menulist):not([disabled]):hover {
+#paneDeck :is(button:not(.close-icon, .icon-only, [type="checkbox"], .arrowhead), menulist):not([disabled]):hover {
   background-color: var(--mt-control-hover) !important;
+}
+
+/* Aufklapp-Pfeile beim sicheren DNS: flacher Symbolknopf statt grauer
+   Scheibe; der Pfeil (nav-down-12.svg) zeichnet mit context-stroke */
+#paneDeck .arrowhead.doh-expand-section {
+  min-width: 24px !important;
+  min-height: 24px !important;
+  padding: 0 !important;
+  border: none !important;
+  border-radius: 6px !important;
+  background-color: transparent !important;
+  color: var(--mt-text-secondary) !important;
+}
+
+#paneDeck .arrowhead.doh-expand-section:hover {
+  background-color: var(--mt-hover) !important;
+}
+
+#paneDeck .arrowhead.doh-expand-section .button-icon {
+  -moz-context-properties: fill, stroke !important;
+  fill: currentColor !important;
+  stroke: currentColor !important;
 }
 
 #paneDeck :is(input[type="text"], input[type="number"], input[type="url"], input:not([type]), textarea, search-textbox) {
@@ -2397,6 +2527,11 @@ search-bar {
 
 #paneDeck :is(description, .tip-caption, label.indent) {
   color: var(--mt-text-secondary) !important;
+}
+
+/* Erklärtexte bewusst etwas kleiner als die 13-px-Grundschrift */
+#paneDeck :is(description, .tip-caption) {
+  font-size: 12px !important;
 }
 
 /* ---------- Kästchen und Optionsfelder im macOS-Stil (überall) ----------
@@ -2477,12 +2612,13 @@ radio[selected] > .radio-check,
 }
 
 /* Zahlenfelder (z. B. „5 Minuten“ im Chat) wie die übrigen Felder: ohne
-   Systempfeile, Wert mittig */
+   Systempfeile, Wert mittig; appearance: none, sonst zeichnet macOS seinen
+   eigenen Feldrahmen statt der Haarlinie */
 #paneDeck input[type="number"],
 input[type="number"].size2,
 input[type="number"].size3,
 input[type="number"].size4 {
-  appearance: textfield !important;
+  appearance: none !important;
   min-height: 26px !important;
   padding-inline: 8px !important;
   text-align: center !important;
@@ -2490,6 +2626,11 @@ input[type="number"].size4 {
   border-radius: 7px !important;
   background-color: var(--mt-window) !important;
   color: var(--mt-text) !important;
+}
+
+#paneDeck input[type="number"]::-moz-number-spin-box,
+input[type="number"]:is(.size2, .size3, .size4)::-moz-number-spin-box {
+  display: none !important;
 }
 
 /* Auswahllisten: überall derselbe feine Pfeil (auch Tagesbeginn/-ende im Kalender) */
@@ -2861,7 +3002,7 @@ addon-page-header h1,
    sie über das Fenster hinauslaufen) */
 #FormatToolbar {
   flex-wrap: wrap !important;
-  row-gap: 2px !important;
+  row-gap: 0 !important;
 }
 
 @media (max-width: 680px) {
@@ -4023,6 +4164,16 @@ dialog separator.groove:not([orient="vertical"]) {
   height: var(--mt-hairline) !important;
   min-height: 0 !important;
   background: var(--mt-pane-line) !important;
+}
+
+/* Offline-Einstellungen: die waagerechten Optionsgruppen brachen im schmalen
+   Dialog jede Beschriftung dreizeilig um – untereinander wie bei Apple.
+   Raster statt flex-direction: xul.css erzwingt für orient="horizontal"
+   flex-direction: row mit !important (Agent-Stilblatt, nicht überschreibbar) */
+#OfflineSettingsDialog radiogroup[orient="horizontal"] {
+  display: grid !important;
+  justify-items: start !important;
+  row-gap: 0 !important;
 }
 
 /* Rückfragen dunkel ohne violettgrauen Farbstich (Firefox-Inhaltsfarbe) –
