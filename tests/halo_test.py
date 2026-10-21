@@ -1825,11 +1825,13 @@ def calendar_checks(m, results):
             }
             const sd = d.getElementById("ContentSelectDropdown")?.menupopup;
             d.notifyUserGestureActivation(); f.repeat.showPicker();
+            // Diagnose, falls die Auswahlliste nicht messbar aufgeht (bisher nur unter macOS)
+            out.selectInfo = { os: Services.appinfo.OS, dropdown: !!sd, repeatVisible: vis(f.repeat) };
             if (sd && await isOpen(sd)) {
               await pause(300);
               out.select = [...sd.children].filter(x => x.localName == "menuitem" && x.getAttribute("_moz-menuactive") != "true" && vis(x)).map(x => csOf(x).backgroundColor);
               await shutPop(sd);
-            }
+            } else { out.selectInfo.state = sd?.state ?? null; }
           } finally { await shutPop(qp); }
           return out;""")
         if not res.get("open"):
@@ -1857,7 +1859,10 @@ def calendar_checks(m, results):
             const box = np.querySelector(".mc-pop"), b = box.getBoundingClientRect(), a = btn.getBoundingClientRect();
             const arrow = b.left + parseFloat(csOf(box, "::before").left) + 7, mid = a.left + a.width / 2;
             const r = { open: true, diff: Math.round(arrow - mid), inL: Math.round(arrow - b.left), inR: Math.round(b.right - arrow), bg: csOf(box).backgroundColor,
-                        overButton: arrow >= a.left + 4 && arrow <= a.right - 4 };
+                        overButton: arrow >= a.left + 4 && arrow <= a.right - 4,
+                        // Diagnose in Bildschirmkoordinaten: Bildschirm, Fenster, Popover und Knopf
+                        screen: [w.screen.availLeft, w.screen.availWidth], win: [w.screenX, w.outerWidth],
+                        panel: (o => [Math.round(o.left), Math.round(o.width)])(np.getOuterScreenRect()), btnX: Math.round(w.mozInnerScreenX + a.left) };
             await shutPop(np); return r; };
           w.moveTo(0, 0); w.resizeTo(1500, 900); out.left = await measure();
           // rechter Fensterrand am Bildschirmrand (wie maximiert): Gecko schiebt das Popover nach links
