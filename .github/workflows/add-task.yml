@@ -32,7 +32,7 @@ jobs:
     steps:
       - name: Add item to project
         env:
-          GH_TOKEN: ${{ secrets.PROJECT_TOKEN }}
+          GH_TOKEN: ${{ secrets.HALO_SPACES_TASKS_TOKEN }}
           TITLE: ${{ inputs.title }}
           BODY: ${{ inputs.body }}
           TYPE: ${{ inputs.type }}
