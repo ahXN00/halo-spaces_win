@@ -4570,6 +4570,48 @@ def run_checks(m, version, profile, results):
         return ok, f"{res}"
     check("Kontoeinstellungen: Fußzeile einzeilig, Fläche --mt-window, Abstände Überschrift/Karten, Junk-Adressbücher, SMTP-Port, Archiv-Beispiel", account_pages, results)
 
+    def account_wizards():
+        # Konto-Assistenten (Feed, Newsgruppen, Chat): Knöpfe flach ohne Rahmen, 13 px, 28 px hoch und lesbar
+        # (dunkel war „Cancel“ weiß auf #8F8F9D), Felder mit 7 px, Chat-Netzliste mit Haarlinie und 8 px
+        res = m.js(r"""
+          const rgba = c => { const v = (String(c).match(/-?[\d.]+(?:e-?\d+)?/g) || []).map(Number); const k = String(c).startsWith("color(") ? 255 : 1;
+            return [v[0] * k, v[1] * k, v[2] * k, v.length > 3 ? v[3] : 1]; };
+          const over = (fg, bg) => fg.slice(0, 3).map((x, i) => x * fg[3] + bg[i] * (1 - fg[3])).concat(1);
+          const lum = c => { const [r, g, b] = c.slice(0, 3).map(x => { x /= 255; return x <= 0.03928 ? x / 12.92 : ((x + 0.055) / 1.055) ** 2.4; }); return 0.2126 * r + 0.7152 * g + 0.0722 * b; };
+          const contrast = (a, b) => { const [x, y] = [lum(a), lum(b)].sort((p, q) => q - p); return Math.round((x + 0.05) / (y + 0.05) * 100) / 100; };
+          const out = {};
+          // nicht modal öffnen (wie Thunderbird, aber ohne „modal“), damit das Skript weiterläuft
+          for (const [name, url] of [["feed", "chrome://messenger-newsblog/content/feedAccountWizard.xhtml"],
+                                     ["news", "chrome://messenger/content/AccountWizard.xhtml"],
+                                     ["chat", "chrome://messenger/content/chat/imAccountWizard.xhtml"]]) {
+            const ww = w.openDialog(url, "_blank", "chrome,titlebar,centerscreen,dialog=no");
+            await until(() => ww.document?.readyState == "complete" && ww.document.querySelector("wizard"), 10000);
+            if (!ww.document?.querySelector("wizard")) { out[name] = "nicht offen"; ww.close(); continue; }
+            await wait(800);
+            const wd = ww.document, wz = wd.querySelector("wizard"), cs = e => ww.getComputedStyle(e);
+            const b = wz.getButton("cancel"), s = cs(b), bg = rgba(cs(wd.documentElement).backgroundColor);
+            const i = wd.querySelector("wizardpage:not([hidden]) input:not([type=checkbox], [type=radio])") || wd.querySelector("input:not([type=checkbox], [type=radio])");
+            const r = { contrast: contrast(over(rgba(s.color), over(rgba(s.backgroundColor), bg)), over(rgba(s.backgroundColor), bg)),
+              border: s.borderTopWidth, font: s.fontSize, h: Math.round(b.getBoundingClientRect().height),
+              var: cs(wz).getPropertyValue("--button-border-color").trim(), input: i ? cs(i).borderTopLeftRadius : null };
+            const pl = wd.getElementById("protolist");
+            if (pl) { const it = pl.querySelector("richlistitem[selected]") || pl.querySelector("richlistitem");
+              if (it && !it.selected) { pl.selectedItem = it; await wait(200); }
+              r.list = [cs(pl).borderTopLeftRadius, rgba(cs(pl).borderTopColor)[3], it ? cs(it).borderTopLeftRadius : null]; }
+            out[name] = r;
+            ww.close(); await wait(400);
+          }
+          return out;""")
+        ok = True
+        for name in ("feed", "news", "chat"):
+            r = res.get(name)
+            ok = ok and isinstance(r, dict) and r["contrast"] >= 4.5 and r["border"] == "0px" and r["font"] == "13px" \
+                and r["h"] >= 27 and r["var"] == "transparent" and r["input"] == "7px"
+        c = res.get("chat")
+        ok = ok and isinstance(c, dict) and c.get("list") and c["list"][0] == "8px" and c["list"][1] <= 0.15 and c["list"][2] == "6px"
+        return ok, f"{res}"
+    check("Konto-Assistenten: Knöpfe flach und lesbar, Felder 7 px, Chat-Netzliste mit Haarlinie und 8 px", account_wizards, results)
+
     def no_placeholder_in_ui():
         # Platzhalter für blockierte Bilder nur in Mails – nicht in der Oberfläche (Lupe im Suchfeld)
         res = m.js('''

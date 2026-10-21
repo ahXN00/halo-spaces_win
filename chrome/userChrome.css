@@ -6634,7 +6634,8 @@ addon-page-header h1,
    alle .button-Knöpfe und die Knöpfe in Dialogen (OK/Abbrechen usw.);
    am Dialog-Element selbst nochmals, weil Thunderbird es dort neu setzt */
 :root,
-dialog {
+dialog,
+wizard {
   /* Felder nutzen dieselbe Variable: 7 px; Knöpfe werden unten eigens zur Kapsel */
   --button-border-radius: 7px !important;
   --button-border-color: transparent !important;
@@ -6659,9 +6660,38 @@ dialog {
 }
 /* Dialog-Knöpfe liegen im Schatten-DOM: extension/parts.css */
 
-/* Eingabefelder und Auswahllisten in Dialogen */
-dialog :is(input:not([type="checkbox"], [type="radio"], [type="color"], [type="range"], [type="file"]), textarea),
-dialog search-textbox {
+/* Konto-Assistenten (Feed, Newsgruppen, Chat, <wizard> ohne <dialog>): Knöpfe
+   flach wie in den Dialogen statt Toolkit-Grau mit Rahmen – dunkel war
+   „Cancel“ weiß auf #8F8F9D kaum lesbar. Sie liegen im Schatten-DOM des
+   wizard ohne ::part; das User-Sheet erreicht sie trotzdem, aber nur ohne
+   Vorfahren-Selektor (der Schatten-DOM unterbricht die Kette) */
+button.wizard-button {
+  appearance: none !important;
+  border: none !important;
+  box-shadow: none !important;
+  background-color: var(--mt-control) !important;
+  color: var(--mt-text) !important;
+  font-size: 13px !important;
+  min-height: 28px !important;
+  padding-inline: 16px !important;
+}
+
+button.wizard-button:not([disabled]):hover {
+  background-color: var(--mt-control-hover) !important;
+}
+
+button.wizard-button[default]:not([disabled]) {
+  background-color: var(--mt-accent) !important;
+  color: var(--mt-accent-text) !important;
+}
+
+button.wizard-button[disabled] {
+  opacity: 0.45 !important;
+}
+
+/* Eingabefelder und Auswahllisten in Dialogen und Assistenten */
+:is(dialog, wizard) :is(input:not([type="checkbox"], [type="radio"], [type="color"], [type="range"], [type="file"]), textarea),
+:is(dialog, wizard) search-textbox {
   /* 28 px samt Innenabstand und Rand – so hoch wie Auswahllisten daneben;
      content-box, weil .narrow-Felder (4em, z. B. Tabelle einfügen) sonst
      zu schmal würden */
@@ -6684,7 +6714,7 @@ dialog search-textbox {
   background-color: var(--mt-sheet) !important;
 }
 
-dialog :is(input, textarea):focus {
+:is(dialog, wizard) :is(input, textarea):focus {
   outline: none !important;
   border-color: var(--mt-accent) !important;
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--mt-accent) 22%, transparent) !important;
@@ -6700,7 +6730,7 @@ dialog menulist {
 
 /* Listen in Dialogen (z. B. Vorschläge der Rechtschreibprüfung): ohne
    appearance zeichnet macOS sonst seinen harten, eckigen Rahmen */
-dialog richlistbox {
+:is(dialog, wizard) richlistbox {
   appearance: none !important;
   border: var(--mt-hairline) solid var(--mt-pane-line) !important;
   border-radius: 8px !important;
@@ -6711,16 +6741,21 @@ dialog richlistbox {
 /* Auswahl abgerundet in Akzentfarbe (unfokussiert grau) – nur in reinen
    Textlisten: die Zeilen im Filter- und Suchdialog enthalten Menülisten
    und Felder (searchDialog.css setzt dort bewusst color: inherit) */
-dialog richlistbox:not(:where(#searchTermList, #filterActionList)) > richlistitem {
+:is(dialog, wizard) richlistbox:not(:where(#searchTermList, #filterActionList)) > richlistitem {
   border-radius: 6px !important;
 }
 
-dialog richlistbox:not(:where(#searchTermList, #filterActionList)) > richlistitem[selected] {
+/* Chat-Assistent: Netzliste mit Luft wie in Apples Listen */
+wizard richlistbox > richlistitem {
+  padding: 4px 6px !important;
+}
+
+:is(dialog, wizard) richlistbox:not(:where(#searchTermList, #filterActionList)) > richlistitem[selected] {
   background-color: var(--mt-selected-unfocused) !important;
   color: var(--mt-text) !important;
 }
 
-dialog richlistbox:not(:where(#searchTermList, #filterActionList)):focus > richlistitem[selected] {
+:is(dialog, wizard) richlistbox:not(:where(#searchTermList, #filterActionList)):focus > richlistitem[selected] {
   background-color: var(--mt-accent) !important;
   color: var(--mt-accent-text) !important;
 }
