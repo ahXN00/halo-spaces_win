@@ -421,6 +421,14 @@ calendar-minimonth:not(#calMinimonth, #today-minimonth, #from-minimonth, #to-min
   margin-block-start: 11px !important;
 }
 
+/* Windows/Linux: die Systemschrift ist dort höher, mit 11 px stünde
+   „Repeat“ 1,5 px unter der Mitte der Liste */
+@media not (-moz-platform: macos) {
+  #calendar-event-dialog-recurrence .recurrence-pattern-hbox-label {
+    margin-block-start: 9.5px !important;
+  }
+}
+
 #calendar-event-dialog-recurrence input.input-inline {
   box-sizing: border-box !important;
   height: 28px !important;
@@ -2403,6 +2411,15 @@ search-bar {
 #paneDeck #defaultFontSize {
   min-width: 72px !important;
   max-width: max-content !important;
+}
+
+/* Windows/Linux: mit der breiteren Systemschrift ragte die Zeile im schmalen
+   Fenster über den Rand – dort darf sie umbrechen („Advanced…“ darunter) */
+@media not (-moz-platform: macos) {
+  #paneDeck #fontSettings {
+    flex-wrap: wrap !important;
+    row-gap: 6px !important;
+  }
 }
 
 /* Leere Abstandhalter von Thunderbird: über dem ersten Eintrag einer Karte
@@ -4644,6 +4661,22 @@ dialog separator.groove:not([orient="vertical"]) {
   flex: 2 !important;
   min-width: 260px !important;
   margin-inline-end: 8px !important;
+}
+
+/* Windows/Linux: mit der breiteren Systemschrift ragte die Tabelle der
+   Erinnerungen im schmalen Fenster über den Rand – Beschriftungen umbrechen */
+@media not (-moz-platform: macos) {
+  #alarm-defaults-table td > label {
+    white-space: normal !important;
+  }
+}
+
+/* Windows/Linux: die Liste hat dort die größere Standardschrift (11 pt),
+   der längste Name passte nicht in die 260 px – 13 px wie im übrigen Design */
+@media not (-moz-platform: macos) {
+  #device_tree {
+    font-size: 13px !important;
+  }
 }
 
 /* Rückfragen dunkel ohne violettgrauen Farbstich (Firefox-Inhaltsfarbe) –

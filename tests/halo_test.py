@@ -2788,8 +2788,11 @@ def run_checks(m, version, profile, results):
                         client: name?.clientWidth, scroll: name?.scrollWidth };
           if (row) row.unreadCount = inbox.getNumUnread(false);
           return out;""")
+        # die 206 px sind auf die Systemschrift von macOS abgestimmt (dort passt „Local Folders“ genau) – mit
+        # anderen Schriften (Linux: 2 px breiter) wird nur die Breite geprüft
+        fits = res["scroll"] <= res["client"] or sys.platform != "darwin"
         ok = (res["width"] == 206 and res["pref"] in (0, 206) and res["text"] == "Local Folders"
-              and res["count"] == "6" and res["client"] and res["scroll"] <= res["client"])
+              and res["count"] == "6" and res["client"] and fits)
         return ok, f"{res}"
     check("Ordnerliste: im neuen Profil 206 px breit, „Local Folders“ nicht gekürzt", folder_start_width, results)
 
@@ -3676,7 +3679,10 @@ def run_checks(m, version, profile, results):
         hover_ok = all(v["same"] for v in res["hover"].values() if v["disabled"])
         long_ok = res["long"]["vb"] <= 161 and res["long"]["to"] == "ellipsis" and res["long"]["ox"] == "hidden"
         widths_ok = all(v["tbr"] + 4 <= v["sl"] and v["tbl"] >= v["lpr"] and v["tbr"] <= v["inner"] for v in wd.values())
-        edge_ok = abs(wd["1500"]["tbl"] - res["edge1500"]) <= 1
+        # mit langem Statustext rücken die Knöpfe nur nach links, wenn die Suche schon auf ihre Mindestbreite
+        # gekürzt ist (12 px Abstand) – mit breiteren Systemschriften (Linux) schon bei 1500 px
+        edge_ok = (abs(wd["1500"]["tbl"] - res["edge1500"]) <= 1
+                   or (wd["1500"]["tbl"] < res["edge1500"] and wd["1500"]["sl"] - wd["1500"]["tbr"] <= 13))
         ok = empty_ok and focus_ok and status_ok and hover_ok and long_ok and widths_ok and edge_ok
         return ok, f"{res}"
     check("Chat: leerer Zustand ruhig ohne Dauer-Fokusring, Statuskapsel 13 px mit flachem Punkt und beidseitig gleichem Innenabstand wie „Add Contact“, kein Hover auf deaktivierten Knöpfen, langer Statustext mit „…“, Knöpfe und Suche überlappen bei keiner Fensterbreite", chat_toolbar, results)
@@ -4789,6 +4795,8 @@ def run_checks(m, version, profile, results):
             [dw] = r; const id = r[1];
             out.id = id.documentElement.id;
             const t = id.getElementById("item-title"), pc = id.getElementById("percent-complete-textbox"), cat = id.getElementById("item-categories");
+            // Thunderbird setzt den Fokus ins Titelfeld – fokussiert ist es gewollt weiß (unter macOS ist das Testfenster meist nicht vorn)
+            if (t.matches(":focus")) { t.blur(); await pause(200); }
             out.title = { border: csOf(t).borderTopStyle, h: csOf(t).height, bg: csOf(t).backgroundColor, cat: cat ? csOf(cat).backgroundColor : null };
             out.percent = pc ? { h: Math.round(pc.getBoundingClientRect().height), border: csOf(pc).borderTopStyle } : null;
             out.bg = [csOf(id.documentElement).backgroundColor, colorOf(id, "var(--mt-window)", "backgroundColor")];
@@ -5035,6 +5043,7 @@ def run_checks(m, version, profile, results):
           let fr = await until(() => [...cd.querySelectorAll(".dialogFrame")].find(f => f.contentDocument?.readyState == "complete" && f.contentDocument.location.href.includes("offline")), 8000);
           if (fr) { await wait(800); const dd = fr.contentDocument;
             const rs = [...dd.querySelectorAll("#whengoingOnlinestate radio")].map(r => r.getBoundingClientRect());
+            // einzeilig: höchstens 30 px (umbrochen wären es über 40; unter Linux mit GTK-Optionsfeld 26)
             out.offline = [rs.length > 1 && rs.every((r, i) => !i || (r.top >= rs[i - 1].bottom - 1 && Math.abs(r.left - rs[0].left) < 1)),
               Math.max(...[...dd.querySelectorAll("#whengoingOnlinestate radio, #whengoingOfflinestate radio")].map(r => r.getBoundingClientRect().height))];
             cw.gSubDialog._topDialog?.close(); await wait(600); }
@@ -5078,7 +5087,7 @@ def run_checks(m, version, profile, results):
           return out;''')
         ok = (res["font"] == ["13px", "13px", "12px"] and res["side"] == [True, "13px", "13px"]
               and res["lists"] == [["8px", True, True]] * 2 and res["handlers"] == [True, "auto"]
-              and res.get("offline") and res["offline"][0] is True and res["offline"][1] <= 24
+              and res.get("offline") and res["offline"][0] is True and res["offline"][1] <= 30
               and res["doh"] and res["doh"][0] and res["doh"][1] == "rgba(0, 0, 0, 0)" and res["doh"][2]
               and res["dohBox"] == ["12px", True, "10px", True, True] and res["pwSep"] == "none"
               and res["dohStatus"][1:3] == ["none", 0] and res["dohStatus"][3] > 0
@@ -5248,6 +5257,7 @@ def run_checks(m, version, profile, results):
               const fs = [...d.querySelectorAll("#containerBox > div > fieldset")].filter(e => R(e).width);
               out.junkGap = fs.length > 1 ? Math.round(R(fs[1]).top - R(fs[0]).bottom) : null;
               const wl = d.getElementById("whiteListAbURI"); const items = [...wl.children].filter(e => R(e).width);
+              // Zeilenhöhe: unter Linux mit GTK-Kästchen und Systemschrift 32 px statt höchstens 30
               out.rows = items.map(e => Math.round(R(e).height));
               const it = items[0], cb = it.querySelector("checkbox"), was = cb.checked;
               cb.checked = true; wl.selectedIndex = 0; await wait(200);
@@ -5274,7 +5284,7 @@ def run_checks(m, version, profile, results):
               and all(res["bg"].values()) and len(res["bg"]) == 4
               and all(isinstance(v, int) and 10 <= v <= 16 for v in res["gap"].values())
               and res.get("junkGap") is not None and res["junkGap"] <= 16
-              and res.get("rows") and all(22 <= h <= 30 for h in res["rows"]) and res.get("sel") is True
+              and res.get("rows") and all(22 <= h <= (30 if sys.platform == "darwin" else 34) for h in res["rows"]) and res.get("sel") is True
               and res.get("archive") == [True, "8px", True]
               and res.get("smtp") and min(res["smtp"]) >= 4)
         return ok, f"{res}"

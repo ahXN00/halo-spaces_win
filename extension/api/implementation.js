@@ -8113,6 +8113,14 @@ class CardEnhancer {
     if (icon) {
       icon.src = `icon.svg?v=${api.version}`;
     }
+    // Windows/Linux: die feste Höhe passt zu den Schriftmaßen von macOS –
+    // mit anderen Systemschriften wäre das Fenster sonst scrollbar
+    if (!api.mac) {
+      const extra = doc.documentElement.scrollHeight - hw.innerHeight;
+      if (extra > 0) {
+        hw.resizeBy(0, extra);
+      }
+    }
   }
 
   stop() {
