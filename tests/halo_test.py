@@ -2491,7 +2491,10 @@ def calendar_checks(m, results):
             const pd = pw.document, h = pd.getElementById("occurrence-prompt-header");
             out.header = { bw: csOf(h).borderTopWidth, radius: csOf(h).borderTopLeftRadius };
             out.buttons = [...pd.querySelectorAll(".occurrence-accept-buttons")].filter(vis).map(b => { const ic = b.querySelector(".button-icon");
-              return { img: csOf(b).listStyleImage, icon: !!ic && vis(ic) }; });
+              // Textbereich: das Label (.button-text) ist so breit wie sein Text
+              const lab = b.querySelector(".button-text"), t = lab ? lab.getBoundingClientRect() : { width: 0, left: 0, right: 0 }, br = b.getBoundingClientRect();
+              return { img: csOf(b).listStyleImage, icon: !!ic && vis(ic), tw: Math.round(t.width), bw: Math.round(br.width),
+                       padL: Math.round((t.left - br.left) * 10) / 10, padR: Math.round((br.right - t.right) * 10) / 10 }; });
           } finally {
             if (pw && !pw.closed) { pw.close(); await till(() => pw.closed, 4000); await pause(500); }
             try { await c.deleteItem(saved); } catch {}
@@ -2501,8 +2504,9 @@ def calendar_checks(m, results):
             return False, "Rückfrage nicht offen"
         b = res.get("buttons") or []
         ok = res["header"]["bw"] == "0px" and len(b) >= 2 and all(x["img"] == "none" and not x["icon"] for x in b)
+        ok = ok and all(0 < x["tw"] < x["bw"] - 20 and abs(x["padL"] - x["padR"]) <= 2 for x in b)
         return ok, f"{res}"
-    check("Rückfrage wiederholter Termin: Titelkasten ohne harten Rahmen, Knöpfe ohne alte Kalendersymbole", occurrence_prompt, results)
+    check("Rückfrage wiederholter Termin: Titelkasten ohne harten Rahmen, Knöpfe ohne alte Kalendersymbole, Text mittig", occurrence_prompt, results)
 
     def quick_segment():
         # Schnellfenster: gewähltes Segment („Termin“/„Aufgabe“) heller als die Spur – dunkel früher dunkler (#1E1E1E)
@@ -2616,7 +2620,8 @@ def calendar_checks(m, results):
           const out = { print: true, dark, months: ["from-minimonth", "to-minimonth"].map(idm => { const mm = pd.getElementById(idm), r = mm.getBoundingClientRect();
             const fwd = mm.querySelector(".months-forward-button"), nav = mm.querySelector(".minimonth-nav-btn:not(.today-button, .years-back-button, .years-forward-button)");
             return { right: Math.round(r.right * 10) / 10, formRight: Math.round(fr.right * 10) / 10, fwd: Math.round(fwd.getBoundingClientRect().width),
-                     mask: csOf(fwd, "::before").maskImage.slice(0, 12), navBg: nav ? csOf(nav).backgroundColor : null }; }) };
+                     mask: csOf(fwd, "::before").maskImage.slice(0, 12), navBg: nav ? csOf(nav).backgroundColor : null,
+                     heads: [...mm.querySelectorAll(".minimonth-month-name, .minimonth-year-name")].map(i => csOf(i).appearance) }; }) };
           const cancel = pd.querySelector('#next-button-container button[is="cancel-button"]');
           if (cancel) cancel.click();
           await pause(800);
@@ -2631,9 +2636,10 @@ def calendar_checks(m, results):
             lum = sum(k * ((x / 255) / 12.92 if x / 255 <= 0.03928 else ((x / 255 + 0.055) / 1.055) ** 2.4) for k, x in zip((0.2126, 0.7152, 0.0722), v)) if len(v) == 3 else 1
             return rgba_alpha(c) < 0.2 or lum < 0.3
         ok = all(mm["right"] <= mm["formRight"] + 0.5 and mm["fwd"] > 0 and mm["mask"].startswith("url(")
-                 and (not res["dark"] or (mm["navBg"] and dim(mm["navBg"]))) for mm in res["months"])
+                 and (not res["dark"] or (mm["navBg"] and dim(mm["navBg"])))
+                 and len(mm["heads"]) == 2 and all(x == "none" for x in mm["heads"]) for mm in res["months"])
         return ok, f"{res}"
-    check("Drucken: Minikalender „Von“/„Bis“ im Formular, Pfeile sichtbar, Knöpfe ohne helle Fläche", print_minimonths, results)
+    check("Drucken: Minikalender „Von“/„Bis“ im Formular, Pfeile sichtbar, Knöpfe ohne helle Fläche, Monat/Jahr ohne Feldfläche", print_minimonths, results)
 
 
 def rgba_alpha(c):

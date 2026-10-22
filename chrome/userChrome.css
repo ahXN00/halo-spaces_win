@@ -3023,6 +3023,8 @@ html:root.customizingUnifiedToolbar #unifiedToolbarContainer::before {
   padding: 0 !important;
   border: none !important;
   background: transparent !important;
+  /* native Feldfläche der Monat/Jahr-Inputs (Druckvorschau) abschalten */
+  appearance: none !important;
   font-size: 13px !important;
   font-weight: 600 !important;
   color: var(--mt-text) !important;
@@ -7631,7 +7633,7 @@ dialog tabpanels:not(#event-grid-tabpanels) {
 
 /* Rückfrage wiederholter Termin („Nur diesen / alle …“): Titelkasten als
    ruhige graue Fläche statt eckigem Feldrahmen; ohne Thunderbirds alte
-   Kalendersymbole neben den Kapselknöpfen */
+   Kalendersymbole neben den Kapselknöpfen; Text mittig, da ohne Symbol */
 #occurrence-prompt-header {
   border: none !important;
   border-radius: 10px !important;
@@ -7641,10 +7643,17 @@ dialog tabpanels:not(#event-grid-tabpanels) {
 
 #accept-buttons-box > .occurrence-accept-buttons {
   list-style-image: none !important;
+  text-align: center !important;
 }
 
 #accept-buttons-box > .occurrence-accept-buttons .button-icon {
   display: none !important;
+}
+
+/* Text mittig: pack="start" am Knopf setzt justify-content: start über das
+   Grundstilblatt (nicht überschreibbar), daher automatische Ränder am Text */
+#accept-buttons-box > .occurrence-accept-buttons > .button-box > .button-text {
+  margin-inline: auto !important;
 }
 
 /* Erinnerungen anpassen: Liste ohne native Rahmenzeichnung (harter dunkler
