@@ -437,6 +437,16 @@ body.layout-wide {
   color: var(--mt-text) !important;
 }
 
+/* Ziel beim Ziehen von Mails/Ordnern: getönte Fläche mit Akzentrand statt
+   Thunderbirds Rahmen (von unseren Zeilenregeln überdeckt) – klar
+   unterscheidbar von der Auswahl */
+#folderTree li[role="treeitem"].drop-target > .container,
+#folderTree li[role="treeitem"].drop-target > .container:hover {
+  background: color-mix(in srgb, var(--mt-accent) 30%, transparent) !important;
+  box-shadow: inset 0 0 0 1.5px var(--mt-accent) !important;
+  color: var(--mt-text) !important;
+}
+
 /* Ordnersymbole einfarbig in der Akzentfarbe, wie in Apple Mail */
 :root {
   --folder-color-inbox: var(--mt-accent) !important;

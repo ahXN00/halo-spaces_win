@@ -1882,6 +1882,25 @@ def folder_checks(m, results):
         return ok, f"{res}"
     check("Ordnerliste: Ordner mit neuen Mails ohne Funkelstern, Name in Textfarbe wie die übrigen", new_messages, results)
 
+    def drop_target():
+        # Ziehen auf einen Ordner: Thunderbird setzt .drop-target – das Ziel muss sichtbar und von der Auswahl unterscheidbar sein
+        res = m.js(FOLDER_JS + r"""
+          const a3 = await toMail(); const ad = a3.document; const tree = ad.getElementById("folderTree");
+          const li = await until(() => [...tree.querySelectorAll('li[role="treeitem"]:not([data-server-type], [data-mode], .unselectable, .selected)')]
+            .find(x => x.querySelector(":scope > .container > .name")?.getBoundingClientRect().width));
+          if (!li) return { folder: null };
+          const c = li.querySelector(":scope > .container"), sel = tree.querySelector("li.selected > .container");
+          const plain = csOf(c).backgroundColor;
+          li.classList.add("drop-target"); await wait(150);
+          const out = { folder: li.querySelector(".name").textContent, plain, bg: csOf(c).backgroundColor, ring: csOf(c).boxShadow,
+                        selected: sel ? csOf(sel).backgroundColor : null, radius: parseFloat(csOf(c).borderTopLeftRadius) };
+          li.classList.remove("drop-target");
+          return out;""")
+        ok = (res.get("folder") is not None and rgba_alpha(res["bg"]) >= 0.2 and not same_color(res["bg"], res["plain"])
+              and (res["selected"] is None or not same_color(res["bg"], res["selected"])) and "inset" in res["ring"] and res["radius"] >= 6)
+        return ok, f"{res}"
+    check("Ordnerliste: Ziel beim Ziehen auf einen Ordner getönt mit Akzentrand, anders als die Auswahl", drop_target, results)
+
     def toggle_room():
         # Bereiche-Leiste aus: der Knopf unten links schwebt über der Ordnerliste – ganz nach unten gescrollt endet die
         # letzte Zeile darüber (auch ohne Statusleiste); Liste künstlich kurz, damit sie im leeren Testprofil scrollt
