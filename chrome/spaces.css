@@ -3366,7 +3366,12 @@ addon-card .addon-inline-options {
 
 /* Anpassen-Sheet der Symbolleiste: Palette als ruhige graue Fläche statt
    heller Insel mit Rahmen, Platzhalter („Abstand“) gestrichelt und gerundet
-   (keine data:-Bilder – die CSP des Sheets sperrt sie) */
+   (keine data:-Bilder – die CSP des Sheets sperrt sie); Rand des Sheets als
+   Haarlinie statt bläulichem Panelrand */
+#customizeToolbarSheetPopup {
+  --panel-border-color: var(--mt-tooltip-border) !important;
+}
+
 #palette-box {
   background: var(--mt-control) !important;
   border: none !important;

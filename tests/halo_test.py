@@ -1328,6 +1328,25 @@ def compose_checks(m, results):
         return ok, f"{res}"
     check("Verfassen: Anpassen-Sheet mit ruhiger Palette ohne Rahmen, Platzhalter gestrichelt und gerundet", customize, results)
 
+    def compose_panels():
+        # Rand (und beim Anordnen-Panel die Fläche) neutral wie die Tooltips statt Thunderbirds bläulichem Panelgrau
+        res = m.js(COMPOSE_CHECK_JS + r"""
+          return await withCompose({}, async (cw, cd) => {
+            const val = (el, v) => { const x = csOf(el).getPropertyValue(v).trim(); return x ? colorOf(cd, x, "backgroundColor") : ""; };
+            const out = { border: colorOf(cd, "var(--mt-tooltip-border)", "backgroundColor"), bg: colorOf(cd, "var(--mt-tooltip-bg)", "backgroundColor") };
+            for (const id of ["reorderAttachmentsPanel", "PopupAutoComplete", "customizeToolbarSheetPopup"]) {
+              const p = cd.getElementById(id);
+              out[id] = p ? { border: val(p, "--panel-border-color"), bg: val(p, "--panel-background-color") } : null; }
+            return out; });""")
+        ids = ["reorderAttachmentsPanel", "PopupAutoComplete", "customizeToolbarSheetPopup"]
+        # Thunderbirds Panelrand #5e7799 / #91939f und Panelfläche #262d3b (Deckkraft egal)
+        rgb = lambda c: "rgb(" + ", ".join(__import__("re").findall(r"-?[\d.]+", c or "")[:3]) + ")"
+        bluish = lambda c: any(same_color(rgb(c), t, 4) for t in ["rgb(94, 119, 153)", "rgb(145, 147, 159)", "rgb(38, 45, 59)"])
+        ok = (all(res.get(i) and same_color(res[i]["border"], res["border"]) and not bluish(res[i]["border"]) for i in ids)
+              and same_color(res["reorderAttachmentsPanel"]["bg"], res["bg"]) and not bluish(res["reorderAttachmentsPanel"]["bg"]))
+        return ok, f"{res}"
+    check("Verfassen: Anhänge-anordnen-Panel neutral wie Tooltips, Adressvorschläge und Anpassen-Sheet mit Haarlinie statt bläulichem Rand", compose_panels, results)
+
     def separator():
         res = m.js(COMPOSE_CHECK_JS + r"""
           return await withCompose({}, cw => dialog(() => cw.goDoCommand("cmd_link"), "EdLinkProps", async (dw, dd) => {
