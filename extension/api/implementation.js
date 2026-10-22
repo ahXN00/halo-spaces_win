@@ -5662,7 +5662,15 @@ class CardEnhancer {
         popup.classList.remove("mc-up");
         lastAnchor = anchor;
         popup.addEventListener("popupshown", () => aimArrow(anchor), { once: true });
-        popup.openPopup(anchor, "after_end", 28, 6);
+        // nur so weit nach rechts, wie der Bildschirm reicht: ragt das Popover
+        // hinaus, spiegelt Gecko unter macOS den Versatz (28 px nach links
+        // statt nach rechts) und der Pfeil landet 53 px neben dem Knopf
+        let dx = 28;
+        if (w.getComputedStyle(anchor).direction != "rtl") {
+          const room = w.screen.availLeft + w.screen.availWidth - (w.mozInnerScreenX + anchor.getBoundingClientRect().right);
+          dx = Math.max(0, Math.min(dx, Math.floor(room)));
+        }
+        popup.openPopup(anchor, "after_end", dx, 6);
       };
       newPopup = { above, below };
       const onHidden = () => {
