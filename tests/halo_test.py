@@ -824,6 +824,38 @@ def maillist_checks(m, results):
         return ok, f"{res}"
     check("Mailliste: Schnellfilter-Leiste auf der Listenfläche, bündig mit den Karten", quick_filter, results)
 
+    def quick_filter_labels():
+        # Kartenansicht im Layout Klassisch/Breit: Liste ≥ 1000 px, Thunderbird zeigt die Beschriftungen –
+        # das Symbol darf nicht auf dem Text liegen (vorher mittig über „Unread“, „Starred“ …)
+        res = m.js(MAILLIST_JS + r"""
+          await showFolder(); await asCards();
+          if (ad.getElementById("quick-filter-bar")?.hidden !== false) { cmd("cmd_toggleQuickFilterBar"); await wait(900); }
+          const was = Services.prefs.getIntPref("mail.pane_config.dynamic", 2), out = {};
+          w.resizeTo(2000, 900); await wait(1000);
+          try {
+            for (const [name, layout] of [["klassisch", 0], ["breit", 1], ["vertikal", 2]]) {
+              Services.prefs.setIntPref("mail.pane_config.dynamic", layout); await wait(1500);
+              const btns = [...ad.querySelectorAll("#quick-filter-bar .quickFilterButtons .check-button")].filter(b => b.getBoundingClientRect().width > 0);
+              const r = { pane: Math.round(ad.getElementById("threadPane").getBoundingClientRect().width), labels: 0, overlap: [] };
+              for (const b of btns) {
+                const br = b.getBoundingClientRect(), span = b.querySelector("span"), sr = span?.getBoundingClientRect();
+                const pos = cs(b).backgroundPositionX, size = 16;
+                const iconLeft = br.left + (pos.endsWith("%") ? (br.width - size) * parseFloat(pos) / 100 : parseFloat(pos));
+                if (sr && sr.width > 1 && cs(span).visibility != "hidden") { r.labels++;
+                  if (sr.left < iconLeft + size + 2 && sr.right > iconLeft) r.overlap.push(b.id); }
+                else if (Math.abs((iconLeft + size / 2) - (br.left + br.width / 2)) > 1.5) r.overlap.push(b.id + ":nicht mittig");
+              }
+              out[name] = r;
+            }
+          } finally {
+            Services.prefs.setIntPref("mail.pane_config.dynamic", was); w.resizeTo(1500, 900); await wait(1200);
+            cmd("cmd_resetQuickFilterBar"); cmd("cmd_toggleQuickFilterBar"); await wait(600);
+          }
+          return out;""")
+        ok = all(v["overlap"] == [] for v in res.values()) and any(v["labels"] > 0 for v in res.values())
+        return ok, f"{res}"
+    check("Mailliste: Schnellfilter-Knöpfe in allen Layouts ohne Symbol auf der Beschriftung (mit Text: Symbol links, ohne: mittig)", quick_filter_labels, results)
+
     def layout_lines():
         res = m.js(MAILLIST_JS + r"""
           await showFolder(); await asCards();

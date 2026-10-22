@@ -733,16 +733,25 @@ hr[is="pane-splitter"],
   display: none !important;
 }
 
-/* ohne Pille: links und rechts gleich viel Platz um das Symbol */
+/* ohne Pille: Symbol (Hintergrundbild) 8 px vom Rand statt Thunderbirds 12 px
+   (Platz für die entfernte Pille), Beschriftung dahinter. Thunderbird zeigt die
+   Beschriftungen erst ab 1000 px Listenbreite (Kartenansicht im Layout
+   Klassisch/Breit) – sonst lagen Symbol und Text übereinander */
 #quick-filter-bar .check-button {
-  padding-inline: 8px !important;
+  padding-inline: 30px 10px !important;
   gap: 0 !important;
   min-width: 34px !important;
   flex-shrink: 0 !important;
-  justify-content: center !important;
-  /* Thunderbird setzt das Symbol (Hintergrundbild) fest 12 px vom linken
-     Rand – Platz für die entfernte Pille; jetzt genau mittig */
-  background-position: center !important;
+  background-position: 8px center !important;
+}
+
+/* schmale Liste (nur Symbole): links und rechts gleich viel Platz, Symbol mittig */
+@container threadPane (max-width: 999px) {
+  #quick-filter-bar .check-button.collapsible-button {
+    padding-inline: 8px !important;
+    justify-content: center !important;
+    background-position: center !important;
+  }
 }
 
 #quick-filter-bar .quickFilterButtons {
