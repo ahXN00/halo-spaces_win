@@ -2413,10 +2413,11 @@ search-bar {
   max-width: max-content !important;
 }
 
-/* Windows/Linux: mit der breiteren Systemschrift ragte die Zeile im schmalen
-   Fenster über den Rand – dort darf sie umbrechen („Advanced…“ darunter) */
+/* Windows/Linux: mit der breiteren Systemschrift ragten die Schriftzeile und
+   „When Thunderbird Beta starts:“ (Chat) im schmalen Fenster über den Rand –
+   dort dürfen sie umbrechen („Advanced…“ bzw. die Auswahl darunter) */
 @media not (-moz-platform: macos) {
-  #paneDeck #fontSettings {
+  #paneDeck :is(#fontSettings, hbox:has(> #chatStartupAction)) {
     flex-wrap: wrap !important;
     row-gap: 6px !important;
   }
