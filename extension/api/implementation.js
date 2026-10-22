@@ -4387,7 +4387,8 @@ class CardEnhancer {
       if (!Services.prefs.getIntPref(WIDTH_PREF, 0) && tab.mode?.name == "mail3PaneTab") {
         const width = Math.round(el.getBoundingClientRect().width);
         if (width >= 160) {
-          Services.prefs.setIntPref(WIDTH_PREF, width);
+          // nie schmaler als Apple Mails 206 px; Thunderbirds Vorgabe (198) ist keine eigene Wahl
+          Services.prefs.setIntPref(WIDTH_PREF, Math.max(width, 206));
         }
       }
       // Nur echtes Ziehen am Trenner zählt als neue Breite – übernommen erst

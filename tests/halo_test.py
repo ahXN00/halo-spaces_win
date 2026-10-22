@@ -2573,6 +2573,34 @@ def run_checks(m, version, profile, results):
         return v == [version, True], f"{v}"
     check("Erweiterung aktiv und richtige Version", addon, results)
 
+    def folder_start_width():
+        # Neues Profil, Mail-Tab zuerst offen: Ordnerliste 206 px wie in Apple Mail (und wie nach
+        # Doppelklick auf den Trenner) statt Thunderbirds 198 px, sodass „Local Folders“ in den
+        # Favoriten neben einer Ungelesen-Zahl nicht gekürzt wird. Muss vor „Ordnerleiste: Ziehen
+        # und Doppelklick“ laufen, das die gespeicherte Breite ändert
+        res = m.js("""
+          const { MailServices } = ChromeUtils.importESModule("resource:///modules/MailServices.sys.mjs");
+          try { MailServices.accounts.localFoldersServer; } catch { MailServices.accounts.createLocalMailAccount(); }
+          const root = MailServices.accounts.localFoldersServer.rootFolder;
+          if (!root.containsChildNamed("Inbox")) { root.createSubfolder("Inbox", null); }
+          const inbox = root.getChildNamed("Inbox");
+          const a3 = await toMail(); await wait(1000); const ad = a3.document;
+          const row = await until(() => [...ad.querySelectorAll('#folderTree > li[data-mode="smart"] li[is="folder-tree-row"]')]
+            .find(li => li.uri == inbox.URI && li.querySelector(":scope > .container .name")?.clientWidth), 8000);
+          const name = row?.querySelector(":scope > .container .name");
+          // Ungelesen-Zahl wie im Alltag (einstellig) nur für die Messung anzeigen
+          if (row) row.unreadCount = 6; await wait(300);
+          const out = { width: Math.round(ad.getElementById("folderPane").getBoundingClientRect().width),
+                        pref: Services.prefs.getIntPref("extensions.mailcards.sidebarWidth", 0), text: name?.textContent,
+                        count: row?.querySelector(":scope > .container .unread-count")?.textContent,
+                        client: name?.clientWidth, scroll: name?.scrollWidth };
+          if (row) row.unreadCount = inbox.getNumUnread(false);
+          return out;""")
+        ok = (res["width"] == 206 and res["pref"] in (0, 206) and res["text"] == "Local Folders"
+              and res["count"] == "6" and res["client"] and res["scroll"] <= res["client"])
+        return ok, f"{res}"
+    check("Ordnerliste: im neuen Profil 206 px breit, „Local Folders“ nicht gekürzt", folder_start_width, results)
+
     def list_width():
         res = m.js("""
           const out = {};
