@@ -5968,6 +5968,10 @@ class CardEnhancer {
       popup.id = "mcNewPopup";
       popup.setAttribute("type", "arrow");
       popup.setAttribute("noautofocus", "true");
+      // am Bildschirmrand einschieben statt umklappen: beim Umklappen dreht
+      // Gecko auch den Versatz um (28 px), das Popover rutschte dann ganz neben
+      // das „+“ und der Pfeil zeigte daneben (maximiertes Fenster)
+      popup.setAttribute("flip", "slide");
       const NS = "http://www.w3.org/1999/xhtml";
       const box = d.createElementNS(NS, "div");
       box.className = "mc-pop";
