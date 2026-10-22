@@ -4387,9 +4387,11 @@ button.wizard-button[disabled] {
   opacity: 0.45 !important;
 }
 
-/* Eingabefelder und Auswahllisten in Dialogen und Assistenten */
-:is(dialog, wizard) :is(input:not([type="checkbox"], [type="radio"], [type="color"], [type="range"], [type="file"]), textarea),
-:is(dialog, wizard) search-textbox {
+/* Eingabefelder und Auswahllisten in Dialogen und Assistenten. Der Account
+   Hub (dialog.account-hub-dialog) bleibt außen vor: seine Felder tragen die
+   Beschriftung schwebend in der Rahmenkerbe und brauchen ihre eigene Höhe */
+:is(dialog:not(.account-hub-dialog), wizard) :is(input:not([type="checkbox"], [type="radio"], [type="color"], [type="range"], [type="file"]), textarea),
+:is(dialog:not(.account-hub-dialog), wizard) search-textbox {
   /* 28 px samt Innenabstand und Rand – so hoch wie Auswahllisten daneben;
      content-box, weil .narrow-Felder (4em, z. B. Tabelle einfügen) sonst
      zu schmal würden */
@@ -4412,7 +4414,7 @@ button.wizard-button[disabled] {
   background-color: var(--mt-sheet) !important;
 }
 
-:is(dialog, wizard) :is(input, textarea):focus {
+:is(dialog:not(.account-hub-dialog), wizard) :is(input, textarea):focus {
   outline: none !important;
   border-color: var(--mt-accent) !important;
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--mt-accent) 22%, transparent) !important;
@@ -5029,7 +5031,8 @@ dialog {
   --button-border-radius: 999px !important;
 }
 
-dialog :is(input, textarea, menulist, select, richlistbox) {
+/* Account Hub behält seine eigenen Feldradien */
+dialog:not(.account-hub-dialog) :is(input, textarea, menulist, select, richlistbox) {
   --button-border-radius: 7px !important;
 }
 

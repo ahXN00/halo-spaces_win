@@ -804,6 +804,35 @@ def maillist_checks(m, results):
         return ok, f"{res}"
     check("Mailliste: Konto-Startseite in einer ruhigen Fläche, Kacheln als Knöpfe", account_central, results)
 
+    def account_hub_fields():
+        # Account Hub: die Dialogfeld-Regel (28 px, Haarlinie, 7 px) gilt hier
+        # nicht – Felder behalten ihre Höhe, die Beschriftung sitzt in der
+        # Rahmenkerbe statt frei darüber (Gegenprobe 28 px: „Dialoge: Eingabefelder …“)
+        res = m.js(r"""
+          await toMail();
+          const hub = () => [...d.querySelectorAll("account-hub-container")].map(c => c.shadowRoot?.querySelector("dialog")).find(x => x?.open);
+          w.openAccountHub();
+          const dl = await until(hub, 8000);
+          if (!dl) return { open: false };
+          const root = dl.getRootNode();
+          const field = id => until(() => { const i = root.getElementById(id); return i?.getClientRects().length && i; }, 6000);
+          const out = { open: true, cls: dl.className };
+          for (const id of ["realName", "email"]) {
+            const i = await field(id); if (!i) { out[id] = null; continue; }
+            const lab = root.querySelector(`label[for="${id}"]`);
+            out[id] = { h: Math.round(i.getBoundingClientRect().height), top: i.getBoundingClientRect().top,
+                        labBottom: lab ? lab.getBoundingClientRect().bottom : null, pad: w.getComputedStyle(i).paddingTop };
+          }
+          dl.close(); await wait(500);
+          out.closed = !hub();
+          return out;""")
+        rn, em = res.get("realName"), res.get("email")
+        ok = (res.get("open") and res.get("closed") and rn and em
+              and rn["h"] >= 36 and em["h"] >= 36 and rn["labBottom"] is not None
+              and rn["labBottom"] >= rn["top"] - 2)
+        return ok, f"{res}"
+    check("Account Hub: Felder in eigener Höhe (≥ 36 px), Beschriftung „Full name“ in der Rahmenkerbe statt darüber", account_hub_fields, results)
+
     # aufräumen: Testmails endgültig löschen (sonst fänden spätere Prüfungen wie
     # die Suche sie mit), Gesendet-Merkmal wieder entfernen
     m.js(MAILLIST_JS + r"""
