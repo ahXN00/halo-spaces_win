@@ -147,7 +147,6 @@ const DE = {
   "halo.spaces is made for macOS – on Windows and Linux it is still being tested. If something looks odd, we'd love a quick note!": "halo.spaces ist für macOS gemacht – unter Windows und Linux wird es gerade erst erprobt. Wenn etwas komisch aussieht, freuen wir uns über eine kurze Rückmeldung!",
   "This message is from a mailing list.": "Diese Nachricht stammt von einem Verteiler.",
   "Unsubscribe": "Abmelden",
-  "Unsubscribed": "Abgemeldet",
   "Unsubscribe from messages from {name}?": "Keine Nachrichten mehr von {name} erhalten?",
   "The sender will be told directly that you no longer want these messages.": "Der Absender erfährt direkt, dass du diese Nachrichten nicht mehr möchtest.",
   "Close": "Schließen",
@@ -177,13 +176,28 @@ const DE = {
   "Search Contacts": "Kontakte durchsuchen",
   "Search Tasks": "Aufgaben durchsuchen",
   "Search All Mailboxes": "Alle Postfächer durchsuchen",
-  "Find in Settings": "Einstellungen durchsuchen",
   "Welcome to halo.spaces": "Willkommen bei halo.spaces",
   "Open Settings": "Einstellungen öffnen",
   "Continue": "Weiter",
   "Thunderbird now looks calm and tidy, like Apple Mail, Calendar and Contacts – with sender pictures, cards and coloured spaces.": "Thunderbird sieht jetzt ruhig und aufgeräumt aus wie Apple Mail, Kalender und Kontakte – mit Absenderbildern, Karten und farbigen Bereichen.",
   "The appearance was set to “System – automatic”, so light and dark follow your system.": "Das Erscheinungsbild steht jetzt auf „System – automatisch“, hell und dunkel folgen dem System.",
   "All options are in Settings → halo.spaces.": "Alle Optionen findest du unter Einstellungen → halo.spaces.",
+  "Time": "Uhrzeit",
+  "Tint unread messages": "Ungelesene Mails hinterlegen",
+  "light accent colour behind unread messages, besides the dot": "zarte Akzentfarbe hinter ungelesenen Mails, zusätzlich zum Punkt",
+  "You unsubscribed from this mailing list.": "Du hast diesen Verteiler abbestellt.",
+  "Card View": "Kartenansicht",
+  "Table View: Classic": "Tabelle: Klassisch",
+  "Table View: Wide": "Tabelle: Breit",
+  "Design without flicker at start": "Design ohne Aufblitzen beim Start",
+  "writes a userChrome.css into your profile; from the next start": "schreibt eine userChrome.css ins Profil; ab dem nächsten Start",
+  "Only messages from this folder – turn on Global Search to include your replies from Sent.": "Nur E-Mails aus diesem Ordner – mit eingeschalteter globaler Suche erscheinen auch deine Antworten aus „Gesendet“.",
+  "Show whole conversation": "Ganze Konversation zeigen",
+  "received and sent messages from all folders, newest first": "empfangene und gesendete E-Mails aus allen Ordnern, neueste oben",
+  "Search Calendar": "Kalender durchsuchen",
+  "Search Chat": "Chat durchsuchen",
+  "Search Settings": "Einstellungen durchsuchen",
+  "Search {name}": "„{name}“ durchsuchen",
 };
 const FR = {
   "Install version {v}": "Installer la version {v}",
@@ -301,7 +315,6 @@ const FR = {
   "Mail": "Mail",
   "This message is from a mailing list.": "Ce message provient d’une liste de diffusion.",
   "Unsubscribe": "Se désabonner",
-  "Unsubscribed": "Désabonné",
   "Unsubscribe from messages from {name}?": "Ne plus recevoir de messages de {name} ?",
   "The sender will be told directly that you no longer want these messages.": "L’expéditeur sera informé directement que vous ne souhaitez plus recevoir ces messages.",
   "Close": "Fermer",
@@ -332,13 +345,28 @@ const FR = {
   "Search Contacts": "Rechercher des contacts",
   "Search Tasks": "Rechercher des tâches",
   "Search All Mailboxes": "Rechercher dans toutes les boîtes",
-  "Find in Settings": "Rechercher dans les réglages",
   "Welcome to halo.spaces": "Bienvenue dans halo.spaces",
   "Open Settings": "Ouvrir les paramètres",
   "Continue": "Continuer",
   "Thunderbird now looks calm and tidy, like Apple Mail, Calendar and Contacts – with sender pictures, cards and coloured spaces.": "Thunderbird a désormais un aspect calme et soigné, comme Apple Mail, Calendrier et Contacts – avec photos des expéditeurs, cartes et espaces colorés.",
   "The appearance was set to “System – automatic”, so light and dark follow your system.": "L’apparence est réglée sur « Système – automatique » : clair et sombre suivent le système.",
   "All options are in Settings → halo.spaces.": "Toutes les options se trouvent dans Paramètres → halo.spaces.",
+  "Time": "Heure",
+  "Tint unread messages": "Teinter les messages non lus",
+  "light accent colour behind unread messages, besides the dot": "légère couleur d’accent derrière les messages non lus, en plus du point",
+  "You unsubscribed from this mailing list.": "Vous vous êtes désabonné de cette liste de diffusion.",
+  "Card View": "Vue en cartes",
+  "Table View: Classic": "Tableau : classique",
+  "Table View: Wide": "Tableau : large",
+  "Design without flicker at start": "Design sans clignotement au démarrage",
+  "writes a userChrome.css into your profile; from the next start": "écrit un userChrome.css dans votre profil ; au prochain démarrage",
+  "Only messages from this folder – turn on Global Search to include your replies from Sent.": "Seulement les messages de ce dossier – activez la recherche globale pour inclure vos réponses envoyées.",
+  "Show whole conversation": "Afficher toute la conversation",
+  "received and sent messages from all folders, newest first": "messages reçus et envoyés de tous les dossiers, les plus récents en haut",
+  "Search Calendar": "Rechercher dans le calendrier",
+  "Search Chat": "Rechercher dans le chat",
+  "Search Settings": "Rechercher dans les réglages",
+  "Search {name}": "Rechercher dans « {name} »",
 };
 const ES = {
   "Install version {v}": "Instalar la versión {v}",
@@ -456,7 +484,6 @@ const ES = {
   "Mail": "Correo",
   "This message is from a mailing list.": "Este mensaje procede de una lista de correo.",
   "Unsubscribe": "Darse de baja",
-  "Unsubscribed": "Baja confirmada",
   "Unsubscribe from messages from {name}?": "¿Dejar de recibir mensajes de {name}?",
   "The sender will be told directly that you no longer want these messages.": "Se informará directamente al remitente de que ya no quieres estos mensajes.",
   "Close": "Cerrar",
@@ -487,13 +514,28 @@ const ES = {
   "Search Contacts": "Buscar contactos",
   "Search Tasks": "Buscar tareas",
   "Search All Mailboxes": "Buscar en todos los buzones",
-  "Find in Settings": "Buscar en Ajustes",
   "Welcome to halo.spaces": "Bienvenido a halo.spaces",
   "Open Settings": "Abrir ajustes",
   "Continue": "Continuar",
   "Thunderbird now looks calm and tidy, like Apple Mail, Calendar and Contacts – with sender pictures, cards and coloured spaces.": "Thunderbird ahora tiene un aspecto tranquilo y ordenado, como Apple Mail, Calendario y Contactos – con fotos de remitentes, tarjetas y espacios de colores.",
   "The appearance was set to “System – automatic”, so light and dark follow your system.": "La apariencia se ha ajustado a «Sistema – automático»: claro y oscuro siguen al sistema.",
   "All options are in Settings → halo.spaces.": "Todas las opciones están en Ajustes → halo.spaces.",
+  "Time": "Hora",
+  "Tint unread messages": "Resaltar mensajes no leídos",
+  "light accent colour behind unread messages, besides the dot": "color de acento suave detrás de los mensajes no leídos, además del punto",
+  "You unsubscribed from this mailing list.": "Te has dado de baja de esta lista de correo.",
+  "Card View": "Vista de tarjetas",
+  "Table View: Classic": "Tabla: clásica",
+  "Table View: Wide": "Tabla: ancha",
+  "Design without flicker at start": "Diseño sin parpadeo al iniciar",
+  "writes a userChrome.css into your profile; from the next start": "escribe un userChrome.css en tu perfil; a partir del próximo inicio",
+  "Only messages from this folder – turn on Global Search to include your replies from Sent.": "Solo mensajes de esta carpeta: activa la búsqueda global para incluir tus respuestas enviadas.",
+  "Show whole conversation": "Mostrar toda la conversación",
+  "received and sent messages from all folders, newest first": "mensajes recibidos y enviados de todas las carpetas, los más recientes arriba",
+  "Search Calendar": "Buscar en el calendario",
+  "Search Chat": "Buscar en el chat",
+  "Search Settings": "Buscar en Ajustes",
+  "Search {name}": "Buscar en «{name}»",
 };
 const IT = {
   "Install version {v}": "Installa la versione {v}",
@@ -611,7 +653,6 @@ const IT = {
   "Mail": "Posta",
   "This message is from a mailing list.": "Questo messaggio proviene da una mailing list.",
   "Unsubscribe": "Annulla iscrizione",
-  "Unsubscribed": "Iscrizione annullata",
   "Unsubscribe from messages from {name}?": "Non ricevere più messaggi da {name}?",
   "The sender will be told directly that you no longer want these messages.": "Il mittente verrà informato direttamente che non desideri più questi messaggi.",
   "Close": "Chiudi",
@@ -642,13 +683,28 @@ const IT = {
   "Search Contacts": "Cerca contatti",
   "Search Tasks": "Cerca attività",
   "Search All Mailboxes": "Cerca in tutte le caselle",
-  "Find in Settings": "Cerca nelle impostazioni",
   "Welcome to halo.spaces": "Benvenuto in halo.spaces",
   "Open Settings": "Apri impostazioni",
   "Continue": "Continua",
   "Thunderbird now looks calm and tidy, like Apple Mail, Calendar and Contacts – with sender pictures, cards and coloured spaces.": "Thunderbird ora ha un aspetto calmo e ordinato, come Apple Mail, Calendario e Contatti – con foto dei mittenti, schede e spazi colorati.",
   "The appearance was set to “System – automatic”, so light and dark follow your system.": "L’aspetto è impostato su «Sistema – automatico»: chiaro e scuro seguono il sistema.",
   "All options are in Settings → halo.spaces.": "Tutte le opzioni sono in Impostazioni → halo.spaces.",
+  "Time": "Ora",
+  "Tint unread messages": "Evidenzia i messaggi non letti",
+  "light accent colour behind unread messages, besides the dot": "leggero colore d’accento dietro i messaggi non letti, oltre al punto",
+  "You unsubscribed from this mailing list.": "Hai annullato l’iscrizione a questa lista.",
+  "Card View": "Vista a schede",
+  "Table View: Classic": "Tabella: classica",
+  "Table View: Wide": "Tabella: ampia",
+  "Design without flicker at start": "Design senza sfarfallio all’avvio",
+  "writes a userChrome.css into your profile; from the next start": "scrive un userChrome.css nel profilo; dal prossimo avvio",
+  "Only messages from this folder – turn on Global Search to include your replies from Sent.": "Solo messaggi di questa cartella – attiva la ricerca globale per includere le risposte inviate.",
+  "Show whole conversation": "Mostra l’intera conversazione",
+  "received and sent messages from all folders, newest first": "messaggi ricevuti e inviati da tutte le cartelle, i più recenti in alto",
+  "Search Calendar": "Cerca nel calendario",
+  "Search Chat": "Cerca nella chat",
+  "Search Settings": "Cerca nelle impostazioni",
+  "Search {name}": "Cerca in «{name}»",
 };
 const TRANSLATIONS = { de: DE, fr: FR, es: ES, it: IT };
 // tr("+{n} more", { n: 3 }) – Platzhalter in geschweiften Klammern
@@ -1071,6 +1127,405 @@ function hookPrefCategories(cw, restorers = null) {
       cw.gotoPref?.("paneGeneral");
     }
   });
+}
+
+// Ansicht der Mailliste: nur drei gültige Kombinationen aus Ansicht
+// (mail.threadpane.listview: 0 Karten, 1 Tabelle) und Layout
+// (mail.pane_config.dynamic: 0 klassisch, 1 breit, 2 vertikal). Karten gehen
+// nur vertikal, Tabelle nur klassisch/breit
+const LISTVIEW_PREF = "mail.threadpane.listview";
+const PANE_PREF = "mail.pane_config.dynamic";
+const VIEW_CHOICES = [["cards", "Card View", 0, 2], ["classic", "Table View: Classic", 1, 0], ["wide", "Table View: Wide", 1, 1]];
+function viewChoice() {
+  if (Services.prefs.getIntPref(LISTVIEW_PREF, 0) == 0) {
+    return "cards";
+  }
+  return Services.prefs.getIntPref(PANE_PREF, 0) == 1 ? "wide" : "classic";
+}
+function setViewChoice(key) {
+  const [, , list, pane] = VIEW_CHOICES.find(c => c[0] == key) || VIEW_CHOICES[0];
+  Services.prefs.setIntPref(PANE_PREF, pane);
+  Services.prefs.setIntPref(LISTVIEW_PREF, list);
+}
+// passend halten: wer (Menü, Tastenkürzel, Thunderbird) das Layout wählt,
+// bekommt die Ansicht dazu – und umgekehrt
+function syncViewChoice(changed) {
+  const list = Services.prefs.getIntPref(LISTVIEW_PREF, 0);
+  const pane = Services.prefs.getIntPref(PANE_PREF, 0);
+  if (changed == PANE_PREF) {
+    const want = pane == 2 ? 0 : 1;
+    if (list != want) {
+      Services.prefs.setIntPref(LISTVIEW_PREF, want);
+    }
+  } else if (list == 0 && pane != 2) {
+    Services.prefs.setIntPref(PANE_PREF, 2);
+  } else if (list == 1 && pane == 2) {
+    Services.prefs.setIntPref(PANE_PREF, 0);
+  }
+}
+
+// Leseansicht wie Apple Mail: die ganze Konversation – empfangene und eigene
+// Mails aus allen Ordnern (globaler Suchindex), neueste oben – als Karten
+// untereinander, jede mit Thunderbirds vollständiger Mailansicht (about:message).
+// Thunderbird zeigt sonst nur die gewählte Mail bzw. bei einem zugeklappten
+// Faden eine Textzusammenfassung. Ohne Suchindex: die Mails des Fadens im
+// Ordner mit Hinweis. Einstellung „Show whole conversation“ (Standard an)
+const CONVERSATION_PREF = "extensions.mailcards.fullConversation";
+const CONVERSATION_MAX = 30;
+class ConversationCards {
+  constructor(win, pane) {
+    this.win = win;
+    this.pane = pane;
+    this.seq = 0;
+    this.box = null;
+  }
+
+  enabled() {
+    return Services.prefs.getBoolPref(CONVERSATION_PREF, true);
+  }
+
+  hdrFromURI(uri) {
+    try {
+      return MailServices.messageServiceFromURI(uri).messageURIToMsgHdr(uri);
+    } catch {
+      return null;
+    }
+  }
+
+  // eigene Adressen (alle Identitäten) – eigene Mails werden abgesetzt
+  ownAddresses() {
+    const set = new Set();
+    for (const id of MailServices.accounts.allIdentities) {
+      if (id.email) {
+        set.add(id.email.toLowerCase());
+      }
+    }
+    return set;
+  }
+
+  // alle Mails der Konversation: Suchindex (alle Ordner), sonst Faden im Ordner
+  async collect(hdr) {
+    let list = [];
+    let indexed = false;
+    if (Services.prefs.getBoolPref("mailnews.database.global.indexer.enabled", false)) {
+      try {
+        list = await this.fromGloda(hdr);
+        indexed = list.length > 0;
+      } catch (e) {
+        log("conversation gloda error", e);
+      }
+    }
+    if (!indexed) {
+      list = this.fromThread(hdr);
+    }
+    // gleiche Mail in mehreren Ordnern (Gmail „Alle Nachrichten“, Gesendet) nur
+    // einmal – lieber nicht aus Papierkorb/Spam, die gewählte Mail behält ihren Ordner
+    const F = Ci.nsMsgFolderFlags;
+    const rank = m => (m == hdr ? -1 : m.folder?.getFlag(F.Trash) || m.folder?.getFlag(F.Junk) ? 2 :
+      m.folder?.getFlag(F.Archive) || /all mail|alle nachrichten/i.test(m.folder?.name || "") ? 1 : 0);
+    const byId = new Map();
+    for (const m of list) {
+      if (!m) {
+        continue;
+      }
+      const key = m.messageId || m.folder?.getUriForMsg(m);
+      const prev = byId.get(key);
+      if (!prev || rank(m) < rank(prev)) {
+        byId.set(key, m);
+      }
+    }
+    const out = [...byId.values()].filter(m => m == hdr || !(m.folder?.getFlag(F.Trash) || m.folder?.getFlag(F.Junk)));
+    out.sort((a, b) => b.date - a.date);
+    return { messages: out.slice(0, CONVERSATION_MAX), indexed };
+  }
+
+  fromGloda(hdr) {
+    const { Gloda } = ChromeUtils.importESModule("resource:///modules/gloda/GlodaPublic.sys.mjs");
+    return new Promise(resolve => {
+      const timer = setTimeout(() => resolve([]), 3000);
+      const done = items => {
+        clearTimeout(timer);
+        resolve(items);
+      };
+      const noop = { onItemsAdded() {}, onItemsModified() {}, onItemsRemoved() {} };
+      Gloda.getMessageCollectionForHeader(hdr, {
+        ...noop,
+        onQueryCompleted: collection => {
+          const conversation = collection.items[0]?.conversation;
+          if (!conversation) {
+            done([]);
+            return;
+          }
+          conversation.getMessagesCollection({
+            ...noop,
+            onQueryCompleted: msgs => done(msgs.items.map(m => m.folderMessage).filter(Boolean)),
+          });
+        },
+      });
+    });
+  }
+
+  fromThread(hdr) {
+    try {
+      const thread = this.win.gDBView?.getThreadContainingMsgHdr(hdr) || hdr.folder?.msgDatabase?.getThreadContainingMsgHdr(hdr);
+      if (!thread) {
+        return [hdr];
+      }
+      const list = [];
+      for (let i = 0; i < thread.numChildren; i++) {
+        list.push(thread.getChildHdrAt(i));
+      }
+      return list;
+    } catch {
+      return [hdr];
+    }
+  }
+
+  hide() {
+    this.seq++;
+    if (this.box) {
+      this.observer?.disconnect();
+      this.box.remove();
+      this.box = null;
+    }
+  }
+
+  // nach Thunderbirds Anzeige: Konversation zeigen, wenn sie mehr als eine Mail hat
+  async show(hdr, { thread = false } = {}) {
+    const token = ++this.seq;
+    if (!hdr || !this.enabled()) {
+      return;
+    }
+    const { messages, indexed } = await this.collect(hdr);
+    if (token != this.seq || messages.length < 2) {
+      return;
+    }
+    this.render(messages, hdr, { indexed, thread });
+  }
+
+  render(messages, selected, { indexed }) {
+    const win = this.win, doc = win.document;
+    const X = "http://www.w3.org/1999/xhtml";
+    this.observer?.disconnect();
+    this.box?.remove();
+    const box = doc.createElementNS(X, "div");
+    box.id = "mcConversation";
+    box.__mcOwner = HOOK_OWNER;
+    const head = doc.createElementNS(X, "div");
+    head.className = "mc-conv-head";
+    const title = doc.createElementNS(X, "div");
+    title.className = "mc-conv-title";
+    title.textContent = selected.mime2DecodedSubject || messages[0].mime2DecodedSubject || "";
+    const count = doc.createElementNS(X, "div");
+    count.className = "mc-conv-count";
+    count.textContent = tr("{n} messages", { n: messages.length });
+    head.append(title, count);
+    box.append(head);
+    if (!indexed) {
+      const note = doc.createElementNS(X, "div");
+      note.className = "mc-conv-note";
+      note.textContent = tr("Only messages from this folder – turn on Global Search to include your replies from Sent.");
+      box.append(note);
+    }
+    const own = this.ownAddresses();
+    const ownMail = m => {
+      try {
+        return own.has((MailServices.headerParser.parseDecodedHeader(m.mime2DecodedAuthor || m.author)[0]?.email || "").toLowerCase());
+      } catch {
+        return false;
+      }
+    };
+    const cards = messages.map(m => {
+      const card = doc.createElementNS(X, "div");
+      card.className = "mc-conv-card";
+      card.classList.toggle("mc-own", ownMail(m));
+      card.classList.toggle("mc-selected", m == selected || m.messageId == selected.messageId);
+      card.dataset.messageId = m.messageId;
+      card.__mcHdr = m;
+      box.append(card);
+      return card;
+    });
+    this.pane.append(box);
+    this.box = box;
+    // Karten erst laden, wenn sie in die Nähe kommen (lange Konversationen)
+    this.observer = new win.IntersectionObserver(entries => {
+      for (const entry of entries) {
+        if (entry.isIntersecting) {
+          this.observer.unobserve(entry.target);
+          this.loadCard(entry.target);
+        }
+      }
+    }, { root: box, rootMargin: "800px 0px" });
+    cards.forEach(card => this.observer.observe(card));
+    const sel = cards.find(c => c.classList.contains("mc-selected"));
+    if (sel && sel != cards[0]) {
+      win.requestAnimationFrame(() => sel.scrollIntoView({ block: "start" }));
+    }
+  }
+
+  loadCard(card) {
+    const doc = this.win.document;
+    const hdr = card.__mcHdr;
+    const browser = doc.createXULElement("browser");
+    browser.setAttribute("src", "about:message");
+    browser.className = "mc-conv-browser";
+    card.append(browser);
+    const fit = () => {
+      try {
+        const cdoc = browser.contentDocument;
+        const mp = cdoc?.getElementById("messagepane");
+        const inner = mp?.contentDocument?.documentElement;
+        if (!inner) {
+          return;
+        }
+        // Kopf, Anhänge … (alles außer dem Mailtext) plus die volle Höhe des Mailtexts
+        const rest = cdoc.documentElement.scrollHeight - mp.getBoundingClientRect().height;
+        const height = Math.ceil(rest + Math.max(inner.scrollHeight, inner.offsetHeight)) + 2;
+        if (Math.abs(parseFloat(browser.style.height || 0) - height) > 1) {
+          browser.style.height = `${height}px`;
+        }
+      } catch {}
+    };
+    browser.addEventListener("load", () => {
+      const cw = browser.contentWindow;
+      if (!cw?.displayMessage || card.__mcLoaded) {
+        return;
+      }
+      card.__mcLoaded = true;
+      try {
+        cw.displayMessage(hdr.folder.getUriForMsg(hdr), this.win.gViewWrapper);
+      } catch (e) {
+        log("conversation display error", e);
+      }
+    }, true);
+    browser.addEventListener("MsgLoaded", () => {
+      fit();
+      const mp = browser.contentDocument?.getElementById("messagepane");
+      const iw = mp?.contentWindow;
+      if (iw && !mp.__mcFit) {
+        mp.__mcFit = true;
+        // Bilder laden nach, Zitate klappen auf: Höhe mitführen
+        new iw.ResizeObserver(fit).observe(iw.document.documentElement);
+        mp.addEventListener("load", () => this.win.setTimeout(fit, 50), true);
+      }
+      this.win.setTimeout(fit, 300);
+    }, true);
+  }
+}
+
+// Verteiler, bei denen die Ein-Klick-Abmeldung geklappt hat (List-ID, sonst
+// Absenderadresse), als Liste in einer Einstellung – höchstens die letzten 500
+const UNSUBSCRIBED_PREF = "extensions.mailcards.unsubscribedLists";
+function unsubscribedLists() {
+  try {
+    const list = JSON.parse(Services.prefs.getStringPref(UNSUBSCRIBED_PREF, "[]"));
+    return Array.isArray(list) ? list : [];
+  } catch {
+    return [];
+  }
+}
+function rememberUnsubscribed(key) {
+  if (!key) {
+    return;
+  }
+  const list = unsubscribedLists().filter(k => k != key);
+  list.push(key);
+  Services.prefs.setStringPref(UNSUBSCRIBED_PREF, JSON.stringify(list.slice(-500)));
+}
+function unsubscribeKey(data, hdr) {
+  const id = (data?.["list-id"]?.headerValue || "").match(/<([^>]+)>/)?.[1] || data?.["list-id"]?.headerValue || "";
+  if (id.trim()) {
+    return "list:" + id.trim().toLowerCase();
+  }
+  try {
+    const email = MailServices.headerParser.parseDecodedHeader(hdr.mime2DecodedAuthor || hdr.author)[0]?.email;
+    return email ? "from:" + email.toLowerCase() : "";
+  } catch {
+    return "";
+  }
+}
+
+// Termin/Aufgabe: Datum und Uhrzeit in einer Auswahl wie in Apple Kalender.
+// Thunderbird hat zwei getrennte Menülisten (Minimonat bzw. Stundenraster).
+// Der Minimonat bekommt darunter eine Zeile „Uhrzeit“; ein Klick auf die
+// Uhrzeit öffnet dasselbe Popover statt des Rasters. Werte gehen in die
+// vorhandenen Felder zurück – Dauer, Zeitzone und „Ganztägig“ regelt weiter
+// Thunderbird (Ende rückt mit, ganztägig ist die Uhrzeit gesperrt)
+function hookDateTimePickers(win) {
+  const doc = win.document;
+  for (const dtp of doc.querySelectorAll("datetimepicker")) {
+    const dp = dtp.querySelector("datepicker"), tp = dtp.querySelector("timepicker");
+    const popup = dp?._popup, timePopup = tp?._popup;
+    if (!popup || !timePopup || dtp.__mcCombined) {
+      continue;
+    }
+    dtp.__mcCombined = true;
+    const X = "http://www.w3.org/1999/xhtml";
+    const row = doc.createElementNS(X, "div");
+    row.className = "mc-dtp-time";
+    const label = doc.createElementNS(X, "label");
+    label.textContent = tr("Time");
+    const input = doc.createElementNS(X, "input");
+    input.type = "time";
+    input.step = "300";
+    label.append(input);
+    row.append(label);
+    popup.append(row);
+    const pad = n => String(n).padStart(2, "0");
+    const timeOff = () => tp.hasAttribute("disabled") || tp._menulist?.hasAttribute("disabled") || tp.hidden ||
+      win.getComputedStyle(tp).visibility == "hidden" || win.getComputedStyle(tp).display == "none";
+    popup.addEventListener("popupshowing", event => {
+      if (event.target != popup) {
+        return;
+      }
+      row.hidden = timeOff();
+      const [h, m] = tp.value || [];
+      input.value = Number.isInteger(h) ? `${pad(h)}:${pad(m)}` : "";
+    });
+    const apply = () => {
+      const [h, m] = (input.value || "").split(":").map(Number);
+      if (Number.isInteger(h) && Number.isInteger(m)) {
+        tp.value = [h, m]; // meldet „change“ nur bei einer Änderung
+      }
+    };
+    input.addEventListener("input", apply);
+    input.addEventListener("keydown", event => {
+      if (event.key == "Enter") {
+        apply();
+        popup.hidePopup();
+      }
+    });
+    // Uhrzeit: dasselbe Popover (Zeitfeld fokussiert) statt des Stundenrasters
+    timePopup.addEventListener("popupshowing", event => {
+      if (event.target != timePopup) {
+        return;
+      }
+      event.preventDefault();
+      win.setTimeout(() => {
+        if (dp._menulist && !dp._menulist.hasAttribute("disabled")) {
+          dp._menulist.open = true;
+          popup.addEventListener("popupshown", () => input.focus(), { once: true });
+        }
+      }, 0);
+    });
+    // Pfeiltasten im Uhrzeitfeld: Stunde bzw. Minute (je nach Schreibmarke) weiter
+    const field = tp._inputField;
+    field?.addEventListener("keydown", event => {
+      if ((event.key != "ArrowUp" && event.key != "ArrowDown") || event.altKey || event.metaKey) {
+        return;
+      }
+      event.preventDefault();
+      event.stopPropagation();
+      const [h, m] = tp.value || [0, 0];
+      const step = event.key == "ArrowUp" ? 1 : -1;
+      const colon = field.value.search(/[^0-9]/);
+      const onHour = colon < 0 || field.selectionStart <= colon;
+      const total = ((onHour ? h * 60 + m + step * 60 : h * 60 + Math.round(m / 5) * 5 + step * 5) + 1440) % 1440;
+      const caret = field.selectionStart;
+      tp.value = [Math.floor(total / 60), total % 60];
+      field.setSelectionRange(caret, caret);
+    }, true);
+  }
 }
 
 // Einstellungen → halo.spaces öffnen (Info-Fenster, Begrüßung): Thunderbird
@@ -1865,7 +2320,8 @@ function folderRole(folder) {
 }
 
 // Titel über der Mailliste wie Apple: „All Inboxes“ bzw. „Inbox – Google“
-function appleFolderTitle(folder) {
+// Ordnername wie in der Ordnerliste (ohne Konto) – z. B. „Sent“ im Platzhalter der Suche
+function appleFolderName(folder) {
   const L = appleLabels();
   const role = folderRole(folder);
   // frisch angelegte Ordner haben noch keinen prettyName (null) – dann name
@@ -1875,7 +2331,15 @@ function appleFolderTitle(folder) {
     if (role == "SentMail" && !L.native) return L.allSent;
     return plain;
   }
-  const name = role && !L.native ? L[role] : plain;
+  return role && !L.native ? L[role] : plain;
+}
+
+function appleFolderTitle(folder) {
+  const L = appleLabels();
+  const name = appleFolderName(folder);
+  if (/^mailbox:\/\/[^/]*smart%20mailboxes\//i.test(folder.URI)) {
+    return name;
+  }
   const account = folder.server?.type == "none" && !L.native ? L.onMyMac : folder.server?.prettyName;
   return account ? `${name} – ${account}` : name;
 }
@@ -2602,6 +3066,7 @@ function squeezeToolbar(doc, fits) {
 // ---------------------------------------------------------------------------
 const EMOJI_PREF = "extensions.mailcards.calendarEmoji";
 const HOVER_ACTIONS_PREF = "extensions.mailcards.hoverActions";
+const UNREAD_TINT_PREF = "extensions.mailcards.unreadTint";
 const BDAY_PREF = "extensions.mailcards.birthdays";
 const BDAY_CAL_PREF = "extensions.mailcards.birthdayCalendarId";
 const EMOJI_RULES = [
@@ -2937,6 +3402,86 @@ function enableCalendarOffline() {
 // noch eine (ältere, manuell kopierte) userChrome.css dieses Designs, gilt
 // diese und theme.css bleibt aus, damit nichts doppelt greift.
 const THEME_MARKER = "Thunderbird im Stil von Apple Mail";
+// Start ohne Aufblitzen (Einstellung, Standard aus): Thunderbird zeichnet das
+// Fenster, bevor Erweiterungen starten – nur eine userChrome.css im Profil gilt
+// von Anfang an. Ist die Option an, schreibt halo.spaces sein Design dorthin
+// (mit eigener Kopfzeile) und schaltet toolkit.legacyUserProfileCustomizations.
+// stylesheets ein; nach Updates neu geschrieben. Aus, deaktiviert oder
+// deinstalliert: Datei weg, Einstellung zurück. Eine userChrome.css ohne unsere
+// Kopfzeile (selbst angelegt, alte Handinstallation) wird nie angefasst
+const EARLY_THEME_PREF = "extensions.mailcards.earlyTheme";
+const EARLY_LEGACY_PREF = "extensions.mailcards.earlyThemeSetLegacy";
+const LEGACY_PREF = "toolkit.legacyUserProfileCustomizations.stylesheets";
+const EarlyTheme = {
+  HEAD: "/* halo.spaces: automatisch geschrieben (Start ohne Aufblitzen), Version ",
+  file() {
+    const file = Services.dirsvc.get("ProfD", Ci.nsIFile);
+    file.append("chrome");
+    file.append("userChrome.css");
+    return file;
+  },
+  // Fassung aus unserer Kopfzeile, sonst null (fremde oder keine Datei)
+  versionOf(head) {
+    const at = (head || "").indexOf(this.HEAD);
+    return at < 0 ? null : head.slice(at + this.HEAD.length).split(" ")[0];
+  },
+  async head() {
+    const path = this.file().path;
+    if (!(await IOUtils.exists(path))) {
+      return null;
+    }
+    return (await IOUtils.readUTF8(path)).slice(0, 4096);
+  },
+  async sync() {
+    try {
+      if (Services.prefs.getBoolPref(EARLY_THEME_PREF, false) && Services.prefs.getBoolPref("extensions.mailcards.bundledTheme", true)) {
+        await this.write();
+      } else {
+        await this.remove();
+      }
+    } catch (e) {
+      log("early theme error", e);
+    }
+  },
+  async write() {
+    const head = await this.head();
+    if (head !== null && this.versionOf(head) === null) {
+      log("early theme: eigene userChrome.css des Nutzers – nicht überschrieben");
+      return false;
+    }
+    if (head !== null && this.versionOf(head) == extensionVersion) {
+      this.legacyOn();
+      return true;
+    }
+    const channel = NetUtil.newChannel({ uri: "resource://mailcards/theme.css", loadUsingSystemPrincipal: true });
+    const stream = channel.open();
+    const css = NetUtil.readInputStreamToString(stream, stream.available(), { charset: "UTF-8" });
+    stream.close();
+    const file = this.file();
+    await IOUtils.makeDirectory(file.parent.path, { ignoreExisting: true });
+    await IOUtils.writeUTF8(file.path, `${this.HEAD}${extensionVersion} – nicht von Hand ändern, wird ersetzt */\n${css}`);
+    this.legacyOn();
+    return true;
+  },
+  legacyOn() {
+    if (!Services.prefs.getBoolPref(LEGACY_PREF, false)) {
+      Services.prefs.setBoolPref(LEGACY_PREF, true);
+      Services.prefs.setBoolPref(EARLY_LEGACY_PREF, true);
+    }
+  },
+  async remove() {
+    const head = await this.head();
+    if (head !== null && this.versionOf(head) !== null) {
+      await IOUtils.remove(this.file().path);
+    }
+    // nur zurücksetzen, was halo.spaces selbst eingeschaltet hat
+    if (Services.prefs.getBoolPref(EARLY_LEGACY_PREF, false)) {
+      Services.prefs.clearUserPref(LEGACY_PREF);
+      Services.prefs.clearUserPref(EARLY_LEGACY_PREF);
+    }
+  },
+};
+
 const ThemeSheet = {
   uri: "resource://mailcards/theme.css",
   active: false,
@@ -2954,7 +3499,15 @@ const ThemeSheet = {
         stream.init(file, -1, 0, 0);
         const head = NetUtil.readInputStreamToString(stream, Math.min(stream.available(), 4096));
         stream.close();
-        if (head.includes(THEME_MARKER)) {
+        // eigene Kopie für den Start ohne Aufblitzen (EarlyTheme): gilt nur in der
+        // aktuellen Fassung – nach einem Update lud Thunderbird noch die alte
+        const managed = EarlyTheme.versionOf(head);
+        if (managed !== null) {
+          if (managed == extensionVersion) {
+            log("theme: eigene userChrome.css (Start ohne Aufblitzen) ist aktuell");
+            return;
+          }
+        } else if (head.includes(THEME_MARKER)) {
           log("theme: userChrome.css im Profil hat Vorrang");
           return;
         }
@@ -3157,6 +3710,21 @@ class CardEnhancer {
     // Themes malen eigene Farben darüber). Eine bewusste Wahl unter den drei
     // eingebauten (System, Hell, Dunkel) bleibt erhalten
     const themeSwitched = firstInstall ? this.applyThemeOnce() : Promise.resolve(false);
+    // Start ohne Aufblitzen: Datei im Profil passend zur Einstellung (nach Updates neu)
+    EarlyTheme.sync();
+    const earlyObs = { observe: () => EarlyTheme.sync() };
+    Services.prefs.addObserver(EARLY_THEME_PREF, earlyObs);
+    this.restorers.push(() => Services.prefs.removeObserver(EARLY_THEME_PREF, earlyObs));
+    // Ansicht und Layout der Mailliste nur in gültigen Kombinationen (Karten
+    // vertikal, Tabelle klassisch/breit) – beim Start bestehende Profile umstellen
+    syncViewChoice(LISTVIEW_PREF);
+    const viewObs = { observe: (_s, _t, pref) => syncViewChoice(pref) };
+    Services.prefs.addObserver(LISTVIEW_PREF, viewObs);
+    Services.prefs.addObserver(PANE_PREF, viewObs);
+    this.restorers.push(() => {
+      Services.prefs.removeObserver(LISTVIEW_PREF, viewObs);
+      Services.prefs.removeObserver(PANE_PREF, viewObs);
+    });
     // Wie Apple Mail: Absender, Betreff, darunter die Vorschau. Thunderbirds
     // dritte Kartenzeile wäre sonst nur eine Leerzeile über der Vorschau.
     // (einmalig – wer danach wieder 3 Zeilen wählt, behält sie)
@@ -3225,7 +3793,15 @@ class CardEnhancer {
           // wie die Felder darüber (siehe event-description.css)
           if (url.startsWith("chrome://calendar/content/calendar-item-iframe.xhtml") && doc.defaultView) {
             const iw = doc.defaultView;
-            iw.addEventListener("load", () => iw.setTimeout(() => this.styleItemDescription(iw), 0), { once: true });
+            iw.addEventListener("load", () => iw.setTimeout(() => {
+              this.styleItemDescription(iw);
+              hookDateTimePickers(iw);
+            }, 0), { once: true });
+          }
+          // „Teilnehmer einladen“: Beginn/Ende ebenso
+          if (url.startsWith("chrome://calendar/content/calendar-event-dialog-attendees.xhtml") && doc.defaultView) {
+            const aw = doc.defaultView;
+            aw.addEventListener("load", () => aw.setTimeout(() => hookDateTimePickers(aw), 0), { once: true });
           }
           // Erinnerungen: Fenster so hoch wie die Einträge (Thunderbird merkt
           // sich sonst eine feste Größe – bei einem Eintrag viel Leerraum)
@@ -3979,6 +4555,26 @@ class CardEnhancer {
           }
         }
         fixAvatar(this, opts.recipient || name, c);
+        // Kartenansicht wie macOS-Kontakte: nur Name bzw. Firma, nie die E-Mail-Adresse
+        // (zweite Zeile: Firma; ohne Namen steht die Firma oben, nur ohne beides die Adresse)
+        const row = this.closest?.('tr[is="ab-card-row"]');
+        if (row?.address && c && !c.isMailList) {
+          // Firma: vCard ORG (Thunderbird 158 füllt „Company“ nicht mehr), sonst die alte Eigenschaft
+          let company = "";
+          try {
+            const org = c.supportsVCard ? c.vCardProperties?.getFirstValue("org") : null;
+            company = String((Array.isArray(org) ? org[0] : org) || c.getProperty?.("Company", "") || "").trim();
+          } catch {}
+          const nameEl = row.querySelector(".ab-card-first-line .name");
+          // ohne Namen erzeugt Thunderbird ihn aus der Adresse („nur.firma“)
+          const named = !!(c.displayName || c.firstName || c.lastName);
+          if (!named && nameEl) {
+            nameEl.textContent = company || c.primaryEmail || nameEl.textContent;
+            company = "";
+          }
+          row.address.textContent = company;
+          row.classList.toggle("mc-one-line", !company);
+        }
         return result;
       };
       Avatar.prototype.__mcFix = true;
@@ -4636,6 +5232,10 @@ class CardEnhancer {
     };
     const busy = (el, win) => !el || el.__mcAnimating || win?.__mcAnimating || el.classList.contains("mc-side-hidden");
     const applyCommonWidth = tab => {
+      // Einstellungen: eigene feste Breite (240 px wie die Systemeinstellungen)
+      if (tab?.mode?.name == "preferencesTab") {
+        return;
+      }
       // (noch keine eigene Breite gespeichert: 206 px wie die Ordnerliste in Apple Mail)
       const W = Services.prefs.getIntPref(WIDTH_PREF, 0) || 206;
       const [el, splitter, win] = sidebarFor(tab);
@@ -4942,7 +5542,7 @@ class CardEnhancer {
         mail: true,
       },
       preferencesTab: {
-        label: "Find in Settings",
+        label: "Search Settings",
         input: cw => cw?.document.getElementById("searchInput"),
         set: (input, text) => {
           input.value = text;
@@ -4960,6 +5560,28 @@ class CardEnhancer {
       return tab?.mode?.name == "addressBookTab" ? tab.browser?.contentWindow : null;
     };
     const globalSearch = () => w.document.querySelector("#unifiedToolbarContent global-search-bar");
+    // Platzhalter einheitlich „Search …“ je Bereich; in der Mail je Ordner
+    // („Search Sent“), bei Sammelordnern „Search All Mailboxes“
+    const PLACEHOLDERS = { calendar: "Search Calendar", tasks: "Search Tasks", chat: "Search Chat",
+      addressBookTab: "Search Contacts", preferencesTab: "Search Settings" };
+    const placeholderText = mode => {
+      if (mode == "mail3PaneTab") {
+        const base = this.searchBase(w.document.getElementById("tabmail")?.currentAbout3Pane);
+        return this.isUnifiedFolder(base) ? tr("Search All Mailboxes") : tr("Search {name}", { name: appleFolderName(base) });
+      }
+      return tr(PLACEHOLDERS[mode] || "Search");
+    };
+    const setPlaceholder = mode => {
+      const placeholder = globalSearch()?.querySelector('[slot="placeholder"]');
+      if (placeholder && !placeholder.hasAttribute("data-l10n-id")) {
+        const text = placeholderText(mode);
+        if (placeholder.textContent != text) {
+          placeholder.textContent = text;
+        }
+      }
+    };
+    w.__mcSearchPlaceholder = () => setPlaceholder(w.document.getElementById("tabmail")?.currentTabInfo?.mode?.name);
+    this.restorers.push(() => delete w.__mcSearchPlaceholder);
     const syncSearchForTab = mode => {
       const bar = globalSearch();
       if (!bar) {
@@ -4974,13 +5596,7 @@ class CardEnhancer {
       // <span slot="placeholder"> – das placeholder-Attribut (nur Ersatzinhalt
       // des Slots) bliebe unsichtbar. Erst nachdem styleSearch Thunderbirds
       // Text abgekoppelt hat (sonst bleibt dessen Übersetzung stehen).
-      const placeholder = bar.querySelector('[slot="placeholder"]');
-      if (placeholder && !placeholder.hasAttribute("data-l10n-id")) {
-        const text = tr(target ? target.label : "Search");
-        if (placeholder.textContent != text) {
-          placeholder.textContent = text;
-        }
-      }
+      setPlaceholder(mode);
       if (target) {
         const term = target.input(currentTarget()?.cw)?.value || "";
         bar.overrideSearchTerm?.(term);
@@ -5048,6 +5664,56 @@ class CardEnhancer {
       });
     };
 
+    // Ansicht → Layout (Menüleiste, App-Menü): nur noch die drei gültigen
+    // Kombinationen – Kartenansicht (immer vertikal), Tabelle klassisch, Tabelle
+    // breit. Thunderbirds Punkte bleiben (Häkchen über mail.pane_config.dynamic,
+    // syncViewChoice hält die Ansicht passend), nur umbenannt und Karten zuerst;
+    // „Message List Header“ ohne Wirkung (eigener Listenkopf) – ausgeblendet
+    const hookLayoutMenus = () => {
+      const d = w.document;
+      if (d.getElementById("messagePaneVertical")?.__mcLayout) {
+        return;
+      }
+      const relabel = [
+        ["messagePaneVertical", "appmenu_messagePaneVertical", tr("Card View")],
+        ["messagePaneClassic", "appmenu_messagePaneClassic", tr("Table View: Classic")],
+        ["messagePaneWide", "appmenu_messagePaneWide", tr("Table View: Wide")],
+      ];
+      for (const [menuId, appId, label] of relabel) {
+        for (const el of [d.getElementById(menuId), d.getElementById(appId)]) {
+          if (!el) {
+            continue;
+          }
+          const old = { label: el.getAttribute("label"), accesskey: el.getAttribute("accesskey") };
+          el.setAttribute("label", label);
+          el.removeAttribute("accesskey");
+          el.__mcLayout = true;
+          this.restorers.push(() => {
+            el.setAttribute("label", old.label);
+            if (old.accesskey) {
+              el.setAttribute("accesskey", old.accesskey);
+            }
+            delete el.__mcLayout;
+          });
+        }
+      }
+      for (const [firstId, beforeId] of [["messagePaneVertical", "messagePaneClassic"], ["appmenu_messagePaneVertical", "appmenu_messagePaneClassic"]]) {
+        const el = d.getElementById(firstId), before = d.getElementById(beforeId);
+        if (el && before && el.nextElementSibling !== null) {
+          const next = el.nextElementSibling;
+          before.before(el);
+          this.restorers.push(() => next?.before(el));
+        }
+      }
+      for (const id of ["menu_toggleThreadPaneHeader", "appmenu_toggleThreadPaneHeader"]) {
+        const el = d.getElementById(id);
+        if (el && !el.hidden) {
+          el.hidden = true;
+          this.restorers.push(() => (el.hidden = false));
+        }
+      }
+    };
+
     // Gibt es oben das Suchfeld? (fehlt, wenn die globale Suche/Indexierung
     // aus ist oder es aus der Toolbar entfernt wurde) – nur dann blendet
     // userChrome.css die Suchfelder in Einstellungen, Adressbuch, Aufgaben aus
@@ -5061,6 +5727,11 @@ class CardEnhancer {
     const markTab = () => {
       hookSearchForwarding();
       hookHelpMenu();
+      try {
+        hookLayoutMenus();
+      } catch (e) {
+        log("layout menu error", e);
+      }
       this.hideTodayPaneInChatOnce(w);
       styleContentPages();
       applySideState();
@@ -6636,6 +7307,16 @@ class CardEnhancer {
       return;
     }
     const saved = grid.style.getPropertyValue(prop);
+    // Vertikales Layout: die Mailliste ist die flexible Spalte – sie würde jedes
+    // Bild breiter/schmaler und neu umbrochen (Karten), das ruckelt. Stattdessen
+    // nimmt die Leseansicht die Breite auf, die Liste bleibt stehen
+    const msgSplitter = ab.paneLayout?.messagePaneSplitter;
+    const msgPane = ab.document.getElementById("messagePane");
+    const vertical = Services.prefs.getIntPref("mail.pane_config.dynamic", 0) == 2 && msgSplitter && msgPane &&
+      !msgSplitter.isCollapsed && msgPane.getBoundingClientRect().width > 0;
+    const msgStart = vertical ? msgPane.getBoundingClientRect().width : 0;
+    const msgProp = "--messagePaneSplitter-width";
+    const msgSaved = vertical ? grid.style.getPropertyValue(msgProp) : "";
     const inner = [...pane.children];
     // Inhalt der Ordnerliste behält seine volle Breite und bleibt stehen –
     // er wird nur von rechts her zugedeckt
@@ -6667,6 +7348,11 @@ class CardEnhancer {
       const shown = collapsing ? 1 - curve(k) : curve(k); // sichtbarer Anteil 1 → 0 bzw. 0 → 1
       const width = full * shown;
       grid.style.setProperty(prop, `${width}px`);
+      if (vertical) {
+        // eingeblendet war die Ordnerliste „full“ breit: was ihr fehlt, bekommt die Leseansicht
+        const msg = collapsing ? msgStart + (full - width) : msgStart - width;
+        grid.style.setProperty(msgProp, `${Math.max(0, msg)}px`);
+      }
       this.offsetUpdaters?.forEach(fn => fn());
       if (k < 1) {
         ab.requestAnimationFrame(step);
@@ -6678,6 +7364,18 @@ class CardEnhancer {
       pane.classList.remove("mc-side-anim");
       if ((lockedWidth || relocked) && !collapsing) {
         pane.style.setProperty("width", `${full}px`, "important");
+      }
+      if (vertical) {
+        // Endbreite der Leseansicht wie beim Ziehen am Teiler übernehmen (Thunderbird speichert sie)
+        const msg = Math.round(collapsing ? msgStart + full : msgStart - full);
+        if (msgSaved) {
+          grid.style.setProperty(msgProp, msgSaved);
+        } else {
+          grid.style.removeProperty(msgProp);
+        }
+        if (msg > 0) {
+          msgSplitter.width = msg;
+        }
       }
       if (collapsing) {
         splitter.isCollapsed = true; // setzt die Variable selbst auf 0px
@@ -6719,7 +7417,8 @@ class CardEnhancer {
         // Suche: „Suche“ und „Alle Postfächer, 12 Treffer“ wie Apple Mail
         const n = ab.gDBView?.numMsgsInView || 0;
         title.textContent = tr("Searching");
-        count.textContent = tr("All Mailboxes") + ", " +
+        const base = this.searchBase(ab);
+        count.textContent = (this.isUnifiedFolder(base) ? tr("All Mailboxes") : appleFolderName(base)) + ", " +
           tr(n == 1 ? "{n} result" : "{n} results", { n: n.toLocaleString(Services.locale.appLocaleAsBCP47) });
         return;
       }
@@ -7907,6 +8606,26 @@ class CardEnhancer {
         sss.unregisterSheet(plain, sss.USER_SHEET);
       }
     });
+    // Ungelesene Mails leicht in Akzentfarbe (Option, Standard aus) – schaltet sofort um
+    const tint = Services.io.newURI(`resource://mailcards/unread-tint.css?v=${extensionVersion}`);
+    const applyTint = () => {
+      const on = Services.prefs.getBoolPref(UNREAD_TINT_PREF, false);
+      const has = sss.sheetRegistered(tint, sss.USER_SHEET);
+      if (on && !has) {
+        sss.loadAndRegisterSheet(tint, sss.USER_SHEET);
+      } else if (!on && has) {
+        sss.unregisterSheet(tint, sss.USER_SHEET);
+      }
+    };
+    const tintObs = { observe: applyTint };
+    Services.prefs.addObserver(UNREAD_TINT_PREF, tintObs);
+    applyTint();
+    this.restorers.push(() => {
+      Services.prefs.removeObserver(UNREAD_TINT_PREF, tintObs);
+      if (sss.sheetRegistered(tint, sss.USER_SHEET)) {
+        sss.unregisterSheet(tint, sss.USER_SHEET);
+      }
+    });
     // ::part-Regeln gelten nur aus Author-Stylesheets (siehe parts.css)
     if (Services.prefs.getBoolPref("extensions.mailcards.bundledTheme", true)) {
       const parts = Services.io.newURI(`resource://mailcards/parts.css?v=${extensionVersion}`);
@@ -8383,6 +9102,10 @@ class CardEnhancer {
   }
 
   stop() {
+    for (const timer of ["previewTimer", "fullTimer", "refreshTimer"]) {
+      clearTimeout(this[timer]);
+      this[timer] = null;
+    }
     ExtensionSupport.unregisterWindowListener("mail-cards");
     this.mainWindows.clear();
     for (const restore of this.restorers.splice(0)) {
@@ -8401,6 +9124,105 @@ class CardEnhancer {
       this.windows.delete(w);
     }
     return null;
+  }
+
+  // Leseansicht: ganze Konversation als Karten (ConversationCards) über
+  // Thunderbirds Anzeige von Einzelmail bzw. Faden-Zusammenfassung
+  hookConversation(win) {
+    const pane = win.document.getElementById("messagePane");
+    if (!pane || pane.__mcConv === HOOK_OWNER || typeof pane.displayMessage != "function") {
+      return;
+    }
+    // (Reste einer älteren Fassung entfernen)
+    win.document.getElementById("mcConversation")?.remove();
+    pane.__mcConversation?.hide();
+    delete pane.displayMessage;
+    delete pane.displayMessages;
+    pane.__mcConv = HOOK_OWNER;
+    const conv = new ConversationCards(win, pane);
+    pane.__mcConversation = conv;
+    const one = pane.displayMessage, many = pane.displayMessages;
+    pane.displayMessage = function (uri) {
+      conv.hide();
+      const result = one.call(this, uri);
+      if (uri) {
+        conv.show(conv.hdrFromURI(uri));
+      }
+      return result;
+    };
+    pane.displayMessages = function (messages = []) {
+      conv.hide();
+      const result = many.call(this, messages);
+      // ein zugeklappter Faden (eine Zeile ausgewählt): Konversation statt Zusammenfassung
+      if (messages.length && win.gDBView?.selection?.count == 1) {
+        const newest = [...messages].sort((a, b) => b.date - a.date)[0];
+        conv.show(newest, { thread: true });
+      }
+      return result;
+    };
+    this.addWinRestorer(win, () => {
+      conv.hide();
+      delete pane.displayMessage;
+      delete pane.displayMessages;
+      delete pane.__mcConv;
+      delete pane.__mcConversation;
+    });
+  }
+
+  // Drei-Punkte-Menü über der Mailliste: Ansicht und Layout als eine Auswahl
+  // (Kartenansicht, Tabelle klassisch, Tabelle breit) statt Tabelle/Karten;
+  // „Hide Message List Header“ ohne Wirkung (eigener Listenkopf) – ausgeblendet
+  hookViewChoice(doc) {
+    const popup = doc.getElementById("threadPaneDisplayContext");
+    if (!popup || ownedElement(doc, "mcViewChoiceCards")) {
+      return;
+    }
+    const restorers = { push: fn => this.addWinRestorer(doc.defaultView, fn) };
+    const tb = [doc.getElementById("threadPaneTableView"), doc.getElementById("threadPaneCardsView")].filter(Boolean);
+    const anchor = tb[0];
+    if (!anchor) {
+      return;
+    }
+    const items = VIEW_CHOICES.map(([key, label]) => {
+      const item = doc.createXULElement("menuitem");
+      item.id = "mcViewChoice" + key.charAt(0).toUpperCase() + key.slice(1);
+      item.__mcOwner = HOOK_OWNER;
+      item.setAttribute("type", "radio");
+      item.setAttribute("name", "mcviewchoice");
+      item.setAttribute("label", tr(label));
+      item.addEventListener("command", () => setViewChoice(key));
+      anchor.before(item);
+      return [key, item];
+    });
+    for (const el of tb) {
+      el.hidden = true;
+    }
+    const hideItem = popup.querySelector('menuitem[data-l10n-id="thread-pane-header-context-hide"]');
+    const sep = doc.getElementById("separatorAfterSortOptions");
+    for (const el of [hideItem, sep]) {
+      if (el) {
+        el.hidden = true;
+      }
+    }
+    const onShowing = event => {
+      if (event.target != popup) {
+        return;
+      }
+      const current = viewChoice();
+      for (const [key, item] of items) {
+        item.toggleAttribute("checked", key == current);
+      }
+    };
+    popup.addEventListener("popupshowing", onShowing);
+    restorers.push(() => {
+      popup.removeEventListener("popupshowing", onShowing);
+      items.forEach(([, item]) => item.remove());
+      for (const el of [...tb, hideItem, sep]) {
+        if (el) {
+          el.hidden = false;
+        }
+      }
+    });
   }
 
   patch(win, attempt) {
@@ -8431,6 +9253,13 @@ class CardEnhancer {
       }
     };
     safely("mail context", () => this.hookMailContext(doc));
+    safely("view choice", () => this.hookViewChoice(doc));
+    safely("conversation", () => this.hookConversation(win));
+    safely("scroll watch", () => {
+      const onScroll = () => (this.lastListScroll = Date.now());
+      win.threadTree.addEventListener("scroll", onScroll, { passive: true, capture: true });
+      this.addWinRestorer(win, () => win.threadTree?.removeEventListener("scroll", onScroll, { capture: true }));
+    });
     safely("account rows", () => colorAccountRows(doc, this.restorers));
     const mb = win.messageBrowser?.contentDocument;
     if (mb?.readyState == "complete") {
@@ -8548,12 +9377,14 @@ class CardEnhancer {
     };
     tph.__mcHooked = true;
     win.addEventListener("folderURIChanged", update);
-    // anderen Ordner gewählt, während gesucht wurde: Suchfeld leeren
+    // anderen Ordner gewählt, während gesucht wurde: wie Apple Mail dort
+    // weitersuchen (Sammelordner: wieder in allen Postfächern)
     const leave = () => {
-      if (self.mailSearchTerm && !self.isSearchFolder(win.gFolder)) {
-        self.mailSearchTerm = "";
-        top.document.querySelector("#unifiedToolbarContent global-search-bar")?.reset?.();
+      if (self.mailSearchTerm && win.gFolder && !self.isSearchFolder(win.gFolder)) {
+        self.searchPrevURI = win.gFolder.URI;
+        self.mailSearch(top, self.mailSearchTerm);
       }
+      top.__mcSearchPlaceholder?.();
     };
     win.addEventListener("folderURIChanged", leave);
     this.restorers.push(() => win.removeEventListener("folderURIChanged", leave));
@@ -8913,11 +9744,43 @@ class CardEnhancer {
     return VirtualFolderHelper.createNewVirtualFolder(SEARCH_FOLDER_NAME, root, this.searchScope(), [], false).virtualFolder;
   }
 
-  // alle Postfächer aller Konten – ohne Papierkorb, Spam und Suchordner
-  searchScope() {
+  // Suchbereich wie Apple Mail: Sammelordner (Alle Eingänge …) und ohne
+  // gewählten Ordner alle Postfächer aller Konten – ohne Papierkorb, Spam und
+  // Suchordner; ein Konto: dessen Ordner; sonst nur der gewählte Ordner (auch
+  // Papierkorb oder Spam, wenn genau der gewählt ist)
+  searchScope(base = null) {
     const F = Ci.nsMsgFolderFlags;
-    return MailServices.accounts.allFolders.filter(f =>
+    const all = MailServices.accounts.allFolders.filter(f =>
       !f.isServer && !(f.flags & (F.Virtual | F.Trash | F.Junk | F.ImapNoselect)));
+    if (!base || this.isUnifiedFolder(base)) {
+      return all;
+    }
+    if (base.isServer) {
+      return all.filter(f => f.server == base.server);
+    }
+    return [base];
+  }
+
+  // Sammelordner („Alle Eingänge“ …, gespeicherte Suchen) – dort global suchen
+  isUnifiedFolder(folder) {
+    try {
+      return !folder || folder.getFlag(Ci.nsMsgFolderFlags.Virtual) || /\/smart%20mailboxes(\/|$)/i.test(folder.URI);
+    } catch {
+      return true;
+    }
+  }
+
+  // Ordner, in dem gesucht wird (während der Suche: der Ordner davor)
+  searchBase(a3) {
+    let base = a3?.gFolder;
+    if (this.isSearchFolder(base)) {
+      try {
+        base = this.searchPrevURI ? MailServices.folderLookup.getFolderForURL(this.searchPrevURI) : null;
+      } catch {
+        base = null;
+      }
+    }
+    return base;
   }
 
   // Begriff in Betreff, Absender, Empfänger oder Text – oder, wenn er wie ein
@@ -8976,15 +9839,19 @@ class CardEnhancer {
       folder ??= this.searchFolder(true);
       const { VirtualFolderHelper } = ChromeUtils.importESModule("resource:///modules/VirtualFolderWrapper.sys.mjs");
       const wrapper = VirtualFolderHelper.wrapVirtualFolder(folder);
-      wrapper.searchFolders = this.searchScope();
+      if (a3.gFolder && !this.isSearchFolder(a3.gFolder)) {
+        this.searchPrevURI = a3.gFolder.URI;
+      }
+      wrapper.searchFolders = this.searchScope(this.searchBase(a3));
       wrapper.searchTerms = this.searchTerms(wrapper.searchTermsSession, term);
       wrapper.onlineSearch = false;
       MailServices.accounts.saveVirtualFolders();
       this.mailSearchTerm = term;
-      if (this.isSearchFolder(a3.gFolder) && a3.gViewWrapper?.search) {
+      if (this.isSearchFolder(a3.gFolder) && a3.gViewWrapper?.search && !this.searchScopeChanged) {
         // Suche läuft schon: neue Begriffe direkt in die Ansicht
         a3.gViewWrapper.search.virtualFolderTerms = wrapper.searchTerms;
       } else {
+        this.searchScopeChanged = false;
         if (a3.gFolder && !this.isSearchFolder(a3.gFolder)) {
           this.searchPrevURI = a3.gFolder.URI;
         }
@@ -9028,6 +9895,7 @@ class CardEnhancer {
       if (addon.id == "mail-cards@sebastian.local") {
         this.removeBirthdayCalendar();
         this.removeSearchFolder();
+        EarlyTheme.remove().catch(e => log("early theme remove error", e));
       }
     };
     const addonListener = { onDisabling: goodbye, onUninstalling: goodbye };
@@ -9425,15 +10293,19 @@ class CardEnhancer {
     const links = (data["list-unsubscribe"]?.headerValue || "").match(/<[^>]+>/g)?.map(l => l.slice(1, -1).trim()) || [];
     const web = links.find(l => /^https:\/\//i.test(l));
     const mail = links.find(l => /^mailto:/i.test(l));
+    // schon abgemeldet (Ein-Klick bestätigt): je Verteiler gemerkt, gilt auch für
+    // weitere Mails desselben Verteilers
+    const listKey = unsubscribeKey(data, hdr);
+    const done = listKey && unsubscribedLists().includes(listKey);
     const banner = doc.createElementNS(X, "div");
     banner.id = "mcListBanner";
     const icon = doc.createElementNS(X, "span");
     icon.className = "mc-lb-icon";
     const text = doc.createElementNS(X, "span");
     text.className = "mc-lb-text";
-    text.textContent = tr("This message is from a mailing list.");
+    text.textContent = done ? tr("You unsubscribed from this mailing list.") : tr("This message is from a mailing list.");
     banner.append(icon, text);
-    if (web || mail) {
+    if ((web || mail) && !done) {
       const unsub = doc.createElementNS(X, "button");
       unsub.className = "mc-lb-unsub";
       unsub.type = "button";
@@ -9497,8 +10369,10 @@ class CardEnhancer {
           if (!res.ok) {
             throw new Error(`status ${res.status}`);
           }
-          unsub.textContent = tr("Unsubscribed");
-          unsub.setAttribute("data-done", "true");
+          // erledigt: merken, Knopf weg, Hinweis sagt es (Apple Mail: Hinweis verschwindet)
+          rememberUnsubscribed(listKey);
+          text.textContent = tr("You unsubscribed from this mailing list.");
+          unsub.remove();
         } catch (e) {
           // klappt der POST nicht: Abmelde-Mail oder doch die Seite im Browser
           debugLog("one-click unsubscribe failed", String(e).slice(0, 120));
@@ -9606,8 +10480,20 @@ class CardEnhancer {
     }
   }
 
+  // Nachladen ruht, solange die Liste scrollt: Treffer der Suche kommen aus vielen
+  // Ordnern, bei IMAP ohne gespeicherte Vorschau – Abrufen und Einsetzen
+  // während des Scrollens ließen es stark ruckeln
+  scrollingRecently() {
+    return Date.now() - (this.lastListScroll || 0) < 250;
+  }
+
   flushPreviews() {
     this.previewTimer = null;
+    if (this.scrollingRecently()) {
+      this.stats.deferred = (this.stats.deferred || 0) + 1;
+      this.previewTimer = setTimeout(() => this.flushPreviews(), 250);
+      return;
+    }
     const batches = [...this.pendingPreview];
     this.pendingPreview.clear();
     for (const [folder, hdrs] of batches) {
@@ -9650,6 +10536,11 @@ class CardEnhancer {
   }
 
   pumpFull() {
+    if (this.scrollingRecently() && this.fullQueue.length) {
+      clearTimeout(this.fullTimer);
+      this.fullTimer = setTimeout(() => this.pumpFull(), 250);
+      return;
+    }
     while (this.fullActive < 2 && this.fullQueue.length) {
       const hdr = this.fullQueue.shift();
       if (cleanPreview(hdr.getStringProperty("preview"))) {
@@ -9716,7 +10607,18 @@ class CardEnhancer {
     }
   }
 
+  // gebündelt: viele Rückmeldungen kurz hintereinander durchlaufen die Zeilen nur einmal
   refreshPreviews() {
+    if (this.refreshTimer) {
+      return;
+    }
+    this.refreshTimer = setTimeout(() => {
+      this.refreshTimer = null;
+      this.refreshPreviewsNow();
+    }, 60);
+  }
+
+  refreshPreviewsNow() {
     for (const win of this.windows) {
       if (win.closed) {
         continue;
@@ -9747,6 +10649,9 @@ const SETTINGS = {
   previewLines: [PREVIEW_PREF, "int", 1],
   // standardmäßig aus (auf Wunsch: ruhigere Karten); in den Einstellungen einschaltbar
   hoverActions: [HOVER_ACTIONS_PREF, "bool", false],
+  unreadTint: [UNREAD_TINT_PREF, "bool", false],
+  earlyTheme: [EARLY_THEME_PREF, "bool", false],
+  fullConversation: [CONVERSATION_PREF, "bool", true],
   calendarEmoji: [EMOJI_PREF, "bool", true],
   emojiCustom: [EMOJI_CUSTOM_PREF, "string", ""],
   birthdays: [BDAY_PREF, "bool", true],

@@ -1784,16 +1784,17 @@ calendar-event-box :is(.alarm-icons-box, .item-classification-icon, .item-recurr
   content: "" !important;
   position: absolute !important;
   top: 0 !important;
-  inset-inline-start: 62px !important;
+  inset-inline-start: 58px !important;
   inset-inline-end: 10px !important;
   height: 1px !important;
   background: var(--mt-pane-line) !important;
 }
 
 #cards .card-layout .card-container contact-avatar {
-  width: 40px !important;
-  height: 40px !important;
-  min-width: 40px !important;
+  /* so groß wie die Absenderbilder der Mailkarten */
+  width: 36px !important;
+  height: 36px !important;
+  min-width: 36px !important;
   /* Fotos und Initialen exakt gleich rund (Fotos ohne Rand, randlos beschnitten) */
   border-radius: 50% !important;
   overflow: hidden !important;
@@ -1809,6 +1810,11 @@ calendar-event-box :is(.alarm-icons-box, .item-classification-icon, .item-recurr
 #cards .card-layout .ab-card-second-line {
   font-size: 12px !important;
   color: var(--mt-text-tertiary) !important;
+}
+
+/* ohne Firma nur der Name – einzeilig, senkrecht mittig */
+#cards .card-layout.mc-one-line .ab-card-second-line {
+  display: none !important;
 }
 
 #cards .card-layout:hover .card-container {
@@ -2160,9 +2166,14 @@ search-bar {
 }
 
 #listPaneBox {
-  min-width: 260px !important;
   background: var(--mt-sidebar) !important;
   border-inline-end: 1px solid var(--mt-sidebar-border) !important;
+}
+
+/* Mindestbreite nicht während der Ein-/Ausblend-Animation – das Stylesheet
+   (User-Sheet) schlägt sonst die Zwischenbreiten, die Leiste springt */
+#listPaneBox:not(.mc-side-anim) {
+  min-width: 260px !important;
 }
 
 #listSplitter {
@@ -2247,9 +2258,13 @@ search-bar {
 }
 
 /* ---------- Einstellungen wie die macOS-Systemeinstellungen ---------- */
-#pref-category-box {
+/* feste Breite nicht während der Ein-/Ausblend-Animation (sonst springt sie) */
+#pref-category-box:not(.mc-side-anim) {
   width: 240px !important;
   min-width: 240px !important;
+}
+
+#pref-category-box {
   background: var(--mt-sidebar) !important;
   border-inline-end: 1px solid var(--mt-sidebar-border) !important;
   /* erster Eintrag auf derselben Höhe wie „Favoriten“ in der Mail */
@@ -3793,7 +3808,7 @@ addon-card .addon-inline-options {
   background: linear-gradient(180deg, #B4CAE4, #8A97C5) !important;
   color: #fff !important;
   box-shadow: none !important;
-  font: 600 21px -apple-system, BlinkMacSystemFont, system-ui, sans-serif !important;
+  font: 600 19px -apple-system, BlinkMacSystemFont, system-ui, sans-serif !important;
   letter-spacing: 0 !important;
 }
 
@@ -7437,4 +7452,250 @@ notification-message toolbarbutton.notification-button > .toolbarbutton-menubutt
 
 #messageHeader .header-recipient:is(:hover, :focus-visible, [aria-expanded="true"]) :is(.recipient-single-line, .recipient-multi-line-name, .recipient-multi-line-address) {
   color: var(--mt-text) !important;
+}
+
+/* ---------- Termin: „Teilnehmer einladen“ (calendar-event-dialog-attendees) ----------
+   Liste und Zeitraster als ruhige Flächen mit Haarlinien statt harter grauer
+   Rahmen und Linien (Thunderbird malt sie als Bild in threedshadow), Symbole
+   einfarbig, Legende klein und grau, Zeitbalken in Akzentfarbe statt Pink */
+#calendar-event-dialog-attendees-v2 {
+  --mc-att-line: var(--mt-separator);
+  --mc-att-line-soft: color-mix(in srgb, var(--mt-separator) 50%, transparent);
+}
+
+#calendar-event-dialog-attendees-v2 :is(#attendee-list, #freebusy-grid) {
+  border: none !important;
+  border-radius: 0 0 8px 8px !important;
+  background-color: var(--mt-control) !important;
+}
+
+#calendar-event-dialog-attendees-v2 #attendee-list {
+  border-radius: 8px !important;
+  background-image: linear-gradient(to bottom, transparent 20px, var(--mc-att-line) 20px) !important;
+  background-size: 100% 21px !important;
+}
+
+#calendar-event-dialog-attendees-v2 #day-header-outer {
+  border: none !important;
+  border-radius: 8px 8px 0 0 !important;
+  background-color: var(--mt-control) !important;
+  box-shadow: inset 0 -1px 0 var(--mc-att-line) !important;
+}
+
+#calendar-event-dialog-attendees-v2 calendar-day {
+  border-inline-end: 1px solid var(--mc-att-line) !important;
+}
+
+#calendar-event-dialog-attendees-v2 .day-label {
+  font-weight: 600 !important;
+  color: var(--mt-text) !important;
+}
+
+#calendar-event-dialog-attendees-v2 .hour-label {
+  font-size: 11px !important;
+  color: var(--mt-text-secondary) !important;
+}
+
+/* Raster: Zeilen je 21 px, Stunden als Haarlinie, Viertel-/Halbstunden zarter */
+#calendar-event-dialog-attendees-v2 #day-header-inner.twoMinorColumns {
+  background-image: linear-gradient(to right, transparent 59px, var(--mc-att-line) 59px) !important;
+  background-size: 60px 6px !important;
+}
+
+#calendar-event-dialog-attendees-v2 #day-header-inner.threeMinorColumns {
+  background-image: linear-gradient(to right, transparent 89px, var(--mc-att-line) 89px) !important;
+  background-size: 90px 6px !important;
+}
+
+#calendar-event-dialog-attendees-v2 #freebusy-grid-inner.twoMinorColumns {
+  background-image:
+    linear-gradient(to bottom, transparent 20px, var(--mc-att-line) 20px),
+    linear-gradient(to right, transparent 59px, var(--mc-att-line) 59px),
+    linear-gradient(to right, transparent 29px, var(--mc-att-line-soft) 29px, var(--mc-att-line-soft) 30px, transparent 30px) !important;
+  background-size: 100% 21px, 60px 100%, 60px 100% !important;
+}
+
+#calendar-event-dialog-attendees-v2 #freebusy-grid-inner.threeMinorColumns {
+  background-image:
+    linear-gradient(to bottom, transparent 20px, var(--mc-att-line) 20px),
+    linear-gradient(to right, transparent 89px, var(--mc-att-line) 89px),
+    linear-gradient(to right, transparent 29px, var(--mc-att-line-soft) 29px, var(--mc-att-line-soft) 30px, transparent 30px,
+                    transparent 59px, var(--mc-att-line-soft) 59px, var(--mc-att-line-soft) 60px, transparent 60px) !important;
+  background-size: 100% 21px, 90px 100%, 90px 100% !important;
+}
+
+/* gewählte Zeit: Akzent statt Pink (#f045a5) */
+#calendar-event-dialog-attendees-v2 :is(#event-bar-top, #event-bar-bottom) {
+  border-color: var(--mt-accent) !important;
+  background-color: color-mix(in srgb, var(--mt-accent) 22%, transparent) !important;
+}
+
+/* Belegt/Vorläufig/Abwesend/Unbekannt: abgerundete Balken; Legende ohne Rahmen */
+#calendar-event-dialog-attendees-v2 .freebusy-row > :is(.busy, .tentative, .unavailable, .unknown, .pending) {
+  border-radius: 3px !important;
+}
+
+#calendar-event-dialog-attendees-v2 .legend {
+  inline-size: 18px !important;
+  block-size: 10px !important;
+  border: none !important;
+  border-radius: 3px !important;
+}
+
+#calendar-event-dialog-attendees-v2 :is(td, label, .legend + *) {
+  font-size: 12px !important;
+}
+
+#calendar-event-dialog-attendees-v2 table:has(.legend) td,
+#calendar-event-dialog-attendees-v2 table:has(.role-icon:not([attendeerole=""])) td {
+  color: var(--mt-text-secondary) !important;
+}
+
+/* Rollen und Teilnehmerart: einfarbige Symbole (statt Thunderbirds farbiger Grafik) */
+#calendar-event-dialog-attendees-v2 :is(.role-icon, .usertype-icon) {
+  object-fit: contain !important;
+  object-position: center !important;
+  inline-size: 16px !important;
+  block-size: 16px !important;
+  -moz-context-properties: fill, fill-opacity, stroke !important;
+  fill: currentColor !important;
+  fill-opacity: 1 !important;
+  stroke: currentColor !important;
+  color: var(--mt-text-secondary) !important;
+}
+
+#calendar-event-dialog-attendees-v2 .role-icon,
+#calendar-event-dialog-attendees-v2 .role-icon[attendeerole="REQ-PARTICIPANT"] {
+  content: url("resource://mailcards/icons/user.svg") !important;
+}
+
+#calendar-event-dialog-attendees-v2 .role-icon[attendeerole="OPT-PARTICIPANT"] {
+  content: url("resource://mailcards/icons/user.svg") !important;
+  fill-opacity: 0 !important;
+}
+
+#calendar-event-dialog-attendees-v2 .role-icon[attendeerole="NON-PARTICIPANT"] {
+  content: url("resource://mailcards/icons/user.svg") !important;
+  fill-opacity: 0 !important;
+  opacity: 0.45 !important;
+}
+
+#calendar-event-dialog-attendees-v2 .role-icon[attendeerole="CHAIR"] {
+  content: url("resource://mailcards/icons/star.svg") !important;
+}
+
+#calendar-event-dialog-attendees-v2 .usertype-icon,
+#calendar-event-dialog-attendees-v2 .usertype-icon[usertype="INDIVIDUAL"] {
+  content: url("resource://mailcards/icons/contact.svg") !important;
+}
+
+#calendar-event-dialog-attendees-v2 .usertype-icon[usertype="GROUP"] {
+  content: url("resource://mailcards/icons/user-list.svg") !important;
+}
+
+#calendar-event-dialog-attendees-v2 .usertype-icon[usertype="RESOURCE"] {
+  content: url("resource://mailcards/icons/tools.svg") !important;
+}
+
+#calendar-event-dialog-attendees-v2 .usertype-icon[usertype="ROOM"] {
+  content: url("resource://mailcards/icons/pin.svg") !important;
+}
+
+#calendar-event-dialog-attendees-v2 :is(.role-icon, .usertype-icon)[disabled] {
+  opacity: 0.4 !important;
+}
+
+/* Eingabezeilen der Teilnehmer ohne eigenen Rahmen (liegen auf der Liste) */
+#calendar-event-dialog-attendees-v2 event-attendee > input {
+  border: none !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+/* ---------- Termin/Aufgabe: Datum und Uhrzeit in einem Popover ----------
+   Unter dem Minimonat der Datumsauswahl eine Zeile „Uhrzeit“ (setzt die
+   Erweiterung), wie in Apple Kalender; ganztägig ausgeblendet */
+.mc-dtp-time {
+  display: flex;
+  padding: 8px 10px 4px;
+  margin-top: 6px;
+  border-top: var(--mt-hairline) solid var(--mt-separator);
+}
+
+.mc-dtp-time[hidden] {
+  display: none !important;
+}
+
+.mc-dtp-time > label {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 13px;
+  color: var(--mt-text);
+}
+
+.mc-dtp-time input[type="time"] {
+  appearance: none;
+  min-height: 26px;
+  padding: 0 8px;
+  border: none !important;
+  border-radius: 6px;
+  background: var(--mt-control) !important;
+  color: var(--mt-text);
+  font: inherit;
+  font-variant-numeric: tabular-nums;
+}
+
+.mc-dtp-time input[type="time"]:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--mt-accent) 60%, transparent);
+  outline-offset: 1px;
+}
+
+/* ---------- Bedienungshilfen: „Kontrast erhöhen“ (macOS) ----------
+   prefers-contrast: more – kräftigere Linien und Sekundärtexte, Rahmen um
+   Eingabefelder und die Auswahl wieder sichtbar; Layout und Symbole bleiben.
+   Am Dateiende, damit es alle früheren Werte (auch die 0,5-px-Haarlinie) schlägt */
+@media (prefers-contrast: more) {
+  :root {
+    --mt-hairline: 1px;
+    --mt-text-secondary: #3C3C43;
+    --mt-text-tertiary: #545458;
+    --mt-separator: rgba(0, 0, 0, 0.30);
+    --mt-pane-line: rgba(0, 0, 0, 0.40);
+    --mt-sidebar-border: rgba(0, 0, 0, 0.35);
+    --mt-selected-unfocused: rgba(0, 0, 0, 0.16);
+    --mt-hover: rgba(0, 0, 0, 0.09);
+    --mt-control: rgba(0, 0, 0, 0.08);
+    --mt-check-border: rgba(0, 0, 0, 0.60);
+    --mt-tooltip-border: rgba(0, 0, 0, 0.45);
+  }
+
+  /* Eingabefelder und Suchfelder mit sichtbarem Rand */
+  :is(input:not([type="checkbox"], [type="radio"], [type="range"], [type="color"]), textarea, search-bar, global-search-bar, menulist) {
+    box-shadow: inset 0 0 0 1px var(--mt-pane-line) !important;
+  }
+
+  /* Auswahl in Listen (Karten, Ordner) mit Rand, nicht nur als Fläche */
+  #threadTree tr:is(.selected, [aria-selected="true"]) .card-container,
+  #folderTree li.selected > .container,
+  #cards .card-layout.selected .card-container {
+    box-shadow: inset 0 0 0 1px var(--mt-text-secondary) !important;
+  }
+}
+
+@media (prefers-contrast: more) and (prefers-color-scheme: dark) {
+  :root {
+    --mt-text-secondary: #D1D1D6;
+    --mt-text-tertiary: #AEAEB2;
+    --mt-separator: rgba(255, 255, 255, 0.30);
+    --mt-pane-line: rgba(255, 255, 255, 0.40);
+    --mt-sidebar-border: rgba(255, 255, 255, 0.35);
+    --mt-selected-unfocused: rgba(255, 255, 255, 0.18);
+    --mt-hover: rgba(255, 255, 255, 0.10);
+    --mt-control: rgba(255, 255, 255, 0.10);
+    --mt-check-border: rgba(255, 255, 255, 0.60);
+    --mt-tooltip-border: rgba(255, 255, 255, 0.45);
+  }
 }

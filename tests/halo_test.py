@@ -669,6 +669,111 @@ def maillist_checks(m, results):
         return ok, f"Abstand rechter Rand ↔ Uhrzeit/Symbole {res}"
     check("Mailliste: Uhrzeit und Symbole der Karte mit Abstand zum rechten Rand der Auswahl (≥ 8 px wie links)", card_right_gap, results)
 
+    def unread_tint():
+        # Option „Ungelesene Mails hinterlegen“ (Standard aus): zarte Akzentfläche hinter ungelesenen Karten,
+        # gelesene bleiben ohne, Auswahl bleibt Akzent bzw. Grau
+        res = m.js(MAILLIST_JS + r"""
+          await showFolder(); await asCards(); await wait(600);
+          const unread = () => cards().find(c => !props(c).includes("dummy") && props(c).includes("unread") && !c.classList.contains("selected"));
+          const read = () => cards().find(c => !props(c).includes("dummy") && !props(c).includes("unread") && !c.classList.contains("selected"));
+          const bg = r => r ? cs(r.querySelector(".card-container")).backgroundColor : null;
+          const out = { off: { unread: bg(unread()), read: bg(read()) } };
+          Services.prefs.setBoolPref("extensions.mailcards.unreadTint", true); await wait(800);
+          try {
+            out.on = { unread: bg(unread()), read: bg(read()) };
+            const sel = cards().find(c => !props(c).includes("dummy") && props(c).includes("unread"));
+            a3.threadTree.selectedIndex = a3.threadTree.view.rowCount > 0 ? [...Array(a3.threadTree.view.rowCount).keys()].find(i => a3.threadTree.getRowAtIndex(i) == sel) ?? -1 : -1;
+            await wait(400);
+            out.selected = sel ? bg(sel) : null; out.selUnread = sel ? props(sel).includes("unread") : null;
+          } finally {
+            Services.prefs.clearUserPref("extensions.mailcards.unreadTint"); a3.threadTree.selectedIndex = -1; await wait(500);
+          }
+          out.after = bg(unread());
+          return out;""")
+        on, off = res["on"], res["off"]
+        ok = (off["unread"] and rgba_alpha(off["unread"]) == 0 and on["unread"] and 0.05 <= rgba_alpha(on["unread"]) <= 0.15
+              and rgba_alpha(on["read"] or "rgba(0,0,0,0)") == 0 and res["after"] and rgba_alpha(res["after"]) == 0
+              and res["selected"] and not same_color(res["selected"], on["unread"]))
+        return ok, f"{res}"
+    check("Mailliste: Option „Ungelesene hinterlegen“ tönt ungelesene Karten zart in Akzentfarbe (Standard aus)", unread_tint, results)
+
+    def preview_while_scrolling():
+        # Suchergebnisse aus vielen Ordnern (IMAP ohne gespeicherte Vorschau): kein Nachladen während die Liste scrollt –
+        # erst danach; Scrollen bleibt im normalen Bildtakt
+        res = m.js(MAILLIST_JS + r"""
+          const { ExtensionParent } = ChromeUtils.importESModule("resource://gre/modules/ExtensionParent.sys.mjs");
+          const g = ExtensionParent.GlobalManager.getExtension("mail-cards@sebastian.local").experimentAPIManager.global;
+          const enh = Cu.evalInSandbox("enhancer", g);
+          await showFolder(); await asCards(); await wait(600);
+          const tree = a3.threadTree, before = enh.stats.deferred || 0;
+          // Vorschau einer Zeile neu anfordern und gleichzeitig scrollen
+          const row = cards().find(c => !props(c).includes("dummy"));
+          const hdr = enh.hdrForRow(row); enh.requested.delete(`${hdr.folder.URI}#${hdr.messageKey}`);
+          // (die Erweiterung sieht den Ordner in ihrem eigenen Compartment – gemessen an ihrer Warteschlange)
+          enh.requestPreview(a3, hdr);
+          const t0 = performance.now(); let during = 0;
+          while (performance.now() - t0 < 600) { tree.dispatchEvent(new a3.Event("scroll")); await wait(50); during = Math.max(during, enh.pendingPreview.size); }
+          await wait(800);
+          return { deferred: (enh.stats.deferred || 0) - before, during, after: enh.pendingPreview.size };""")
+        ok = res["deferred"] >= 1 and res["during"] >= 1 and res["after"] == 0
+        return ok, f"{res}"
+    check("Mailliste: Vorschau wird während des Scrollens nicht nachgeladen, erst danach (kein Ruckeln in Suchergebnissen)", preview_while_scrolling, results)
+
+    def increased_contrast():
+        # macOS „Kontrast erhöhen“ (prefers-contrast: more, simuliert über ui.useAccessibilityTheme): kräftigere Linien und
+        # Sekundärtexte, ausgewählte Ordnerzeile mit Rand statt nur Fläche; ohne bleibt alles wie bisher
+        res = m.js(r"""
+          const a3 = await toMail(); await wait(500); const ad = a3.document;
+          const v = (doc, name) => { const e = doc.createElement("div"); e.style.color = `var(${name})`; doc.documentElement.append(e); const c = getComputedStyle(e).color; e.remove(); return c; };
+          const sel = () => { const c = ad.querySelector("#folderTree li.selected > .container"); return c ? a3.getComputedStyle(c).boxShadow : null; };
+          const read = () => ({ sep: v(d, "--mt-separator"), secondary: v(d, "--mt-text-secondary"), selected: sel(), media: w.matchMedia("(prefers-contrast: more)").matches });
+          const out = { normal: read() };
+          Services.prefs.setIntPref("ui.useAccessibilityTheme", 1); await wait(900);
+          try { out.more = read(); } finally { Services.prefs.clearUserPref("ui.useAccessibilityTheme"); await wait(600); }
+          out.back = read();
+          return out;""")
+        n, mo, b = res["normal"], res["more"], res["back"]
+        ok = (mo["media"] and not n["media"] and rgba_alpha(mo["sep"]) >= 0.25 and rgba_alpha(n["sep"]) <= 0.1
+              and not same_color(mo["secondary"], n["secondary"]) and "inset" in (mo["selected"] or "")
+              and same_color(b["sep"], n["sep"]) and b["selected"] == n["selected"])
+        return ok, f"{res}"
+    check("Bedienungshilfen: bei „Kontrast erhöhen“ kräftigere Linien und Texte, Auswahl mit Rand; sonst unverändert", increased_contrast, results)
+
+    def view_choice_menu():
+        # Ansicht und Layout als eine Auswahl: Kartenansicht (immer vertikal), Tabelle klassisch, Tabelle breit – im Drei-
+        # Punkte-Menü und unter Ansicht → Layout; ungültige Kombinationen werden ausgeglichen; „Message List Header“ weg
+        res = m.js(MAILLIST_JS + r"""
+          await showFolder(); await asCards(); await wait(500);
+          const P = n => Services.prefs.getIntPref(n, -1), state = () => [P("mail.threadpane.listview"), P("mail.pane_config.dynamic")];
+          const popup = ad.getElementById("threadPaneDisplayContext");
+          popup.openPopup(ad.getElementById("threadPaneDisplayButton") || ad.getElementById("threadTree"), "after_end");
+          await until(() => popup.state == "open", 3000); await wait(300);
+          const vis = el => el && !el.hidden && el.getBoundingClientRect().height > 0;
+          const out = { items: [...popup.children].filter(e => e.localName == "menuitem" && vis(e) && e.closest("menupopup") == popup).map(e => e.getAttribute("label") || e.textContent),
+                        checked: [...popup.querySelectorAll("[name=mcviewchoice]")].filter(e => e.hasAttribute("checked") && e.getAttribute("checked") != "false").map(e => e.id) };
+          popup.hidePopup(); await wait(300);
+          const pick = async id => { ad.getElementById(id).doCommand(); await wait(700); return state(); };
+          try {
+            out.classic = await pick("mcViewChoiceClassic"); out.wide = await pick("mcViewChoiceWide"); out.cards = await pick("mcViewChoiceCards");
+            // Tabelle + vertikal (z. B. per Menüleiste „Vertical“ aus der Tabelle): wird Karten
+            Services.prefs.setIntPref("mail.threadpane.listview", 1); await wait(400); out.tableAfter = state();
+            Services.prefs.setIntPref("mail.pane_config.dynamic", 2); await wait(400); out.vertical = state();
+            // Karten + klassisch (Menüleiste „Classic“): wird Tabelle
+            Services.prefs.setIntPref("mail.pane_config.dynamic", 0); await wait(400); out.classicFromCards = state();
+          } finally { ad.getElementById("mcViewChoiceCards").doCommand(); await wait(700); }
+          const menu = id => d.getElementById(id);
+          out.menubar = [...(menu("view_layout_popup")?.children || [])].filter(e => e.localName == "menuitem" && !e.hidden).map(e => e.getAttribute("label") || e.id);
+          out.header = [menu("menu_toggleThreadPaneHeader")?.hidden, menu("appmenu_toggleThreadPaneHeader")?.hidden];
+          return out;""")
+        ok = (res["items"][:3] == ["Card View", "Table View: Classic", "Table View: Wide"]
+              and not any(i in ("Table View", "Cards View", "Hide Message List Header") for i in res["items"])
+              and res["checked"] == ["mcViewChoiceCards"]
+              and res["classic"] == [1, 0] and res["wide"] == [1, 1] and res["cards"] == [0, 2]
+              and res["tableAfter"] == [1, 0] and res["vertical"] == [0, 2] and res["classicFromCards"] == [1, 0]
+              and res["menubar"][:3] == ["Card View", "Table View: Classic", "Table View: Wide"] and res["header"] == [True, True])
+        return ok, f"{res}"
+    check("Mailliste: Ansicht und Layout als eine Auswahl (Karten, Tabelle klassisch, Tabelle breit), ungültige Kombinationen ausgeglichen, ohne Listenkopf-Schalter", view_choice_menu, results)
+
     def thread_sender():
         # zugeklappt: Name und Bild der neuesten Mail (Carla), aufgeklappt die Wurzel (Ben)
         res = m.js(MAILLIST_JS + r"""
@@ -1172,10 +1277,75 @@ def reading_checks(m, results):
         return ok, f"{res}"
     check("Mailkopf: „Mehr“-Knopf als graue Kapsel in 11 px, Kommas in Cc wie in An", recipients, results)
 
+    def conversation():
+        # Leseansicht wie Apple Mail: ganze Konversation – empfangene Mail im einen Ordner, eigene Antwort in „Gesendet“ –
+        # als Karten untereinander, neueste oben, eigene abgesetzt; zugeklappter Faden ebenso statt Zusammenfassung; aus: nicht
+        res = m.js(r"""
+          const { MailServices } = ChromeUtils.importESModule("resource:///modules/MailServices.sys.mjs");
+          const { GlodaMsgIndexer } = ChromeUtils.importESModule("resource:///modules/gloda/IndexMsg.sys.mjs");
+          const { Gloda } = ChromeUtils.importESModule("resource:///modules/gloda/GlodaPublic.sys.mjs");
+          const acc = MailServices.accounts.findAccountForServer(MailServices.accounts.localFoldersServer);
+          if (!acc.identities.length) { const id = MailServices.accounts.createIdentity(); id.fullName = "Halo Test"; id.email = "halo@example.invalid"; acc.addIdentity(id); }
+          const root = MailServices.accounts.localFoldersServer.rootFolder;
+          const folder = name => { if (!root.containsChildNamed(name)) root.createSubfolder(name, null); return root.getChildNamed(name); };
+          const eingang = folder("KonvEingang"), gesendet = folder("KonvGesendet"); gesendet.setFlag(Ci.nsMsgFolderFlags.SentMail);
+          await wait(800);
+          const mail = (from, to, subject, id, refs, minutesAgo) => unescape(encodeURIComponent([`From: ${from}`, `To: ${to}`, `Subject: ${subject}`,
+            `Date: ${new Date(Date.now() - minutesAgo * 60000).toUTCString().replace("GMT", "+0000")}`, `Message-ID: <${id}@example.invalid>`,
+            ...(refs ? [`In-Reply-To: <${refs}@example.invalid>`, `References: <${refs}@example.invalid>`] : []),
+            "MIME-Version: 1.0", "Content-Type: text/plain; charset=UTF-8", "", `Text von ${from.split(" ")[0]}.\n`.repeat(3), ""].join("\r\n")));
+          if (!eingang.getTotalMessages(false)) {
+            eingang.QueryInterface(Ci.nsIMsgLocalMailFolder).addMessage(mail("Anna Beispiel <anna@example.invalid>", "Halo Test <halo@example.invalid>", "Halo Konversation", "halo-konv-1", null, 120));
+            gesendet.QueryInterface(Ci.nsIMsgLocalMailFolder).addMessage(mail("Halo Test <halo@example.invalid>", "Anna Beispiel <anna@example.invalid>", "Re: Halo Konversation", "halo-konv-2", "halo-konv-1", 60));
+            // Faden im selben Ordner (zugeklappt auswählen)
+            eingang.QueryInterface(Ci.nsIMsgLocalMailFolder).addMessage(mail("Ben Muster <ben@example.invalid>", "Halo Test <halo@example.invalid>", "Halo Faden zu", "halo-konv-3", null, 50));
+            eingang.QueryInterface(Ci.nsIMsgLocalMailFolder).addMessage(mail("Ben Muster <ben@example.invalid>", "Halo Test <halo@example.invalid>", "Re: Halo Faden zu", "halo-konv-4", "halo-konv-3", 40));
+            await wait(1000);
+          }
+          const hdrs = f => [...f.messages];
+          GlodaMsgIndexer.indexMessages([...hdrs(eingang), ...hdrs(gesendet)].map(h => [h.folder, h.messageKey]));
+          const first = hdrs(eingang).find(h => h.messageId == "halo-konv-1@example.invalid");
+          for (let i = 0; i < 60; i++) { const ok = await new Promise(r => Gloda.getMessageCollectionForHeader(first, { onItemsAdded() {}, onItemsModified() {}, onItemsRemoved() {},
+              onQueryCompleted: c => { const conv = c.items[0]?.conversation; if (!conv) return r(false);
+                conv.getMessagesCollection({ onItemsAdded() {}, onItemsModified() {}, onItemsRemoved() {}, onQueryCompleted: m => r(m.items.filter(x => x.folderMessage).length >= 2) }); } }));
+            if (ok) break; await wait(500); }
+          const a3 = await toMail(); a3.displayFolder(eingang.URI); await wait(900);
+          a3.gViewWrapper.showThreaded = true; await wait(500);
+          const select = id => { const i = [...Array(a3.gDBView.rowCount).keys()].find(k => a3.gDBView.getMsgHdrAt(k)?.messageId == id); a3.threadTree.selectedIndex = i ?? -1; return i; };
+          const read = async () => {
+            const box = await until(() => a3.document.getElementById("mcConversation"), 6000);
+            if (!box) return null;
+            await until(() => [...box.querySelectorAll(".mc-conv-browser")].every(b => parseFloat(b.style.height) > 100) && box.querySelectorAll(".mc-conv-browser").length >= 2, 8000);
+            await wait(400);
+            const cards = [...box.querySelectorAll(".mc-conv-card")];
+            return { count: box.querySelector(".mc-conv-count")?.textContent, ids: cards.map(c => c.dataset.messageId.split("@")[0]), own: cards.map(c => c.classList.contains("mc-own")),
+                     heights: cards.map(c => Math.round(c.querySelector(".mc-conv-browser")?.getBoundingClientRect().height || 0)),
+                     text: cards.map(c => c.querySelector(".mc-conv-browser")?.contentDocument?.getElementById("messagepane")?.contentDocument?.querySelector(".moz-text-plain, .moz-text-flowed, pre")?.textContent.trim().slice(0, 12)),
+                     note: !!box.querySelector(".mc-conv-note") };
+          };
+          const out = {};
+          select("halo-konv-1@example.invalid"); out.single = await read();
+          // zugeklappter Faden: Konversation statt Zusammenfassung
+          a3.threadTree.selectedIndex = -1; await wait(300); a3.goDoCommand?.("cmd_collapseAllThreads"); await wait(600);
+          select("halo-konv-3@example.invalid"); out.thread = await read();
+          // aus: Thunderbirds Einzelansicht
+          Services.prefs.setBoolPref("extensions.mailcards.fullConversation", false);
+          a3.threadTree.selectedIndex = -1; await wait(300); select("halo-konv-1@example.invalid"); await wait(1500);
+          out.off = !!a3.document.getElementById("mcConversation");
+          Services.prefs.clearUserPref("extensions.mailcards.fullConversation"); a3.threadTree.selectedIndex = -1; await wait(300);
+          return out;""")
+        s1, th = res.get("single") or {}, res.get("thread") or {}
+        ok = (s1.get("ids") == ["halo-konv-2", "halo-konv-1"] and s1.get("own") == [True, False] and all(h > 100 for h in s1.get("heights", [0]))
+              and s1.get("count") == "2 messages" and (s1.get("text") or [None])[0] == "Text von Hal" and not s1.get("note")
+              and th.get("ids") == ["halo-konv-4", "halo-konv-3"] and res.get("off") is False)
+        return ok, f"{res}"
+    check("Leseansicht: ganze Konversation (auch eigene Antwort aus „Gesendet“) als Karten, neueste oben, auch für zugeklappte Fäden; abschaltbar", conversation, results)
+
 
 # Verfassen-Fenster und seine Dialoge: Test-Identität (example.invalid, kein Server), Fenster öffnen/schließen,
 # Editor-Dialoge (modal) erst nach dem Skript öffnen. Gewartet wird über den Zeitgeber des Moduls –
 # solange ein modaler Dialog offen ist, ruhen die Zeitgeber der Fenster.
+
 COMPOSE_CHECK_JS = r"""
   const { MailServices } = ChromeUtils.importESModule("resource:///modules/MailServices.sys.mjs");
   const { setTimeout: modTimeout } = ChromeUtils.importESModule("resource://gre/modules/Timer.sys.mjs");
@@ -1225,6 +1395,7 @@ COMPOSE_CHECK_JS = r"""
   const dark = w.matchMedia("(prefers-color-scheme: dark)").matches;
   const testFolder = async () => { const root = MailServices.accounts.localFoldersServer.rootFolder;
     if (!root.containsChildNamed("Lesen")) { root.createSubfolder("Lesen", null); await pause(800); } return root.getChildNamed("Lesen"); };"""
+
 
 
 def compose_checks(m, results):
@@ -2452,18 +2623,22 @@ def calendar_checks(m, results):
               out.mini = { bg: csOf(mm).backgroundColor, today: td ? csOf(td).borderTopColor : null, week: wk ? [csOf(wk).fontWeight, csOf(wk).color] : null };
               await shutPop(dml.menupopup);
             }
-            // Uhrzeitfeld: Raster
-            // unter Linux (xvfb, ohne Fenstermanager) schließt sich das Popup gleich wieder – das Raster ist mit
-            // popupshowing aber aufgebaut und gestaltet, gemessen wird dann am geschlossenen Popup
-            const tml = id.querySelector("#event-starttime timepicker menulist");
+            // Uhrzeit: öffnet dasselbe Popover wie das Datum (Minimonat, darunter „Uhrzeit“) statt des Stundenrasters
+            // (unter Linux/xvfb schließt sich ein Popup evtl. gleich wieder – gemessen wird dann am aufgebauten Popup)
+            const tp = id.querySelector("#event-starttime timepicker"), tml = tp.querySelector("menulist"), endTp = id.querySelector("#event-endtime timepicker");
+            const durBefore = (endTp.value[0] * 60 + endTp.value[1]) - (tp.value[0] * 60 + tp.value[1]);
             tml.open = true;
-            if (await isOpen(tml.menupopup) || tml.menupopup.querySelector(".time-picker-hour-box-class[selected]")) {
-              await pause(500);
-              const g = tml.menupopup.querySelector("timepicker-grids"), hb = g.querySelector(".time-picker-hour-box-class"), sh = g.querySelector(".time-picker-hour-box-class[selected]");
-              out.time = { border: [csOf(hb).borderLeftColor, csOf(hb).borderLeftWidth], radius: csOf(hb).borderTopLeftRadius,
-                           font: csOf(g.querySelector(".time-picker-grids")).fontSize, sel: sh ? csOf(sh).backgroundColor : null, accent: colorOf(id, "AccentColor", "backgroundColor") };
-              await shutPop(tml.menupopup);
-            }
+            await till(() => dml.menupopup.state == "open" || dml.menupopup.state == "showing" || dml.menupopup.querySelector(".mc-dtp-time input"), 3000); await pause(500);
+            const row = dml.menupopup.querySelector(".mc-dtp-time"), inp = row?.querySelector("input");
+            out.time = { grid: tml.menupopup.state, combined: dml.menupopup.state, row: !!row && !row.hidden, focus: id.activeElement == inp || inp?.matches(":focus"),
+                         label: row?.textContent.trim(), value: inp?.value };
+            if (inp) { inp.value = "14:35"; inp.dispatchEvent(new iw.Event("input", { bubbles: true })); await pause(400);
+              out.time.after = tp.value; out.time.dur = (endTp.value[0] * 60 + endTp.value[1]) - (tp.value[0] * 60 + tp.value[1]); out.time.durBefore = durBefore; }
+            await shutPop(dml.menupopup);
+            // Pfeiltasten im Uhrzeitfeld: Stunde weiter (Schreibmarke vorn)
+            const fld = tp._inputField; fld.focus(); fld.setSelectionRange(0, 0);
+            fld.dispatchEvent(new iw.KeyboardEvent("keydown", { key: "ArrowUp", bubbles: true, cancelable: true })); await pause(300);
+            out.time.arrow = tp.value;
           } finally {
             if (dw && !dw.closed) { dw.close(); await till(() => dw.closed, 4000); }
             try { await c.deleteItem(saved); } catch {}
@@ -2478,10 +2653,48 @@ def calendar_checks(m, results):
               and res["overflow"]["doc"][0] <= res["overflow"]["doc"][1] + 1
               and bool(mini) and rgba_alpha(mini["bg"]) == 0 and (mini["today"] is None or rgba_alpha(mini["today"]) == 0)
               and mini["week"] and mini["week"][0] == "400" and not same_color(mini["week"][1], "rgb(155, 158, 194)")
-              and bool(tp) and (rgba_alpha(tp["border"][0]) == 0 or tp["border"][1] == "0px") and tp["radius"] == "6px" and tp["font"] == "13px"
-              and tp["sel"] and not same_color(tp["sel"], "rgb(0, 100, 225)") and same_color(tp["sel"], tp["accent"]))
+              and bool(tp) and tp["grid"] == "closed" and tp["row"] and tp["label"] == "Time"
+              and tp.get("after") == [14, 35] and tp.get("dur") == tp.get("durBefore") and tp.get("arrow") == [15, 35])
         return ok, f"{res}"
-    check("Termin-Dialog: Schrift 13 px auch in der Beschreibung, Abstand Beschriftung–Feld; Minimonat und Uhrzeit-Raster ruhig mit Akzent", event_dialog, results)
+    check("Termin-Dialog: Schrift 13 px auch in der Beschreibung, Abstand Beschriftung–Feld; Minimonat ruhig; Datum und Uhrzeit in einem Popover, Ende rückt mit, Pfeiltasten", event_dialog, results)
+
+    def attendees_dialog():
+        # „Teilnehmer einladen“: Liste und Raster ohne harten Rahmen, Linien als Haarlinie, einfarbige Symbole,
+        # Legende ohne Rahmen, gewählte Zeit in Akzentfarbe statt Pink; Beginn/Ende mit kombiniertem Popover
+        res = m.js(CAL_CHECK_JS + r"""
+          for (const x of [...Services.wm.getEnumerator(null)]) if (!x.location.href.includes("messenger.xhtml")) x.close();
+          let dw = null, aw = null; const out = {};
+          try {
+            await toCalendar(); w.switchToView("week"); w.createEventWithDialog(testCalendar(), null, null, "Halo Teilnehmer");
+            dw = await winUrl("calendar-event-dialog.xhtml"); if (!dw) return { dialog: false };
+            const iw = await till(() => { const f = dw.document.getElementById("calendar-item-panel-iframe")?.contentWindow;
+              return f?.document.readyState == "complete" && f.document.getElementById("event-grid") && f; }, 8000);
+            await pause(800);
+            iw.setTimeout(() => iw.editAttendees(), 0);
+            aw = await winUrl("calendar-event-dialog-attendees"); if (!aw) return { attendees: false };
+            await pause(1500); const ad = aw.document;
+            const list = ad.getElementById("attendee-list"), grid = ad.getElementById("freebusy-grid"), inner = ad.getElementById("freebusy-grid-inner");
+            const bar = ad.getElementById("event-bar-top"), legend = ad.querySelector('.legend[status="BUSY"]'), role = ad.querySelector("event-attendee .role-icon, .role-icon");
+            out.list = { border: csOf(list).borderTopWidth, radius: csOf(list).borderTopLeftRadius, lines: csOf(list).backgroundImage.slice(0, 30) };
+            out.grid = { border: csOf(grid).borderTopWidth, lines: csOf(inner).backgroundImage.includes("threedshadow") ? "alt" : csOf(inner).backgroundImage.slice(0, 30) };
+            out.bar = { border: csOf(bar).borderTopColor, accent: colorOf(ad, "var(--mt-accent)") };
+            out.legend = { border: csOf(legend).borderTopWidth, radius: csOf(legend).borderTopLeftRadius };
+            out.icon = role ? (csOf(role).content || "").slice(0, 60) : null;
+            out.combined = !!ad.querySelector("#event-starttime datepicker menupopup .mc-dtp-time");
+          } finally {
+            if (aw && !aw.closed) { aw.close(); await till(() => aw.closed, 4000); }
+            if (dw && !dw.closed) { dw.close(); await till(() => dw.closed, 4000); }
+          }
+          return out;""")
+        if res.get("dialog") is False or res.get("attendees") is False:
+            return False, f"Dialog nicht offen {res}"
+        ok = (res["list"]["border"] == "0px" and res["list"]["radius"] == "8px" and res["list"]["lines"].startswith("linear-gradient")
+              and res["grid"]["border"] == "0px" and res["grid"]["lines"].startswith("linear-gradient")
+              and same_color(res["bar"]["border"], res["bar"]["accent"])
+              and res["legend"]["border"] == "0px" and res["legend"]["radius"] == "3px"
+              and res["icon"] and "mailcards/icons/user.svg" in res["icon"] and res["combined"])
+        return ok, f"{res}"
+    check("Termin: „Teilnehmer einladen“ mit Haarlinien statt harter Linien, einfarbigen Symbolen, Akzent statt Pink, Datum/Uhrzeit-Popover", attendees_dialog, results)
 
     def event_dialog_lines():
         # Termin-Dialog: Trennlinien im Raster als Haarlinie (Thunderbird: 1 px Feldrahmenfarbe); Statuszeile mit Abstand
@@ -3959,6 +4172,52 @@ def run_checks(m, version, profile, results):
         return ok, f"{res}"
     check("Today-Pane: Ein-/Ausblenden flüssig (kein Sprung)", today_animation, results)
 
+    def sidebar_animation():
+        # Seitenleiste ein-/ausblenden in Mail, Chat und Einstellungen gleich flüssig: Breite in vielen Zwischenschritten,
+        # Knopf vorher und nachher an derselben Stelle, in der Mail bleibt die Liste stehen (kein Neuumbruch der Karten)
+        res = m.js(r'''
+          const btn = d.getElementById("spacesPinnedButton");
+          const out = { visibility: d.visibilityState };
+          const record = async (el, extra) => { const ws = [], xs = []; const t0 = performance.now();
+            while (performance.now() - t0 < 650) { ws.push(Math.round(el.getBoundingClientRect().width)); if (extra) xs.push(Math.round(extra().width)); await new Promise(r => w.requestAnimationFrame(r)); }
+            return { ws, xs }; };
+          const measure = async (name, el, extra) => {
+            const before = Math.round(btn.getBoundingClientRect().left), r = {};
+            for (const phase of ["aus", "ein"]) {
+              btn.click(); const { ws, xs } = await record(el(), extra); await wait(400);
+              const distinct = new Set(ws).size;
+              r[phase] = { steps: distinct, first: ws[0], last: ws[ws.length - 1], listRange: xs.length ? Math.max(...xs) - Math.min(...xs) : null };
+            }
+            r.button = [before, Math.round(btn.getBoundingClientRect().left)];
+            out[name] = r;
+          };
+          const a3 = await toMail(); await wait(800);
+          await measure("mail", () => a3.document.getElementById("folderPane"), () => a3.document.getElementById("threadPane").getBoundingClientRect());
+          tm.openTab("chat", {}); await wait(1500);
+          await measure("chat", () => d.getElementById("listPaneBox"));
+          w.openPreferencesTab("paneGeneral"); await wait(2000);
+          const pd = tm.currentTabInfo.browser.contentDocument;
+          await measure("settings", () => pd.getElementById("pref-category-box"));
+          for (const t of [...tm.tabInfo].slice(1)) tm.closeTab(t);
+          await toMail();
+          return out;''')
+        if res.get("visibility") == "hidden":
+            return True, f"Testfenster verdeckt – übersprungen {res}"
+        bad = []
+        for area in ("mail", "chat", "settings"):
+            r = res.get(area) or {}
+            for phase in ("aus", "ein"):
+                p = r.get(phase) or {}
+                if p.get("steps", 0) < 5:
+                    bad.append(f"{area}/{phase}: {p.get('steps')} Schritte")
+            if r.get("button") and abs(r["button"][0] - r["button"][1]) > 1:
+                bad.append(f"{area}: Knopf {r['button']}")
+        lr = [res["mail"][p]["listRange"] for p in ("aus", "ein")]
+        if any(v is None or v > 2 for v in lr):
+            bad.append(f"Mailliste ändert Breite {lr}")
+        return not bad, f"{bad} {res}"
+    check("Seitenleiste: Ein-/Ausblenden in Mail, Chat und Einstellungen gleich flüssig, Knopf bleibt stehen, Mailliste behält ihre Breite", sidebar_animation, results)
+
 
     def address_book():
         # Person und Firma (example.invalid) im persönlichen Adressbuch
@@ -4002,6 +4261,48 @@ def run_checks(m, version, profile, results):
               and len(a.get("types", [])) >= 2 and abs(res["splitter"][0] - res["splitter"][1]) <= 1)
         return ok, f"{res}"
     check("Adressbuch: Firmen-Avatar, Initialen im Detail, Konto-Etiketten, Bezeichnungen, Teiler ohne Sprung", address_book, results)
+
+    def ab_cards_like_mail():
+        # Kartenansicht wie macOS-Kontakte: nur Name bzw. Firma, nie die E-Mail-Adresse; Breite der Liste und Bildgröße
+        # wie die Mailkarten
+        res = m.js(r"""
+          const { MailServices } = ChromeUtils.importESModule("resource:///modules/MailServices.sys.mjs");
+          const book = MailServices.ab.getDirectory("jsaddrbook://abook.sqlite");
+          const add = props => { const c = Cc["@mozilla.org/addressbook/cardproperty;1"].createInstance(Ci.nsIAbCard);
+            for (const [k, v] of Object.entries(props)) c.setProperty(k, v);
+            c.displayName = props.DisplayName || ""; c.primaryEmail = props.PrimaryEmail; return book.addCard(c); };
+          const has = mail => book.childCards.some(c => c.primaryEmail == mail);
+          if (!has("anna@example.invalid")) add({ FirstName: "Anna", LastName: "Beispiel", DisplayName: "Anna Beispiel", PrimaryEmail: "anna@example.invalid", Company: "Beispiel GmbH" });
+          if (!has("nur.firma@example.invalid")) add({ Company: "Nurfirma KG", PrimaryEmail: "nur.firma@example.invalid" });
+          if (!has("ohne.alles@example.invalid")) add({ PrimaryEmail: "ohne.alles@example.invalid" });
+          if (!has("ben.ohne@example.invalid")) add({ FirstName: "Ben", LastName: "Ohnefirma", DisplayName: "Ben Ohnefirma", PrimaryEmail: "ben.ohne@example.invalid" });
+          w.resizeTo(1500, 900); await wait(500);
+          const a3 = await toMail(); await wait(800);
+          const mailList = Math.round(a3.document.getElementById("threadPane").getBoundingClientRect().width);
+          const mailAvatar = a3.document.querySelector('#threadTree tr[is="thread-card"] .mc-avatar');
+          const mailAv = mailAvatar ? Math.round(mailAvatar.getBoundingClientRect().width) : null;
+          tm.openTab("addressBookTab", {}); await wait(2500);
+          const ab = tm.currentTabInfo.browser.contentWindow, ad = ab.document;
+          await until(() => ad.querySelectorAll("#cards tr .name").length >= 4, 6000); await wait(600);
+          const rowOf = mail => [...ad.querySelectorAll('#cards tr[is="ab-card-row"]')].find(r => { const i = r.index ?? r._index; return ab.cardsPane?.cardsList?.view?.getCardFromRow(i)?.primaryEmail == mail; });
+          const show = r => r ? { name: r.querySelector(".name")?.textContent, second: r.querySelector(".address")?.textContent,
+                                  secondShown: ab.getComputedStyle(r.querySelector(".ab-card-second-line")).display != "none" } : null;
+          const out = { anna: show(rowOf("anna@example.invalid")), firma: show(rowOf("nur.firma@example.invalid")),
+                        leer: show(rowOf("ohne.alles@example.invalid")), ben: show(rowOf("ben.ohne@example.invalid")),
+                        list: Math.round(ad.getElementById("cardsPane").getBoundingClientRect().width), mailList,
+                        avatar: Math.round(ad.querySelector("#cards contact-avatar").getBoundingClientRect().width), mailAv };
+          out.anyMail = [...ad.querySelectorAll('#cards tr[is="ab-card-row"]')].filter(r => getComputedStyle(r).display != "none" && /@/.test(r.querySelector(".name")?.textContent + " " + (r.querySelector(".ab-card-second-line")?.checkVisibility() ? r.querySelector(".address")?.textContent : ""))).map(r => r.querySelector(".name")?.textContent);
+          tm.closeTab(tm.currentTabInfo); await wait(400);
+          return out;""")
+        a, f, e, b = res["anna"], res["firma"], res["leer"], res["ben"]
+        ok = (a and a["name"] == "Anna Beispiel" and a["second"] == "Beispiel GmbH" and a["secondShown"]
+              and f and f["name"] == "Nurfirma KG" and not f["secondShown"]
+              and b and b["name"] == "Ben Ohnefirma" and not b["secondShown"]
+              and e and e["name"] == "ohne.alles@example.invalid" and not e["secondShown"]
+              and res["anyMail"] == ["ohne.alles@example.invalid"]
+              and abs(res["list"] - res["mailList"]) <= 1 and res["avatar"] == (res["mailAv"] or 36))
+        return ok, f"{res}"
+    check("Adressbuch: Karten nur mit Name bzw. Firma (keine E-Mail-Adresse), Liste so breit und Bilder so groß wie bei den Mailkarten", ab_cards_like_mail, results)
 
     def contact_edit():
         # Kontakt bearbeiten wie Apple Kontakte: eine Schrift, Überschriften über den Feldern,
@@ -5103,20 +5404,66 @@ def run_checks(m, version, profile, results):
           await toMail(); await wait(300); out.back = text();
           return out;''')
         expect = {
-            "de": ["Alle Postfächer durchsuchen", "Suchen", "Aufgaben durchsuchen", "Kontakte durchsuchen",
+            "de": ["durchsuchen", "Kalender durchsuchen", "Aufgaben durchsuchen", "Kontakte durchsuchen",
                    "Einstellungen durchsuchen", "Adressbücher", "Heute-Leiste"],
-            "en": ["Search All Mailboxes", "Search", "Search Tasks", "Search Contacts", "Find in Settings",
+            "en": ["Search ", "Search Calendar", "Search Tasks", "Search Contacts", "Search Settings",
                    "Address Books", "Today Pane"],
         }.get(res["locale"].split("-")[0])
         got = [res["mail"], res["calendar"], res["tasks"], res["addressbook"], res["settings"], res["books"]]
         ok = (res["slotted"] and not res["l10n"] and not res["attr"] and res["back"] == res["mail"]
               and res["ellipsis"] == ["ellipsis", True])
         if expect:
-            ok = ok and got == expect[:6] and all(t in (None, expect[6]) for t in res["today"]) and expect[6] in res["today"]
+            # Mail: je nach Ordner „Search Inbox“ bzw. „Search All Mailboxes“ (eigene Prüfung)
+            ok = (ok and expect[0] in (got[0] or "") and got[1:] == expect[1:6]
+                  and all(t in (None, expect[6]) for t in res["today"]) and expect[6] in res["today"])
         else:  # andere Sprache: Thunderbirds eigener Platzhalter, nur Überschrift prüfen
             ok = bool(res["books"])
         return ok, f"{res}"
-    check("Suche: Platzhalter je Bereich sichtbar und übersetzt, Überschrift „Adressbücher“, Today-Pane-Titel", search_placeholder, results)
+    check("Suche: Platzhalter je Bereich sichtbar und übersetzt (Search Calendar, Tasks, Contacts, Settings), Überschrift „Adressbücher“, Today-Pane-Titel", search_placeholder, results)
+
+    def search_scope():
+        # Suche wie Apple Mail: im gewählten Ordner nur dort, in Sammelordnern global; nie Mails ohne den Begriff;
+        # Platzhalter „Search <Ordner>“ bzw. „Search All Mailboxes“; Ordnerwechsel während der Suche sucht dort weiter
+        res = m.js(r"""
+          const { MailServices } = ChromeUtils.importESModule("resource:///modules/MailServices.sys.mjs");
+          const root = MailServices.accounts.localFoldersServer.rootFolder;
+          const folder = name => { if (!root.containsChildNamed(name)) root.createSubfolder(name, null); return root.getChildNamed(name); };
+          const A = folder("SucheA"), B = folder("SucheB"); await wait(800);
+          const mail = (subject, id, o = {}) => unescape(encodeURIComponent([`From: ${o.from || "Anna Beispiel <anna@example.invalid>"}`,
+            `To: ${o.to || "Halo Test <halo@example.invalid>"}`, `Subject: ${subject}`, "Date: Mon, 19 Oct 2026 10:00:00 +0200", `Message-ID: <${id}@example.invalid>`,
+            "MIME-Version: 1.0", `Content-Type: ${o.type || "text/plain; charset=UTF-8"}`, "", o.body || "Nichts Besonderes.", ""].join("\r\n")));
+          if (!A.getTotalMessages(false)) {
+            const la = A.QueryInterface(Ci.nsIMsgLocalMailFolder);
+            la.addMessage(mail("Halo Zebrafink im Betreff", "suche-a1"));
+            la.addMessage(mail("Halo ohne Begriff", "suche-a2"));
+            la.addMessage(mail("Halo Link", "suche-a3", { type: "text/html; charset=UTF-8", body: '<p>Siehe <a href="https://zebrafink.example.invalid/">hier</a>.</p>' }));
+            la.addMessage(mail("Halo Adresse", "suche-a4", { to: "Kundendienst <service@zebrafink.example.invalid>" }));
+            B.QueryInterface(Ci.nsIMsgLocalMailFolder).addMessage(mail("Halo Zebrafink anderswo", "suche-b1"));
+            await wait(1000);
+          }
+          const a3 = await toMail(); const bar = d.querySelector("#unifiedToolbarContent global-search-bar");
+          const ph = () => bar?.querySelector('[slot="placeholder"]')?.textContent;
+          const search = async text => { bar.dispatchEvent(new w.CustomEvent("search", { detail: text, bubbles: true, composed: true })); await wait(2000); };
+          const hits = () => [...Array(a3.gDBView?.rowCount || 0).keys()].map(i => a3.gDBView.getMsgHdrAt(i)?.messageId?.split("@")[0]).filter(Boolean).sort();
+          const out = {};
+          a3.displayFolder(A.URI); await wait(900); out.phA = ph();
+          await search("zebrafink"); out.inA = hits(); out.header = d.getElementById("mcListHeader")?.querySelector(".mc-lh-count")?.textContent;
+          // Ordnerwechsel während der Suche: sucht im neuen Ordner weiter
+          a3.displayFolder(B.URI); await wait(2500); out.inB = hits(); out.phB = ph();
+          await search(""); await wait(600);
+          // Sammelordner „Alle Eingänge“ (smart mailboxes): global
+          const smart = [...MailServices.accounts.allFolders].find(f => /smart%20mailboxes/i.test(f.URI) && f.getFlag(Ci.nsMsgFolderFlags.Inbox));
+          if (smart) { a3.displayFolder(smart.URI); await wait(900); out.phSmart = ph(); await search("zebrafink"); out.inSmart = hits(); await search(""); }
+          await wait(600);
+          return out;""")
+        a = res.get("inA") or []
+        # Treffer über die Empfängeradresse (a4) sind gewollt – Apple Mail sucht auch in Adressen; nur im HTML-Link (a3) nicht
+        ok = ("suche-a1" in a and "suche-a2" not in a and "suche-a3" not in a and "suche-b1" not in a
+              and res.get("phA") == "Search SucheA" and res.get("phB") == "Search SucheB"
+              and res.get("inB") == ["suche-b1"] and (res.get("header") or "").startswith("SucheA")
+              and (res.get("phSmart") is None or (res["phSmart"] == "Search All Mailboxes" and {"suche-a1", "suche-b1"} <= set(res.get("inSmart") or []))))
+        return ok, f"{res}"
+    check("Suche: im gewählten Ordner nur dort, in Sammelordnern global, keine Mails ohne den Begriff, Platzhalter je Ordner, Ordnerwechsel sucht weiter", search_scope, results)
 
     def settings_style():
         # Einstellungen: Inhalt mittig (max. 800 px), Kästchen/Optionsfelder im macOS-Stil,
@@ -5170,6 +5517,8 @@ def run_checks(m, version, profile, results):
           const lab = vis("#paneDeck checkbox .checkbox-label"); const desc = vis("#paneDeck description");
           const fontLab = cd.getElementById("defaultFont")?.parentNode.querySelector("label");
           out.font = [lab && cs(lab).fontSize, fontLab && cs(fontLab).fontSize, desc && cs(desc).fontSize];
+          // die Kategorie „Account Settings“ hängt halo.spaces kurz nach dem Öffnen ein (unter Linux/Last später)
+          await until(() => cd.querySelector("#mcCat-paneMcAccounts .category-name")?.getBoundingClientRect().width, 6000);
           const cn = cd.querySelector("#category-general .category-name"), fl = cd.querySelector("#mcCat-paneMcAccounts .category-name") || cd.querySelector("#accountButton .sidebar-footer-label");
           out.side = [Math.abs(left(cn) - left(fl)) <= 1, cs(cn).fontSize, cs(fl).fontSize];
           out.lists = ["tagList", "handlersView"].map(id => { const e = cd.getElementById(id);
@@ -5483,6 +5832,34 @@ def run_checks(m, version, profile, results):
               and manifest.get("options_ui", {}).get("page") == "options/options.html")
         return ok, f"{res}"
     check("Einstellungen: eigene Kategorie „halo.spaces“ mit der Einstellungsseite der Erweiterung (Add-ons → Einstellungen bleibt)", pref_halo_category, results)
+
+    def early_theme():
+        # Option „Design ohne Aufblitzen beim Start“ (Standard aus): schreibt das Design als userChrome.css ins Profil
+        # (eigene Kopfzeile) und schaltet das Laden ein; aus: Datei weg, Einstellung zurück; eine eigene Datei bleibt
+        res = m.js(r"""
+          const path = PathUtils.join(PathUtils.profileDir, "chrome", "userChrome.css");
+          const L = "toolkit.legacyUserProfileCustomizations.stylesheets", E = "extensions.mailcards.earlyTheme";
+          const read = async () => (await IOUtils.exists(path)) ? (await IOUtils.readUTF8(path)).slice(0, 200) : null;
+          const out = { default: Services.prefs.getBoolPref(E, false), before: await read() };
+          Services.prefs.setBoolPref(E, true); for (let i = 0; i < 40 && !(await IOUtils.exists(path)); i++) await wait(100); await wait(600);
+          const on = await read(); out.on = { head: on?.split("\n")[0], legacy: Services.prefs.getBoolPref(L, false),
+                                              design: (await IOUtils.readUTF8(path)).includes("Thunderbird im Stil von Apple Mail") };
+          Services.prefs.setBoolPref(E, false); await wait(800);
+          out.off = { file: await IOUtils.exists(path), legacy: Services.prefs.getBoolPref(L, false), set: Services.prefs.prefHasUserValue(L) };
+          // eigene userChrome.css des Nutzers: nie überschreiben, nie löschen
+          await IOUtils.makeDirectory(PathUtils.join(PathUtils.profileDir, "chrome"), { ignoreExisting: true });
+          await IOUtils.writeUTF8(path, "/* meine eigene */\n");
+          Services.prefs.setBoolPref(E, true); await wait(800); out.ownOn = await read();
+          Services.prefs.setBoolPref(E, false); await wait(800); out.ownOff = await read();
+          await IOUtils.remove(path); Services.prefs.clearUserPref(E); Services.prefs.clearUserPref(L);
+          return out;""")
+        on, off = res["on"], res["off"]
+        ok = (res["default"] is False and res["before"] is None
+              and (on["head"] or "").startswith("/* halo.spaces: automatisch geschrieben") and on["legacy"] and on["design"]
+              and not off["file"] and not off["legacy"] and not off["set"]
+              and res["ownOn"] == "/* meine eigene */\n" and res["ownOff"] == "/* meine eigene */\n")
+        return ok, f"{res}"
+    check("Einstellungen: „Design ohne Aufblitzen“ schreibt userChrome.css ins Profil und räumt beim Ausschalten auf, eigene Datei bleibt", early_theme, results)
 
     def pref_embedded_pages():
         # Kontoeinstellungen und Add-ons als Kategorien: Seitenleiste bleibt stehen (gleiche Breite), Inhalt rechts daneben,
@@ -5813,6 +6190,56 @@ def run_checks(m, version, profile, results):
               and posts == ["List-Unsubscribe=One-Click"] * 2)
         return ok, f"{res}"
     check("Absenderbilder: Umleitung ins lokale Netz gesperrt, bevor verbunden wird; Zeitlimit und Größengrenze für die ganze Antwort; Ein-Klick-Abmeldung mit Umleitung gilt als erledigt", net_guard, results)
+
+    def unsubscribed_hides_button():
+        # Ein-Klick-Abmeldung bestätigt (POST 200 vom lokalen Testserver): Knopf verschwindet, Hinweis sagt es – auch bei
+        # einer weiteren Mail desselben Verteilers
+        if not shutil.which("openssl"):
+            return True, "kein openssl – übersprungen"
+        host = "halo-abmelden.example.org"
+        port, der, hits, posts, close = local_https(host)
+        try:
+            m.js(r"""
+              const HOST = %s, PORT = %d;
+              const cert = Cc["@mozilla.org/security/x509certdb;1"].getService(Ci.nsIX509CertDB).constructX509FromBase64(%s);
+              Cc["@mozilla.org/security/certoverride;1"].getService(Ci.nsICertOverrideService).rememberValidityOverride(HOST, PORT, {}, cert, true);
+              Services.prefs.setStringPref("network.dns.localDomains", HOST);
+              const { MailServices } = ChromeUtils.importESModule("resource:///modules/MailServices.sys.mjs");
+              const root = MailServices.accounts.localFoldersServer.rootFolder;
+              if (!root.containsChildNamed("Abbestellt")) { root.createSubfolder("Abbestellt", null); await wait(800); }
+              const f = root.getChildNamed("Abbestellt").QueryInterface(Ci.nsIMsgLocalMailFolder);
+              for (const n of [1, 2]) f.addMessage(`From - Sat Oct 17 10:00:00 2026\r\nFrom: Rundbrief <news@example.invalid>\r\nSubject: Halo Rundbrief ${n}\r\nDate: Sat, 17 Oct 2026 0${n}:41:00 +0200\r\nMessage-ID: <halo-abbestellt-${n}@example.invalid>\r\nList-Unsubscribe: <https://${HOST}:${PORT}/abmelden>\r\nList-Unsubscribe-Post: List-Unsubscribe=One-Click\r\nList-Id: <rundbrief.example.invalid>\r\n\r\nTest\r\n`);
+              await wait(800);
+              const a3 = await toMail(); a3.displayFolder(f.URI); await wait(900);
+              a3.threadTree.selectedIndex = 0; await wait(1800);
+              await until(() => a3.messageBrowser.contentDocument.querySelector("#mcListBanner .mc-lb-unsub"), 4000);
+              a3.messageBrowser.contentDocument.querySelector("#mcListBanner .mc-lb-unsub").click();
+              return 1;""" % (json.dumps(host), port, json.dumps(der)))
+            for _ in range(20):
+                try:
+                    m.cmd("WebDriver:AcceptAlert", {})
+                    break
+                except RuntimeError:
+                    time.sleep(0.25)
+            res = m.js(r"""
+              const a3 = await toMail(); const md = () => a3.messageBrowser.contentDocument;
+              await until(() => !md().querySelector("#mcListBanner .mc-lb-unsub"), 5000);
+              const show = () => ({ banner: !!md().getElementById("mcListBanner"), button: !!md().querySelector("#mcListBanner .mc-lb-unsub"),
+                                    text: md().querySelector("#mcListBanner .mc-lb-text")?.textContent, subject: a3.gDBView?.hdrForFirstSelectedMessage?.subject });
+              const out = { after: show() };
+              a3.threadTree.selectedIndex = 1; await wait(1800); out.other = show();
+              out.pref = Services.prefs.getStringPref("extensions.mailcards.unsubscribedLists", "");
+              Services.prefs.clearUserPref("extensions.mailcards.unsubscribedLists");
+              Services.prefs.clearUserPref("network.dns.localDomains");
+              return out;""")
+        finally:
+            close()
+        res["posts"] = posts
+        a, o = res["after"], res["other"]
+        ok = (posts == ["List-Unsubscribe=One-Click"] and a["banner"] and not a["button"] and "unsubscribed" in (a["text"] or "")
+              and o["banner"] and not o["button"] and a["subject"] != o["subject"] and "list:rundbrief.example.invalid" in res["pref"])
+        return ok, f"{res}"
+    check("Verteiler-Hinweis: nach erfolgreicher Ein-Klick-Abmeldung kein Abmelden-Knopf mehr, auch bei weiteren Mails des Verteilers", unsubscribed_hides_button, results)
 
     def keyboard():
         res = m.js('''

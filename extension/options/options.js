@@ -14,6 +14,10 @@ const SECTIONS = () => [
       hint: t("takes effect after a restart"), options: [0, 1, 2, 3, 4] },
     { key: "hoverActions", label: t("Actions when hovering a message"),
       hint: t("Flag, archive, delete") },
+    { key: "fullConversation", label: t("Show whole conversation"),
+      hint: t("received and sent messages from all folders, newest first") },
+    { key: "unreadTint", label: t("Tint unread messages"),
+      hint: t("light accent colour behind unread messages, besides the dot") },
     { key: "listWidth", type: "number", label: t("Message list width"),
       hint: t("pixels; double-click the divider to reset"), reset: true },
     { key: "senderLogos", label: t("Logos from sender websites"),
@@ -39,6 +43,8 @@ const SECTIONS = () => [
   [t("Appearance"), [
     { key: "bundledTheme", label: t("halo.spaces design"), hint: t("takes effect after a restart") },
     { key: "appleIcons", label: t("Own icons"), hint: t("takes effect after a restart") },
+    { key: "earlyTheme", label: t("Design without flicker at start"),
+      hint: t("writes a userChrome.css into your profile; from the next start") },
   ]],
   [t("Updates"), [
     { key: "autoUpdate", label: t("Install updates at start"), hint: t("checks at most every 6 hours; active after a restart") },

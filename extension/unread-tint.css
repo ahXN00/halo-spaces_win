@@ -1,0 +1,18 @@
+/* Ungelesene Mails leicht in Akzentfarbe hinterlegen (Einstellung „Tint unread
+   messages“, Standard aus) – zusätzlich zum Punkt; Überfahren und Auswahl
+   bleiben klar unterscheidbar. Lädt die Erweiterung nur bei eingeschalteter Option */
+#threadTree tr[is="thread-card"]:is([data-properties~="unread"], .children.collapsed[data-properties~="hasUnread"]):not(.selected, [aria-selected="true"], [data-properties~="dummy"]) .card-container {
+  background: color-mix(in srgb, var(--mt-accent, AccentColor) 9%, transparent) !important;
+}
+
+#threadTree tr[is="thread-card"]:is([data-properties~="unread"], .children.collapsed[data-properties~="hasUnread"]):not(.selected, [aria-selected="true"], [data-properties~="dummy"]):hover .card-container {
+  background: color-mix(in srgb, var(--mt-accent, AccentColor) 15%, transparent) !important;
+}
+
+#threadTree tr[is="thread-row"]:is([data-properties~="unread"], .children.collapsed[data-properties~="hasUnread"]):not(.selected, [aria-selected="true"], [data-properties~="dummy"]) {
+  background-color: color-mix(in srgb, var(--mt-accent, AccentColor) 9%, transparent) !important;
+}
+
+#threadTree tr[is="thread-row"]:is([data-properties~="unread"], .children.collapsed[data-properties~="hasUnread"]):not(.selected, [aria-selected="true"], [data-properties~="dummy"]):hover {
+  background-color: color-mix(in srgb, var(--mt-accent, AccentColor) 15%, transparent) !important;
+}
