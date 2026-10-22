@@ -176,7 +176,8 @@ const selectCard = async (ab, name) => { const list = ab.document.getElementById
   const i = [...Array(list.view.rowCount).keys()].find(k => list.view.getCardFromRow(k)?.displayName == name);
   if (i == null) throw new Error("Kontakt fehlt: " + name); list.selectedIndex = i; await wait(1000); return i; };
 const prefs = async (pane, frac) => { w.openPreferencesTab(pane); await until(() => tabWin()?.gLastCategory?.category == pane || tabDoc()?.querySelector(`#categories richlistitem[value="${pane}"][selected]`), 6000); await wait(1500);
-  if (frac != null) { const sc = tabDoc().querySelector(".main-content"); sc.scrollTop = Math.round(frac * (sc.scrollHeight - sc.clientHeight)); await wait(500); }
+// Scrollbereich: TB 158 scrollt #preferencesContainer statt .main-content
+  if (frac != null) { const sc = [tabDoc().querySelector(".main-content"), tabDoc().getElementById("preferencesContainer")].find(e => e && e.scrollHeight > e.clientHeight + 20) || tabDoc().querySelector(".main-content"); sc.scrollTop = Math.round(frac * (sc.scrollHeight - sc.clientHeight)); await wait(500); }
   return tabWin(); };
 // Unterdialog (SubDialog) im Tab-Dokument: warten, bis er geladen ist
 const subFrame = async (doc, ms = 6000) => { const f = await until(() => [...doc.querySelectorAll(".dialogFrame")].find(fr => fr.contentDocument?.readyState == "complete" && fr.contentDocument.location.href != "about:blank"), ms);

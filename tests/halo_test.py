@@ -5030,6 +5030,42 @@ def run_checks(m, version, profile, results):
         return ok, f"{res}"
     check("Einstellungen: Schrift 13 px, Seitenleiste bündig, Listen/DNS/Export als ruhige Karten, leerer DNS-Status verborgen, Unterüberschriften 13 px, OCSP einzeilig, Offline-Dialog untereinander", settings_cards, results)
 
+    def settings_e2ee_cards():
+        # Einstellungen: Karte nur mit „Advanced settings“ ohne Fläche (andere Karten behalten sie);
+        # Ende-zu-Ende-Texte (html:p) wie Erklärtexte 12 px grau ohne Abstand oben, Linie als Haarlinie,
+        # Link „Account settings“ behält seine Linkfarbe
+        res = m.js(r"""
+          w.resizeTo(1500, 950); w.openPreferencesTab("paneGeneral"); await wait(2500);
+          const cw = tm.currentTabInfo.browser.contentWindow; const cd = cw.document;
+          const cs = e => e.ownerDocument.defaultView.getComputedStyle(e);
+          const out = {};
+          const adv = cd.getElementById("configEditor").closest("fieldset");
+          const other = [...cd.querySelectorAll("#paneDeck fieldset")].find(f => f != adv && f.querySelector(":scope > legend") && f.getBoundingClientRect().width);
+          out.adv = [cs(adv).backgroundColor, cs(adv).paddingTop, cs(adv).marginBottom,
+            other ? cs(other).backgroundColor != "rgba(0, 0, 0, 0)" : null];
+          cw.gotoPref("panePrivacy"); await wait(1500);
+          const p = cd.querySelector("#emailE2eeKeyServers > p"), hr = cd.querySelector("#emailE2eeKeyServers > hr");
+          const ref = cd.querySelector("#emailE2eeGroupAutomatism description");
+          const first = cd.querySelector("#emailE2eeGroupPreparation > p");
+          const probe = cd.createElementNS("http://www.w3.org/1999/xhtml", "div");
+          probe.style.borderTop = "1px solid var(--mt-pane-line)"; cd.getElementById("paneDeck").append(probe);
+          out.p = p && ref ? [cs(p).fontSize, cs(p).color == cs(ref).color, cs(p).lineHeight] : null;
+          out.hr = hr ? [parseFloat(cs(hr).borderTopWidth) <= 1, cs(hr).borderTopColor == cs(probe).borderTopColor,
+            cs(hr).borderBottomStyle] : null;
+          out.first = first ? [cs(first).marginTop, cs(first).fontSize] : null;
+          const a = first?.querySelector("a");
+          out.link = a ? cs(a).color != cs(first).color : "kein Link";
+          probe.remove();
+          tm.closeTab(tm.currentTabInfo);
+          return out;""")
+        ok = (res["adv"][0] in ("rgba(0, 0, 0, 0)", "transparent") and res["adv"][1] == "0px"
+              and res["adv"][2] == "12px" and res["adv"][3] is True
+              and res["p"] and res["p"][:2] == ["12px", True]
+              and res["hr"] and res["hr"][:2] == [True, True] and res["hr"][2] == "none"
+              and res["first"] == ["0px", "12px"] and res["link"] in (True, "kein Link"))
+        return ok, f"{res}"
+    check("Einstellungen: Karte „Advanced settings“ ohne leere Fläche; Ende-zu-Ende-Texte 12 px grau mit Haarlinie", settings_e2ee_cards, results)
+
     def settings_details():
         # Einstellungen: Arbeitstage mittig und mit Abstand, Chat-Vorschau mit Abstand/Rahmen und dunkel als
         # Variante „Dark“, Schlagwörter lesbar, „Verzeichnisse bearbeiten“ wie die übrigen Knöpfe (Bearbeiten im

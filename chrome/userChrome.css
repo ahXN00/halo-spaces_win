@@ -5078,6 +5078,13 @@ search-bar {
   clear: both !important;
 }
 
+/* Karte nur mit dem Knopf „Advanced settings“ – ohne Titel und Text, daher
+   keine leere graue Fläche: Knopf steht rechtsbündig unter der letzten Karte */
+#paneDeck fieldset:has(#configEditor) {
+  background: transparent !important;
+  padding: 0 !important;
+}
+
 /* Verschachtelte Unterüberschriften („Card view options“, „Display width“,
    „Enable DNS over HTTPS using:“) behielten Thunderbirds 1.3em und waren
    größer als der Kartentitel – gleiche 13 px halbfett */
@@ -5333,6 +5340,23 @@ search-bar {
 /* Erklärtexte bewusst etwas kleiner als die 13-px-Grundschrift */
 #paneDeck :is(description, .tip-caption) {
   font-size: 12px !important;
+}
+
+/* Ende-zu-Ende-Verschlüsselung: die Erklärtexte sind dort html:p statt
+   description – gleich wie in den Nachbarkarten (12 px, grau, luftig, ohne
+   eigenen Abstand oben); Trennlinie als Haarlinie statt grauer Linie */
+#paneDeck :is(#emailE2eeGroupPreparation, #emailE2eeKeyServers) > p {
+  font-size: 12px !important;
+  line-height: 1.8 !important;
+  color: var(--mt-text-secondary) !important;
+  margin-block: 0 4px !important;
+}
+
+#paneDeck #emailE2eeKeyServers > hr {
+  border: 0 !important;
+  border-top: var(--mt-hairline) solid var(--mt-pane-line) !important;
+  background: none !important;
+  margin-block: 8px !important;
 }
 
 /* ---------- Kästchen und Optionsfelder im macOS-Stil (überall) ----------
