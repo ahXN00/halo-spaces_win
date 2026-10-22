@@ -859,6 +859,9 @@ hr[is="pane-splitter"],
 #threadTree tr[is="thread-card"] .card-container {
   position: relative !important;
   padding-inline-start: 8px !important;
+  /* rechts derselbe Abstand: Uhrzeit stößt sonst an den Rand der Auswahl
+     (seit der „Mehr“-Knopf fehlt) – bündig mit den Aktionen beim Überfahren */
+  padding-inline-end: 8px !important;
 }
 
 #threadTree tr[is="thread-card"] .read-status-column {

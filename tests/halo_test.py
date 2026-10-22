@@ -653,6 +653,22 @@ def maillist_checks(m, results):
         return ok, f"{res}"
     check("Mailliste: Betreff der Karte bündig mit Absender und Vorschau (auch gruppiert), Abstand zu Thread-Knopf und Symbolen", card_alignment, results)
 
+    def card_right_gap():
+        # Rückmeldung 21.10.2026: Auswahl endete direkt hinter der Uhrzeit – rechts derselbe Abstand wie links
+        res = m.js(MAILLIST_JS + r"""
+          await showFolder(); await asCards(); await wait(600);
+          const r = await until(() => cards().find(c => !props(c).includes("dummy") && subjectOf(c).includes("Halo Ungelesen")), 6000);
+          const star = cards().find(c => subjectOf(c).includes("Halo Schlagwort Work"));
+          const box = r.querySelector(".card-container").getBoundingClientRect();
+          const g = ad.createRange(); g.selectNodeContents(r.querySelector(".date")); const date = g.getBoundingClientRect();
+          const out = { date: Math.round(box.right - date.right), avatarLeft: Math.round(r.querySelector(".mc-avatar")?.getBoundingClientRect().left - box.left) };
+          if (star) { const sb = star.querySelector(".card-container").getBoundingClientRect(), ic = star.querySelector(".thread-card-icon-info").getBoundingClientRect();
+                      out.icons = ic.width > 0 ? Math.round(sb.right - ic.right) : null; }
+          return out;""")
+        ok = res["date"] >= 8 and res["date"] <= 14 and (res.get("icons") is None or res["icons"] >= 8)
+        return ok, f"Abstand rechter Rand ↔ Uhrzeit/Symbole {res}"
+    check("Mailliste: Uhrzeit und Symbole der Karte mit Abstand zum rechten Rand der Auswahl (≥ 8 px wie links)", card_right_gap, results)
+
     def thread_sender():
         # zugeklappt: Name und Bild der neuesten Mail (Carla), aufgeklappt die Wurzel (Ben)
         res = m.js(MAILLIST_JS + r"""
