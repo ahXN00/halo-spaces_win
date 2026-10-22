@@ -70,8 +70,10 @@ Setup Instructions
 2. In Thunderbird open **Add-ons and Themes** → gear icon →
    **Install Add-on From File…** and choose the file.
 
-3. Under **Themes**, keep or select **System theme – auto** (Thunderbird's default).
-   Light, Dark or themes from the add-on store paint their own colours over the design.
+3. That's it. On first install halo.spaces sets **Themes** to **System theme – auto**
+   (Thunderbird's default), so light and dark follow macOS. Thunderbird's Light or
+   Dark stay if you chose one; themes from the add-on store paint their own colours
+   over the design.
 
 No restart is needed – the design is active right away.
 

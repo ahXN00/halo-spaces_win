@@ -86,4 +86,4 @@ done
 
 echo "Installiert in: $PROFILE"
 echo "Thunderbird starten und die Nachfrage „Erweiterung hinzugefügt“ bestätigen."
-echo "Unter Add-ons und Themes → Themes „System – automatisch“ wählen."
+echo "Das Erscheinungsbild stellt halo.spaces bei der Erstinstallation selbst auf „System – automatisch“ (Hell/Dunkel bleiben)."
