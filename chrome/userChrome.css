@@ -2545,6 +2545,29 @@ html:root.customizingUnifiedToolbar #unifiedToolbarContainer::before {
   background-color: var(--mt-hover) !important;
 }
 
+/* Spaltenköpfe der Listen in eigenen Dialogfenstern (Filterliste, Treffer
+   in „Nachrichten suchen“, OpenPGP-Schlüsselverwaltung) wie in den
+   Unterdialogen: Haarlinien statt Thunderbirds Systemlinie (dunkel hell
+   leuchtend) unter dem Kopf und als Spaltentrenner */
+:is(#filterList, #searchMailWindow #threadTree, #pgpKeyList) > treecols {
+  appearance: none !important;
+  background: transparent !important;
+  border-bottom: var(--mt-hairline) solid var(--mt-separator) !important;
+}
+
+:is(#filterList, #searchMailWindow #threadTree, #pgpKeyList) > treecols > treecol {
+  appearance: none !important;
+  box-shadow: none !important;
+  background: transparent !important;
+  border-color: var(--mt-separator) !important;
+  border-block-end: none !important;
+}
+
+/* erster Kopf direkt am Listenrand: kein Trenner neben dem Rahmen */
+:is(#filterList, #searchMailWindow #threadTree, #pgpKeyList) > treecols > treecol:first-of-type {
+  border-inline-start: none !important;
+}
+
 /* Filterliste und Nachrichten suchen sind <window>, nicht <dialog> – die
    Feldregeln der Dialoge greifen dort nicht: Suchfeld und Textfeld der
    Bedingung mit Haarlinie statt dunklem Rand; nur background-color, damit

@@ -1511,12 +1511,17 @@ def dialog_checks(m, results):
           const look = el => { const s = csOf(el), dd = el.ownerDocument;
             return { app: s.appearance, radius: s.borderTopLeftRadius, line: s.borderTopColor, paneLine: colorOf(dd, "var(--mt-pane-line)"), img: s.backgroundImage,
                      h: Math.round(el.getBoundingClientRect().height) }; };
+          // Spaltenköpfe: ohne Thunderbirds Systemlinie (Schatten unten, Trenner links), Trenner als Haarlinie, erster Kopf ohne Trenner
+          const head = (dd, sel) => [...dd.querySelectorAll(sel + " > treecols > treecol")].filter(vis).slice(0, 3).map(c => { const s = csOf(c);
+            return { id: c.id, sh: s.boxShadow, bl: s.borderInlineStartWidth, blc: s.borderInlineStartColor }; });
+          const headOf = (dd, sel) => ({ cols: head(dd, sel), sep: colorOf(dd, "var(--mt-separator)"), bb: csOf(dd.querySelector(sel + " > treecols")).borderBottomColor });
           const out = {};
           const f = await testFolder(); w.MsgFilters(null, f);
           const lw = await winUrl("FilterListDialog"); if (!lw) throw new Error("Filterliste nicht offen");
           try {
             await pause(1000); const ld = lw.document;
             out.list = look(ld.getElementById("filterList")); out.search = look(ld.getElementById("searchBox"));
+            out.listHead = headOf(ld, "#filterList");
             later(() => ld.getElementById("filterLogButton").click());
             const vw = await winUrl("viewLog"); if (!vw) throw new Error("Filterprotokoll nicht offen");
             try {
@@ -1532,10 +1537,11 @@ def dialog_checks(m, results):
           const sw = await winUrl("SearchDialog"); if (!sw) throw new Error("Suchfenster nicht offen");
           try { await pause(1000); const sd = sw.document;
             out.terms = look(sd.getElementById("searchTermList")); out.field = look([...sd.querySelectorAll("#searchTermList input:not([type=checkbox])")].find(vis));
+            out.resHead = headOf(sd, "#threadTree");
           } finally { await shut(sw); }
           later(() => w.openKeyManager());
           const kw = await winUrl("KeyManager"); if (!kw) throw new Error("OpenPGP-Schlüssel nicht offen");
-          try { await pause(1000); out.keys = look(kw.document.getElementById("pgpKeyList")); } finally { await shut(kw); }
+          try { await pause(1000); out.keys = look(kw.document.getElementById("pgpKeyList")); out.keyHead = headOf(kw.document, "#pgpKeyList"); } finally { await shut(kw); }
           out.dark = dark; return out;""")
         hair = lambda r, rad: r["radius"] == rad and same_color(r["line"], r["paneLine"])
         px = res.get("pixel") or [255, 255, 255, 255]
@@ -1543,8 +1549,13 @@ def dialog_checks(m, results):
         ok = (res["list"]["app"] == "none" and hair(res["list"], "8px") and hair(res["search"], "7px") and res["search"]["img"] != "none"
               and hair(res["log"], "8px") and log_ok and hair(res["terms"], "8px") and hair(res["field"], "7px") and res["field"]["h"] <= 30
               and hair(res["keys"], "8px"))
+        def head_ok(h):
+            cols = h["cols"]
+            return (len(cols) >= 2 and same_color(h["bb"], h["sep"]) and all(c["sh"] == "none" for c in cols)
+                    and cols[0]["bl"] == "0px" and all(same_color(c["blc"], h["sep"]) for c in cols[1:]))
+        ok = ok and all(head_ok(res[k]) for k in ("listHead", "resHead", "keyHead"))
         return ok, f"{res}"
-    check("Filterliste, Filterprotokoll, Suche, OpenPGP: Listen und Felder mit Haarlinie und Radius statt hartem Rahmen, Protokoll dunkel ohne weiße Fläche", filter_windows, results)
+    check("Filterliste, Filterprotokoll, Suche, OpenPGP: Listen und Felder mit Haarlinie und Radius statt hartem Rahmen, Protokoll dunkel ohne weiße Fläche; Spaltenköpfe mit Haarlinien statt Systemlinie", filter_windows, results)
 
     def compact_icon():
         # „Ordner komprimieren?“: Fragezeichen in der Akzentfarbe statt schwarz (dunkel unsichtbar); nie „Compact now“
