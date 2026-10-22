@@ -3937,6 +3937,21 @@ def run_checks(m, version, profile, results):
       ab.detailsPane.isDirty = false;
       ad.getElementById("cancelEditButton").click(); await wait(600);
     }
+    // Kontakt bearbeiten: Papierkorb im Knopf „Delete“ mit Abstand zum Text,
+    // links und rechts etwa gleich viel Rand in der Kapsel
+    {
+      await pick("Jonas Ärmel");
+      ad.getElementById("editButton").click(); await wait(1200);
+      const del = ad.getElementById("detailsDeleteButton");
+      const tn = []; { const tw = ad.createTreeWalker(del, ab.NodeFilter.SHOW_TEXT); while (tw.nextNode()) if (tw.currentNode.textContent.trim()) tn.push(tw.currentNode); }
+      const rg = ad.createRange(); if (tn.length) { rg.setStart(tn[0], 0); rg.setEnd(tn[tn.length - 1], tn[tn.length - 1].length); }
+      const tr = tn.length ? rg.getBoundingClientRect() : null, br = R(del);
+      const bx = parseFloat(cs(del).backgroundPositionX), ps = parseFloat(cs(del).paddingInlineStart);
+      out.del = { visible: del.getClientRects().length > 0, bx, ps, gap: ps - (bx + 16),
+        left: bx, right: tr ? Math.round(br.right - tr.right) : null, textGap: tr ? Math.round(tr.left - br.left - bx - 16) : null };
+      ab.detailsPane.isDirty = false;
+      ad.getElementById("cancelEditButton").click(); await wait(600);
+    }
     // breiter Detailbereich (> 64em): Kopf bleibt auf der Achse
     const dp = ad.getElementById("detailsPane");
     out.wide = { pane: Math.round(R(dp).width) };
@@ -3986,6 +4001,12 @@ def run_checks(m, version, profile, results):
       h: Math.round(R(lc).height), bookH: Math.round(R(brow).height), bg: cs(lc).backgroundColor,
       // eingerückt unter seinem Buch
       indent: Math.round(R(lrow.querySelector(".listRow-icon")).left - R(lrow.parentElement.closest("li").querySelector(".bookRow-icon")).left) };
+    // Abstand Symbol → Name gleich bei Verteilerliste und Buch
+    {
+      const brow2 = lrow.parentElement.closest("li");
+      out.nameGap = { list: Math.round(R(lrow.querySelector(".listRow-name")).left - R(lrow.querySelector(".listRow-icon")).right),
+        book: Math.round(R(brow2.querySelector(".bookRow-name")).left - R(brow2.querySelector(".bookRow-icon")).right) };
+    }
     // Auswahlfarbe einer gewählten Buchzeile zum Vergleich
     ab.booksList.selectedIndex = 0; await wait(1200);
     await pick("Halo Liste");
@@ -4014,6 +4035,15 @@ def run_checks(m, version, profile, results):
     const btn = ad.getElementById("placeholderCreateContact"), empty = ad.getElementById("placeholderEmptyBook");
     out.empty = { opacity: slot && cs(slot).opacity, btn: [btn.getClientRects().length, cs(btn).fontSize, cs(btn).color],
       emptyColor: cs(empty).color, tert: cs(ad.documentElement).getPropertyValue("--mt-text-tertiary").trim() };
+    // leeres Buch: Details ausgeblendet, rechts derselbe Grund wie die Kontaktliste
+    {
+      const dpR = R(ad.getElementById("cardsPane"));
+      let el = ad.elementFromPoint(Math.round((dpR.right + ab.innerWidth) / 2), Math.round(ab.innerHeight / 2)), bg = null;
+      for (; el; el = el.parentElement) { const c = cs(el).backgroundColor; if (c != "transparent" && !/rgba\(.*, 0\)$/.test(c)) { bg = [el.id || el.localName, c]; break; } }
+      if (!bg) bg = ["root", cs(ad.documentElement).backgroundColor];
+      out.emptyBg = { detailsHidden: ad.getElementById("detailsPane").hidden || cs(ad.getElementById("detailsPane")).display == "none",
+        root: cs(ad.documentElement).backgroundColor, cards: cs(ad.getElementById("cardsPane")).backgroundColor, right: bg };
+    }
     ab.booksList.selectedIndex = 0; await wait(1200);
   } finally {
     tm.closeTab(abTab);
@@ -4052,6 +4082,20 @@ def run_checks(m, version, profile, results):
               and e["opacity"] == "1" and e["btn"] == [1, "13px", res["accent"]])
         return ok, f"{res}"
     check("Adressbuch: Links in Akzentfarbe, Karteninhalt an einer Kante, Verteilerliste in der Bücherliste wie Buchzeilen, leeres Buch mit kräftigem Knopf", ab_details_cards, results)
+
+    def ab_footer_gaps():
+        # Bearbeiten: Papierkorb im Knopf „Delete“ mit Abstand zum Text (statt
+        # fast daran klebend), Rand links/rechts ähnlich; Bücherliste: Name der
+        # Verteilerliste so weit hinter dem Symbol wie bei den Büchern (eingerückt);
+        # leeres Buch: rechts kein dunklerer, blaustichiger Seitengrund
+        res = ab_views()
+        dl, ng, eb, lr = res.get("del") or {}, res.get("nameGap") or {}, res.get("emptyBg") or {}, res.get("listRow") or {}
+        ok = (dl.get("visible") and dl["gap"] >= 4 and dl["bx"] >= 10 and dl["textGap"] is not None and dl["textGap"] >= 4
+              and abs(dl["left"] - dl["right"]) <= 6
+              and ng and abs(ng["list"] - ng["book"]) <= 1 and 4 <= ng["book"] <= 8 and lr.get("indent", 0) > 0
+              and eb.get("detailsHidden") and same_color(eb["root"], eb["cards"]) and same_color(eb["right"][1], eb["cards"]))
+        return ok, f"del={dl} nameGap={ng} emptyBg={eb}"
+    check("Adressbuch: Papierkorb im Knopf „Delete“ mit Abstand zum Text; Verteilerliste in der Bücherliste mit gleichem Namensabstand wie Bücher; leeres Buch rechts im Grund der Kontaktliste", ab_footer_gaps, results)
 
     def ab_table():
         # Tabellenansicht: kleines Foto, erste Karte ohne Scrollen sichtbar;

@@ -4351,7 +4351,9 @@ calendar-event-box :is(.alarm-icons-box, .item-classification-icon, .item-recurr
   mask-image: url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22%23000%22 stroke-width=%221.7%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22%3E%3Ccircle cx=%2212%22 cy=%2212%22 r=%228.5%22/%3E%3Cpath d=%22M12 7.4V12l3.1 2%22/%3E%3C/svg%3E") !important;
 }
 
-#books .bookRow-name {
+/* Name direkt 6 px hinter dem Symbol – auch bei Verteilerlisten, deren Symbol
+   schon margin-inline-end 6 px hat (sonst kam Thunderbirds Abstand hinzu) */
+#books :is(.bookRow-name, .listRow-name) {
   margin-inline-start: 0 !important;
 }
 
@@ -4403,6 +4405,13 @@ calendar-event-box :is(.alarm-icons-box, .item-classification-icon, .item-recurr
 
 .books-pane-bottom {
   padding: 0 12px !important;
+}
+
+/* Seitengrund: im leeren Buch blendet Thunderbird #detailsPane aus – dunkel
+   sonst Thunderbirds blaustichiges #18181B statt der Fensterfarbe der Liste */
+:root:has(#detailsPane),
+:root:has(#detailsPane) > body {
+  background-color: var(--mt-window) !important;
 }
 
 /* Kontaktliste */
@@ -6770,6 +6779,13 @@ addon-card .addon-inline-options {
 
 #detailsFooter #detailsDeleteButton {
   color: #FF3B30 !important;
+}
+
+/* Papierkorb (Hintergrundsymbol, 16 px) mit 6 px Abstand zum Text wie bei
+   Write/Event/Search statt fast am Text klebend */
+#detailsFooter #detailsDeleteButton {
+  padding-inline: 34px 16px !important;
+  background-position: 12px center !important;
 }
 
 /* ---------- Terminspalte rechts im Stil von Fastmail ---------- */
