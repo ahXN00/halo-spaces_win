@@ -6655,14 +6655,18 @@ notification-message toolbarbutton.notification-button > .toolbarbutton-menubutt
   color: var(--mt-text-tertiary) !important;
 }
 
+/* Labelspalte richtet sich nach der Sprache (EN ca. 55 px statt fester 96 px) und gilt über
+   subgrid für alle Zeilen gemeinsam, damit die Felder bündig bleiben; die Felder dürfen
+   schrumpfen, damit die Uhrzeit samt Uhrsymbol nicht über die graue Karte ragt */
 #mcQuickPanel .mc-qc-details {
   display: none !important;
-  flex-direction: column !important;
-  gap: 8px !important;
+  grid-template-columns: max-content minmax(0, 1fr) !important;
+  row-gap: 8px !important;
+  column-gap: 12px !important;
 }
 
 #mcQuickPanel .mc-qc[data-expanded] .mc-qc-details {
-  display: flex !important;
+  display: grid !important;
 }
 
 #mcQuickPanel .mc-qc[data-expanded] .mc-qc-summary {
@@ -6671,24 +6675,29 @@ notification-message toolbarbutton.notification-button > .toolbarbutton-menubutt
 
 #mcQuickPanel .mc-qc-row {
   display: grid !important;
-  grid-template-columns: 96px 1fr !important;
+  grid-column: 1 / -1 !important;
+  grid-template-columns: subgrid !important;
   align-items: center !important;
   column-gap: 12px !important;
 }
 
 #mcQuickPanel .mc-qc-row > label {
   justify-self: end !important;
+  white-space: nowrap !important;
   color: var(--mt-text-secondary) !important;
 }
 
 #mcQuickPanel .mc-qc-ctrl {
   display: flex !important;
+  min-width: 0 !important;
   align-items: center !important;
   gap: 8px !important;
 }
 
 #mcQuickPanel .mc-qc-ctrl :is(input[type="date"], input[type="time"], select) {
   box-sizing: border-box !important;
+  min-width: 0 !important;
+  flex: 0 1 auto !important;
   height: 26px !important;
   padding: 0 6px !important;
   border: none !important;

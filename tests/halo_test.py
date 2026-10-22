@@ -2467,6 +2467,37 @@ def calendar_checks(m, results):
         return ok, f"{res}"
     check("Schnellfenster: „Ganztägig“ als macOS-Kästchen, Kalendername dicht am Farbpunkt", quick_allday_calrow, results)
 
+    def quick_time_fits():
+        # Schnellfenster aufgeklappt: Datum, Uhrzeit (samt Uhrsymbol) und Auswahllisten bleiben auf der grauen Karte
+        # (früher feste 96-px-Labelspalte – das Uhrsymbol ragte über die Kartenkante); Labels ungekürzt, Felder bündig
+        res = m.js(CAL_CHECK_JS + r"""
+          await toWeek();
+          const li = [...d.querySelectorAll('#unifiedToolbarContent li[item-id="new-event"]')].find(vis);
+          li.querySelector("button").click();
+          const qp = await till(() => { const q = d.getElementById("mcQuickPanel"); return q?.state == "open" && q; }, 4000);
+          if (!qp) return { open: false, visibility: d.visibilityState };
+          await pause(300);
+          try {
+            const f = qp.__mc; if (!qp.querySelector(".mc-qc[data-expanded]")) { f.summary.click(); await pause(600); }
+            const card = qp.querySelector(".mc-qc-time"), cr = card.getBoundingClientRect();
+            const fields = [...card.querySelectorAll('input[type="date"], input[type="time"], select')].filter(vis).map(e => {
+              const r = e.getBoundingClientRect();
+              return { t: e.type || e.localName, over: Math.round((r.right - (cr.right - 4)) * 10) / 10,
+                       clip: e.type == "time" ? e.scrollWidth - e.clientWidth : 0, left: Math.round(r.left) };
+            });
+            const labels = [...card.querySelectorAll(".mc-qc-row > label")].filter(vis).map(l => ({ t: l.textContent, clip: l.scrollWidth - l.clientWidth }));
+            const ctrlLefts = [...new Set([...card.querySelectorAll(".mc-qc-row")].filter(vis).map(r => Math.round(r.querySelector(".mc-qc-ctrl").getBoundingClientRect().left)))];
+            return { open: true, fields, labels, ctrlLefts, card: Math.round(cr.width) };
+          } finally { await shutPop(qp); }""")
+        if not res.get("open"):
+            return res.get("visibility") == "hidden", f"Schnellfenster nicht offen {res}"
+        fields, labels = res.get("fields") or [], res.get("labels") or []
+        ok = (sum(1 for x in fields if x["t"] == "time") >= 2 and all(x["over"] <= 0 for x in fields)
+              and all(x["clip"] <= 1 for x in fields) and len(labels) >= 5 and all(x["clip"] <= 0 for x in labels)
+              and len(res.get("ctrlLefts") or []) == 1)
+        return ok, f"{res}"
+    check("Schnellfenster: Uhrzeit samt Uhrsymbol innerhalb der Karte, Labels ungekürzt, Felder bündig", quick_time_fits, results)
+
     def enable_badge():
         # Kalenderliste: Plakette „Aktivieren“ als graue Kapsel statt schieferblauer Fläche mit weißer Großschrift
         res = m.js(CAL_CHECK_JS + r"""
