@@ -4777,12 +4777,14 @@ def run_checks(m, version, profile, results):
           const checked = [...cd.querySelectorAll("#paneDeck checkbox[checked]")].find(c => c.getBoundingClientRect().width)?.querySelector(".checkbox-check");
           const radio = cd.querySelector("#paneDeck radio:not(.appearance-options radio) .radio-check");
           const tileCheck = cd.querySelector("#appearanceStyleCards .radio-check");
+          // verschachtelte Unterüberschriften („Card view options“, „Display width“) wie der Kartentitel 13 px
+          const legends = [...new Set([...cd.querySelectorAll("#paneDeck legend")].map(l => cs(l).fontSize))];
           cw.gotoPref("paneChat"); await wait(1200);
           const num = cd.querySelector("#paneDeck input[type=number]");
           const out = { width: Math.round(deck.width), offset: Math.round((deck.left - box.left) - (box.right - deck.right)),
             checkbox: checked ? [cs(checked).appearance, cs(checked).borderTopLeftRadius] : null,
             radio: radio ? [cs(radio).appearance, cs(radio).borderTopLeftRadius] : null,
-            tileCheck: tileCheck ? cs(tileCheck).display : null, number: num ? cs(num).appearance : null };
+            tileCheck: tileCheck ? cs(tileCheck).display : null, number: num ? cs(num).appearance : null, legends };
           // Zahlenfeld ohne macOS-Feldrahmen: dieselbe Haarlinie und Fläche wie die Textfelder
           const txt = [...cd.querySelectorAll("#paneDeck input[type=text]")][0];
           out.numberLook = num && txt ? [cs(num).borderTopColor == cs(txt).borderTopColor,
@@ -4795,7 +4797,7 @@ def run_checks(m, version, profile, results):
           out.accountList = el ? [el.localName, el.ownerDocument.defaultView.getComputedStyle(el).borderTopLeftRadius] : null;
           tm.closeTab(tm.currentTabInfo);
           return out;''')
-        ok = (res["width"] <= 800 and abs(res["offset"]) <= 4 and res["checkbox"] == ["none", "4px"]
+        ok = (res["width"] <= 800 and abs(res["offset"]) <= 4 and res["checkbox"] == ["none", "4px"] and res["legends"] == ["13px"]
               and res["radio"] and res["radio"][0] == "none" and res["tileCheck"] == "none" and res["number"] == "none" and res["numberLook"] == [True, True]
               and res["accountList"] in (["richlistbox", "12px"], ["input", "7px"]))
         return ok, f"{res}"
@@ -4838,6 +4840,19 @@ def run_checks(m, version, profile, results):
           out.dohBox = [cs(box).borderTopLeftRadius, cs(box).backgroundColor != "rgba(0, 0, 0, 0)",
             cs(opt).borderTopLeftRadius, parseFloat(cs(opt).borderTopWidth) <= 1, cs(opt).borderTopColor == line];
           out.pwSep = cs(cd.getElementById("privacyPasswordsCategory").nextElementSibling).display;
+          // Sicheres DNS: Statuskasten ohne Netzwerkstatus verborgen, mit Statustext sichtbar (Gegenprobe)
+          const dss = cd.getElementById("dohStatusSection"), dst = cd.getElementById("dohStatus");
+          const dssH = () => Math.round(dss.getBoundingClientRect().height);
+          out.dohStatus = [dst.textContent, cs(dss).display, dssH()];
+          const oldStatus = dst.textContent; dst.textContent = "Status: Off"; await wait(200);
+          out.dohStatus.push(dssH()); dst.textContent = oldStatus; await wait(100);
+          // Unterüberschriften (auch verschachtelte legend) nicht größer als der Kartentitel
+          out.legendsPrivacy = [...new Set([...cd.querySelectorAll("#paneDeck legend")].map(l => cs(l).fontSize))];
+          // OCSP einzeilig (eine Zeile ca. 23 px, zwei ca. 46 px), Knöpfe weiterhin rechts in der Karte
+          const ocsp = cd.querySelector("#enableOCSP .checkbox-label"), ocspCard = cd.getElementById("enableOCSP").closest("fieldset");
+          out.ocsp = [Math.round(ocsp.getBoundingClientRect().height),
+            ["manageCertificatesButton", "viewSecurityDevicesButton"].map(id => { const r = cd.getElementById(id).getBoundingClientRect();
+              return r.width > 0 && r.right <= ocspCard.getBoundingClientRect().right && r.left > ocsp.getBoundingClientRect().right; })];
           // Cookie-Ausnahmen: Baum mit Haarlinie und 8 px
           const cb = cd.getElementById("cookieExceptions"); cb.scrollIntoView({ block: "center" }); cb.click();
           fr = await until(() => [...cd.querySelectorAll(".dialogFrame")].find(f => f.contentDocument?.readyState == "complete" && f.contentDocument.querySelector("tree")), 8000);
@@ -4859,17 +4874,19 @@ def run_checks(m, version, profile, results):
               and res.get("offline") and res["offline"][0] is True and res["offline"][1] <= 24
               and res["doh"] and res["doh"][0] and res["doh"][1] == "rgba(0, 0, 0, 0)" and res["doh"][2]
               and res["dohBox"] == ["12px", True, "10px", True, True] and res["pwSep"] == "none"
+              and res["dohStatus"][1:3] == ["none", 0] and res["dohStatus"][3] > 0
+              and res["legendsPrivacy"] == ["13px"] and res["ocsp"][0] <= 30 and res["ocsp"][1] == [True, True]
               and res.get("tree") == ["8px", True, True]
               and res["cal"][:2] == ["separator", "none"] and res["cal"][2] <= 20
               and res["qr"] == ["none", "12px", True, "11px", "none"])
         return ok, f"{res}"
-    check("Einstellungen: Schrift 13 px, Seitenleiste bündig, Listen/DNS/Export als ruhige Karten, Offline-Dialog untereinander", settings_cards, results)
+    check("Einstellungen: Schrift 13 px, Seitenleiste bündig, Listen/DNS/Export als ruhige Karten, leerer DNS-Status verborgen, Unterüberschriften 13 px, OCSP einzeilig, Offline-Dialog untereinander", settings_cards, results)
 
     def settings_details():
         # Einstellungen: Arbeitstage mittig und mit Abstand, Chat-Vorschau mit Abstand/Rahmen und dunkel als
         # Variante „Dark“, Schlagwörter lesbar, „Verzeichnisse bearbeiten“ wie die übrigen Knöpfe (Bearbeiten im
         # Adressbuch bleibt groß), Update-Chronik mit Abstand, Port-Felder ohne Pfeile, schmales Fenster ohne Abschneiden,
-        # Schriftgröße kompakt, Kryptographie-Module mit ungekürzten Namen
+        # Schriftgröße kompakt, Kryptographie-Module mit ungekürzten Namen und Abstand zwischen den Listen
         res = m.js(ADDRESS_EDIT_JS.replace('ad.getElementById("editButton").click(); await wait(1200);', '') + r"""
           const abEdit = ad.getElementById("editButton"); const out = { abEdit: [ab.getComputedStyle(abEdit).height, ab.getComputedStyle(abEdit).fontWeight] };
           tm.closeTab(tm.currentTabInfo);
@@ -4891,7 +4908,15 @@ def run_checks(m, version, profile, results):
           cw.gSubDialog.open("chrome://pippki/content/device_manager.xhtml");
           let fd = await until(() => [...cd.querySelectorAll(".dialogFrame")].find(f => f.contentDocument?.readyState == "complete" && f.contentDocument.getElementById("device_tree")), 8000);
           if (fd) { await wait(400); const dd = fd.contentDocument, de = dd.documentElement;
-            out.dev = [Math.round(dd.getElementById("device_tree").getBoundingClientRect().width), de.scrollWidth <= de.clientWidth];
+            const dt = dd.getElementById("device_tree"), it = dd.getElementById("info_tree");
+            // Namen ungekürzt: Zellentext passt in die Spalte (ohne Ellipse)
+            const names = [];
+            for (let i = 0; i < dt.view.rowCount; i++) names.push(dt.view.getCellText(i, dt.columns[0]));
+            const cv = dd.createElementNS("http://www.w3.org/1999/xhtml", "canvas").getContext("2d"); cv.font = `${cs(dt).fontSize} ${cs(dt).fontFamily}`;
+            const colW = dt.columns[0].element.getBoundingClientRect().width;
+            out.dev = [Math.round(dt.getBoundingClientRect().width), de.scrollWidth <= de.clientWidth,
+              Math.round(it.getBoundingClientRect().left - dt.getBoundingClientRect().right),
+              names.length > 0 && names.every((n, i) => cv.measureText(n).width + 16 * (dt.view.getLevel(i) + 1) + 24 <= colW)];
             cw.gSubDialog._topDialog?.close(); await wait(400); }
           // Update-Chronik: Hinweis „No updates installed yet“ nicht am Listenrand
           cw.gSubDialog.open("chrome://mozapps/content/update/history.xhtml");
@@ -4944,7 +4969,7 @@ def run_checks(m, version, profile, results):
               and res["preview"][0] >= 6 and res["preview"][1:] == ["8px", True] and chat_ok
               and res["days"][0] == 7 and res["days"][1] <= 1 and res["days"][2] >= 4 and narrow_ok
               and res["size"][0] <= 100 and res["size"][0] < res["size"][1] / 2
-              and bool(res.get("dev")) and res["dev"][1] is True and res["dev"][0] >= 250)
+              and bool(res.get("dev")) and res["dev"][1] is True and res["dev"][0] >= 250 and res["dev"][2] >= 6 and res["dev"][3] is True)
         return ok, f"{res}"
     check("Einstellungen: Arbeitstage, Chat-Vorschau (dunkel „Dark“), Schlagwörter lesbar, Knöpfe, Update-Chronik, Ports, schmales Fenster, Schriftgröße, Kryptographie-Module", settings_details, results)
 

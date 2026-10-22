@@ -2363,6 +2363,15 @@ search-bar {
   clear: both !important;
 }
 
+/* Verschachtelte Unterüberschriften („Card view options“, „Display width“,
+   „Enable DNS over HTTPS using:“) behielten Thunderbirds 1.3em und waren
+   größer als der Kartentitel – gleiche 13 px halbfett */
+#paneDeck legend:not(fieldset > legend, #dohBox > legend) {
+  font-size: 13px !important;
+  font-weight: 600 !important;
+  color: var(--mt-text) !important;
+}
+
 /* Schriftgröße neben der Schriftart kompakt wie „Size“ bei „Message formatting“
    statt mit flex=1 gleich breit (Pfeil stand rund 280 px vom Wert entfernt).
    flex="1" an Liste und Hülle setzt xul.css mit !important – daher Höchstbreite;
@@ -2398,6 +2407,22 @@ search-bar {
   border: var(--mt-hairline) solid var(--mt-pane-line) !important;
   border-radius: 10px !important;
   background: var(--mt-window) !important;
+}
+
+/* Statuskasten ohne Netzwerkstatus leer – keine leere Kapsel; sobald
+   Thunderbird einen Status setzt, erscheint er wieder mit Haarlinie */
+#paneDeck #dohStatusSection:has(#dohStatus:empty):has(#dohResolver:empty):not(:has(#dohSteeringStatus:not([hidden]))) {
+  display: none !important;
+}
+
+/* OCSP: der leere Spacer neben der Checkbox halbierte die Breite der
+   Beschriftung, sie brach trotz freiem Platz zweizeilig um */
+#paneDeck hbox:has(> #enableOCSP) > spacer {
+  display: none !important;
+}
+
+#paneDeck #enableOCSP {
+  margin-inline-end: 12px !important;
 }
 
 /* Listen und Tabellen (Schlagwörter, Dateitypen, Kategorien, Filelink, Bäume
@@ -4521,10 +4546,12 @@ dialog separator.groove:not([orient="vertical"]) {
 }
 
 /* Kryptographie-Module: die linke Liste kürzte alle Namen mit „…“, während
-   die Detailtabelle daneben breit und leer war – mehr Platz für die Namen */
+   die Detailtabelle daneben breit und leer war – mehr Platz für die Namen,
+   mit Abstand zur Detailliste, damit sich Rahmen und Fokusring nicht berühren */
 #device_tree {
   flex: 2 !important;
   min-width: 260px !important;
+  margin-inline-end: 8px !important;
 }
 
 /* Rückfragen dunkel ohne violettgrauen Farbstich (Firefox-Inhaltsfarbe) –
