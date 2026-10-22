@@ -94,6 +94,16 @@ nur über Tailscale (keine Portfreigabe), Claude Code per SSH aus der Desktop-Ap
   nur bei Push auf `main` und von Hand – nie bei `pull_request`, weil das Repo
   öffentlich ist. Die `if:`-Bedingung nicht lockern; auf dem Mac weist zusätzlich
   `tests/mac-runner-hook.sh` alles andere ab.
+- Jeder Push auf `main` belegt neon mit dem Job `mac` rund 40 Minuten. Solange er
+  läuft (Prozess `Runner.Worker`), keine eigenen Testläufe starten – zwei
+  Testfenster nehmen sich gegenseitig den Fokus.
+- **Gesammelt pushen:** je Eintrag committen, aber erst am Ende eines
+  zusammenhängenden Arbeitsblocks (Phase) pushen – nach dem kompletten Test hell
+  und dunkel. Danach die CI des Pushes prüfen (Linux, Beta, `mac`). Früher pushen
+  nur, wenn etwas davon abhängt (z. B. Test im echten Profil).
+- Zwischendurch nur betroffene Prüfungen: `python3 tests/halo_test.py --port 2851
+  --only "<Teil des Prüfungsnamens>"` (1–2 Minuten). Neue Prüfungen müssen auch
+  unter Linux (CI, xvfb) und mit der Beta grün sein.
 
 ## Release (nur auf ausdrücklichen Wunsch)
 
@@ -147,8 +157,9 @@ SessionStart-Hook die offenen Einträge in jede Sitzung.
   anbieten; umgesetzt wird nur, wenn der Maintainer einen Eintrag zum
   Abarbeiten nennt. Gehört der Punkt zu einem offenen Eintrag, diesen
   ergänzen statt einen neuen anzulegen.
-- Bei Arbeitsbeginn Status In Progress; nach Commit und Push Status Done
-  mit Commit-Hash als Notiz, dann archivieren. Teilweise Erledigtes bleibt
+- Bei Arbeitsbeginn Status In Progress; nach dem Commit Status Done mit
+  Commit-Hash als Notiz, dann archivieren (gepusht wird gesammelt, siehe
+  „Testrechner“). Teilweise Erledigtes bleibt
   In Progress mit Notiz, was fehlt.
 - Inhalte der Liste nie öffentlich machen: keine Verweise in Commits,
   README, Store-Texten oder öffentlichen Issues.
