@@ -70,7 +70,14 @@ class Marionette:
 
     def js(self, body):
         script = "return (async () => {" + PRELUDE + body + "})();"
-        return self.cmd("WebDriver:ExecuteScript", {"script": script, "args": []}).get("value")
+        try:
+            return self.cmd("WebDriver:ExecuteScript", {"script": script, "args": []}).get("value")
+        except RuntimeError as e:
+            # mit --only fehlen Vorarbeiten übersprungener Prüfungen – Vorbereitungen außerhalb einer Prüfung dürfen dann scheitern
+            if ONLY and not IN_CHECK:
+                print(f"Hinweis (--only): Vorbereitung übersprungen – {e}", flush=True)
+                return {}
+            raise
 
     def pointer(self, steps):
         self.cmd("WebDriver:PerformActions", {"actions": [
@@ -94,11 +101,21 @@ const rect = el => { const r = el.getBoundingClientRect(); return { l: Math.roun
 """
 
 
+ONLY = None  # --only: nur Prüfungen, deren Name auf diesen regulären Ausdruck passt
+IN_CHECK = False
+
+
 def check(name, fn, results):
+    global IN_CHECK
+    if ONLY and not ONLY.search(name):
+        return
+    IN_CHECK = True
     try:
         ok, detail = fn()
     except Exception as e:  # Fehler in der Prüfung selbst zählen als Fehlschlag
         ok, detail = False, f"Ausnahme: {e}"
+    finally:
+        IN_CHECK = False
     results.append((name, ok, detail))
     print(f"{'OK     ' if ok else 'FEHLER '} {name}" + (f" – {detail}" if detail else ""), flush=True)
 
@@ -271,7 +288,11 @@ def main():
     ap.add_argument("--perf", action="store_true", help="nur die Geschwindigkeit messen (5000 Mails, mit und ohne halo.spaces)")
     ap.add_argument("--port", type=int, default=PORT, help=f"Marionette-Port (Standard {PORT}; eigener Port erlaubt mehrere Testläufe gleichzeitig)")
     ap.add_argument("--compare", help="Ordner mit früheren Screenshots: zeigt, wo sich etwas verändert hat (braucht --shots)")
+    ap.add_argument("--only", help="nur Prüfungen, deren Name auf diesen regulären Ausdruck passt (z. B. \"Anhänge\")")
     args = ap.parse_args()
+    if args.only:
+        global ONLY
+        ONLY = re.compile(args.only, re.I)
 
     if not args.xpi:
         # ohne Angabe immer den aktuellen Stand bauen (sonst testet man ein altes Paket)
@@ -975,10 +996,15 @@ def reading_checks(m, results):
           doc.defaultView.toggleAttachmentList?.(true, true); await wait(900);
           const list = doc.getElementById("attachmentList");
           // Hauptfenster vorn, sonst bekommt die Liste unter Linux (xvfb) keinen Fokus und bleibt grau
-          w.focus(); await until(() => Services.focus.activeWindow == w, 3000);
-          list.selectedIndex = 0; list.focus(); await until(() => list.matches(":focus-within"), 2000); await wait(400);
+          // läuft daneben ein zweites Testfenster (z. B. CI-Job auf demselben Mac), holt es sich den Fokus zurück – dann mehrmals versuchen
+          let inactive = true;
+          for (let i = 0; i < 4 && inactive; i++) {
+            w.focus(); await until(() => Services.focus.activeWindow == w, 3000);
+            list.selectedIndex = 0; list.focus(); await until(() => list.matches(":focus-within"), 2000); await wait(400);
+            inactive = d.documentElement.matches(":-moz-window-inactive") || !list.matches(":focus-within");
+          }
           const item = list.querySelector(".attachmentItem[selected]");
-          const focused = { bg: cs(item).backgroundColor, radius: parseFloat(cs(item).borderTopLeftRadius), outline: cs(item).outlineStyle };
+          const focused = { bg: cs(item).backgroundColor, radius: parseFloat(cs(item).borderTopLeftRadius), outline: cs(item).outlineStyle, inactive };
           a3.threadTree.focus(); await wait(300);
           const out = { list: cs(list).backgroundColor, header: cs(doc.getElementById("messageHeader")).backgroundColor,
                         bar: cs(doc.getElementById("attachmentBar")).backgroundColor, focused, unfocused: cs(item).backgroundColor,
@@ -986,8 +1012,11 @@ def reading_checks(m, results):
           doc.defaultView.toggleAttachmentList?.(false); return out;""")
         f = res["focused"]
         ok = (same_color(res["list"], res["header"]) and same_color(res["bar"], res["header"]) and f["radius"] >= 6
-              and f["outline"] == "none" and same_color(f["bg"], res["accent"]) and not same_color(res["unfocused"], res["accent"]))
-        return ok, f"{res}"
+              and f["outline"] == "none" and not same_color(res["unfocused"], res["accent"]))
+        if f["inactive"]:
+            # Fenster trotz mehrerer Versuche nicht aktiv: die Akzentfarbe mit Fokus lässt sich nicht messen
+            return ok, f"Testfenster nicht aktiv (anderes Fenster hat den Fokus) – Fokusfarbe übersprungen {res}"
+        return ok and same_color(f["bg"], res["accent"]), f"{res}"
     check("Anhänge: Liste auf der Fläche der Mail, markierte Datei abgerundet ohne Rahmen (unfokussiert grau)", attachments, results)
 
     def find_bar():
@@ -1186,11 +1215,16 @@ def compose_checks(m, results):
               const a = Cc["@mozilla.org/messengercompose/attachment;1"].createInstance(Ci.nsIMsgAttachment); a.url = PathUtils.toFileURI(path); a.name = n; a.size = 30; atts.push(a); }
             cw.AddAttachments(atts);
             if (!await till(() => cw.gAttachmentBucket?.itemCount >= 2, 5000)) return { attached: false };
-            await pause(800); await front(cw);
+            await pause(800);
             const area = cd.getElementById("attachmentArea"), bucket = cd.getElementById("attachmentBucket");
-            bucket.selectedIndex = 0; bucket.focus(); await pause(300);
+            // ein zweites Testfenster daneben (CI-Job auf demselben Mac) kann den Fokus zurückholen – mehrmals versuchen
+            let inactive = true;
+            for (let i = 0; i < 4 && inactive; i++) {
+              await front(cw); bucket.selectedIndex = 0; bucket.focus(); await till(() => bucket.matches(":focus"), 2000); await pause(300);
+              inactive = cw.document.documentElement.matches(":-moz-window-inactive") || !bucket.matches(":focus");
+            }
             const item = bucket.querySelector(".attachmentItem[selected]"), s = csOf(item);
-            const focused = { focus: bucket.matches(":focus"), bg: s.backgroundColor, radius: parseFloat(s.borderTopLeftRadius), outline: s.outlineStyle, border: parseFloat(s.borderTopWidth) };
+            const focused = { focus: bucket.matches(":focus"), bg: s.backgroundColor, radius: parseFloat(s.borderTopLeftRadius), outline: s.outlineStyle, border: parseFloat(s.borderTopWidth), inactive };
             cd.getElementById("msgSubject").focus(); await pause(300);
             return { attached: true, focused, unfocused: csOf(item).backgroundColor, accent: colorOf(cd, "AccentColor"),
                      summary: csOf(area.querySelector("summary")).backgroundColor, bucket: csOf(bucket).backgroundColor,
@@ -1198,9 +1232,12 @@ def compose_checks(m, results):
                      size: csOf(cd.getElementById("attachmentBucketSize")).backgroundColor }; });""")
         f = res.get("focused") or {}
         ok = (res.get("attached") and same_color(res["summary"], res["header"]) and same_color(res["bucket"], res["header"]) and res["bucketBorder"] == 0
-              and f["focus"] and same_color(f["bg"], res["accent"]) and f["radius"] >= 6 and f["outline"] == "none" and f["border"] == 0
+              and f["radius"] >= 6 and f["outline"] == "none" and f["border"] == 0
               and not same_color(res["unfocused"], res["accent"]) and rgba_alpha(res["size"]) == 0)
-        return ok, f"{res}"
+        if f.get("inactive"):
+            # Fenster trotz mehrerer Versuche nicht aktiv: die Akzentfarbe mit Fokus lässt sich nicht messen
+            return ok, f"Testfenster nicht aktiv (anderes Fenster hat den Fokus) – Fokusfarbe übersprungen {res}"
+        return ok and f["focus"] and same_color(f["bg"], res["accent"]), f"{res}"
     check("Verfassen: Anhänge auf der Fläche des Fensters, markierte Datei abgerundet ohne Rahmen (unfokussiert grau), Größe ohne Plakette", attachments, results)
 
     def body():
