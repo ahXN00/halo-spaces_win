@@ -49,7 +49,7 @@ Personal data in the screenshots is blurred.
 - **Message list**: delete and archive on a card can be undone with Cmd+Z; new or renamed accounts get their colour dot right away; mail dated in the future shows the full date; favourites keep the names of subfolders
 - **One-click unsubscribe** also works on Thunderbird 128 and when the list redirects to a confirmation page; an unsubscribe mail is sent from the address the list mail went to
 - **Reliability**: disabling or updating without a restart leaves nothing behind; with several main windows each keeps its own Today pane and "+" button; contact photos stay off once turned off; sender logos never contact devices on your local network
-- Today pane: the "+" popover points at the button even when the window touches the right edge of the screen
+- Today pane: the "+" popover points at the button even in a maximised window or when the window touches the right edge of the screen
 
 See [Releases](https://github.com/sruf79/halo-spaces/releases) for all versions.
 
