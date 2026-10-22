@@ -81,8 +81,11 @@ def upload(version):
         sys.exit(f"{xpi} fehlt – zuerst ./release.sh {version}")
     # nur für ein schon gelistetes Add-on – sonst würde ATN einen neuen,
     # nicht gelisteten Eintrag anlegen (die erste Einreichung läuft übers Formular)
-    status, _ = call("GET", f"/addons/addon/{ADDON_ID}/")
-    if status != 200:
+    # ein noch nicht öffentliches Add-on (erste Version wartet auf Prüfung)
+    # meldet hier 401 – die Abfrage nimmt keine API-Schlüssel an –, liefert
+    # aber seine Sperrfelder mit; ein unbekanntes Add-on meldet 404
+    status, res = call("GET", f"/addons/addon/{ADDON_ID}/")
+    if status != 200 and not (status == 401 and "is_disabled_by_mozilla" in res):
         sys.exit("halo.spaces ist auf ATN noch nicht gelistet – erste Version über den Developer Hub einreichen")
     boundary = uuid.uuid4().hex
     parts = [
