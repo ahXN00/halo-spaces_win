@@ -92,13 +92,13 @@ Known Issues
 - The compose window and a few dialogs are only partly themed.
 - Report issues via [GitHub Issues](https://github.com/sruf79/halo-spaces/issues). Please include your OS, Thunderbird version and a screenshot.
 
-Settings for turning parts off (Config Editor):
-
-| Preference | Effect |
-|---|---|
-| `extensions.mailcards.bundledTheme = false` | turns off the bundled theme |
-| `extensions.mailcards.appleIcons = false` | keeps Thunderbird's own icons |
-| `extensions.mailcards.calendarOffline = true` | turns on offline support for online calendars (faster loading) |
+Options
+-------
+All options of halo.spaces – preview lines, hover actions, sender logos,
+photos from the Contacts app, calendar emojis, birthdays, the bundled design
+and icons, updates – are in **Settings → halo.spaces** (also reachable via
+**Help → halo.spaces… → Settings…** or **Add-ons and Themes → halo.spaces →
+Settings**). Changes take effect right away unless noted.
 
 ---------------------------------------------------------------
 

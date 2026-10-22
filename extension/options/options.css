@@ -39,6 +39,8 @@ body {
 
 main {
   max-width: 640px;
+  /* mittig wie die übrigen Seiten der Einstellungen (dort eingebettet als Kategorie) */
+  margin-inline: auto;
   padding: 16px 18px 24px;
 }
 

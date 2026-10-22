@@ -5056,9 +5056,83 @@ search-bar {
 #category-privacy .category-icon { --tile: #007AFF; }
 #category-chat .category-icon { --tile: #AF52DE; }
 #category-calendar .category-icon { --tile: #FF3B30; }
-#categories > richlistitem:last-child .category-icon { --tile: #30B850; }
-#accountButton .sidebar-footer-icon { --tile: #5E5CE6; }
-#addonsButton .sidebar-footer-icon { --tile: #FF2D78; }
+#category-qrexport .category-icon { --tile: #30B850; }
+#accountButton .sidebar-footer-icon,
+#mcCat-paneMcAccounts .category-icon { --tile: #5E5CE6; }
+#addonsButton .sidebar-footer-icon,
+#mcCat-paneMcAddons .category-icon { --tile: #FF2D78; }
+
+/* Kontoeinstellungen, Add-ons und halo.spaces als eigene Gruppe (Kategorien
+   setzt die Erweiterung) – wie die Gruppen in den Systemeinstellungen */
+#mcCat-paneMcAccounts {
+  margin-top: 14px !important;
+}
+
+/* halo.spaces: eigenes Symbol ohne farbige Kachel */
+#mcCat-paneMcHalo .category-icon {
+  background: none !important;
+  padding: 0 !important;
+  border-radius: 0 !important;
+}
+
+/* eingebettete Seite: ganze Fläche rechts der Seitenleiste statt Thunderbirds
+   800-px-Spalte, ohne eigenes Suchfeld darüber */
+:root[mc-embed] #preferencesContainer {
+  padding: 0 !important;
+  overflow: hidden !important;
+}
+
+:root[mc-embed] #preferencesContainer .paneDeckContainer {
+  inline-size: 100% !important;
+  max-inline-size: none !important;
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
+:root[mc-embed] #preferencesContainer .sticky-container {
+  display: none !important;
+}
+
+:root[mc-embed] #paneDeck,
+.mc-embed-pane {
+  inline-size: 100% !important;
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
+/* Kontoeinstellungen und Add-ons in den Einstellungen: ihr Browser liegt im
+   Hauptfenster über der Fläche rechts der Seitenleiste (Abstand links setzt
+   die Erweiterung nach der Breite der Seitenleiste) */
+.mc-embed-host {
+  position: relative !important;
+}
+
+.mc-embed-page {
+  position: absolute !important;
+  inset-block: 0 !important;
+  inset-inline-end: 0 !important;
+  z-index: 1 !important;
+  background: var(--mt-window) !important;
+}
+
+.mc-embed-page[hidden] {
+  display: none !important;
+}
+
+/* eingebettete Kontoeinstellungen/Add-ons: keine Links zurück zu den
+   Einstellungen (die Seitenleiste daneben hat sie schon) */
+:root[mc-embedded] #accountTreeBox .sidebar-footer-list,
+:root[mc-embedded] #preferencesButton {
+  display: none !important;
+}
+
+.mc-embed-frame {
+  display: block !important;
+  inline-size: 100% !important;
+  block-size: 100vh !important;
+  border: none !important;
+  background: var(--mt-window) !important;
+}
 
 .sidebar-footer-list {
   padding: 0 10px 12px !important;
@@ -5689,6 +5763,12 @@ input[type="number"]:is(.size2, .size3, .size4, .size5)::-moz-number-spin-box {
    damit alle Seiten gleich aussehen */
 #containerBox > .dialogheader {
   margin-block-end: 12px !important;
+}
+
+/* Inhalt der Kontoseiten mittig wie in den übrigen Einstellungen (dort höchstens
+   800 px in der Mitte) – sonst klebte er links an der Kontoliste */
+#containerBox {
+  margin-inline: auto !important;
 }
 
 #containerBox > .dialogheader + separator.thin {

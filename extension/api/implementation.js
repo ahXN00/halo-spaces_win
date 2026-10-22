@@ -66,7 +66,6 @@ const DE = {
   "Dark": "Dunkel",
   "Delete": "Löschen",
   "Due": "Fällig",
-  "Emojis in Calendar: on": "Emojis im Kalender: an",
   "en": "de",
   "Ends": "Ende",
   "Event": "Termin",
@@ -97,14 +96,10 @@ const DE = {
   "No Due Date": "Kein Fälligkeitsdatum",
   "No writable calendar": "Kein beschreibbarer Kalender",
   "None": "Keine",
-  "none – allow access in System Settings": "keine – Zugriff in den Systemeinstellungen erlauben",
-  "Photos from Contacts: on": "Fotos aus Kontakte: an",
   "Previous Month": "Voriger Monat",
   "Quick Filter": "Schnellfilter",
-  "Reading contacts …": "Kontakte werden gelesen …",
   "Repeat": "Wiederholen",
   "Show As": "Anzeigen als",
-  "Show Emojis in Calendar": "Emojis im Kalender zeigen",
   "Show Names As": "Namen anzeigen als",
   "Show Sidebar": "Seitenleiste einblenden",
   "Show Spaces": "Bereiche einblenden",
@@ -112,7 +107,6 @@ const DE = {
   "Sort": "Sortieren",
   "Starts": "Beginn",
   "Task": "Aufgabe",
-  "Use photos from Contacts": "Fotos aus Kontakte verwenden",
   "View": "Ansicht",
   "Preview lines in the message list": "Vorschauzeilen in der Mailliste",
   "takes effect after a restart": "gilt nach einem Neustart",
@@ -220,7 +214,6 @@ const FR = {
   "Dark": "Sombre",
   "Delete": "Supprimer",
   "Due": "Échéance",
-  "Emojis in Calendar: on": "Emojis dans le calendrier : activés",
   "Ends": "Fin",
   "Event": "Événement",
   "Every Day": "Tous les jours",
@@ -250,14 +243,10 @@ const FR = {
   "No Due Date": "Sans échéance",
   "No writable calendar": "Aucun calendrier modifiable",
   "None": "Aucune",
-  "none – allow access in System Settings": "aucune – autoriser l’accès dans les Réglages Système",
-  "Photos from Contacts: on": "Photos de Contacts : activées",
   "Previous Month": "Mois précédent",
   "Quick Filter": "Filtre rapide",
-  "Reading contacts …": "Lecture des contacts …",
   "Repeat": "Répéter",
   "Show As": "Afficher comme",
-  "Show Emojis in Calendar": "Afficher les emojis dans le calendrier",
   "Show Names As": "Afficher les noms",
   "Show Sidebar": "Afficher la barre latérale",
   "Show Spaces": "Afficher les espaces",
@@ -265,7 +254,6 @@ const FR = {
   "Sort": "Trier",
   "Starts": "Début",
   "Task": "Tâche",
-  "Use photos from Contacts": "Utiliser les photos de Contacts",
   "View": "Présentation",
   "Preview lines in the message list": "Lignes d’aperçu dans la liste",
   "takes effect after a restart": "après un redémarrage",
@@ -375,7 +363,6 @@ const ES = {
   "Dark": "Oscuro",
   "Delete": "Eliminar",
   "Due": "Vence",
-  "Emojis in Calendar: on": "Emojis en el calendario: activados",
   "Ends": "Termina",
   "Event": "Evento",
   "Every Day": "Cada día",
@@ -405,14 +392,10 @@ const ES = {
   "No Due Date": "Sin vencimiento",
   "No writable calendar": "Ningún calendario editable",
   "None": "Ninguno",
-  "none – allow access in System Settings": "ninguna – permite el acceso en Ajustes del Sistema",
-  "Photos from Contacts: on": "Fotos de Contactos: activadas",
   "Previous Month": "Mes anterior",
   "Quick Filter": "Filtro rápido",
-  "Reading contacts …": "Leyendo contactos …",
   "Repeat": "Repetir",
   "Show As": "Mostrar como",
-  "Show Emojis in Calendar": "Mostrar emojis en el calendario",
   "Show Names As": "Mostrar nombres como",
   "Show Sidebar": "Mostrar barra lateral",
   "Show Spaces": "Mostrar espacios",
@@ -420,7 +403,6 @@ const ES = {
   "Sort": "Ordenar",
   "Starts": "Empieza",
   "Task": "Tarea",
-  "Use photos from Contacts": "Usar fotos de Contactos",
   "View": "Ver",
   "Preview lines in the message list": "Líneas de vista previa en la lista",
   "takes effect after a restart": "se aplica tras reiniciar",
@@ -530,7 +512,6 @@ const IT = {
   "Dark": "Scuro",
   "Delete": "Elimina",
   "Due": "Scadenza",
-  "Emojis in Calendar: on": "Emoji nel calendario: attive",
   "Ends": "Fine",
   "Event": "Evento",
   "Every Day": "Ogni giorno",
@@ -560,14 +541,10 @@ const IT = {
   "No Due Date": "Nessuna scadenza",
   "No writable calendar": "Nessun calendario modificabile",
   "None": "Nessuno",
-  "none – allow access in System Settings": "nessuna – consenti l’accesso in Impostazioni di Sistema",
-  "Photos from Contacts: on": "Foto da Contatti: attive",
   "Previous Month": "Mese precedente",
   "Quick Filter": "Filtro rapido",
-  "Reading contacts …": "Lettura contatti …",
   "Repeat": "Ripeti",
   "Show As": "Mostra come",
-  "Show Emojis in Calendar": "Mostra emoji nel calendario",
   "Show Names As": "Mostra nomi come",
   "Show Sidebar": "Mostra barra laterale",
   "Show Spaces": "Mostra spazi",
@@ -575,7 +552,6 @@ const IT = {
   "Sort": "Ordina",
   "Starts": "Inizio",
   "Task": "Attività",
-  "Use photos from Contacts": "Usa le foto di Contatti",
   "View": "Visualizza",
   "Preview lines in the message list": "Righe di anteprima nell’elenco",
   "takes effect after a restart": "attivo dopo un riavvio",
@@ -914,6 +890,251 @@ function hookAppearanceChoice(cw, restorers = null) {
     const addon = await AddonManager.getAddonByID(APPEARANCE_THEMES[list.value]);
     await addon?.enable();
   });
+}
+
+// Einstellungen: Kontoeinstellungen, Add-ons und halo.spaces als eigene
+// Kategorien in der Seitenleiste. Ihr Inhalt erscheint rechts im selben Tab
+// (die Seitenleiste mit General, Appearance … bleibt stehen) – statt wie bei
+// Thunderbird in eigenen Tabs über die Links unten in der Leiste. Diese
+// Links bleiben im Dokument (Thunderbird ruft sie evtl. selbst auf), nur
+// ausgeblendet. Die halo.spaces-Seite ist dieselbe wie „Add-ons → halo.spaces
+// → Einstellungen“ (options_ui), eingebettet wie dort.
+const PREF_PANES = [
+  { value: "paneMcAccounts", footer: "accountButton", src: "about:accountsettings" },
+  { value: "paneMcAddons", footer: "addonsButton", src: "about:addons" },
+  { value: "paneMcHalo", label: "halo.spaces", icon: "resource://mailcards/about/icon.svg", options: true },
+];
+const HALO_PANE = "paneMcHalo";
+const dataURIs = new Map();
+function dataURI(url) {
+  if (!dataURIs.has(url)) {
+    const channel = NetUtil.newChannel({ uri: url, loadUsingSystemPrincipal: true });
+    const stream = channel.open();
+    const text = NetUtil.readInputStreamToString(stream, stream.available(), { charset: "UTF-8" });
+    stream.close();
+    dataURIs.set(url, "data:image/svg+xml;charset=utf-8," + encodeURIComponent(text));
+  }
+  return dataURIs.get(url);
+}
+function hookPrefCategories(cw, restorers = null) {
+  const doc = cw.document;
+  const categories = doc.getElementById("categories");
+  const deck = doc.getElementById("paneDeck");
+  if (!categories || !deck || typeof cw.register_module != "function") {
+    return;
+  }
+  if (ownedElement(doc, "mcCat-" + HALO_PANE)) {
+    return;
+  }
+  // Reste einer älteren Fassung (Update ohne Neustart) entfernen
+  for (const old of doc.querySelectorAll(".mc-embed-cat, .mc-embed-pane")) {
+    old.remove();
+  }
+  // Kontoeinstellungen und Add-ons laufen nicht innerhalb dieser Seite: Sie
+  // greifen auf „top“ zu (top.frames.contentFrame …), das wäre hier die
+  // Einstellungsseite. Ihr Browser liegt deshalb im Hauptfenster über der
+  // Fläche rechts der Seitenleiste – wie in einem eigenen Tab
+  const host = cw.browsingContext?.embedderElement?.parentNode;
+  const overlays = new Map();
+  const X = "http://www.w3.org/1999/xhtml";
+  const added = [];
+  for (const pane of PREF_PANES) {
+    const link = pane.footer ? doc.getElementById(pane.footer) : null;
+    const label = pane.label || link?.querySelector(".sidebar-footer-label")?.textContent.trim() ||
+      link?.querySelector(".sidebar-footer-label")?.getAttribute("value");
+    if (!label || (!pane.options && !host)) {
+      continue; // Fußzeile noch nicht übersetzt – beim nächsten Aufruf
+    }
+    const item = doc.createXULElement("richlistitem");
+    item.id = "mcCat-" + pane.value;
+    item.__mcOwner = HOOK_OWNER;
+    item.className = "category mc-embed-cat";
+    item.setAttribute("value", pane.value);
+    item.setAttribute("align", "center");
+    item.setAttribute("tooltiptext", label);
+    const img = doc.createElementNS(X, "img");
+    img.className = "category-icon";
+    img.setAttribute("alt", "");
+    // about:preferences lässt Bilder nur aus chrome:, data: … zu (CSP) – eigenes Symbol als data:
+    img.src = pane.icon ? dataURI(pane.icon) : link?.querySelector("img")?.src || "";
+    const name = doc.createXULElement("label");
+    name.className = "category-name";
+    name.setAttribute("flex", "1");
+    name.textContent = label;
+    item.append(img, name);
+    categories.append(item);
+    // Inhalt: leere Fläche (Thunderbird zeigt beim Wechsel nur, was zur
+    // Kategorie gehört), die Seite lädt erst beim ersten Öffnen
+    const box = doc.createXULElement("vbox");
+    box.className = "mc-embed-pane";
+    box.id = "mcPane-" + pane.value;
+    box.setAttribute("data-category", pane.value);
+    // nicht in der Suche der Einstellungen (dort fände man ihren Inhalt nicht)
+    box.setAttribute("data-hidden-from-search", "true");
+    box.setAttribute("data-subpanel", "true");
+    box.hidden = true;
+    deck.append(box);
+    const init = () => {
+      if (pane.options) {
+        loadOptionsPane(cw, box);
+      } else if (!overlays.has(pane.value)) {
+        overlays.set(pane.value, embedPage(host, pane.src));
+        mark();
+      }
+    };
+    try {
+      cw.register_module(pane.value, { init });
+    } catch (e) {
+      log("pref pane register error", pane.value, e);
+    }
+    added.push(item, box);
+  }
+  if (!added.length) {
+    return;
+  }
+  const footer = doc.querySelector("#pref-category-box .sidebar-footer-list");
+  if (footer) {
+    footer.hidden = true;
+  }
+  // Fläche der eingebetteten Seiten: rechts neben der Seitenleiste (folgt
+  // ihrem Ein-/Ausblenden und ihrer Breite)
+  const sidebar = doc.getElementById("pref-category-box");
+  // (Browser verhalten sich wie Bilder: Breite und Höhe ausdrücklich, Abstände allein dehnen sie nicht)
+  const place = () => {
+    const x = Math.max(0, Math.round(sidebar?.getBoundingClientRect().right || 0));
+    for (const browser of overlays.values()) {
+      browser.style.insetInlineStart = `${x}px`;
+      browser.style.width = `${Math.max(0, host.clientWidth - x)}px`;
+      browser.style.height = `${host.clientHeight}px`;
+    }
+  };
+  const ro = new cw.ResizeObserver(place);
+  if (sidebar) {
+    ro.observe(sidebar);
+  }
+  ro.observe(doc.documentElement);
+  // gewählte Kategorie: Inhalt ohne Thunderbirds 800-px-Spalte, passende Seite zeigen
+  function mark() {
+    const value = categories.selectedItem?.value || "";
+    doc.documentElement.toggleAttribute("mc-embed", PREF_PANES.some(p => p.value == value));
+    for (const [key, browser] of overlays) {
+      browser.hidden = key != value;
+    }
+    place();
+  }
+  doc.addEventListener("paneSelected", mark);
+  mark();
+  // Thunderbird wählt beim Öffnen die zuletzt gezeigte Kategorie – war das eine
+  // von uns (oder verlangt der Aufruf sie, #mcHalo), gab es sie da noch nicht
+  const wanted = (cw.location.hash || "").slice(1);
+  const last = Services.xulStore.getValue("about:preferences", "paneDeck", "lastSelected");
+  const target = PREF_PANES.find(p => p.value == "pane" + wanted.charAt(0).toUpperCase() + wanted.slice(1)) ||
+    (!wanted || wanted == "general" ? PREF_PANES.find(p => p.value == last) : null);
+  if (target && doc.getElementById("mcCat-" + target.value)) {
+    cw.gotoPref?.(target.value);
+  }
+  restorers?.push(() => {
+    doc.removeEventListener("paneSelected", mark);
+    ro.disconnect();
+    const was = categories.selectedItem?.classList.contains("mc-embed-cat");
+    added.forEach(el => el.remove());
+    overlays.forEach(browser => browser.remove());
+    if (footer) {
+      footer.hidden = false;
+    }
+    doc.documentElement.removeAttribute("mc-embed");
+    if (was) {
+      cw.gotoPref?.("paneGeneral");
+    }
+  });
+}
+
+// Einstellungen → halo.spaces öffnen (Info-Fenster, Begrüßung): Thunderbird
+// springt beim Öffnen sofort zur Kategorie, die gibt es erst kurz danach
+async function openHaloSettings(w) {
+  const pw = await w.openPreferencesTab?.("paneGeneral");
+  for (let i = 0; pw && i < 50 && !pw.document?.getElementById("mcCat-" + HALO_PANE); i++) {
+    await new Promise(r => setTimeout(r, 100));
+  }
+  pw?.gotoPref?.(HALO_PANE);
+}
+
+// Thunderbird-Seite (Kontoeinstellungen, Add-ons) über der Inhaltsfläche des
+// Einstellungs-Tabs: eigener Browser wie in ihrem eigenen Tab
+function embedPage(host, src) {
+  const cdoc = host.ownerDocument;
+  host.classList.add("mc-embed-host");
+  const browser = cdoc.createXULElement("browser");
+  browser.className = "mc-embed-page";
+  browser.setAttribute("type", "content");
+  browser.setAttribute("disableglobalhistory", "true");
+  browser.setAttribute("src", src);
+  browser.hidden = true;
+  if (src == "about:addons") {
+    // ohne frühere Wahl die Liste der Erweiterungen statt der Empfehlungen (lädt aus dem Netz)
+    const onLoad = () => {
+      const aw = browser.contentWindow;
+      if (!aw?.promiseInitialized) {
+        return; // erst das leere Startdokument
+      }
+      browser.removeEventListener("load", onLoad, true);
+      aw.promiseInitialized.then(() => {
+        // (Thunderbird merkt sich die Empfehlungen selbst als zuletzt gewählt)
+        if (aw.gViewController?.currentViewId?.startsWith("addons://discover")) {
+          aw.gViewController.loadView("addons://list/extension");
+        }
+      });
+    };
+    browser.addEventListener("load", onLoad, true);
+  }
+  // Merkmal fürs CSS: eingebettet (Links zurück zu den Einstellungen ausblenden)
+  browser.addEventListener("DOMContentLoaded", () => {
+    browser.contentDocument?.documentElement?.setAttribute("mc-embedded", "");
+  }, true);
+  host.append(browser);
+  return browser;
+}
+
+// halo.spaces-Einstellungen (options_ui): Erweiterungsseiten laufen in einem
+// eigenen Prozess – eingebettet wie in Thunderbirds Add-ons-Verwaltung
+// (toolkit inline-options-browser.mjs)
+function loadOptionsPane(cw, box) {
+  const doc = cw.document;
+  if (box.firstChild) {
+    return;
+  }
+  const { ExtensionParent } = ChromeUtils.importESModule("resource://gre/modules/ExtensionParent.sys.mjs");
+  const { E10SUtils } = ChromeUtils.importESModule("resource://gre/modules/E10SUtils.sys.mjs");
+  const url = extensionBaseURL + "options/options.html";
+  const browser = doc.createXULElement("browser");
+  browser.className = "mc-embed-frame";
+  for (const [k, v] of [["type", "content"], ["disableglobalhistory", "true"], ["messagemanagergroup", "webext-browsers"],
+    ["transparent", "true"], ["forcemessagemanager", "true"]]) {
+    browser.setAttribute(k, v);
+  }
+  const policy = ExtensionParent.WebExtensionPolicy.getByID("mail-cards@sebastian.local");
+  if (policy) {
+    browser.setAttribute("initialBrowsingContextGroupId", policy.browsingContextGroupId);
+  }
+  const remoteType = ChromeUtils.predictRemoteTypeForURI(url, { window: cw, preferredRemoteType: E10SUtils.EXTENSION_REMOTE_TYPE });
+  const remote = remoteType !== E10SUtils.NOT_REMOTE;
+  if (remote) {
+    browser.setAttribute("remote", "true");
+    browser.setAttribute("remoteType", remoteType);
+  }
+  const ready = new Promise(resolve => browser.addEventListener(remote ? "XULFrameLoaderCreated" : "load", resolve, { once: true, capture: !remote }));
+  box.append(browser);
+  browser.clientTop; // Bindungen sofort anwenden
+  ready.then(() => {
+    const mm = browser.messageManager;
+    if (!mm) {
+      return; // inzwischen entfernt
+    }
+    ExtensionParent.apiManager.emit("extension-browser-inserted", browser);
+    mm.loadFrameScript("chrome://extensions/content/ext-browser-content.js", false, true);
+    mm.sendAsyncMessage("Extension:InitBrowser", { fixedWidth: false, isInline: true });
+    browser.fixupAndLoadURIString(url, { triggeringPrincipal: Services.scriptSecurityManager.getSystemPrincipal() });
+  }).catch(e => log("halo pane error", e));
 }
 
 // Schrift auf der Kontofarbe: weiß auf dunklen, dunkel auf hellen Farben
@@ -4271,6 +4492,11 @@ class CardEnhancer {
             hookAppearanceChoice(cw, winRestorers);
           } catch (e) {
             log("appearance choice error", e);
+          }
+          try {
+            hookPrefCategories(cw, winRestorers);
+          } catch (e) {
+            log("pref categories error", e);
           }
         }
         if (cw && url.startsWith("about:addressbook")) {
@@ -7943,25 +8169,7 @@ class CardEnhancer {
       checkUpdate: () => this.findUpdate(),
       mac: Services.appinfo.OS == "Darwin",
       platformNote,
-      photosEnabled: () => MacPhotos.enabled(),
-      emojiEnabled: () => Services.prefs.getBoolPref(EMOJI_PREF, true),
-      openSettings: () => w.openAddonsMgr?.(`addons://detail/${encodeURIComponent("mail-cards@sebastian.local")}/preferences`),
-      setEmoji: on => Services.prefs.setBoolPref(EMOJI_PREF, on),
-      // Fotos aus der Kontakte-App: einschalten und gleich abgleichen
-      // (macOS fragt dabei einmal nach dem Zugriff auf die Kontakte)
-      setPhotos: async on => {
-        Services.prefs.setBoolPref(MAC_PHOTOS_PREF, on);
-        if (!on) {
-          // sofort keine Fotos mehr zeigen (nicht erst nach dem Neustart)
-          MacPhotos.byEmail.clear();
-          MacPhotos.byName.clear();
-          MacPhotos.version++;
-          MacPhotos.listeners.forEach(fn => fn());
-          return 0;
-        }
-        await MacPhotos.sync();
-        return MacPhotos.byEmail.size;
-      },
+      openSettings: () => openHaloSettings(w),
       sendFeedback: () => this.sendFeedback(),
       // im Standardbrowser öffnen (loadURI braucht seit Thunderbird 140 einen
       // Principal und tat ohne ihn nichts)
@@ -7977,7 +8185,7 @@ class CardEnhancer {
       },
     };
     const hw = w.openDialog("resource://mailcards/about/halo.html", "halo-spaces",
-      `chrome,dialog=yes,centerscreen,resizable=no,width=360,height=${(api.mac ? 441 : 390) + (platformNote ? 64 : 0)}`);
+      `chrome,dialog=yes,centerscreen,resizable=no,width=360,height=${349 + (platformNote ? 64 : 0)}`);
     // erst lädt das Fenster about:blank, dann unsere Seite – darauf warten
     let tries = 0;
     const wire = () => {
@@ -8050,57 +8258,6 @@ class CardEnhancer {
       api.sendFeedback();
       hw.close();
     };
-    // Mac: Absenderbilder aus der Kontakte-App
-    const photos = $("photos");
-    if (api.mac && photos) {
-      const pLabel = photos.querySelector(".label");
-      const pStatus = $("photos-status");
-      const show = on => {
-        pLabel.textContent = on
-          ? tr("Photos from Contacts: on")
-          : tr("Use photos from Contacts");
-        pStatus.textContent = on ? "✓" : "";
-        photos.dataset.on = on ? "1" : "";
-      };
-      photos.hidden = false;
-      api.photosEnabled().then(show);
-      photos.addEventListener("click", async () => {
-        const on = !photos.dataset.on;
-        photos.disabled = true;
-        if (on) {
-          pLabel.textContent = tr("Reading contacts …");
-          pStatus.textContent = "";
-        }
-        try {
-          const count = await api.setPhotos(on);
-          show(on);
-          if (on) {
-            pStatus.textContent = count
-              ? `✓ ${count}`
-              : tr("none – allow access in System Settings");
-          }
-        } catch {
-          show(false);
-        }
-        photos.disabled = false;
-      });
-    }
-    // Emojis im Kalender ein/aus (sofort sichtbar)
-    const emoji = $("emoji");
-    if (emoji) {
-      const eLabel = emoji.querySelector(".label");
-      const eStatus = $("emoji-status");
-      const showEmoji = on => {
-        eLabel.textContent = on ? tr("Emojis in Calendar: on") : tr("Show Emojis in Calendar");
-        eStatus.textContent = on ? "🎂" : "";
-      };
-      showEmoji(api.emojiEnabled());
-      emoji.addEventListener("click", () => {
-        const on = !api.emojiEnabled();
-        api.setEmoji(on);
-        showEmoji(on);
-      });
-    }
     $("settings")?.addEventListener("click", () => {
       api.openSettings();
       hw.close();
@@ -9511,6 +9668,7 @@ function readSetting([pref, type, def]) {
 var enhancer = null;
 var extensionRoot = null; // rootURI der Erweiterung, für resource://mailcards/
 var extensionVersion = ""; // hängt an den Stylesheet-Adressen, damit ein Update sofort greift
+var extensionBaseURL = ""; // moz-extension://…/ – für die eingebettete Einstellungsseite
 
 this.mailCards = class extends ExtensionCommon.ExtensionAPI {
   getAPI(context) {
@@ -9565,6 +9723,7 @@ this.mailCards = class extends ExtensionCommon.ExtensionAPI {
         async start(options) {
           extensionRoot ||= context.extension.rootURI;
           extensionVersion ||= context.extension.version;
+          extensionBaseURL ||= context.extension.baseURL;
           if (enhancer) {
             return;
           }
@@ -9586,6 +9745,7 @@ this.mailCards = class extends ExtensionCommon.ExtensionAPI {
     }
     extensionRoot = this.extension.rootURI;
     extensionVersion = this.extension.version;
+    extensionBaseURL = this.extension.baseURL;
     log("start (onStartup)", { version: this.extension.version }, Services.appinfo.version);
     enhancer = new CardEnhancer({});
     enhancer.start();

@@ -4523,9 +4523,15 @@ def run_checks(m, version, profile, results):
             stacked: icon.bottom <= h1.top && h1.bottom <= ver.top + 1, sizes: [size("h1"), size("#version")] } : null;
           // nicht scrollbar (früher 3 px zu niedrig); Status in deckender Farbe, sonst malt Gecko das Emoji blass
           const overflow = hw ? hw.document.documentElement.scrollHeight - hw.innerHeight : null;
-          const status = hw ? hw.getComputedStyle(hw.document.getElementById("emoji-status")).color : null;
-          w.openLinkExternally = orig; hw?.close();
-          return { window: !!hw, opened, address, room, head, overflow, status };''')
+          const status = hw ? hw.getComputedStyle(hw.document.getElementById("update-status")).color : null;
+          // Fotos/Emojis stehen nur noch auf der Einstellungsseite
+          const toggles = hw ? ["photos", "emoji"].filter(id => hw.document.getElementById(id)) : null;
+          // „Settings…“ öffnet Einstellungen → halo.spaces
+          hw?.document.getElementById("settings")?.click();
+          const pw = await until(() => tm.currentTabInfo.mode.name == "preferencesTab" && tm.currentTabInfo.browser?.contentWindow?.document.getElementById("categories")?.selectedItem?.value == "paneMcHalo" && tm.currentTabInfo.browser.contentWindow, 8000);
+          const settings = !!pw; if (pw) tm.closeTab(tm.currentTabInfo);
+          w.openLinkExternally = orig; try { if (hw && !hw.closed) hw.close(); } catch {}
+          return { window: !!hw, opened, address, room, head, overflow, status, toggles, settings };''')
         url = res.get("opened") or ""
         ok = url.startswith("https://buymeacoffee.com/diversion?") and "utm_content=about-window" in url
         head = res.get("head") or {}
@@ -4535,9 +4541,9 @@ def run_checks(m, version, profile, results):
         opts = open(os.path.join(ROOT, "extension", "options", "options.css")).read()
         opaque = not re.search(r"--text-secondary:\s*rgba", opts) and (res.get("status") or "").startswith("rgb(")
         return (ok and centered and not res["address"] and res["room"] is not None and 16 <= res["room"] <= 22
-                and res.get("overflow") is not None and res["overflow"] <= 0 and opaque), f"{res}"
+                and res.get("overflow") is not None and res["overflow"] <= 0 and opaque and res["toggles"] == [] and res["settings"]), f"{res}"
     check("Info-Fenster: Logo, Name und Version mittig untereinander; „Say Thanks“ öffnet die Spendenseite, keine Mailadresse unten; "
-          "nicht scrollbar, unten 18 px; Emojis in Status und Hinweisen in voller Farbe", donate, results)
+          "nicht scrollbar, unten 18 px; Emojis in Status und Hinweisen in voller Farbe; ohne Fotos/Emojis, „Settings…“ öffnet Einstellungen → halo.spaces", donate, results)
 
     def addons_manager():
         # Add-ons-Verwaltung (Thunderbird 140+, Bausteine im Schatten-DOM): Seitenleiste 34 px/13 px, Seite und Kopf in
@@ -5137,7 +5143,7 @@ def run_checks(m, version, profile, results):
           const lab = vis("#paneDeck checkbox .checkbox-label"); const desc = vis("#paneDeck description");
           const fontLab = cd.getElementById("defaultFont")?.parentNode.querySelector("label");
           out.font = [lab && cs(lab).fontSize, fontLab && cs(fontLab).fontSize, desc && cs(desc).fontSize];
-          const cn = cd.querySelector("#category-general .category-name"), fl = cd.querySelector("#accountButton .sidebar-footer-label");
+          const cn = cd.querySelector("#category-general .category-name"), fl = cd.querySelector("#mcCat-paneMcAccounts .category-name") || cd.querySelector("#accountButton .sidebar-footer-label");
           out.side = [Math.abs(left(cn) - left(fl)) <= 1, cs(cn).fontSize, cs(fl).fontSize];
           out.lists = ["tagList", "handlersView"].map(id => { const e = cd.getElementById(id);
             return [cs(e).borderTopLeftRadius, parseFloat(cs(e).borderTopWidth) <= 1, cs(e).borderTopColor == line]; });
@@ -5415,6 +5421,75 @@ def run_checks(m, version, profile, results):
               and abs(res["after"]["frame"] - res["before"]) <= 2 and res["after"]["tree"] > 150)
         return ok, f"{res}"
     check("Kontoeinstellungen: Seitenleiste aus- und wieder einblenden, Kontodetails bleiben sichtbar und nutzen die volle Breite", account_sidebar_toggle, results)
+
+    PREFS_OPEN_JS = r"""
+          w.resizeTo(1500, 900); await wait(400);
+          w.openPreferencesTab("paneGeneral");
+          const pw = await until(() => tm.currentTabInfo.browser?.contentWindow?.document.getElementById("paneDeck") && tm.currentTabInfo.browser.contentWindow, 8000);
+          await until(() => pw.document.getElementById("mcCat-paneMcHalo"), 6000);
+          const pd = pw.document, host = tm.currentTabInfo.browser.parentNode;
+          const R = e => { if (!e) return null; const r = e.getBoundingClientRect(); return { l: Math.round(r.left), w: Math.round(r.width), h: Math.round(r.height) }; };
+          const pick = async (v, ms = 3000) => { (pd.getElementById("mcCat-" + v) || pd.getElementById("category-general")).click(); await wait(ms); };
+          const page = src => host.querySelector(`.mc-embed-page[src="${src}"]`);
+    """
+
+    def pref_halo_category():
+        # Einstellungen: eigene Kategorie „halo.spaces“ mit der Einstellungsseite der Erweiterung (options_ui bleibt zusätzlich)
+        res = m.js(PREFS_OPEN_JS + r"""
+          const item = pd.getElementById("mcCat-paneMcHalo"), img = item?.querySelector("img");
+          const out = { label: item?.querySelector(".category-name")?.textContent, icon: img ? [img.src.slice(0, 5), img.naturalWidth > 0] : null,
+                        footerHidden: !!pd.querySelector("#pref-category-box .sidebar-footer-list")?.hidden,
+                        tile: w.getComputedStyle ? pw.getComputedStyle(img).backgroundColor : null,
+                        qrTile: pw.getComputedStyle(pd.querySelector("#category-qrexport .category-icon") || pd.body).backgroundColor };
+          await pick("paneMcHalo", 3500);
+          const b = pd.querySelector("#mcPane-paneMcHalo > browser");
+          out.pane = { embed: pd.documentElement.hasAttribute("mc-embed"), remote: b?.isRemoteBrowser, url: b?.currentURI?.spec.replace(/^moz-extension:\/\/[^/]+/, ""),
+                       rect: R(b), cat: R(pd.getElementById("pref-category-box")), hash: pw.location.hash };
+          await pick("paneGeneral", 800); out.back = !pd.documentElement.hasAttribute("mc-embed");
+          tm.closeTab(tm.currentTabInfo); await wait(400);
+          return out;""")
+        manifest = json.load(open(os.path.join(ROOT, "extension", "manifest.json")))
+        p = res.get("pane", {})
+        ok = (res["label"] == "halo.spaces" and res["icon"] == ["data:", True] and res["footerHidden"] and rgba_alpha(res["tile"]) == 0
+              and p.get("embed") and p.get("remote") and p.get("url") == "/options/options.html" and p["rect"]["h"] > 500
+              and p["rect"]["l"] == p["cat"]["l"] + p["cat"]["w"] and p.get("hash") == "#mcHalo" and res["back"]
+              and manifest.get("options_ui", {}).get("page") == "options/options.html")
+        return ok, f"{res}"
+    check("Einstellungen: eigene Kategorie „halo.spaces“ mit der Einstellungsseite der Erweiterung (Add-ons → Einstellungen bleibt)", pref_halo_category, results)
+
+    def pref_embedded_pages():
+        # Kontoeinstellungen und Add-ons als Kategorien: Seitenleiste bleibt stehen (gleiche Breite), Inhalt rechts daneben,
+        # Kontoseite mittig wie die übrigen Einstellungen; Seitenleiste ausblenden zieht die Seite nach links
+        res = m.js(PREFS_OPEN_JS + r"""
+          const out = { general: { cat: R(pd.getElementById("pref-category-box")), content: R(pd.querySelector(".paneDeckContainer")) } };
+          await pick("paneMcAccounts", 3500);
+          const acc = page("about:accountsettings"), fd = acc?.contentDocument, inner = fd?.getElementById("contentFrame")?.contentDocument;
+          const box = inner?.getElementById("containerBox"), fr = fd?.getElementById("contentFrame");
+          out.accounts = { cat: R(pd.getElementById("pref-category-box")), page: R(acc), hidden: acc?.hidden, inner: inner?.location.href.split("/").pop(),
+                           gaps: box && fr ? [Math.round(box.getBoundingClientRect().left), Math.round(fr.getBoundingClientRect().width - box.getBoundingClientRect().right)] : null,
+                           footer: fd ? fd.defaultView.getComputedStyle(fd.querySelector("#accountTreeBox .sidebar-footer-list")).display : null };
+          await pick("paneMcAddons", 3500);
+          const ad = page("about:addons");
+          out.addons = { cat: R(pd.getElementById("pref-category-box")), page: R(ad), hidden: ad?.hidden, accHidden: acc?.hidden,
+                         view: ad?.contentWindow?.gViewController?.currentViewId, card: !!ad?.contentDocument.querySelector('addon-card[addon-id="mail-cards@sebastian.local"]') };
+          const btn = d.getElementById("spacesPinnedButton");
+          btn.click(); await until(() => pd.getElementById("pref-category-box").classList.contains("mc-side-hidden"), 3000); await wait(500);
+          out.sideHidden = R(ad);
+          btn.click(); await until(() => !pd.getElementById("pref-category-box").classList.contains("mc-side-hidden"), 3000); await wait(600);
+          out.sideShown = R(ad);
+          await pick("paneGeneral", 800); out.back = { acc: acc?.hidden, ad: ad?.hidden, cat: R(pd.getElementById("pref-category-box")) };
+          tm.closeTab(tm.currentTabInfo); await wait(400);
+          return out;""")
+        g, a, ad = res["general"], res["accounts"], res["addons"]
+        right = g["cat"]["l"] + g["cat"]["w"]
+        ok = (a["cat"] == g["cat"] and ad["cat"] == g["cat"] and res["back"]["cat"] == g["cat"]
+              and a["hidden"] is False and a["page"]["l"] - res["general"]["cat"]["l"] >= 0 and a["inner"] and a["inner"].startswith("am-")
+              and a["gaps"] and abs(a["gaps"][0] - a["gaps"][1]) <= 2 and a["footer"] == "none"
+              and ad["hidden"] is False and ad["accHidden"] is True and ad["view"] == "addons://list/extension" and ad["card"]
+              and res["sideHidden"]["w"] > ad["page"]["w"] + 150 and res["sideShown"] == ad["page"]
+              and res["back"]["acc"] is True and res["back"]["ad"] is True)
+        return ok, f"Seitenleiste rechts bei {right} {res}"
+    check("Einstellungen: Kontoeinstellungen und Add-ons als Kategorien, Seitenleiste bleibt gleich breit, Kontoseite mittig, Ausblenden zieht mit", pref_embedded_pages, results)
 
     def account_wizards():
         # Konto-Assistenten (Feed, Newsgruppen, Chat): Knöpfe flach ohne Rahmen, 13 px, 28 px hoch und lesbar
