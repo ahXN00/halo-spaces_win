@@ -155,3 +155,30 @@ main {
   width: 20px;
   height: 20px;
 }
+
+/* mehrere Absätze im Hinweis (Begrüßung, Plattform) */
+.note .line {
+  display: block;
+}
+
+.note .line + .line {
+  margin-top: 6px;
+}
+
+/* Begrüßung nach der Erstinstallation: nur „Einstellungen öffnen“ (in
+   Akzentfarbe) und „Weiter“ */
+.welcome #update,
+.welcome #feedback,
+.welcome #donate {
+  display: none;
+}
+
+.welcome #settings {
+  background: var(--accent);
+  color: AccentColorText;
+}
+
+.welcome .note {
+  font-size: 13px;
+  color: var(--text);
+}

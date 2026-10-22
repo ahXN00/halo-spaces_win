@@ -2848,6 +2848,32 @@ def same_color(a, b, tol=2):
 
 
 def run_checks(m, version, profile, results):
+    def welcome():
+        # Erstinstallation (frisches Profil): einmal die Begrüßung im Info-Fenster – was halo.spaces ändert, wo die
+        # Einstellungen liegen; Windows/Linux mit dem Plattform-Hinweis im selben Fenster. Theme bleibt „System“
+        res = m.js(r"""
+          const hw = await until(() => [...Services.wm.getEnumerator(null)].find(x => x.location?.href.startsWith("resource://mailcards/about/halo.html")
+                                                                               && x.document.documentElement.classList.contains("welcome")), 15000);
+          const { AddonManager } = ChromeUtils.importESModule("resource://gre/modules/AddonManager.sys.mjs");
+          const theme = (await AddonManager.getAddonsByTypes(["theme"])).find(a => a.isActive)?.id;
+          if (!hw) return { window: false, theme, shown: Services.prefs.getBoolPref("extensions.mailcards.welcomeShown", false) };
+          await wait(400); const hd = hw.document, vis = id => { const e = hd.getElementById(id); return !!e && e.getBoundingClientRect().height > 0; };
+          const out = { window: true, theme, title: hd.querySelector("h1").textContent, lines: hd.querySelectorAll("#platform-note .line").length,
+                        text: hd.getElementById("platform-note").textContent, buttons: ["settings", "close", "update", "feedback", "donate"].filter(vis),
+                        overflow: hd.documentElement.scrollHeight - hw.innerHeight, shown: Services.prefs.getBoolPref("extensions.mailcards.welcomeShown", false),
+                        note: Services.prefs.getBoolPref("extensions.mailcards.platformNoteShown", false),
+                        windows: [...Services.wm.getEnumerator(null)].filter(x => x.location?.href.startsWith("resource://mailcards/about/halo.html")).length };
+          hd.getElementById("close").click(); await wait(400);
+          out.closed = ![...Services.wm.getEnumerator(null)].some(x => x.location?.href.startsWith("resource://mailcards/about/halo.html"));
+          return out;""")
+        mac = sys.platform == "darwin"
+        ok = (res["window"] and res["title"] == "Welcome to halo.spaces" and "Settings → halo.spaces" in res["text"]
+              and res["buttons"] == ["settings", "close"] and res["overflow"] <= 0 and res["shown"] and res["windows"] == 1
+              and res["lines"] == (2 if mac else 3) and ("made for macOS" in res["text"]) != mac and res["note"] != mac
+              and res["theme"] == "default-theme@mozilla.org" and "appearance was set" not in res["text"] and res["closed"])
+        return ok, f"{res}"
+    check("Begrüßung: einmal nach der Erstinstallation (Optionen unter Einstellungen → halo.spaces, Win/Linux mit Plattform-Hinweis), Theme bleibt System", welcome, results)
+
     # Vorbereitung: Fenstergröße, Testkalender, Fenster ohne Dialoge
     m.js("""
       for (const x of [...Services.wm.getEnumerator(null)]) if (!x.location.href.includes("messenger.xhtml")) x.close();

@@ -178,6 +178,12 @@ const DE = {
   "Search Tasks": "Aufgaben durchsuchen",
   "Search All Mailboxes": "Alle Postfächer durchsuchen",
   "Find in Settings": "Einstellungen durchsuchen",
+  "Welcome to halo.spaces": "Willkommen bei halo.spaces",
+  "Open Settings": "Einstellungen öffnen",
+  "Continue": "Weiter",
+  "Thunderbird now looks calm and tidy, like Apple Mail, Calendar and Contacts – with sender pictures, cards and coloured spaces.": "Thunderbird sieht jetzt ruhig und aufgeräumt aus wie Apple Mail, Kalender und Kontakte – mit Absenderbildern, Karten und farbigen Bereichen.",
+  "The appearance was set to “System – automatic”, so light and dark follow your system.": "Das Erscheinungsbild steht jetzt auf „System – automatisch“, hell und dunkel folgen dem System.",
+  "All options are in Settings → halo.spaces.": "Alle Optionen findest du unter Einstellungen → halo.spaces.",
 };
 const FR = {
   "Install version {v}": "Installer la version {v}",
@@ -327,6 +333,12 @@ const FR = {
   "Search Tasks": "Rechercher des tâches",
   "Search All Mailboxes": "Rechercher dans toutes les boîtes",
   "Find in Settings": "Rechercher dans les réglages",
+  "Welcome to halo.spaces": "Bienvenue dans halo.spaces",
+  "Open Settings": "Ouvrir les paramètres",
+  "Continue": "Continuer",
+  "Thunderbird now looks calm and tidy, like Apple Mail, Calendar and Contacts – with sender pictures, cards and coloured spaces.": "Thunderbird a désormais un aspect calme et soigné, comme Apple Mail, Calendrier et Contacts – avec photos des expéditeurs, cartes et espaces colorés.",
+  "The appearance was set to “System – automatic”, so light and dark follow your system.": "L’apparence est réglée sur « Système – automatique » : clair et sombre suivent le système.",
+  "All options are in Settings → halo.spaces.": "Toutes les options se trouvent dans Paramètres → halo.spaces.",
 };
 const ES = {
   "Install version {v}": "Instalar la versión {v}",
@@ -476,6 +488,12 @@ const ES = {
   "Search Tasks": "Buscar tareas",
   "Search All Mailboxes": "Buscar en todos los buzones",
   "Find in Settings": "Buscar en Ajustes",
+  "Welcome to halo.spaces": "Bienvenido a halo.spaces",
+  "Open Settings": "Abrir ajustes",
+  "Continue": "Continuar",
+  "Thunderbird now looks calm and tidy, like Apple Mail, Calendar and Contacts – with sender pictures, cards and coloured spaces.": "Thunderbird ahora tiene un aspecto tranquilo y ordenado, como Apple Mail, Calendario y Contactos – con fotos de remitentes, tarjetas y espacios de colores.",
+  "The appearance was set to “System – automatic”, so light and dark follow your system.": "La apariencia se ha ajustado a «Sistema – automático»: claro y oscuro siguen al sistema.",
+  "All options are in Settings → halo.spaces.": "Todas las opciones están en Ajustes → halo.spaces.",
 };
 const IT = {
   "Install version {v}": "Installa la versione {v}",
@@ -625,6 +643,12 @@ const IT = {
   "Search Tasks": "Cerca attività",
   "Search All Mailboxes": "Cerca in tutte le caselle",
   "Find in Settings": "Cerca nelle impostazioni",
+  "Welcome to halo.spaces": "Benvenuto in halo.spaces",
+  "Open Settings": "Apri impostazioni",
+  "Continue": "Continua",
+  "Thunderbird now looks calm and tidy, like Apple Mail, Calendar and Contacts – with sender pictures, cards and coloured spaces.": "Thunderbird ora ha un aspetto calmo e ordinato, come Apple Mail, Calendario e Contatti – con foto dei mittenti, schede e spazi colorati.",
+  "The appearance was set to “System – automatic”, so light and dark follow your system.": "L’aspetto è impostato su «Sistema – automatico»: chiaro e scuro seguono il sistema.",
+  "All options are in Settings → halo.spaces.": "Tutte le opzioni sono in Impostazioni → halo.spaces.",
 };
 const TRANSLATIONS = { de: DE, fr: FR, es: ES, it: IT };
 // tr("+{n} more", { n: 3 }) – Platzhalter in geschweiften Klammern
@@ -3091,7 +3115,41 @@ class CardEnhancer {
     });
   }
 
+  // Erstinstallation: Theme auf „System – automatisch“, außer eins der drei
+  // eingebauten (System, Hell, Dunkel) ist schon aktiv. Liefert, ob umgestellt wurde
+  async applyThemeOnce() {
+    try {
+      const { AddonManager } = ChromeUtils.importESModule("resource://gre/modules/AddonManager.sys.mjs");
+      const active = (await AddonManager.getAddonsByTypes(["theme"])).find(a => a.isActive)?.id;
+      if (Object.values(APPEARANCE_THEMES).includes(active)) {
+        return false;
+      }
+      const auto = await AddonManager.getAddonByID(APPEARANCE_THEMES.auto);
+      await auto?.enable();
+      log("theme: Erstinstallation – auf System umgestellt", active);
+      return !!auto;
+    } catch (e) {
+      log("theme switch error", e);
+      return false;
+    }
+  }
+
   start() {
+    // Erstinstallation oder Update? Bestandsnutzer haben schon Einmal-Prefs einer
+    // früheren Fassung (Suche, Toolbar, Kartenzeilen) – vor allem anderen prüfen, der Start setzt sie gleich
+    const WELCOME_PREF = "extensions.mailcards.welcomeShown";
+    const existing = ["searchApplied", "toolbarApplied", "rowcountApplied"]
+      .some(name => Services.prefs.getBoolPref(`extensions.mailcards.${name}`, false));
+    const firstInstall = !existing && !Services.prefs.getBoolPref(WELCOME_PREF, false);
+    if (existing && !Services.prefs.getBoolPref(WELCOME_PREF, false)) {
+      // Bestandsnutzer nach einem Update nicht begrüßen (und keine Plattform-Notiz mehr)
+      Services.prefs.setBoolPref(WELCOME_PREF, true);
+    }
+    // Erstinstallation: Erscheinungsbild „System – automatisch“, damit das Design
+    // hell/dunkel mit dem System wechselt (Thunderbirds Hell/Dunkel und fremde
+    // Themes malen eigene Farben darüber). Eine bewusste Wahl unter den drei
+    // eingebauten (System, Hell, Dunkel) bleibt erhalten
+    const themeSwitched = firstInstall ? this.applyThemeOnce() : Promise.resolve(false);
     // Wie Apple Mail: Absender, Betreff, darunter die Vorschau. Thunderbirds
     // dritte Kartenzeile wäre sonst nur eine Leerzeile über der Vorschau.
     // (einmalig – wer danach wieder 3 Zeilen wählt, behält sie)
@@ -3108,15 +3166,21 @@ class CardEnhancer {
       Services.prefs.setBoolPref("gloda.show_as_list_by_default", true);
       Services.prefs.setBoolPref("extensions.mailcards.searchApplied", true);
     }
-    // Windows/Linux: einmal beim ersten Start sagen, dass halo.spaces für
-    // macOS gemacht ist und dort noch erprobt wird
+    // Einmal nach der Erstinstallation begrüßen: was halo.spaces ändert und wo
+    // die Einstellungen liegen. Windows/Linux: im selben Fenster der Hinweis,
+    // dass halo.spaces für macOS gemacht ist (früher ein eigenes Fenster)
     const NOTE_PREF = "extensions.mailcards.platformNoteShown";
-    if (Services.appinfo.OS != "Darwin" && !Services.prefs.getBoolPref(NOTE_PREF, false)) {
-      const noteTimer = setTimeout(() => {
+    const platformNote = Services.appinfo.OS != "Darwin" && !Services.prefs.getBoolPref(NOTE_PREF, false);
+    if (!Services.prefs.getBoolPref(WELCOME_PREF, false) || platformNote) {
+      const welcome = !Services.prefs.getBoolPref(WELCOME_PREF, false);
+      const noteTimer = setTimeout(async () => {
         const w = Services.wm.getMostRecentWindow("mail:3pane");
         if (w) {
-          Services.prefs.setBoolPref(NOTE_PREF, true);
-          this.openHaloWindow(w, { platformNote: true });
+          Services.prefs.setBoolPref(WELCOME_PREF, true);
+          if (platformNote) {
+            Services.prefs.setBoolPref(NOTE_PREF, true);
+          }
+          this.openHaloWindow(w, { welcome, platformNote, themeSwitched: await themeSwitched });
         }
       }, 6000);
       this.restorers.push(() => clearTimeout(noteTimer));
@@ -8152,7 +8216,7 @@ class CardEnhancer {
   }
 
   // Info-Fenster „Halo Spaces“ (Help-Menü): Version, Updates, Feedback, Spenden
-  async openHaloWindow(w, { platformNote = false } = {}) {
+  async openHaloWindow(w, { platformNote = false, welcome = false, themeSwitched = false } = {}) {
     const open = [...Services.wm.getEnumerator(null)].find(win => win.location?.href.startsWith("resource://mailcards/about/halo.html"));
     if (open) {
       open.focus();
@@ -8169,6 +8233,8 @@ class CardEnhancer {
       checkUpdate: () => this.findUpdate(),
       mac: Services.appinfo.OS == "Darwin",
       platformNote,
+      welcome,
+      themeSwitched,
       openSettings: () => openHaloSettings(w),
       sendFeedback: () => this.sendFeedback(),
       // im Standardbrowser öffnen (loadURI braucht seit Thunderbird 140 einen
@@ -8211,11 +8277,35 @@ class CardEnhancer {
       el.textContent = tr(el.dataset.l10nEn);
     }
     $("version").textContent = `Version ${api.version}`;
-    // Windows/Linux: einmaliger Hinweis beim ersten Start
+    // einmalig nach der Erstinstallation: Begrüßung; Windows/Linux: Hinweis zur Plattform
     const note = $("platform-note");
-    if (note && api.platformNote) {
-      note.textContent = tr("halo.spaces is made for macOS – on Windows and Linux it is still being tested. If something looks odd, we'd love a quick note!");
+    const lines = [];
+    if (api.welcome) {
+      lines.push(tr("Thunderbird now looks calm and tidy, like Apple Mail, Calendar and Contacts – with sender pictures, cards and coloured spaces."));
+      if (api.themeSwitched) {
+        lines.push(tr("The appearance was set to “System – automatic”, so light and dark follow your system."));
+      }
+      lines.push(tr("All options are in Settings → halo.spaces."));
+    }
+    if (api.platformNote) {
+      lines.push(tr("halo.spaces is made for macOS – on Windows and Linux it is still being tested. If something looks odd, we'd love a quick note!"));
+    }
+    if (note && lines.length) {
+      note.replaceChildren(...lines.map(text => {
+        const p = doc.createElement("span");
+        p.className = "line";
+        p.textContent = text;
+        return p;
+      }));
       note.hidden = false;
+    }
+    if (api.welcome) {
+      // Begrüßung: nur „Einstellungen öffnen“ (hervorgehoben) und „Weiter“
+      doc.documentElement.classList.add("welcome");
+      doc.querySelector("h1").textContent = tr("Welcome to halo.spaces");
+      $("settings").querySelector(".label").textContent = tr("Open Settings");
+      $("close").hidden = false;
+      $("close").addEventListener("click", () => hw.close());
     }
 
     const button = $("update");
@@ -8271,10 +8361,15 @@ class CardEnhancer {
       icon.src = `icon.svg?v=${api.version}`;
     }
     // Windows/Linux: die feste Höhe passt zu den Schriftmaßen von macOS –
-    // mit anderen Systemschriften wäre das Fenster sonst scrollbar
-    if (!api.mac) {
-      const extra = doc.documentElement.scrollHeight - hw.innerHeight;
-      if (extra > 0) {
+    // mit anderen Systemschriften wäre das Fenster sonst scrollbar.
+    // Begrüßung: Höhe genau nach dem Inhalt (Text je nach Sprache)
+    if (!api.mac || api.welcome) {
+      const body = doc.body, style = hw.getComputedStyle(body);
+      const need = api.welcome
+        ? Math.ceil([...body.children].filter(e => !e.hidden).reduce((h, e) => Math.max(h, e.getBoundingClientRect().bottom), 0) + parseFloat(style.paddingBottom))
+        : doc.documentElement.scrollHeight;
+      const extra = need - hw.innerHeight;
+      if (extra > 0 || api.welcome) {
         hw.resizeBy(0, extra);
       }
     }
