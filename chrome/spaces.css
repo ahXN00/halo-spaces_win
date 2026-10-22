@@ -5812,6 +5812,13 @@ body:has(> #booksPane.mc-side-anim) {
   --ab-pane-min-width: 0px !important;
 }
 
+/* Kontoeinstellungen ohne Kontoliste: Die Seite ist ein Raster aus zwei Spalten –
+   fehlt die Liste, rutschte der Inhalt in die erste (12 px schmale) Spalte und
+   übrig blieb eine weiße Fläche. Nur noch eine Spalte für den Inhalt */
+body:has(> #accountTreeBox.mc-side-hidden) {
+  grid-template-columns: 1fr !important;
+}
+
 /* keine waagrechte Trennlinie unter der Toolbar-Zeile – in keinem Bereich */
 #unifiedToolbarContainer::after {
   display: none !important;

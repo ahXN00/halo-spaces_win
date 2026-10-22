@@ -5394,6 +5394,28 @@ def run_checks(m, version, profile, results):
         return ok, f"{res}"
     check("Kontoeinstellungen: Fußzeile einzeilig, Fläche --mt-window, Abstände Überschrift/Karten, Junk-Adressbücher, SMTP-Port, Archiv-Beispiel", account_pages, results)
 
+    def account_sidebar_toggle():
+        # Seitenleiste in den Kontoeinstellungen ausblenden: Kontodetails bleiben sichtbar und füllen die Breite
+        # (vorher rutschten sie in die 12 px schmale erste Rasterspalte – nur weiße Fläche)
+        res = m.js(r"""
+          w.resizeTo(1500, 950); w.MsgAccountManager(null);
+          const aw = await until(() => tm.currentTabInfo.browser?.contentWindow?.document.getElementById("accounttree") && tm.currentTabInfo.browser.contentWindow, 8000);
+          await wait(1200); const ad = aw.document, cf = ad.getElementById("contentFrame"), box = ad.getElementById("accountTreeBox");
+          const W = e => Math.round(e.getBoundingClientRect().width), btn = d.getElementById("spacesPinnedButton");
+          const out = { before: W(cf), page: W(ad.body) };
+          btn.click(); await until(() => box.classList.contains("mc-side-hidden"), 3000); await wait(500);
+          const fd = cf.contentDocument;
+          out.hidden = { frame: W(cf), left: Math.round(cf.getBoundingClientRect().left), content: fd?.getElementById("containerBox") ? W(fd.getElementById("containerBox")) : null };
+          btn.click(); await until(() => !box.classList.contains("mc-side-hidden") && !box.__mcAnimating, 3000); await wait(500);
+          out.after = { frame: W(cf), tree: W(box) };
+          tm.closeTab(tm.currentTabInfo); await wait(500);
+          return out;""")
+        h = res["hidden"]
+        ok = (h["frame"] >= res["page"] - 2 and h["left"] <= 1 and h["content"] and h["content"] > 300
+              and abs(res["after"]["frame"] - res["before"]) <= 2 and res["after"]["tree"] > 150)
+        return ok, f"{res}"
+    check("Kontoeinstellungen: Seitenleiste aus- und wieder einblenden, Kontodetails bleiben sichtbar und nutzen die volle Breite", account_sidebar_toggle, results)
+
     def account_wizards():
         # Konto-Assistenten (Feed, Newsgruppen, Chat): Knöpfe flach ohne Rahmen, 13 px, 28 px hoch und lesbar
         # (dunkel war „Cancel“ weiß auf #8F8F9D), Felder mit 7 px, Chat-Netzliste mit Haarlinie und 8 px
