@@ -1,15 +1,23 @@
 Notes for the reviewer
 
+This version supersedes the pending 3.0.98 – please review this one instead.
+
 halo.spaces is a design add-on (theme + icons + behaviour). It uses one Experiment API, "mailCards" (extension/api/implementation.js), because most of what it does is not possible with WebExtension APIs:
 
 - applies the bundled stylesheet (extension/theme.css) to Thunderbird windows as a user sheet; small global sheets via nsIStyleSheetService: noscroll.css, icon-vars.css, plaintext.css (user sheets) and parts.css (author sheet, only ::part rules – ::part does not apply from user sheets)
 - reshapes the message list into cards (avatar, preview) and optional hover actions (off by default): flag/archive/delete via folder.markMessagesFlagged / MessageArchiver / folder.deleteMessages, on the hovered message only
-- message header: sender picture, folder name next to the date; for mailing lists a note with an "Unsubscribe" button that only on click opens the List-Unsubscribe https link via openLinkExternally (or a prefilled compose window for mailto – never sent automatically)
+- message header: sender picture, folder name next to the date; for mailing lists a note with an "Unsubscribe" button that does nothing until clicked:
+  - if the message has List-Unsubscribe-Post: List-Unsubscribe=One-Click (RFC 8058) and an https link, it first asks for confirmation (asyncConfirmEx), then sends one POST "List-Unsubscribe=One-Click" to that link (anonymous, no cookies, response body discarded); if that fails it falls back to the options below
+  - otherwise it opens the https link in the default browser via openLinkExternally, or opens a prefilled compose window for a mailto link with the identity the message was sent to – nothing is ever sent automatically
 - messages in the system font: plaintext.css, body font only inside message documents (@-moz-document url-prefix imap:/mailbox:/news:), without !important so a message's own fonts win
 - spaces toggle, Today pane toggle, an agenda card and a quick event/task window (creates events only through the calendar API when the user confirms)
 - a read-only "Birthdays" memory calendar built from address book cards (bday)
-- sender logos: DNS TXT lookup for BIMI (resource:///modules/DNS.sys.mjs) and HTTPS fetches to the sender's own domain only; can be turned off in the add-on's preferences; reserved TLDs and non-public hosts are blocked (isPublicHttps)
+- sender pictures: first the photo of the sender's address book card (data: or the local file in <profile>/Photos; an https photoURL, e.g. from CardDAV, is loaded like Thunderbird's own contact view does). Otherwise sender logos (can be turned off in the add-on's preferences: senderLogos): DNS TXT lookup for BIMI (resource:///modules/DNS.sys.mjs) and HTTPS requests to the sender's own domain only (BIMI SVG, apple-touch-icon/favicon, the start of the home page for its <link rel=icon>)
+- all network requests go through one function, fetchWithTimeout: an nsIHttpChannel with LOAD_ANONYMOUS (no cookies or credentials), https only, public hosts only (isPublicHttps blocks localhost, IP literals, .local/.lan/.internal and reserved TLDs), every redirect target is checked again in asyncOnChannelRedirect before connecting, and a time limit and a size limit apply to the whole response
+- contact photos from the macOS Contacts app (macOS only, off by default; the user turns it on in the preferences or the help window, then macOS asks once for access): runs /usr/bin/osascript with a JXA script that reads only the contact thumbnails, email addresses and names via the Contacts framework and writes them to <profile>/mail-cards-photos/ (index.json + image files); the temporary script file is deleted afterwards. Turning it off stops all reading. Photos stay local and are only shown as avatars
 - update check at start (AddonManager findUpdates, at most every 6 hours, respects AddonManager.updateEnabled and the add-on's applyBackgroundUpdates; can be turned off)
+- once on first start (marked by a pref, never repeated, existing user customisations are kept): the mail toolbar is set to an Apple Mail-like layout with icon-only buttons and the other spaces get toolbar defaults – only where the toolbar is still at Thunderbird's default; card view rows set to 2 (mail.threadpane.cardsview.rowcount); global search indexing and list view for results turned on (mailnews.database.global.indexer.enabled, gloda.show_as_list_by_default)
+- error log: <profile>/mail-cards-debug.log (local only, max 200 KB); detailed entries only with extensions.mailcards.debug = true
 
 Everything is removed again on disable/uninstall (restorers in implementation.js, onShutdown).
 
