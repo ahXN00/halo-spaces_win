@@ -1,14 +1,23 @@
 /* ==== Bereiche: Kalender, Aufgaben, Adressbuch, Chat, Einstellungen ==== */
 
 /* Toolbar-Zeile über der Seitenleiste im Seitenleisten-Grau wie in Apples
-   Apps (--mc-side-right misst die Erweiterung) */
+   Apps (--mc-side-right misst die Erweiterung: Außenkante der Seitenleiste
+   samt ihrer 1-px-Linie). Die Linie liegt daher auf dem letzten Pixel davor
+   und über dem Seitenleisten-Grau – genau wie die Linie der Seitenleiste
+   darunter, ohne Versatz und ohne Farbsprung an der Toolbar-Kante. */
 :root:is([mc-tab="calendar"], [mc-tab="tasks"], [mc-tab="chat"], [mc-tab="addressBookTab"], [mc-tab="preferencesTab"], [mc-tab="contentTab"]) #unifiedToolbarContainer {
-  background: linear-gradient(
-    to right,
-    var(--mt-sidebar) 0 var(--mc-side-right, 0px),
-    var(--mt-sidebar-border) var(--mc-side-right, 0px) calc(var(--mc-side-right, 0px) + 1px),
-    var(--mt-window) calc(var(--mc-side-right, 0px) + 1px)
-  ) !important;
+  background:
+    linear-gradient(
+      to right,
+      transparent calc(var(--mc-side-right, 0px) - 1px),
+      var(--mt-sidebar-border) calc(var(--mc-side-right, 0px) - 1px) var(--mc-side-right, 0px),
+      transparent var(--mc-side-right, 0px)
+    ),
+    linear-gradient(
+      to right,
+      var(--mt-sidebar) var(--mc-side-right, 0px),
+      var(--mt-window) var(--mc-side-right, 0px)
+    ) !important;
 }
 
 /* ---------- Kalender wie Apple Kalender ---------- */
@@ -107,6 +116,20 @@
   padding: 0 8px !important;
 }
 
+/* Aufgaben-Tab: Filterliste, Kalenderliste und Monatskalender teilen sich die
+   Leiste – Kalenderliste mindestens drei Zeilen hoch statt einer halben Zeile;
+   in niedrigen Fenstern weicht der Monatskalender (die Aufgabenfilter
+   brauchen ihn nicht) */
+:root[mc-tab="tasks"] #calendar-list {
+  min-height: 96px !important;
+}
+
+@media (max-height: 820px) {
+  :root[mc-tab="tasks"] #minimonth-pane {
+    display: none !important;
+  }
+}
+
 #calendar-list > li {
   position: relative !important;
   min-height: 32px !important;
@@ -150,6 +173,11 @@
   mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='%23000' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m4 8.3 2.6 2.6L12 5.4'/%3E%3C/svg%3E") center / contain no-repeat !important;
 }
 
+/* deaktivierte Kalender: Thunderbird zeigt die Farbe nur als Rahmen – Haken in Textfarbe statt weiß, sonst hell unsichtbar */
+#calendar-list > li[calendar-disabled]:has(input.calendar-displayed:checked) .calendar-color::after {
+  background-color: var(--mt-text-secondary) !important;
+}
+
 #calendar-list > li:has(input.calendar-displayed:not(:checked)) .calendar-color {
   opacity: 0.3 !important;
 }
@@ -178,6 +206,24 @@
    Symbol mit Tooltip) – nur im Normalfall ist es ausgeblendet */
 #calendar-list > li:is([calendar-readfailed], [calendar-readonly]) .calendar-readstatus {
   opacity: 0.75 !important;
+}
+
+/* Plakette „Aktivieren“ deaktivierter Kalender: graue Kapsel statt
+   Thunderbirds fest schieferblauer Fläche mit weißer fetter Großschrift */
+#calendar-list > li > button.calendar-enable-button {
+  background: var(--mt-control) !important;
+  color: var(--mt-text-secondary) !important;
+  border: none !important;
+  border-radius: 999px !important;
+  padding: 1px 8px !important;
+  font-size: 11px !important;
+  font-weight: 500 !important;
+  text-transform: none !important;
+}
+
+#calendar-list > li > button.calendar-enable-button:is(:hover, :focus-visible, :active) {
+  background: var(--mt-control-hover) !important;
+  color: var(--mt-text) !important;
 }
 
 #sideButtonsBottom {
@@ -283,6 +329,8 @@
   padding: 0 !important;
   border: none !important;
   background: transparent !important;
+  /* native Feldfläche der Monat/Jahr-Inputs (Druckvorschau) abschalten */
+  appearance: none !important;
   font-size: 13px !important;
   font-weight: 600 !important;
   color: var(--mt-text) !important;
@@ -361,6 +409,27 @@ calendar-minimonth:not(#calMinimonth, #today-minimonth, #from-minimonth, #to-min
   --mmDaySelectedTodayBackground: var(--mt-accent) !important;
   --mmDaySelectedTodayBorderColor: transparent !important;
   --mmDayBorderRadius: 6px !important;
+}
+
+/* Vorschau der Wiederholung: Monate mit Haarlinie und 10 px Radius statt
+   1 px Zinkgrau (dunkel #71717A) */
+/* Wiederholung: „Repeat“ mittig zur Auswahlliste (Thunderbird rückt die
+   Beschriftung passend zu seiner eigenen, anders hohen Liste 6 px ein);
+   Zahlenfelder 28 px hoch wie die Liste – die Regel für Dialogfelder greift
+   hier nicht */
+#calendar-event-dialog-recurrence .recurrence-pattern-hbox-label {
+  margin-block-start: 11px !important;
+}
+
+#calendar-event-dialog-recurrence input.input-inline {
+  box-sizing: border-box !important;
+  height: 28px !important;
+  min-height: 0 !important;
+}
+
+#recurrencePreview calendar-minimonth {
+  border: var(--mt-hairline) solid var(--mt-pane-line) !important;
+  border-radius: 10px !important;
 }
 
 calendar-minimonth:not(#calMinimonth, #today-minimonth, #from-minimonth, #to-minimonth) .minimonth-week {
@@ -532,6 +601,12 @@ calendar-minimonth:not(#calMinimonth, #today-minimonth, #from-minimonth, #to-min
 /* Suchfeld im Kalender endet links an der Umschaltung (misst die Erweiterung) */
 :root[mc-tab="calendar"] #unifiedToolbarContent > li[item-id="search-bar"] {
   max-width: min(333px, var(--mc-cal-search-max, 333px)) !important;
+  min-width: 40px !important;
+}
+
+/* Suchfeld im Chat endet links an den Chat-Knöpfen (misst die Erweiterung) */
+:root[mc-tab="chat"] #unifiedToolbarContent > li[item-id="search-bar"] {
+  max-width: min(333px, var(--mc-chat-search-max, 333px)) !important;
   min-width: 40px !important;
 }
 
@@ -717,8 +792,10 @@ calendar-month-day-box-item[allday] .event-name-label:not([data-mc-emoji])::befo
 }
 
 /* mehrtägig: Tagesstücke zu einem durchgehenden Balken verbinden – über den
-   Innenabstand der Tageszelle hinweg, innen ohne Rundung; Titel nur im
-   ersten Stück je Woche (data-mc-join-l/-r setzt die Erweiterung) */
+   Innenabstand der Tageszelle hinweg, innen ohne Rundung; Titel läuft über
+   alle Stücke weiter: jedes Folgestück rückt ihn um seinen Abstand zum
+   ersten Stück ein (--mc-span-x, data-mc-join-l/-r und data-mc-span setzt
+   die Erweiterung) – die Tageslisten schneiden sonst nach einer Spalte ab */
 calendar-month-day-box-item[allday][data-mc-join-r] {
   margin-inline-end: -6px !important;
   border-start-end-radius: 0 !important;
@@ -731,7 +808,23 @@ calendar-month-day-box-item[allday][data-mc-join-l] {
   border-end-start-radius: 0 !important;
 }
 
+calendar-month-day-box-item[allday][data-mc-join-r] {
+  padding-inline-end: 0 !important;
+}
+
+calendar-month-day-box-item[allday][data-mc-join-l] {
+  padding-inline-start: 0 !important;
+}
+
 calendar-month-day-box-item[allday][data-mc-join-l] .event-name-label {
+  text-indent: calc(-1 * var(--mc-span-x, 0px)) !important;
+}
+
+calendar-month-day-box-item[allday][data-mc-join-r] .event-name-label {
+  text-overflow: clip !important;
+}
+
+calendar-month-day-box-item[allday][data-mc-join-l]:not([data-mc-span]) .event-name-label {
   visibility: hidden !important;
 }
 
@@ -829,11 +922,18 @@ calendar-week-view, calendar-day-view {
 /* kein display-Wert: Thunderbird blendet Lang- bzw. Kurzform per [hidden] aus */
 .day-column-heading > span {
   font-weight: 400 !important;
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
+}
+
+/* Kürzen mit „…“ erst, wenn eine Form ausgeblendet ist: Thunderbird misst
+   die Breite der Langform, während beide sichtbar sind – schrumpfte sie dabei
+   mit, wählte es die Langform auch dort, wo sie nicht passt („Wednesday Oct…“
+   statt „Wed Oct 21“) */
+.day-column-heading:has(> span[hidden]) > span:not([hidden]) {
   flex-shrink: 1 !important;
   min-width: 0 !important;
   overflow: hidden !important;
-  text-overflow: ellipsis !important;
-  white-space: nowrap !important;
 }
 
 /* heute: Überschrift rot wie bei Apple, keine blaue Fläche */
@@ -1123,6 +1223,11 @@ calendar-event-box :is(.alarm-icons-box, .item-classification-icon, .item-recurr
   background-color: color-mix(in srgb, var(--mt-accent) 18%, transparent) !important;
 }
 
+/* Fokusrechteck aus messenger.css weg – die Akzentfläche zeigt den Fokus (wie macOS) */
+.calendar-task-tree treechildren::-moz-tree-row(current, focus) {
+  outline: none !important;
+}
+
 .calendar-task-tree treechildren::-moz-tree-cell-text {
   font-size: 13px !important;
   color: var(--mt-text) !important;
@@ -1132,9 +1237,21 @@ calendar-event-box :is(.alarm-icons-box, .item-classification-icon, .item-recurr
   color: var(--mt-text) !important;
 }
 
+/* überfällige Aufgaben rot wie bei Thunderbird (sonst überdeckt die Textfarbe
+   oben dessen Markierung) – auch ausgewählt; Priorität „!“ im selben Rot */
+.calendar-task-tree treechildren::-moz-tree-cell-text(overdue) {
+  color: var(--mt-red) !important;
+}
+
+.calendar-task-tree > treechildren::-moz-tree-image(calendar-task-tree-col-priority, highpriority) {
+  stroke: var(--mt-red) !important;
+}
+
 .calendar-task-tree treechildren::-moz-tree-cell-text(completed) {
   color: var(--mt-text-tertiary) !important;
   text-decoration: none !important;
+  /* aufrecht wie in Apple Erinnerungen (Thunderbird: kursiv) */
+  font-style: normal !important;
 }
 
 .calendar-task-tree > treechildren::-moz-tree-image(calendar-task-tree-col-completed) {
@@ -1144,8 +1261,13 @@ calendar-event-box :is(.alarm-icons-box, .item-classification-icon, .item-recurr
   list-style-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20'%3E%3Ccircle cx='10' cy='10' r='8.6' fill='none' stroke='%23B5B5BA' stroke-width='1.5'/%3E%3C/svg%3E") !important;
 }
 
+/* erledigt: gefüllter Kreis in der Akzentfarbe des Systems (folgt wie Kästchen
+   und Auswahl einer anderen Akzentfarbe) – Kontextfarben nur über resource:// */
 .calendar-task-tree > treechildren::-moz-tree-image(calendar-task-tree-col-completed, completed) {
-  list-style-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20'%3E%3Ccircle cx='10' cy='10' r='9.3' fill='%23007AFF'/%3E%3Cpath d='m6 10.3 2.7 2.7L14.2 7.4' fill='none' stroke='white' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") !important;
+  list-style-image: url("resource://mailcards/icons/task-done.svg") !important;
+  -moz-context-properties: fill, stroke !important;
+  fill: var(--mt-accent) !important;
+  stroke: var(--mt-accent-text) !important;
 }
 
 /* Hinweis „Bitte einen Kalender wählen, der Aufgaben unterstützt“ oben in
@@ -1156,8 +1278,11 @@ calendar-event-box :is(.alarm-icons-box, .item-classification-icon, .item-recurr
   z-index: 3 !important;
   top: calc(var(--mc-row-top, 0px) + (var(--mc-row-h, 50px) - 22px) / 2) !important;
   inset-inline-start: calc(var(--mc-tab-left, 300px) + 52px) !important;
+  box-sizing: border-box !important;
   width: 360px !important;
-  max-width: calc(100vw - var(--mc-tab-left, 300px) - 520px) !important;
+  /* nie unter das Suchfeld (--mc-search-left misst die Erweiterung):
+     52 px Einzug plus 12 px Abstand */
+  max-width: min(calc(100vw - var(--mc-tab-left, 300px) - 520px), calc(var(--mc-search-left, 100vw) - var(--mc-tab-left, 300px) - 64px)) !important;
   margin: 0 !important;
   font-size: 13px !important;
   pointer-events: none !important;
@@ -1238,6 +1363,14 @@ calendar-event-box :is(.alarm-icons-box, .item-classification-icon, .item-recurr
   font-size: 12px !important;
   font-weight: 500 !important;
   color: var(--mt-text-tertiary) !important;
+  /* tree.css zeichnet je Kopf einen eigenen Strich (inset-Schatten) über der Haarlinie */
+  box-shadow: none !important;
+}
+
+.calendar-task-tree treecolpicker .tree-columnpicker-button {
+  border: none !important;
+  background: transparent !important;
+  box-shadow: none !important;
 }
 
 .calendar-task-tree > treecols > treecol:hover {
@@ -1254,6 +1387,13 @@ calendar-event-box :is(.alarm-icons-box, .item-classification-icon, .item-recurr
 }
 
 /* Detailbereich unten: helle Fläche, Titel groß, Angaben in leiser Schrift */
+/* ohne Auswahl blendet Thunderbird nur die Details aus, den Teiler nicht
+   (calendar-task-view.js: displayElement(…) && displayElement(splitter, …)
+   bricht bei false ab) – sonst zwei Haarlinien über der Statusleiste */
+#calendar-task-view-splitter:has(+ #calendar-task-details-container[hidden]) {
+  display: none !important;
+}
+
 #calendar-task-view-splitter {
   border: none !important;
   border-top: var(--mt-hairline) solid var(--mt-pane-line) !important;
@@ -1358,6 +1498,23 @@ calendar-event-box :is(.alarm-icons-box, .item-classification-icon, .item-recurr
   border: none !important;
   background: transparent !important;
   color: inherit !important;
+}
+
+/* Menüteil von „Erledigt“ als schmaler Pfeil statt 24 px leerer Fläche
+   (appearance: none nimmt Thunderbird das Bild), Text sitzt so mittig */
+#task-actions-markcompleted .toolbarbutton-menubutton-dropmarker {
+  width: 10px !important;
+  min-width: 10px !important;
+  height: 10px !important;
+  margin-inline-start: 6px !important;
+  align-self: center !important;
+  background: currentColor !important;
+  opacity: 0.6 !important;
+  mask: var(--mi-chevron) center / 10px no-repeat !important;
+}
+
+#task-actions-markcompleted .toolbarbutton-menubutton-dropmarker::part(icon) {
+  display: none !important;
 }
 
 #task-actions-toolbar > toolbarbutton .toolbarbutton-icon {
@@ -1495,8 +1652,50 @@ calendar-event-box :is(.alarm-icons-box, .item-classification-icon, .item-recurr
   mask-image: url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22%23000%22 stroke-width=%221.7%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22%3E%3Ccircle cx=%2212%22 cy=%2212%22 r=%228.5%22/%3E%3Cpath d=%22M12 7.4V12l3.1 2%22/%3E%3C/svg%3E") !important;
 }
 
-#books .bookRow-name {
+/* Name direkt 6 px hinter dem Symbol – auch bei Verteilerlisten, deren Symbol
+   schon margin-inline-end 6 px hat (sonst kam Thunderbirds Abstand hinzu) */
+#books :is(.bookRow-name, .listRow-name) {
   margin-inline-start: 0 !important;
+}
+
+/* Verteilerlisten unter dem Buch wie die Buchzeilen: rund, ohne Rahmen */
+#books .listRow > .listRow-container {
+  min-height: 34px !important;
+  /* Einrückung unter dem Buch (Thunderbird: 51 px) bleibt */
+  padding-inline-end: 8px !important;
+  border: none !important;
+  border-radius: 8px !important;
+  outline: none !important;
+  background: transparent !important;
+  color: var(--mt-text) !important;
+  font-size: 13px !important;
+  align-items: center !important;
+}
+
+#books .listRow > .listRow-container:hover {
+  background: color-mix(in srgb, var(--mt-text) 5%, transparent) !important;
+}
+
+#books .listRow.selected > .listRow-container {
+  background: var(--mt-selected-unfocused) !important;
+  color: var(--mt-text) !important;
+}
+
+/* fokussiert wie die Ordnerliste der Mail: Auswahl in der Akzentfarbe getönt */
+#books:focus-within :is(.bookRow, .listRow).selected > :is(.bookRow-container, .listRow-container) {
+  background: color-mix(in srgb, var(--mt-accent) 22%, transparent) !important;
+  color: var(--mt-text) !important;
+}
+
+/* Listensymbol in der Akzentfarbe wie die Buchsymbole (Personen-Umriss) */
+#books .listRow-icon {
+  flex: none !important;
+  width: 18px !important;
+  height: 18px !important;
+  margin-inline-end: 6px !important;
+  background-image: none !important;
+  background-color: var(--mt-accent) !important;
+  mask: url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22%23000%22 stroke-width=%221.7%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22%3E%3Ccircle cx=%229.5%22 cy=%228.6%22 r=%223.3%22/%3E%3Cpath d=%22M3.5 19.5c.8-3.3 3-5 6-5s5.2 1.7 6 5%22/%3E%3Cpath d=%22M15.5 5.6a3.2 3.2 0 0 1 0 6.1M17.6 14.8c1.5.8 2.4 2.4 2.9 4.7%22/%3E%3C/svg%3E") center / contain no-repeat !important;
 }
 
 #cardCount {
@@ -1507,6 +1706,13 @@ calendar-event-box :is(.alarm-icons-box, .item-classification-icon, .item-recurr
 
 .books-pane-bottom {
   padding: 0 12px !important;
+}
+
+/* Seitengrund: im leeren Buch blendet Thunderbird #detailsPane aus – dunkel
+   sonst Thunderbirds blaustichiges #18181B statt der Fensterfarbe der Liste */
+:root:has(#detailsPane),
+:root:has(#detailsPane) > body {
+  background-color: var(--mt-window) !important;
 }
 
 /* Kontaktliste */
@@ -1527,6 +1733,23 @@ calendar-event-box :is(.alarm-icons-box, .item-classification-icon, .item-recurr
 
 #cards {
   background: var(--mt-window) !important;
+}
+
+/* leeres Buch: „New Contact“ ist der einzige Handlungsknopf – nicht wie
+   deaktiviert (Thunderbird blendet den ganzen Hinweis auf 50 %) */
+#cards > slot[name="placeholders"] {
+  opacity: 1 !important;
+}
+
+#cards > slot[name="placeholders"] > div {
+  color: var(--mt-text-tertiary) !important;
+  text-shadow: none !important;
+}
+
+#placeholderCreateContact {
+  font-size: 13px !important;
+  font-weight: 500 !important;
+  color: var(--mt-accent) !important;
 }
 
 #cards .card-layout > td {
@@ -1605,9 +1828,18 @@ calendar-event-box :is(.alarm-icons-box, .item-classification-icon, .item-recurr
 #viewContact > header {
   justify-content: center !important;
   padding-top: 40px !important;
+  /* Thunderbird begrenzt auf 64em linksbündig – sonst steht der Kopf im
+     breiten Detailbereich links neben der Achse von Knöpfen und Karten */
+  max-inline-size: none !important;
 }
 
-#viewContact .contact-header {
+/* nur den sichtbaren Kopf umgestalten: bei Verteilerliste und Mehrfachauswahl
+   blendet Thunderbird den Kontaktkopf per hidden aus */
+#viewContact .contact-header[hidden] {
+  display: none !important;
+}
+
+#viewContact .contact-header:not([hidden]) {
   display: flex !important;
   flex-direction: column !important;
   align-items: center !important;
@@ -1625,6 +1857,50 @@ calendar-event-box :is(.alarm-icons-box, .item-classification-icon, .item-recurr
 #viewContact .contact-headings {
   align-items: center !important;
   text-align: center !important;
+}
+
+/* Verteilerliste und Mehrfachauswahl: Kopf mittig wie beim Kontakt, die
+   Liste mit einem Kreis im Verlauf der Initialen-Kreise */
+#viewContact :is(.list-header, .selection-header):not([hidden]) {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  text-align: center !important;
+  gap: 14px !important;
+  margin-block-end: 15px !important;
+}
+
+:is(#viewListName, #viewSelectionCount) {
+  font-size: 28px !important;
+  font-weight: 700 !important;
+  color: var(--mt-text) !important;
+}
+
+#viewContact .list-header .recipient-avatar {
+  width: 120px !important;
+  height: 120px !important;
+  margin: 0 !important;
+  padding: 30px !important;
+  box-sizing: border-box !important;
+  border-radius: 50% !important;
+  background: linear-gradient(180deg, #B4CAE4, #8A97C5) !important;
+  color: #fff !important;
+  box-shadow: none !important;
+}
+
+/* Tabellenansicht: der Detailbereich unter der Tabelle ist niedrig – kleines
+   Foto, damit die Datenkarten ohne Scrollen sichtbar sind */
+body.layout-table #viewContactPhoto {
+  width: 96px !important;
+  height: 96px !important;
+}
+
+body.layout-table #viewContact > header {
+  padding-top: 16px !important;
+}
+
+body.layout-table #viewContactName {
+  font-size: 22px !important;
 }
 
 #viewContactName {
@@ -1665,8 +1941,28 @@ calendar-event-box :is(.alarm-icons-box, .item-classification-icon, .item-recurr
   margin-bottom: 6px !important;
 }
 
+/* Überschrift, Bezeichnungen, Werte ohne Bezeichnung und Notizen an einer Kante */
 #detailsBody .entry-list {
   font-size: 14px !important;
+  margin-inline-start: 0 !important;
+  column-gap: 0 !important;
+}
+
+/* Notiz in derselben Größe wie die übrigen Werte (erbte sonst 12 px) */
+#detailsBody #notes > div {
+  font-size: 14px !important;
+  line-height: 1.35 !important;
+  color: var(--mt-text) !important;
+}
+
+/* Links (E-Mail, Telefon, Webseite) in der Akzentfarbe, ohne Unterstrich */
+#detailsBody a {
+  color: var(--mt-accent) !important;
+  text-decoration: none !important;
+}
+
+#detailsBody a:hover {
+  text-decoration: underline !important;
 }
 
 /* Bezeichnungen (Work, Home, Organization, Title) in der Systemschrift und
@@ -1679,7 +1975,11 @@ calendar-event-box :is(.alarm-icons-box, .item-classification-icon, .item-recurr
   letter-spacing: 0 !important;
   color: var(--mt-text-tertiary) !important;
   opacity: 1 !important;
-  margin-inline-end: 6px !important;
+  margin-inline-end: 0 !important;
+}
+
+#detailsBody .entry-type:not(:empty) {
+  margin-inline-end: 12px !important;
 }
 
 /* Aktionen mittig als Kapseln, „Bearbeiten“ oben rechts */
@@ -1720,7 +2020,9 @@ calendar-event-box :is(.alarm-icons-box, .item-classification-icon, .item-recurr
   width: auto !important;
 }
 
-#editButton {
+/* nur „Bearbeiten“ im Adressbuch – #editButton gibt es auch in den
+   Einstellungen (Verzeichnisse), im LDAP-, Filter- und Identitäten-Dialog */
+#detailsActions #editButton {
   height: 38px !important;
   padding: 0 18px !important;
   border: none !important;
@@ -1732,7 +2034,7 @@ calendar-event-box :is(.alarm-icons-box, .item-classification-icon, .item-recurr
   box-shadow: none !important;
 }
 
-#editButton:hover {
+#detailsActions #editButton:hover {
   background: var(--mt-control-hover) !important;
 }
 
@@ -1840,8 +2142,8 @@ search-bar {
   appearance: none !important;
 }
 
-#chat-toolbar > toolbarbutton:hover,
-#chat-status-selector > #statusTypeIcon:hover {
+#chat-toolbar > toolbarbutton:not([disabled]):hover,
+#chat-status-selector > #statusTypeIcon:not([disabled]):hover {
   background: var(--mt-control-hover) !important;
 }
 
@@ -1896,8 +2198,25 @@ search-bar {
   border: none !important;
 }
 
-.im-placeholder-screen :is(.im-placeholder-icon, img) {
-  opacity: 0.35 !important;
+.im-placeholder-screen .im-placeholder-desc {
+  /* Erklärtext wie im leeren Aufgaben-Zustand: 13 px in Sekundärgrau */
+  font-size: 13px !important;
+  color: var(--mt-text-secondary) !important;
+}
+
+/* Thunderbirds 80-%-Deckkraft auf der ganzen Gruppe weg: Standardknopf in
+   voller Akzentfarbe, Titel und Text bekommen ihre Farben aus den Variablen */
+.im-placeholder-screen .im-placeholder-innerbox {
+  opacity: 1 !important;
+}
+
+/* Info-Symbol des leeren Zustands (Hintergrundbild von .im-placeholder-box)
+   ruhig in Tertiärgrau, eigenes Symbol statt Thunderbirds Proton-Symbol */
+.im-placeholder-screen .im-placeholder-box {
+  background-image: url("resource://mailcards/icons/info.svg") !important;
+  -moz-context-properties: fill, fill-opacity, stroke !important;
+  fill: transparent !important;
+  stroke: var(--mt-text-tertiary) !important;
 }
 
 .im-placeholder-screen button {
@@ -1957,6 +2276,15 @@ search-bar {
   font-weight: 500 !important;
 }
 
+/* Kategorienamen 13 px und ohne Thunderbirds Einrückung (common-shared.css) –
+   Text bündig mit „Kontoeinstellungen“ und „Add-ons“ darunter, der Abstand
+   zum Symbol kommt nur aus der Lücke der Zeile */
+#categories .category-name {
+  font-size: 13px !important;
+  padding-inline-start: 0 !important;
+  margin: 0 !important;
+}
+
 /* farbige Symbolkacheln wie in den Systemeinstellungen */
 #categories .category-icon,
 .sidebar-footer-list .sidebar-footer-icon {
@@ -2012,6 +2340,12 @@ search-bar {
   background: var(--mt-window) !important;
 }
 
+/* Grundschrift 13 px wie Knöpfe und Auswahllisten (Thunderbird: 12,1 px) –
+   sonst stehen in einer Zeile zwei Größen nebeneinander */
+#paneDeck {
+  font-size: 13px !important;
+}
+
 #paneDeck h1 {
   font-size: 22px !important;
   font-weight: 700 !important;
@@ -2045,8 +2379,177 @@ search-bar {
   clear: both !important;
 }
 
+/* Karte nur mit dem Knopf „Advanced settings“ – ohne Titel und Text, daher
+   keine leere graue Fläche: Knopf steht rechtsbündig unter der letzten Karte */
+#paneDeck fieldset:has(#configEditor) {
+  background: transparent !important;
+  padding: 0 !important;
+}
+
+/* Verschachtelte Unterüberschriften („Card view options“, „Display width“,
+   „Enable DNS over HTTPS using:“) behielten Thunderbirds 1.3em und waren
+   größer als der Kartentitel – gleiche 13 px halbfett */
+#paneDeck legend:not(fieldset > legend, #dohBox > legend) {
+  font-size: 13px !important;
+  font-weight: 600 !important;
+  color: var(--mt-text) !important;
+}
+
+/* Schriftgröße neben der Schriftart kompakt wie „Size“ bei „Message formatting“
+   statt mit flex=1 gleich breit (Pfeil stand rund 280 px vom Wert entfernt).
+   flex="1" an Liste und Hülle setzt xul.css mit !important – daher Höchstbreite;
+   der frei werdende Platz geht an die Schriftart */
+#paneDeck #fontSettings > hbox:has(> #defaultFontSize),
+#paneDeck #defaultFontSize {
+  min-width: 72px !important;
+  max-width: max-content !important;
+}
+
+/* Leere Abstandhalter von Thunderbird: über dem ersten Eintrag einer Karte
+   (Kalender) und zwischen Überschrift und Karte (Passwörter, Junk) */
+#paneDeck fieldset > separator:first-child,
+#paneDeck .subcategory + separator:not(.thin) {
+  display: none !important;
+}
+
+/* Sicheres DNS ist ein div statt fieldset: dieselbe Karte, Optionen und
+   Status als ruhige Kästen mit Haarlinie statt hartem 1-px-Rahmen */
+#paneDeck #dohBox {
+  padding: 12px 16px 14px !important;
+  border-radius: 12px !important;
+  background: color-mix(in srgb, var(--mt-text) 2.5%, var(--mt-window)) !important;
+}
+
+#paneDeck #dohBox > legend {
+  font-size: 13px !important;
+  font-weight: 600 !important;
+  color: var(--mt-text) !important;
+}
+
+#paneDeck .privacy-detailedoption.info-box-container {
+  border: var(--mt-hairline) solid var(--mt-pane-line) !important;
+  border-radius: 10px !important;
+  background: var(--mt-window) !important;
+}
+
+/* Statuskasten ohne Netzwerkstatus leer – keine leere Kapsel; sobald
+   Thunderbird einen Status setzt, erscheint er wieder mit Haarlinie */
+#paneDeck #dohStatusSection:has(#dohStatus:empty):has(#dohResolver:empty):not(:has(#dohSteeringStatus:not([hidden]))) {
+  display: none !important;
+}
+
+/* OCSP: der leere Spacer neben der Checkbox halbierte die Breite der
+   Beschriftung, sie brach trotz freiem Platz zweizeilig um */
+#paneDeck hbox:has(> #enableOCSP) > spacer {
+  display: none !important;
+}
+
+#paneDeck #enableOCSP {
+  margin-inline-end: 12px !important;
+}
+
+/* Listen und Tabellen (Schlagwörter, Dateitypen, Kategorien, Filelink, Bäume
+   in Unterdialogen) mit Haarlinie und 8 px wie Listen in Dialogen; overflow
+   bleibt, #handlersView ist selbst der Scroll-Container */
+#paneDeck richlistbox,
+#paneDeck #handlersView,
+:root[subdialog] tree {
+  border: var(--mt-hairline) solid var(--mt-pane-line) !important;
+  border-radius: 8px !important;
+  background-color: var(--mt-window) !important;
+}
+
+/* Kopf der Dateitypen-Tabelle deckend (sticky) auf der Seitenfläche statt
+   Blaugrau, Spalten mit Haarlinien */
+#handlersTable thead > tr {
+  background-color: var(--mt-window) !important;
+}
+
+#handlersTable thead > tr > th {
+  border-block-end: var(--mt-hairline) solid var(--mt-separator) !important;
+}
+
+#handlersTable thead > tr > th:not(:first-child) {
+  border-inline-start: var(--mt-hairline) solid var(--mt-separator) !important;
+}
+
+:root[subdialog] tree > treecols {
+  appearance: none !important;
+  background: transparent !important;
+  border-bottom: var(--mt-hairline) solid var(--mt-separator) !important;
+}
+
+:root[subdialog] tree > treecols > treecol {
+  /* ohne appearance und Schatten zeichnet Thunderbird harte Kopfzellen-Linien */
+  appearance: none !important;
+  box-shadow: none !important;
+  background: transparent !important;
+  /* Spaltentrenner als Haarlinie, die Linie unten kommt von treecols */
+  border-color: var(--mt-separator) !important;
+  border-block-end: none !important;
+}
+
+/* Export für Mobilgeräte wie die übrigen Karten: ohne Rahmen und ohne
+   Marineblau im Dunkelmodus, Hinweise 11 px grau, „Alle auswählen“ normal */
+#qrExportContent .qr-panel {
+  border: none !important;
+  border-radius: 12px !important;
+  background: color-mix(in srgb, var(--mt-text) 2.5%, var(--mt-window)) !important;
+  color: var(--mt-text) !important;
+}
+
+#qrExportContent .qr-subpanel {
+  border: none !important;
+  border-radius: 8px !important;
+  background: var(--mt-window) !important;
+}
+
+#qrExportContent .qr-small {
+  font-size: 11px !important;
+  color: var(--mt-text-secondary) !important;
+}
+
+#qrExportSelectAll {
+  text-transform: none !important;
+  font-weight: 400 !important;
+}
+
+/* Chat → Darstellung: Vorschau mit Abstand zu „Preview:“ und als Fläche mit
+   Haarlinie und 8 px statt eckiger Insel in der Karte */
+#paneDeck #previewBox {
+  margin-inline-start: 8px !important;
+  border: var(--mt-hairline) solid var(--mt-pane-line) !important;
+  border-radius: 8px !important;
+  overflow: hidden !important;
+}
+
+/* Schlagwortliste: Namen wie in der Mailliste abgedunkelt (hell) bzw.
+   aufgehellt (dunkel) – die Grundfarben (Orange, Blau) sind sonst kaum
+   lesbar; currentColor ist die Farbe des Eintrags */
+#tagList > richlistitem:not([selected]) > label {
+  color: color-mix(in srgb, currentColor 60%, black) !important;
+}
+
+@media (prefers-color-scheme: dark) {
+  #tagList > richlistitem:not([selected]) > label {
+    color: color-mix(in srgb, currentColor 55%, white) !important;
+  }
+}
+
+/* Arbeitstage im Kalender: Kästchen mittig über dem Tag und die Tage mit
+   Abstand („Wed Thu“ statt „WedThu“) */
+#paneDeck .dayOffCheckbox {
+  min-width: 32px !important;
+  margin-inline: 2px !important;
+}
+
+/* Update-Chronik: Hinweis „Keine Updates“ mit Abstand zum Listenrand */
+#historyItems > label {
+  margin: 4px 5px !important;
+}
+
 /* Knöpfe, Auswahllisten und Felder im Apple-Stil */
-#paneDeck :is(button:not(.close-icon, .icon-only, [type="checkbox"]), menulist) {
+#paneDeck :is(button:not(.close-icon, .icon-only, [type="checkbox"], .arrowhead), menulist) {
   min-height: 28px !important;
   padding-inline: 14px !important;
   border: none !important;
@@ -2057,8 +2560,30 @@ search-bar {
   font-size: 13px !important;
 }
 
-#paneDeck :is(button:not(.close-icon, .icon-only, [type="checkbox"]), menulist):not([disabled]):hover {
+#paneDeck :is(button:not(.close-icon, .icon-only, [type="checkbox"], .arrowhead), menulist):not([disabled]):hover {
   background-color: var(--mt-control-hover) !important;
+}
+
+/* Aufklapp-Pfeile beim sicheren DNS: flacher Symbolknopf statt grauer
+   Scheibe; der Pfeil (nav-down-12.svg) zeichnet mit context-stroke */
+#paneDeck .arrowhead.doh-expand-section {
+  min-width: 24px !important;
+  min-height: 24px !important;
+  padding: 0 !important;
+  border: none !important;
+  border-radius: 6px !important;
+  background-color: transparent !important;
+  color: var(--mt-text-secondary) !important;
+}
+
+#paneDeck .arrowhead.doh-expand-section:hover {
+  background-color: var(--mt-hover) !important;
+}
+
+#paneDeck .arrowhead.doh-expand-section .button-icon {
+  -moz-context-properties: fill, stroke !important;
+  fill: currentColor !important;
+  stroke: currentColor !important;
 }
 
 #paneDeck :is(input[type="text"], input[type="number"], input[type="url"], input:not([type]), textarea, search-textbox) {
@@ -2087,6 +2612,21 @@ search-bar {
   inline-size: min(100%, 800px) !important;
 }
 
+/* Kleinste Fensterbreite: Inhalt schrumpft mit statt rechts abgeschnitten
+   (sonst bestimmt die längste Zeile die Breite, z. B. in „Verfassen“);
+   Zeilen mit Auswahllisten (Weiterleiten als, Verzeichnis, Adressbücher)
+   und die Kacheln „Sortierung und Gruppierung“ brechen dann um */
+#preferencesContainer .paneDeckContainer {
+  min-width: 0 !important;
+}
+
+#paneDeck hbox:has(> #forwardMessageMode),
+#paneDeck [data-category="paneCompose"] hbox:has(> menulist, > hbox > menulist),
+#paneDeck #defaultViewFlags {
+  flex-wrap: wrap !important;
+  row-gap: 6px !important;
+}
+
 /* Abschnittsüberschriften wie in den übrigen Bereichen */
 #paneDeck h2 {
   font-size: 15px !important;
@@ -2098,12 +2638,36 @@ search-bar {
   color: var(--mt-text-secondary) !important;
 }
 
+/* Erklärtexte bewusst etwas kleiner als die 13-px-Grundschrift */
+#paneDeck :is(description, .tip-caption) {
+  font-size: 12px !important;
+}
+
+/* Ende-zu-Ende-Verschlüsselung: die Erklärtexte sind dort html:p statt
+   description – gleich wie in den Nachbarkarten (12 px, grau, luftig, ohne
+   eigenen Abstand oben); Trennlinie als Haarlinie statt grauer Linie */
+#paneDeck :is(#emailE2eeGroupPreparation, #emailE2eeKeyServers) > p {
+  font-size: 12px !important;
+  line-height: 1.8 !important;
+  color: var(--mt-text-secondary) !important;
+  margin-block: 0 4px !important;
+}
+
+#paneDeck #emailE2eeKeyServers > hr {
+  border: 0 !important;
+  border-top: var(--mt-hairline) solid var(--mt-pane-line) !important;
+  background: none !important;
+  margin-block: 8px !important;
+}
+
 /* ---------- Kästchen und Optionsfelder im macOS-Stil (überall) ----------
    statt der grauen Systemknöpfe: weiße Fläche mit feinem Rand, ausgewählt
    in der Akzentfarbe mit weißem Haken bzw. Punkt */
 checkbox > .checkbox-check,
 radio > .radio-check,
-#paneDeck input:is([type="checkbox"], [type="radio"]):not(.toggle-button) {
+#paneDeck input:is([type="checkbox"], [type="radio"]):not(.toggle-button),
+#mcQuickPanel input[type="checkbox"],
+#folderPickerTree input[type="checkbox"] {
   appearance: none !important;
   box-sizing: border-box !important;
   width: 16px !important;
@@ -2117,8 +2681,23 @@ radio > .radio-check,
 }
 
 checkbox > .checkbox-check,
-#paneDeck input[type="checkbox"]:not(.toggle-button) {
+#paneDeck input[type="checkbox"]:not(.toggle-button),
+#mcQuickPanel input[type="checkbox"],
+#folderPickerTree input[type="checkbox"] {
   border-radius: 4px !important;
+}
+
+/* senkrechte Kästchen (Arbeitstage): Kästchen über der Beschriftung, ohne
+   den seitlichen Abstand, der es sonst aus der Mitte schiebt */
+checkbox[orient="vertical"] > .checkbox-check {
+  margin-inline: 0 !important;
+  margin-block-end: 3px !important;
+}
+
+/* Schnellfenster: Kästchen („Ganztägig“, „Fällig“) bündig mit den Feldern
+   darunter – der Abstand kommt dort aus der Lücke der Zeile */
+#mcQuickPanel input[type="checkbox"] {
+  margin: 0 !important;
 }
 
 radio > .radio-check,
@@ -2132,9 +2711,20 @@ radio > .radio-check,
    overrides/check.svg ist Thunderbirds kräftiger Haken mit context-fill
    (nicht global/icons/check.svg: das leitet Thunderbird auf einen dünnen um) */
 checkbox[checked] > .checkbox-check,
-#paneDeck input[type="checkbox"]:not(.toggle-button):checked {
+#paneDeck input[type="checkbox"]:not(.toggle-button):checked,
+#mcQuickPanel input[type="checkbox"]:checked,
+#folderPickerTree input[type="checkbox"]:checked {
   border-color: transparent !important;
   background: var(--mt-accent) url("chrome://messenger/skin/overrides/check.svg") center / 12px no-repeat !important;
+  -moz-context-properties: fill !important;
+  fill: var(--mt-accent-text) !important;
+}
+
+/* Ordnerwahl der Suchordner: Ordner, deren Unterordner nur teilweise
+   gewählt sind, mit Strich statt Haken (ebenfalls chrome:, gleiche CSP) */
+#folderPickerTree input[type="checkbox"]:indeterminate {
+  border-color: transparent !important;
+  background: var(--mt-accent) url("chrome://global/skin/icons/minus.svg") center / 10px no-repeat !important;
   -moz-context-properties: fill !important;
   fill: var(--mt-accent-text) !important;
 }
@@ -2156,7 +2746,8 @@ radio[selected] > .radio-check,
 }
 
 :is(checkbox, radio)[disabled] > :is(.checkbox-check, .radio-check),
-#paneDeck input:is([type="checkbox"], [type="radio"]):disabled {
+#paneDeck input:is([type="checkbox"], [type="radio"]):disabled,
+#mcQuickPanel input[type="checkbox"]:disabled {
   opacity: 0.45 !important;
 }
 
@@ -2165,13 +2756,16 @@ radio[selected] > .radio-check,
   outline-offset: 0 !important;
 }
 
-/* Zahlenfelder (z. B. „5 Minuten“ im Chat) wie die übrigen Felder: ohne
-   Systempfeile, Wert mittig */
+/* Zahlenfelder (z. B. „5 Minuten“ im Chat, Ports in den Verbindungs-
+   Einstellungen) wie die übrigen Felder: ohne Systempfeile, Wert mittig;
+   appearance: none, sonst zeichnet macOS seinen eigenen Feldrahmen statt
+   der Haarlinie */
 #paneDeck input[type="number"],
 input[type="number"].size2,
 input[type="number"].size3,
-input[type="number"].size4 {
-  appearance: textfield !important;
+input[type="number"].size4,
+input[type="number"].size5 {
+  appearance: none !important;
   min-height: 26px !important;
   padding-inline: 8px !important;
   text-align: center !important;
@@ -2179,6 +2773,11 @@ input[type="number"].size4 {
   border-radius: 7px !important;
   background-color: var(--mt-window) !important;
   color: var(--mt-text) !important;
+}
+
+#paneDeck input[type="number"]::-moz-number-spin-box,
+input[type="number"]:is(.size2, .size3, .size4, .size5)::-moz-number-spin-box {
+  display: none !important;
 }
 
 /* Auswahllisten: überall derselbe feine Pfeil (auch Tagesbeginn/-ende im Kalender) */
@@ -2320,6 +2919,48 @@ input[type="number"].size4 {
   clear: both !important;
 }
 
+/* Kontoseiten dunkel in --mt-window wie die Einstellungen statt Thunderbirds
+   leicht blaustichigem #18181B (Kante unter der Toolbar); #containerBox gibt
+   es nur in den am-*-Seiten, in am-smtp/am-im liegt es in einer weiteren vbox */
+:root:has(#containerBox),
+:root:has(#containerBox) > body {
+  background-color: var(--mt-window) !important;
+}
+
+/* große Seitenüberschrift mit 12 px Abstand zur ersten Karte – sonst klebt sie
+   in Kopien/Verfassen/Junk darauf; der dünne Trenner (Speicherplatz) entfällt,
+   damit alle Seiten gleich aussehen */
+#containerBox > .dialogheader {
+  margin-block-end: 12px !important;
+}
+
+#containerBox > .dialogheader + separator.thin {
+  display: none !important;
+}
+
+/* Junk: zwei leere Trenner zwischen den Karten ergäben 48 statt 12 px Abstand
+   (nur Trenner direkt hinter einer Karte; dünne vor Knopfzeilen bleiben) */
+#containerBox > div:has(> fieldset) + separator:not(.thin),
+#containerBox > div:has(> fieldset) + separator:not(.thin) + separator:not(.thin) {
+  display: none !important;
+}
+
+/* Junk: Adressbücher als Kästchenliste – Zeilen ~28 px statt 40 px, die
+   Auswahl nur grau, sonst verschwindet ein angehaktes Kästchen in der
+   Akzentfläche */
+#containerBox #whiteListAbURI > richlistitem {
+  padding-block: 0 !important;
+}
+
+#containerBox #whiteListAbURI checkbox {
+  margin-block: 2px !important;
+}
+
+#containerBox #whiteListAbURI > richlistitem[selected] {
+  background: var(--mt-selected-unfocused) !important;
+  color: var(--mt-text) !important;
+}
+
 /* ---------- Add-ons-Verwaltung ---------- */
 #sidebar:has(categories-box) {
   background: var(--mt-sidebar) !important;
@@ -2355,7 +2996,7 @@ addon-card .card,
   box-shadow: none !important;
 }
 
-:is(addon-list, addon-page-header, .main-search, .addon-details) button:not(.toggle-button, [role="switch"]),
+:is(addon-list, addon-page-header, .main-search, .addon-details) button:not(.toggle-button, [role="switch"], .extension-options-button),
 .main-search button {
   min-height: 28px !important;
   border: none !important;
@@ -2378,6 +3019,133 @@ addon-page-header h1,
 .header-name {
   font-size: 22px !important;
   font-weight: 700 !important;
+}
+
+/* Thunderbird 140+: Seitenleiste aus moz-page-nav-button (die Regeln für
+   categories-box > .category oben stammen aus Thunderbird 128). Thunderbird
+   setzt Höhe, Schrift und Symbolgröße als Variablen an der Gruppe im
+   Schatten-DOM (48/44 px, 1,1 bzw. 1 rem) – am Knopf selbst gesetzt gelten
+   überall 34 px und 13 px; den oberen Abstand lässt halo, wie er ist */
+categories-box moz-page-nav-button {
+  --page-nav-button-height: 34px !important;
+  --page-nav-button-font-size: 13px !important;
+  --page-nav-button-icon-size: 18px !important;
+  --page-nav-button-gap: 10px !important;
+  --page-nav-button-border-radius: 8px !important;
+  --page-nav-button-padding: 0 10px !important;
+  --page-nav-button-text-color: var(--mt-text) !important;
+  --page-nav-button-text-color-hover: var(--mt-text) !important;
+  --page-nav-button-background-color-hover: var(--mt-hover) !important;
+  --page-nav-button-background-color-selected: var(--mt-selected-unfocused) !important;
+}
+
+/* eine Fläche wie der klebende Kopf (.sticky-container) – dunkel kein
+   Firefox-Blauschwarz #18181B unter Inhalt, Überschrift und Statusleiste */
+:root:has(#sidebar > categories-box) {
+  --in-content-page-background: var(--mt-window) !important;
+  background-color: var(--mt-window) !important;
+}
+
+/* Import/Export (about:import) dunkel in Fensterfarbe wie die übrigen
+   Tabs statt Firefox-Blauschwarz #18181B. Den leichten Schleier
+   rgba(0,0,0,0.03) des body aus aboutImport.css bewusst behalten: hell
+   hebt sich nur so die weiße Karte der Schritte von der Seite ab */
+:root:has(#stepNav) {
+  --in-content-page-background: var(--mt-window) !important;
+  background-color: var(--mt-window) !important;
+  color: var(--mt-text) !important;
+}
+
+/* Thunderbird malt Suchzeile und Überschrift darin noch einmal in
+   --layout-background-0 */
+:root:has(#sidebar > categories-box) :is(.main-search, .main-heading) {
+  background: var(--mt-window) !important;
+}
+
+/* Thunderbird 140+: Suchfeld „Search addons.thunderbird.net“ liegt im
+   Schatten-DOM von moz-input-search – die Regel search-addons input oben
+   trifft es nicht mehr. Die Tokens am Host gelten im Schatten-DOM: graue
+   Kapsel ohne Rahmen wie die Suche oben rechts, Fokus als Akzent-Halo */
+search-addons moz-input-search {
+  --input-text-border: 1px solid transparent !important;
+  --input-text-border-radius: 999px !important;
+  --input-search-border-radius: 999px !important;
+  --input-text-background-color: var(--mt-control) !important;
+  --input-text-min-height: 28px !important;
+  /* Thunderbird 159+: moz-input-text liest dieselben Werte ohne „-text“ */
+  --input-border: 1px solid transparent !important;
+  --input-border-radius: 999px !important;
+  --input-background-color: var(--mt-control) !important;
+  --input-min-height: 28px !important;
+  --focus-outline: 3px solid color-mix(in srgb, var(--mt-accent) 30%, transparent) !important;
+}
+
+/* Symbolknöpfe im Kartenkopf (Werkzeug und „…“): gleich groß (24 × 24),
+   ohne Fläche, dezenter Hover – das Werkzeug fiel sonst unter die
+   Kapselregel oben (24 × 28, grau gefüllt). Kein background-Kurzschreiber,
+   das Werkzeugsymbol ist ein background-image. Der „…“-Knopf liegt im
+   Schatten-DOM: extension/parts.css */
+addon-card .extension-options-button {
+  width: 24px !important;
+  height: 24px !important;
+  min-width: 24px !important;
+  min-height: 24px !important;
+  border: none !important;
+  border-radius: 50% !important;
+  background-color: transparent !important;
+  box-shadow: none !important;
+}
+
+addon-card .extension-options-button:not(:disabled):hover {
+  background-color: var(--mt-hover) !important;
+}
+
+/* Ein/Aus-Schalter: weißer Knopf wie in macOS und auf der halo-Einstellungsseite
+   (dunkel sonst #18181B); macOS-Schalter haben hell und dunkel einen weißen Knopf */
+addon-card moz-toggle {
+  --toggle-dot-background-color-on-pressed: #FFFFFF !important;
+}
+
+/* Detailansicht: Haarlinien statt harter Linien; Reiterleiste ohne eigene
+   Linie unten (dort trennt die erste Zeile), leere Beschreibung ohne ihr
+   16-px-Band – sonst eine Doppellinie unter den Reitern */
+addon-details .tab-group {
+  border-top-color: var(--mt-separator) !important;
+  border-bottom: none !important;
+}
+
+addon-details .addon-detail-row:not(.addon-detail-help-row),
+addon-details .addon-detail-sitepermissions,
+addon-permissions-list .addon-permissions-list-wrapper:not(:first-child) {
+  border-top-color: var(--mt-separator) !important;
+}
+
+addon-details .addon-detail-description-wrapper:has(> .addon-detail-description:empty) {
+  display: none !important;
+}
+
+/* eingebettete Einstellungen ohne eigene Fläche (Thunderbird: Canvas) – eine
+   Ebene mit der Karte statt weißer bzw. dunkler Insel darin */
+addon-card .addon-inline-options {
+  background-color: transparent !important;
+}
+
+/* Menüs der Add-ons-Verwaltung („…“ an der Karte, Zahnrad im Kopf) wie die
+   übrigen halo-Menüs: 12 px Radius ohne Rahmen, 22-px-Zeilen mit 6 px Radius,
+   Markierung in Akzentfarbe, Haarlinien-Trenner. Feste Fläche wie die
+   Tooltips – im Inhalt gibt es keine Unschärfe von macOS. Nur diese beiden
+   Menüs, panel-list steckt auch in anderen Seiten. Die Zeilen liegen im
+   Schatten-DOM: extension/parts.css */
+:is(addon-options, addon-page-options) > panel-list {
+  --panel-separator-color: var(--mt-separator) !important;
+  --panel-separator-padding: 5px 9px !important;
+  background-color: var(--mt-tooltip-bg) !important;
+  border: none !important;
+  border-radius: 12px !important;
+  box-shadow: var(--mt-shadow), 0 8px 24px rgba(0, 0, 0, 0.14) !important;
+  padding: 5px !important;
+  color: var(--mt-text) !important;
+  font: 13px var(--mt-font) !important;
 }
 
 /* ---------- Verfassen-Fenster wie Apple Mail ---------- */
@@ -2506,6 +3274,25 @@ addon-page-header h1,
   border-bottom: var(--mt-hairline) solid var(--mt-pane-line) !important;
 }
 
+/* Reintext (oder Formatleiste ausgeblendet): Thunderbird blendet nur die
+   Leiste aus, die leere Box soll keine zweite Linie unter den Betreff legen */
+#FormatToolbox:not(:has(> toolbar:not([hidden], [collapsed="true"]))) {
+  border-bottom: none !important;
+}
+
+/* Farbfelder wie unter macOS: dezenter Rand statt Thunderbirds hellem
+   Knopfrand (dunkel weiß auf weißem Feld); ein Ring in Fensterfarbe trennt das
+   Textfarbfeld vom darunterliegenden Hintergrundfeld, auch wenn beide gleich
+   hell sind */
+#FormatToolbar .color-button {
+  border-color: var(--mt-swatch-border) !important;
+  border-radius: 3px !important;
+}
+
+#TextColorButton {
+  box-shadow: 0 0 0 1px var(--mt-window) !important;
+}
+
 #FormatToolbar menulist {
   min-height: 28px !important;
   border: none !important;
@@ -2550,7 +3337,7 @@ addon-page-header h1,
    sie über das Fenster hinauslaufen) */
 #FormatToolbar {
   flex-wrap: wrap !important;
-  row-gap: 2px !important;
+  row-gap: 0 !important;
 }
 
 @media (max-width: 680px) {
@@ -2687,7 +3474,12 @@ addon-page-header h1,
 
 /* Anpassen-Sheet der Symbolleiste: Palette als ruhige graue Fläche statt
    heller Insel mit Rahmen, Platzhalter („Abstand“) gestrichelt und gerundet
-   (keine data:-Bilder – die CSP des Sheets sperrt sie) */
+   (keine data:-Bilder – die CSP des Sheets sperrt sie); Rand des Sheets als
+   Haarlinie statt bläulichem Panelrand */
+#customizeToolbarSheetPopup {
+  --panel-border-color: var(--mt-tooltip-border) !important;
+}
+
 #palette-box {
   background: var(--mt-control) !important;
   border: none !important;
@@ -2897,7 +3689,9 @@ addon-page-header h1,
 
 /* Initialen-Kreise im Adressbuch wie Apple: Verlauf Blaugrau → Lavendel,
    weiße halbfette Initialen mit ~54 % des Kreisdurchmessers */
-#cards contact-avatar:not(.is-mail-list) {
+/* (auch die kleinen Kreise der Mitgliederliste bei Mehrfachauswahl und
+   Verteilerliste) */
+:is(#cards, #selectedCards) contact-avatar:not(.is-mail-list) {
   background: linear-gradient(180deg, #B4CAE4, #8A97C5) !important;
   color: #fff !important;
   box-shadow: none !important;
@@ -2905,8 +3699,26 @@ addon-page-header h1,
   letter-spacing: 0 !important;
 }
 
+#selectedCards contact-avatar:not(.is-mail-list) {
+  font: 600 15px var(--mt-font) !important;
+}
+
+/* Verteilerlisten: Thunderbirds Umriss-Symbol weiß und kleiner auf demselben
+   Verlauf statt frei stehend ohne Kreis (wie der Listenkopf in den Details) */
+:is(#cards, #selectedCards) contact-avatar.is-mail-list {
+  background: linear-gradient(180deg, #B4CAE4, #8A97C5) !important;
+  color: #fff !important;
+  box-shadow: none !important;
+  box-sizing: border-box !important;
+  padding: 9px !important;
+}
+
+#selectedCards contact-avatar.is-mail-list {
+  padding: 6px !important;
+}
+
 /* Firmen ohne Foto: Gebäude auf demselben Verlauf (wie Apple Kontakte) */
-#cards contact-avatar.mc-company {
+:is(#cards, #selectedCards) contact-avatar.mc-company {
   background: url("resource://mailcards/icons/company-avatar.svg") center / cover no-repeat !important;
 }
 
@@ -2968,6 +3780,21 @@ addon-page-header h1,
   margin-inline: 8px !important;
 }
 
+/* ---------- Adressen suchen (erweiterte Suche): Bedingungen und Ergebnisse
+   als ruhige Flächen mit Haarlinie und 8 px Radius statt hartem eckigem
+   Rahmen bzw. schwarzer Liste (dunkel); Teiler als eine Haarlinie ---------- */
+#searchAddressBookWindow :is(#searchTermList, #abResultsTree) {
+  background-color: var(--mt-window) !important;
+  border: var(--mt-hairline) solid var(--mt-pane-line) !important;
+  border-radius: 8px !important;
+}
+
+#searchAddressBookWindow #gray_horizontal_splitter {
+  border: none !important;
+  border-top: var(--mt-hairline) solid var(--mt-pane-line) !important;
+  background: transparent !important;
+}
+
 /* ---------- Kontakt bearbeiten / neuer Kontakt – wie Apple Kontakte:
    eine Karte, links graue Bezeichnungen (rechtsbündig), rechts die Felder,
    durchgehend Systemschrift in 13 px, volle Breite des Bereichs ---------- */
@@ -3001,6 +3828,41 @@ addon-page-header h1,
 #editContactForm #photoButton {
   order: -1 !important;
   border-radius: 50% !important;
+}
+
+/* Kontaktbild-Dialog: Ablagefläche als ruhige Karte statt Pille; das
+   unsichtbare Dateifeld darüber bleibt durchsichtig (sonst verdeckt es
+   Hinweis und Symbol), der Fokusring sitzt an der Fläche */
+#photoDropTarget {
+  border-radius: 12px !important;
+  background-color: var(--mt-control) !important;
+  /* Personensymbol grau über dem Hinweis statt schwarzer Kopf hinter dem Text */
+  background-size: 56px !important;
+  background-position: center 36px !important;
+  -moz-context-properties: fill, stroke !important;
+  fill: transparent !important;
+  stroke: var(--mt-text-tertiary) !important;
+}
+
+#photoDropTarget > label {
+  padding-top: 76px !important;
+  color: var(--mt-text-secondary) !important;
+}
+
+/* Knopfleiste ohne eigene (dunkel blaugraue) Fläche */
+#photoDialog .dialog-menu-container {
+  background: transparent !important;
+}
+
+#dialogFileInput {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  outline: none !important;
+}
+
+#photoDropTarget:focus-within {
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--mt-accent) 22%, transparent) !important;
 }
 
 #editContactForm .contact-photo {
@@ -3268,6 +4130,13 @@ addon-page-header h1,
   color: #FF3B30 !important;
 }
 
+/* Papierkorb (Hintergrundsymbol, 16 px) mit 6 px Abstand zum Text wie bei
+   Write/Event/Search statt fast am Text klebend */
+#detailsFooter #detailsDeleteButton {
+  padding-inline: 34px 16px !important;
+  background-position: 12px center !important;
+}
+
 /* ---------- Terminspalte rechts im Stil von Fastmail ---------- */
 #today-minimonth-box {
   padding: 4px 8px 8px !important;
@@ -3390,6 +4259,13 @@ addon-page-header h1,
 
 #agenda > li.agenda-listitem:has(> .agenda-date-header:not([hidden])) {
   margin-top: 14px !important;
+}
+
+/* Tagesspalte (38 px) darf nicht in den nächsten Tag ragen: Tage mit nur
+   einem Eintrag (28 px) bekommen die Höhe der Spalte („22“ klebte sonst an
+   „FRI“) */
+#agenda > li.agenda-listitem:has(> .agenda-date-header:not([hidden])):is(:has(+ li.agenda-listitem > .agenda-date-header:not([hidden])), :last-child) {
+  min-height: 40px !important;
 }
 
 /* Tagesspalte: Wochentag klein, Tageszahl groß, heute rot */
@@ -3546,7 +4422,8 @@ addon-page-header h1,
    alle .button-Knöpfe und die Knöpfe in Dialogen (OK/Abbrechen usw.);
    am Dialog-Element selbst nochmals, weil Thunderbird es dort neu setzt */
 :root,
-dialog {
+dialog,
+wizard {
   /* Felder nutzen dieselbe Variable: 7 px; Knöpfe werden unten eigens zur Kapsel */
   --button-border-radius: 7px !important;
   --button-border-color: transparent !important;
@@ -3571,9 +4448,40 @@ dialog {
 }
 /* Dialog-Knöpfe liegen im Schatten-DOM: extension/parts.css */
 
-/* Eingabefelder und Auswahllisten in Dialogen */
-dialog :is(input:not([type="checkbox"], [type="radio"], [type="color"], [type="range"]), textarea),
-dialog search-textbox {
+/* Konto-Assistenten (Feed, Newsgruppen, Chat, <wizard> ohne <dialog>): Knöpfe
+   flach wie in den Dialogen statt Toolkit-Grau mit Rahmen – dunkel war
+   „Cancel“ weiß auf #8F8F9D kaum lesbar. Sie liegen im Schatten-DOM des
+   wizard ohne ::part; das User-Sheet erreicht sie trotzdem, aber nur ohne
+   Vorfahren-Selektor (der Schatten-DOM unterbricht die Kette) */
+button.wizard-button {
+  appearance: none !important;
+  border: none !important;
+  box-shadow: none !important;
+  background-color: var(--mt-control) !important;
+  color: var(--mt-text) !important;
+  font-size: 13px !important;
+  min-height: 28px !important;
+  padding-inline: 16px !important;
+}
+
+button.wizard-button:not([disabled]):hover {
+  background-color: var(--mt-control-hover) !important;
+}
+
+button.wizard-button[default]:not([disabled]) {
+  background-color: var(--mt-accent) !important;
+  color: var(--mt-accent-text) !important;
+}
+
+button.wizard-button[disabled] {
+  opacity: 0.45 !important;
+}
+
+/* Eingabefelder und Auswahllisten in Dialogen und Assistenten. Der Account
+   Hub (dialog.account-hub-dialog) bleibt außen vor: seine Felder tragen die
+   Beschriftung schwebend in der Rahmenkerbe und brauchen ihre eigene Höhe */
+:is(dialog:not(.account-hub-dialog), wizard) :is(input:not([type="checkbox"], [type="radio"], [type="color"], [type="range"], [type="file"]), textarea),
+:is(dialog:not(.account-hub-dialog), wizard) search-textbox {
   /* 28 px samt Innenabstand und Rand – so hoch wie Auswahllisten daneben;
      content-box, weil .narrow-Felder (4em, z. B. Tabelle einfügen) sonst
      zu schmal würden */
@@ -3586,7 +4494,17 @@ dialog search-textbox {
   box-shadow: none !important;
 }
 
-dialog :is(input, textarea):focus {
+/* Unterdialoge im Tab (Neue Verteilerliste, Neues Adressbuch, Kontaktbild,
+   Einstellungen): neutrale Fläche statt Thunderbirds Blaugrau im Dunkelmodus */
+.dialogBox,
+:root[subdialog],
+:root[subdialog] > body,
+:root[subdialog] dialog,
+#photoDialog {
+  background-color: var(--mt-sheet) !important;
+}
+
+:is(dialog:not(.account-hub-dialog), wizard) :is(input, textarea):focus {
   outline: none !important;
   border-color: var(--mt-accent) !important;
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--mt-accent) 22%, transparent) !important;
@@ -3602,7 +4520,7 @@ dialog menulist {
 
 /* Listen in Dialogen (z. B. Vorschläge der Rechtschreibprüfung): ohne
    appearance zeichnet macOS sonst seinen harten, eckigen Rahmen */
-dialog richlistbox {
+:is(dialog, wizard) richlistbox {
   appearance: none !important;
   border: var(--mt-hairline) solid var(--mt-pane-line) !important;
   border-radius: 8px !important;
@@ -3610,21 +4528,94 @@ dialog richlistbox {
   padding: 4px !important;
 }
 
+/* Filterliste, Nachrichten suchen (<window>, nicht <dialog>) und OpenPGP-
+   Schlüssel: Listen ebenso mit Haarlinie statt hartem Rahmen; ohne
+   appearance zeichnet macOS die Filterliste sonst eckig. Kein overflow:
+   clip – richlistbox und tree scrollen selbst */
+:root:is([windowtype="mailnews:filterlist"], [windowtype="mailnews:search"]) richlistbox,
+#pgpKeyList {
+  appearance: none !important;
+  border: var(--mt-hairline) solid var(--mt-pane-line) !important;
+  border-radius: 8px !important;
+}
+
+/* +/− der Bedingungs- und Aktionszeilen mittig zu Auswahllisten und Feld
+   (im Suchordner-Dialog saßen sie 2 px zu hoch) */
+:is(#searchTermList, #filterActionList) > richlistitem .small-button {
+  align-self: center !important;
+}
+
+/* … und mit 4 px Lücke zwischen + und − statt aneinanderzustoßen */
+:is(#searchTermList, #filterActionList) > richlistitem .small-button + .small-button {
+  margin-inline-start: 4px !important;
+}
+
+/* Filter-Editor: „Apply filter when:“ bündig mit „Filter name:“ und „Perform
+   these actions:“ und in deren Größe (halbfett als Überschrift) statt größer,
+   fett und eingerückt; die Kästchen darunter behalten ihren Einzug */
+#applyFiltersSettings {
+  margin-inline: 0 !important;
+  padding-inline: 4px 8px !important;
+  border: none !important;
+}
+
+#applyFiltersSettings > legend {
+  margin-inline: 0 !important;
+  padding-inline: 0 !important;
+  font-size: inherit !important;
+  font-weight: 600 !important;
+}
+
+#applyFiltersSettings > :not(legend) {
+  margin-inline-start: 10px !important;
+}
+
+/* Auswahllisten in Bedingungs- und Aktionszeilen: themeableDialog.css legt
+   dort einen Verlauf in Knopffarbe über die Fläche – das halbtransparente
+   Grau lag doppelt (dunkler als die übrigen Listen), im Suchfenster über
+   der Fensterfarbe. Wie die übrigen Auswahllisten nur --mt-control */
+richlistbox:is(#searchTermList, #filterActionList) > richlistitem menulist {
+  background-color: var(--mt-control) !important;
+  background-image: none !important;
+}
+
+richlistbox:is(#searchTermList, #filterActionList) > richlistitem menulist:not([disabled]):is(:hover, [open="true"]) {
+  background-color: var(--mt-control-hover) !important;
+  background-image: none !important;
+}
+
 /* Auswahl abgerundet in Akzentfarbe (unfokussiert grau) – nur in reinen
    Textlisten: die Zeilen im Filter- und Suchdialog enthalten Menülisten
    und Felder (searchDialog.css setzt dort bewusst color: inherit) */
-dialog richlistbox:not(:where(#searchTermList, #filterActionList)) > richlistitem {
+:is(dialog, wizard) richlistbox:not(:where(#searchTermList, #filterActionList)) > richlistitem {
   border-radius: 6px !important;
 }
 
-dialog richlistbox:not(:where(#searchTermList, #filterActionList)) > richlistitem[selected] {
+/* Chat-Assistent: Netzliste mit Luft wie in Apples Listen */
+wizard richlistbox > richlistitem {
+  padding: 4px 6px !important;
+}
+
+:is(dialog, wizard) richlistbox:not(:where(#searchTermList, #filterActionList)) > richlistitem[selected] {
   background-color: var(--mt-selected-unfocused) !important;
   color: var(--mt-text) !important;
 }
 
-dialog richlistbox:not(:where(#searchTermList, #filterActionList)):focus > richlistitem[selected] {
+:is(dialog, wizard) richlistbox:not(:where(#searchTermList, #filterActionList)):focus > richlistitem[selected] {
   background-color: var(--mt-accent) !important;
   color: var(--mt-accent-text) !important;
+}
+
+/* Archiv-Optionen: Beispiel-Ordneransicht mit Haarlinie und 8 px wie die
+   Listen in Dialogen statt hartem grauem Rahmen aus accountManage.css */
+#archiveOptions fieldset > div {
+  border: var(--mt-hairline) solid var(--mt-pane-line) !important;
+  border-radius: 8px !important;
+}
+
+/* Postausgang-Server: „Default: 587“ mit Abstand zum Port-Feld statt „Default:587“ */
+#smtp\.port ~ label {
+  margin-inline-start: 6px !important;
 }
 
 /* Trennlinie über OK/Abbrechen (Link-, Tabellen-, Bild-Dialog …) als
@@ -3634,6 +4625,25 @@ dialog separator.groove:not([orient="vertical"]) {
   height: var(--mt-hairline) !important;
   min-height: 0 !important;
   background: var(--mt-pane-line) !important;
+}
+
+/* Offline-Einstellungen: die waagerechten Optionsgruppen brachen im schmalen
+   Dialog jede Beschriftung dreizeilig um – untereinander wie bei Apple.
+   Raster statt flex-direction: xul.css erzwingt für orient="horizontal"
+   flex-direction: row mit !important (Agent-Stilblatt, nicht überschreibbar) */
+#OfflineSettingsDialog radiogroup[orient="horizontal"] {
+  display: grid !important;
+  justify-items: start !important;
+  row-gap: 0 !important;
+}
+
+/* Kryptographie-Module: die linke Liste kürzte alle Namen mit „…“, während
+   die Detailtabelle daneben breit und leer war – mehr Platz für die Namen,
+   mit Abstand zur Detailliste, damit sich Rahmen und Fokusring nicht berühren */
+#device_tree {
+  flex: 2 !important;
+  min-width: 260px !important;
+  margin-inline-end: 8px !important;
 }
 
 /* Rückfragen dunkel ohne violettgrauen Farbstich (Firefox-Inhaltsfarbe) –
@@ -3685,14 +4695,14 @@ dialog separator.groove:not([orient="vertical"]) {
   background-color: color-mix(in srgb, var(--mt-accent) 40%, var(--mt-window)) !important;
 }
 
-#calendar-event-dialog-inner {
+:is(#calendar-event-dialog-inner, #calendar-task-dialog-inner) {
   background: var(--mt-window) !important;
 }
 
 /* Felder einheitlich wie im übrigen Design: graue Flächen ohne Rahmen,
    alle gleich hoch (32 px), blauer Fokusring */
-#calendar-event-dialog-inner :is(input:not([type="checkbox"], [type="radio"]), textarea),
-#calendar-event-dialog-inner menulist {
+:is(#calendar-event-dialog-inner, #calendar-task-dialog-inner) :is(input:not([type="checkbox"], [type="radio"]), textarea),
+:is(#calendar-event-dialog-inner, #calendar-task-dialog-inner) menulist {
   box-sizing: border-box !important;
   max-width: 100% !important;
   min-height: 32px !important;
@@ -3704,15 +4714,34 @@ dialog separator.groove:not([orient="vertical"]) {
   appearance: none !important;
 }
 
-#calendar-event-dialog-inner :is(input, textarea):focus,
-#calendar-event-dialog-inner menulist[editable]:focus-within {
+:is(#calendar-event-dialog-inner, #calendar-task-dialog-inner) :is(input, textarea):focus,
+:is(#calendar-event-dialog-inner, #calendar-task-dialog-inner) menulist[editable]:focus-within {
   outline: none !important;
   background-color: var(--mt-window) !important;
   box-shadow: 0 0 0 2px var(--mt-accent) !important;
 }
 
-#calendar-event-dialog-inner input:not([type="checkbox"], [type="radio"]) {
+:is(#calendar-event-dialog-inner, #calendar-task-dialog-inner) input:not([type="checkbox"], [type="radio"]) {
   height: 32px !important;
+}
+
+/* Zahlenfeld („% complete“ im Aufgaben-Fenster) ohne Pfeile – appearance:
+   none oben zeigte sonst Gecko-Pfeile bzw. dunkel ein graues Kästchen */
+:is(#calendar-event-dialog-inner, #calendar-task-dialog-inner) input[type="number"] {
+  appearance: textfield !important;
+}
+
+/* Beschreibung schrumpft mit dem Fenster, statt unten abgeschnitten zu werden
+   (32-px-Felder machen das Raster höher, im Aufgaben-Fenster kommt „Status“
+   dazu; das Editorfeld hätte wie ein iframe sonst 150 px Mindesthöhe) */
+:is(#calendar-event-dialog-inner, #calendar-task-dialog-inner) :is(#event-grid-tab-vbox, #event-grid-tab-box-row, #event-grid-tabbox, #event-grid-tabpanels, #event-grid-tabpanel-description) {
+  min-height: 0 !important;
+}
+
+:is(#calendar-event-dialog-inner, #calendar-task-dialog-inner) #item-description {
+  min-height: 48px !important;
+  height: 0 !important;
+  flex: 1 1 0 !important;
 }
 
 /* Datum/Uhrzeit: das Eingabefeld liegt im Schatten-DOM der Liste – dort
@@ -3725,12 +4754,12 @@ dialog separator.groove:not([orient="vertical"]) {
 }
 
 /* Datum/Uhrzeit: ein Feld, Pfeil ohne eigenen Kasten und ohne Trennstrich */
-#calendar-event-dialog-inner menulist[editable] {
+:is(#calendar-event-dialog-inner, #calendar-task-dialog-inner) menulist[editable] {
   padding-inline: 0 !important;
   overflow: hidden !important;
 }
 
-#calendar-event-dialog-inner menulist[editable] input {
+:is(#calendar-event-dialog-inner, #calendar-task-dialog-inner) menulist[editable] input {
   min-height: 32px !important;
   padding-inline: 10px 4px !important;
   border: none !important;
@@ -3739,7 +4768,7 @@ dialog separator.groove:not([orient="vertical"]) {
 }
 
 /* (Teil im Schatten-DOM: extension/parts.css) */
-#calendar-event-dialog-inner menulist[editable] :is(dropmarker, .menulist-dropmarker) {
+:is(#calendar-event-dialog-inner, #calendar-task-dialog-inner) menulist[editable] :is(dropmarker, .menulist-dropmarker) {
   border: none !important;
   border-inline-start: none !important;
   background: transparent !important;
@@ -3769,8 +4798,13 @@ dialog separator.groove:not([orient="vertical"]) {
   content: "" !important;
   width: 16px !important;
   height: 16px !important;
-  background-color: currentColor !important;
-  mask: url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22%23000%22 stroke-width=%221.8%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22%3E%3Cpath d=%22M10 14a4.5 4.5 0 0 0 6.4 0l3-3a4.5 4.5 0 0 0-6.4-6.4l-1 1%22/%3E%3Cpath d=%22M14 10a4.5 4.5 0 0 0-6.4 0l-3 3a4.5 4.5 0 0 0 6.4 6.4l1-1%22/%3E%3C/svg%3E") center / contain no-repeat !important;
+  /* Kettensymbol aus chrome:// – die CSP des Termin-/Aufgaben-Fensters
+     sperrt data:-Bilder, die frühere Maske blieb dort unsichtbar.
+     link.svg nutzt context-fill, daher Hintergrundbild statt Maske */
+  mask: none !important;
+  background: url("chrome://global/skin/icons/link.svg") center / 14px no-repeat !important;
+  -moz-context-properties: fill !important;
+  fill: currentColor !important;
 }
 
 #keepduration-button[keep="true"] {
@@ -3784,10 +4818,23 @@ dialog separator.groove:not([orient="vertical"]) {
 /* Klammer um Beginn/Ende (Linie oben, Abstand) weg – nur die Kette bleibt,
    mittig zwischen den beiden Zeilen */
 vbox:has(> #keepduration-button) {
-  justify-content: center !important;
+  justify-content: flex-end !important;
+}
+
+/* die vbox füllt nur die Beginn-Zeile: Kette an ihr unteres Ende und um die
+   halbe eigene Höhe tiefer – so sitzt sie auf der Grenze der beiden Zeilen
+   (Thunderbirds margin-bottom: -15px schob sie sonst darüber hinaus) */
+#keepduration-button {
+  margin-block: 0 !important;
+  translate: 0 50% !important;
 }
 
 vbox:has(> #keepduration-button) > :not(#keepduration-button) {
+  display: none !important;
+}
+
+/* untere Klammerhälfte („↵“ neben Ende/Fällig) sitzt in einer eigenen vbox */
+.keepduration-link-image {
   display: none !important;
 }
 
@@ -3821,21 +4868,27 @@ timepicker-grids .time-picker-more-control-label {
 /* Schrift wie im übrigen Design (Thunderbird: 11 px, die Beschreibung
    darunter 15 px) und Abstand zwischen Beschriftung und Feld (Thunderbird:
    kein Innenabstand – „Reminder“ stieß fast ans Feld) */
-:is(#calendar-event-window, #calendar-event-dialog-inner) {
+:is(#calendar-event-window, #calendar-event-dialog-inner, #calendar-task-dialog-inner) {
   font-size: 13px !important;
 }
 
-#calendar-event-dialog-inner #event-grid th {
+:is(#calendar-event-dialog-inner, #calendar-task-dialog-inner) #event-grid th {
   padding-inline-end: 10px !important;
 }
 
 /* Trennlinien zwischen den Abschnitten fein und eingerückt */
-#calendar-event-dialog-inner separator.groove {
+:is(#calendar-event-dialog-inner, #calendar-task-dialog-inner) separator.groove {
   border: none !important;
   height: 1px !important;
   background: var(--mt-pane-line) !important;
   margin-block: 6px !important;
   opacity: 0.7 !important;
+}
+
+/* Trennlinien im Raster (tr.separator): Thunderbird zeichnet sie 1 px in der
+   Feldrahmenfarbe – deutlich härter als die Haarlinie unter der Toolbar */
+:is(#calendar-event-dialog-inner, #calendar-task-dialog-inner) #event-grid .separator td {
+  border-block-end: var(--mt-hairline) solid var(--mt-pane-line) !important;
 }
 
 /* Statuszeile unten („Time as: Busy“) dezent */
@@ -3845,6 +4898,24 @@ timepicker-grids .time-picker-more-control-label {
   color: var(--mt-text-tertiary) !important;
   font-size: 11px !important;
   padding: 3px 12px !important;
+}
+
+/* Beschriftung und Wert getrennt („Time as: Busy“ statt „Time as:Busy“) –
+   die Statusleiste des Hauptfensters setzt die Außenabstände der Labels auf 0 */
+#calendar-event-window #status-bar .statusbarpanel > label + label {
+  margin-inline-start: 4px !important;
+}
+
+/* ohne den hellen Prägeschatten von macOS – dunkel wirkte die Schrift verschwommen */
+#calendar-event-window #status-bar :is(label, description) {
+  text-shadow: none !important;
+}
+
+/* Kategorien: Farbpunkte mit feinem Ring – helle (hell) bzw. dunkle (dunkel)
+   Kategoriefarben verschwanden sonst in der Menüfläche; weiche Übergänge
+   statt harter Stopps, sonst wirkt der Punkt eckig */
+#item-categories > menupopup > menuitem .menu-text {
+  background-image: radial-gradient(circle 5.5px at 5px 50%, var(--item-color) 3.6px, color-mix(in srgb, var(--mt-text) 30%, transparent) 4.3px 4.6px, transparent 5.2px) !important;
 }
 
 /* Reiter Beschreibung/Anhänge/Teilnehmer als Segment-Kapseln */
@@ -3921,9 +4992,52 @@ dialog tabpanels:not(#event-grid-tabpanels) {
   border: none !important;
 }
 
+/* color-scheme: das eingebettete Editor-Dokument folgt dem Schema des
+   Dialogs (dunkel sonst schwarze Schrift auf dunklem Feld, siehe
+   event-description.css) */
 #item-description {
   border: var(--mt-hairline) solid var(--mt-pane-line) !important;
   border-radius: 8px !important;
+  color-scheme: light dark !important;
+}
+
+/* Rückfrage wiederholter Termin („Nur diesen / alle …“): Titelkasten als
+   ruhige graue Fläche statt eckigem Feldrahmen; ohne Thunderbirds alte
+   Kalendersymbole neben den Kapselknöpfen; Text mittig, da ohne Symbol */
+#occurrence-prompt-header {
+  border: none !important;
+  border-radius: 10px !important;
+  background: var(--mt-control) !important;
+  color: var(--mt-text) !important;
+}
+
+#accept-buttons-box > .occurrence-accept-buttons {
+  list-style-image: none !important;
+  text-align: center !important;
+}
+
+#accept-buttons-box > .occurrence-accept-buttons .button-icon {
+  display: none !important;
+}
+
+/* Text mittig: pack="start" am Knopf setzt justify-content: start über das
+   Grundstilblatt (nicht überschreibbar), daher automatische Ränder am Text */
+#accept-buttons-box > .occurrence-accept-buttons > .button-box > .button-text {
+  margin-inline: auto !important;
+}
+
+/* Erinnerungen anpassen: Liste ohne native Rahmenzeichnung (harter dunkler
+   bzw. heller Rand), Trenner neben den Überschriften als Haarlinie */
+#calendar-event-dialog-reminder #reminder-listbox {
+  appearance: none !important;
+  border: var(--mt-hairline) solid var(--mt-pane-line) !important;
+  border-radius: 8px !important;
+  background-color: var(--mt-window) !important;
+}
+
+#calendar-event-dialog-reminder separator.groove {
+  border: none !important;
+  border-top: var(--mt-hairline) solid var(--mt-separator) !important;
 }
 
 #status-bar.statusbar {
@@ -4014,7 +5128,8 @@ dialog {
   --button-border-radius: 999px !important;
 }
 
-dialog :is(input, textarea, menulist, select, richlistbox) {
+/* Account Hub behält seine eigenen Feldradien */
+dialog:not(.account-hub-dialog) :is(input, textarea, menulist, select, richlistbox) {
   --button-border-radius: 7px !important;
 }
 
@@ -4025,6 +5140,12 @@ dialog:is([open], :modal) {
 }
 
 /* Abschnittstitel in Menüs (z. B. Darstellungsmenü im Adressbuch) */
+/* Adressbuch-Tabelle zeigt keine Sortierung: Titel „Sort“ und die eigene
+   Linie vor „View“ weg – Thunderbirds erste Linie trennt dann schon */
+body.layout-table ~ #sortContext > :is(menucaption[mc-section="sort"], menuseparator.mc-caption-sep) {
+  display: none !important;
+}
+
 menucaption.mc-caption,
 menupopup menucaption {
   padding: 6px 12px 2px !important;
@@ -4224,7 +5345,7 @@ menupopup menucaption {
 }
 
 /* feine Linie an der rechten Kante der Kontaktliste, wie über der Mailliste */
-:root[mc-tab="addressBookTab"] #unifiedToolbarContainer::before {
+:root[mc-tab="addressBookTab"]:not([mc-ab-table]) #unifiedToolbarContainer::before {
   content: "" !important;
   position: absolute !important;
   inset-inline-start: var(--mc-ab-list-right, -10px) !important;
@@ -4375,11 +5496,12 @@ menupopup menucaption {
 #chat-toolbar > #chat-status-selector {
   order: 4 !important;
   border-radius: 999px !important;
-  padding-inline: 4px 14px !important;
+  /* Polsterung für den flachen 10-px-Punkt: links und rechts ca. 14 px wie bei „Add Contact“ */
+  padding-inline: 9px 6px !important;
   color: var(--mt-text) !important;
 }
 
-#chat-toolbar > :is(#button-add-buddy, #button-join-chat, #button-chat-accounts):hover {
+#chat-toolbar > :is(#button-add-buddy, #button-join-chat, #button-chat-accounts):not([disabled]):hover {
   background-color: var(--mt-control-hover) !important;
 }
 
@@ -4387,6 +5509,8 @@ menupopup menucaption {
   flex: none !important;
   width: max-content !important;
   max-width: max-content !important;
+  /* Statustext so groß wie „Add Contact“ und die Suche daneben */
+  font-size: 13px !important;
 }
 
 #chat-status-selector :is(button, toolbarbutton, img, .statusImageStack, #statusTypeIcon) {
@@ -4412,6 +5536,56 @@ menupopup menucaption {
 #chat-status-selector > vbox > * {
   min-width: 0 !important;
   width: auto !important;
+}
+
+/* langer Statustext (z. B. Thunderbirds Leerlauf-Text) endet mit „…“ statt
+   unter das Suchfeld zu laufen; den vollen Text zeigt Thunderbirds Tooltip */
+#chat-status-selector > vbox {
+  max-width: 160px !important;
+  overflow: hidden !important;
+}
+
+#chat-status-selector :is(#statusMessageLabel, #statusMessageInput) {
+  font-size: inherit !important;
+}
+
+#chat-status-selector #statusMessageLabel {
+  min-width: 0 !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
+}
+
+/* Statuspunkt flach wie in Nachrichten statt Thunderbirds glänzender Kugel:
+   grün verfügbar, orange abwesend, grau offline */
+#chat-status-selector > #statusTypeIcon {
+  padding: 0 !important;
+  justify-content: center !important;
+  align-items: center !important;
+}
+
+#chat-status-selector > #statusTypeIcon > .toolbarbutton-icon {
+  list-style-image: none !important;
+  width: 10px !important;
+  height: 10px !important;
+  min-width: 0 !important;
+  margin: 0 !important;
+  border-radius: 50% !important;
+  background-color: var(--mt-status-online) !important;
+}
+
+#chat-status-selector > #statusTypeIcon:is([status="unavailable"], [status="away"], [status="idle"]) > .toolbarbutton-icon {
+  background-color: var(--mt-status-away) !important;
+}
+
+#chat-status-selector > #statusTypeIcon:is([status="offline"], [status="invisible"]) > .toolbarbutton-icon {
+  background-color: var(--mt-text-tertiary) !important;
+}
+
+/* ohne Konto: Statustext gedimmt wie die Beschriftung der übrigen
+   deaktivierten Chat-Knöpfe (Thunderbird dimmt nur den Punkt) */
+#chat-status-selector:has(> #statusTypeIcon[disabled]) #statusMessageLabel {
+  opacity: 0.4 !important;
 }
 
 /* ---------- App-Menü wie die übrigen Menüs (macOS 27) ----------
@@ -5538,8 +6712,9 @@ notification-message toolbarbutton.notification-button > .toolbarbutton-menubutt
   font-weight: 500 !important;
 }
 
+/* gewähltes Segment heller als die Spur – auch dunkel, wie bei macOS */
 #mcQuickPanel .mc-qc-seg > button[selected] {
-  background: var(--mt-window) !important;
+  background: var(--mt-segment-selected) !important;
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.12) !important;
 }
 
@@ -5608,14 +6783,18 @@ notification-message toolbarbutton.notification-button > .toolbarbutton-menubutt
   color: var(--mt-text-tertiary) !important;
 }
 
+/* Labelspalte richtet sich nach der Sprache (EN ca. 55 px statt fester 96 px) und gilt über
+   subgrid für alle Zeilen gemeinsam, damit die Felder bündig bleiben; die Felder dürfen
+   schrumpfen, damit die Uhrzeit samt Uhrsymbol nicht über die graue Karte ragt */
 #mcQuickPanel .mc-qc-details {
   display: none !important;
-  flex-direction: column !important;
-  gap: 8px !important;
+  grid-template-columns: max-content minmax(0, 1fr) !important;
+  row-gap: 8px !important;
+  column-gap: 12px !important;
 }
 
 #mcQuickPanel .mc-qc[data-expanded] .mc-qc-details {
-  display: flex !important;
+  display: grid !important;
 }
 
 #mcQuickPanel .mc-qc[data-expanded] .mc-qc-summary {
@@ -5624,24 +6803,29 @@ notification-message toolbarbutton.notification-button > .toolbarbutton-menubutt
 
 #mcQuickPanel .mc-qc-row {
   display: grid !important;
-  grid-template-columns: 96px 1fr !important;
+  grid-column: 1 / -1 !important;
+  grid-template-columns: subgrid !important;
   align-items: center !important;
   column-gap: 12px !important;
 }
 
 #mcQuickPanel .mc-qc-row > label {
   justify-self: end !important;
+  white-space: nowrap !important;
   color: var(--mt-text-secondary) !important;
 }
 
 #mcQuickPanel .mc-qc-ctrl {
   display: flex !important;
+  min-width: 0 !important;
   align-items: center !important;
   gap: 8px !important;
 }
 
 #mcQuickPanel .mc-qc-ctrl :is(input[type="date"], input[type="time"], select) {
   box-sizing: border-box !important;
+  min-width: 0 !important;
+  flex: 0 1 auto !important;
   height: 26px !important;
   padding: 0 6px !important;
   border: none !important;
@@ -5653,8 +6837,8 @@ notification-message toolbarbutton.notification-button > .toolbarbutton-menubutt
   font-variant-numeric: tabular-nums !important;
 }
 
-#mcQuickPanel .mc-qc-ctrl :is(input, select):hover,
-#mcQuickPanel .mc-qc-ctrl :is(input, select):focus {
+#mcQuickPanel .mc-qc-ctrl :is(input:not([type="checkbox"]), select):hover,
+#mcQuickPanel .mc-qc-ctrl :is(input:not([type="checkbox"]), select):focus {
   background: var(--mt-control) !important;
   outline: none !important;
 }
@@ -5733,8 +6917,12 @@ notification-message toolbarbutton.notification-button > .toolbarbutton-menubutt
   background: var(--mc-qc-color, var(--mt-accent)) !important;
 }
 
+/* Name 8 px hinter dem Farbpunkt (Lücke der Karte): ohne den eigenen
+   Innenabstand der Auswahl, den Pfeil zeichnet ::after */
 #mcQuickPanel .mc-qc-calsel {
   flex: 1 !important;
+  padding-inline: 0 !important;
+  margin-inline: 0 !important;
   height: 38px !important;
   border: none !important;
   background: transparent !important;
@@ -5803,16 +6991,16 @@ notification-message toolbarbutton.notification-button > .toolbarbutton-menubutt
   background: color-mix(in srgb, var(--mt-accent) 88%, black) !important;
 }
 
-/* Einstellungen unten links („Add-ons und Themes“): einzeilig wie die
-   Kategorien darüber, bei schmaler Leiste mit „…“ */
-#pref-category-box .sidebar-footer-label {
+/* Einstellungen und Kontoeinstellungen unten links („Add-ons und Themes“):
+   einzeilig wie die Kategorien darüber, bei schmaler Leiste mit „…“ */
+:is(#pref-category-box, #accountTreeBox) .sidebar-footer-label {
   white-space: nowrap !important;
   overflow: hidden !important;
   text-overflow: ellipsis !important;
   min-width: 0 !important;
 }
 
-#pref-category-box .sidebar-footer-link {
+:is(#pref-category-box, #accountTreeBox) .sidebar-footer-link {
   min-width: 0 !important;
   /* Thunderbirds 6px Außenabstand weg: bündig mit den Kategorien, Text passt */
   margin-inline: 0 !important;

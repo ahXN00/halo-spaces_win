@@ -16,6 +16,7 @@ import argparse
 import glob
 import json
 import os
+import re
 import shutil
 import socket
 import subprocess
@@ -179,6 +180,11 @@ def local_https(host):
 
         def do_POST(self):
             posts.append(self.rfile.read(int(self.headers.get("Content-Length") or 0)).decode())
+            if self.path == "/abmelden-umleitung":  # Abmeldung leitet auf eine Bestätigungsseite im lokalen Netz um
+                self.send_response(303)
+                self.send_header("Location", f"http://127.0.0.1:{device.server_port}/bestaetigt")
+                self.end_headers()
+                return
             self.send_response(200)
             self.end_headers()
 
@@ -544,6 +550,88 @@ def maillist_checks(m, results):
         return ok, f"{res}"
     check("Mailliste: Gruppenköpfe (Heute, Gestern …) ganz lesbar, halbfett, ohne Absenderbild", group_headers, results)
 
+    def group_headers_table():
+        # Tabelle gruppiert: Gruppenköpfe laufen über die leeren Nachbarzellen,
+        # die Zählung „(ungelesen/gesamt)“ bleibt sichtbar (früher „Gestern (1…“)
+        res = m.js(MAILLIST_JS + r"""
+          await showFolder(); await asTable();
+          const v = a3.gViewWrapper; v.sort(Ci.nsMsgViewSortType.byDate, Ci.nsMsgViewSortOrder.descending);
+          v.showGroupedBySort = true; await wait(1200);
+          const out = [];
+          try {
+            const heads = await until(() => { const h = tableRows().filter(r => props(r).includes("dummy")); return h.length >= 2 && h; }, 8000) || [];
+            const tree = ad.getElementById("threadTree").getBoundingClientRect();
+            for (const r of heads) {
+              const td = r.querySelector("td.subjectcol-column"), line = td.querySelector(".subject-line"), span = line.querySelector("span");
+              const rg = ad.createRange(); rg.selectNodeContents(span); const t = rg.getBoundingClientRect();
+              // jede Ebene zwischen Text und Zelle: entweder sichtbar überlaufend oder breit genug
+              const clip = []; for (let e = span; e && e != r; e = e.parentElement) {
+                const c = cs(e); if ((c.overflowX != "visible" || c.textOverflow == "ellipsis") && e.getBoundingClientRect().right < t.right - 1) clip.push(e.className || e.localName); }
+              // Nachbarzellen unter dem überlaufenden Text: ohne eigene Fläche, die ihn verdecken könnte
+              const cover = [...r.children].filter(c => c != td && !c.hidden && rgba(cs(c).backgroundColor)[3] > 0)
+                .filter(c => { const b = c.getBoundingClientRect(); return b.right > t.left && b.left < t.right; }).map(c => c.className);
+              out.push({ text: span.textContent, clip, cover, right: Math.round(t.right), treeRight: Math.round(tree.right), weight: cs(line).fontWeight });
+            }
+          } finally { v.showGroupedBySort = false; v.showThreaded = true; await wait(800); }
+          return out;""")
+        # Zählung „(n)“ bzw. „(ungelesen/gesamt)“; mindestens ein Kopf mit Ungelesenem
+        ok = (len(res) >= 2 and any("/" in h["text"] for h in res)
+              and all(not h["clip"] and not h["cover"] and h["right"] <= h["treeRight"] and re.search(r"\(\d+(/\d+)?\)$", h["text"])
+                      and int(h["weight"]) >= 600 for h in res))
+        return ok, f"{res}"
+    check("Mailliste: Gruppenköpfe der Tabelle ganz lesbar samt Zählung, halbfett", group_headers_table, results)
+
+    def card_alignment():
+        # Betreff bündig mit Absender und Vorschau (früher 3 px eingerückt durch
+        # Thunderbirds column-gap); Konversation: Abstand zum Thread-Knopf;
+        # mit Stern: Abstand zwischen Betreff und Symbolen – je Dichte
+        res = m.js(MAILLIST_JS + r"""
+          await showFolder(); await asCards(); a3.gViewWrapper.showThreaded = true; await wait(600); cmd("cmd_collapseAllThreads"); await wait(800);
+          const hdr = list.msgDatabase.getMsgHdrForMessageID("halo-ml-4@example.invalid"); list.markMessagesFlagged([hdr], true); await wait(600);
+          const L = (r, sel) => r.querySelector(sel).getBoundingClientRect();
+          const out = {};
+          try {
+            for (const density of [0, 1, 2]) {
+              Services.prefs.setIntPref("mail.uidensity", density); await wait(1200);
+              const single = await until(() => cards().find(r => !r.classList.contains("children") && !props(r).includes("dummy")
+                                                          && subjectOf(r).includes("Halo Ungelesen") && r.querySelector(".mc-preview")?.textContent), 6000);
+              const conv = cards().find(r => r.classList.contains("children") && r.classList.contains("collapsed") && subjectOf(r).includes("Halo Faden"));
+              const star = cards().find(r => subjectOf(r).includes("Halo Schlagwort Work"));
+              if (!single || !conv || !star) { out[density] = { fehlt: [!!single, !!conv, !!star] }; continue; }
+              // Anfang des Textes (nicht der Kästen – Absender und Vorschau haben Innenabstand)
+              const T = (r, sel) => { const g = ad.createRange(); g.selectNodeContents(r.querySelector(sel)); return g.getBoundingClientRect(); };
+              const sn = T(single, ".sender").left;
+              const sub = L(star, ".subject"), icons = L(star, ".thread-card-icon-info");
+              out[density] = { subject: Math.round(T(single, ".subject").left - sn), preview: Math.round(T(single, ".mc-preview").left - sn),
+                               twisty: Math.round(L(conv, ".thread-card-subject-container").left - L(conv, "button.twisty").right),
+                               icons: icons.width > 0 ? Math.round(icons.left - sub.right) : null };
+            }
+          } finally {
+            Services.prefs.clearUserPref("mail.uidensity"); list.markMessagesFlagged([hdr], false); await wait(1000);
+          }
+          // gruppiert nach Sortierung: Karten unter einem Gruppenkopf (thread-children)
+          // verlieren sonst Thunderbirds Einzug des Absenders – Betreff/Vorschau 3 px rechts davon
+          const v = a3.gViewWrapper; v.sort(Ci.nsMsgViewSortType.byDate, Ci.nsMsgViewSortOrder.descending);
+          v.showGroupedBySort = true; await wait(1200); cmd("cmd_expandAllThreads"); await wait(1200);
+          try {
+            const g = await until(() => cards().find(r => !props(r).includes("dummy") && props(r).includes("thread-children")
+                                                      && r.querySelector(".mc-preview")?.textContent), 8000);
+            if (!g) out.gruppiert = { fehlt: true };
+            else {
+              const T = sel => { const rg = ad.createRange(); rg.selectNodeContents(g.querySelector(sel)); return rg.getBoundingClientRect().left; };
+              const sn = T(".sender");
+              out.gruppiert = { subject: +(T(".subject") - sn).toFixed(2), preview: +(T(".mc-preview") - sn).toFixed(2) };
+            }
+          } finally { v.showGroupedBySort = false; v.showThreaded = true; await wait(800); cmd("cmd_collapseAllThreads"); await wait(800); }
+          return out;""")
+        grp = res.get("gruppiert", {})
+        dens = [v for k, v in res.items() if k != "gruppiert"]
+        ok = (len(dens) == 3 and all("fehlt" not in v and abs(v["subject"]) <= 1 and abs(v["preview"]) <= 1 and v["twisty"] >= 2
+                                     and v["icons"] is not None and v["icons"] >= 2 for v in dens)
+              and "fehlt" not in grp and abs(grp.get("subject", 9)) <= 0.5 and abs(grp.get("preview", 9)) <= 0.5)
+        return ok, f"{res}"
+    check("Mailliste: Betreff der Karte bündig mit Absender und Vorschau (auch gruppiert), Abstand zu Thread-Knopf und Symbolen", card_alignment, results)
+
     def thread_sender():
         # zugeklappt: Name und Bild der neuesten Mail (Carla), aufgeklappt die Wurzel (Ben)
         res = m.js(MAILLIST_JS + r"""
@@ -732,6 +820,35 @@ def maillist_checks(m, results):
         ok = len(res.get("backgrounds", [])) == 1 and res.get("radius") == "6px"
         return ok, f"{res}"
     check("Mailliste: Konto-Startseite in einer ruhigen Fläche, Kacheln als Knöpfe", account_central, results)
+
+    def account_hub_fields():
+        # Account Hub: die Dialogfeld-Regel (28 px, Haarlinie, 7 px) gilt hier
+        # nicht – Felder behalten ihre Höhe, die Beschriftung sitzt in der
+        # Rahmenkerbe statt frei darüber (Gegenprobe 28 px: „Dialoge: Eingabefelder …“)
+        res = m.js(r"""
+          await toMail();
+          const hub = () => [...d.querySelectorAll("account-hub-container")].map(c => c.shadowRoot?.querySelector("dialog")).find(x => x?.open);
+          w.openAccountHub();
+          const dl = await until(hub, 8000);
+          if (!dl) return { open: false };
+          const root = dl.getRootNode();
+          const field = id => until(() => { const i = root.getElementById(id); return i?.getClientRects().length && i; }, 6000);
+          const out = { open: true, cls: dl.className };
+          for (const id of ["realName", "email"]) {
+            const i = await field(id); if (!i) { out[id] = null; continue; }
+            const lab = root.querySelector(`label[for="${id}"]`);
+            out[id] = { h: Math.round(i.getBoundingClientRect().height), top: i.getBoundingClientRect().top,
+                        labBottom: lab ? lab.getBoundingClientRect().bottom : null, pad: w.getComputedStyle(i).paddingTop };
+          }
+          dl.close(); await wait(500);
+          out.closed = !hub();
+          return out;""")
+        rn, em = res.get("realName"), res.get("email")
+        ok = (res.get("open") and res.get("closed") and rn and em
+              and rn["h"] >= 36 and em["h"] >= 36 and rn["labBottom"] is not None
+              and rn["labBottom"] >= rn["top"] - 2)
+        return ok, f"{res}"
+    check("Account Hub: Felder in eigener Höhe (≥ 36 px), Beschriftung „Full name“ in der Rahmenkerbe statt darüber", account_hub_fields, results)
 
     # aufräumen: Testmails endgültig löschen (sonst fänden spätere Prüfungen wie
     # die Suche sie mit), Gesendet-Merkmal wieder entfernen
@@ -997,7 +1114,7 @@ COMPOSE_CHECK_JS = r"""
     fields.to = o.to ?? "Anna Beispiel <anna@example.invalid>"; fields.subject = o.subject ?? "Halo Entwurf";
     if (o.cc) fields.cc = o.cc;
     fields.body = o.body ?? "<p>Hallo Anna,</p><p>das ist ein Testentwurf.</p>";
-    params.composeFields = fields; params.identity = acc.identities[0]; params.format = Ci.nsIMsgCompFormat.HTML;
+    params.composeFields = fields; params.identity = acc.identities[0]; params.format = o.plain ? Ci.nsIMsgCompFormat.PlainText : Ci.nsIMsgCompFormat.HTML;
     const before = new Set(Services.wm.getEnumerator("msgcompose"));
     MailServices.compose.OpenComposeWindowWithParams(null, params);
     const cw = await till(() => [...Services.wm.getEnumerator("msgcompose")].find(x => !before.has(x) && x.document.readyState == "complete" && x.gMsgCompose), 12000);
@@ -1215,15 +1332,22 @@ def compose_checks(m, results):
           const lw = await winUrl("FilterListDialog"); if (!lw) throw new Error("Filterliste nicht offen");
           await pause(1000);
           try {
-            out.filter = await dialog(() => lw.onNewFilter(), "FilterEditor", async (dw, dd) => ({
-              terms: csOf(dd.getElementById("searchTermList")).appearance, actions: csOf(dd.getElementById("filterActionList")).appearance }));
+            out.filter = await dialog(() => lw.onNewFilter(), "FilterEditor", async (dw, dd) => {
+              // „Apply filter when:“ bündig und gleich groß wie „Filter name:“, Kästchen eingerückt
+              const leg = dd.querySelector("#applyFiltersSettings > legend"), lab = dd.getElementById("filterName").previousElementSibling,
+                    cb = dd.getElementById("runManual");
+              return { terms: csOf(dd.getElementById("searchTermList")).appearance, actions: csOf(dd.getElementById("filterActionList")).appearance,
+                       legend: [leg.getBoundingClientRect().left, parseFloat(csOf(leg).fontSize), parseInt(csOf(leg).fontWeight)],
+                       label: [lab.getBoundingClientRect().left, parseFloat(csOf(lab).fontSize)], box: cb.getBoundingClientRect().left }; });
           } finally { await shut(lw); }
           return out;""")
         s, f = res["spell"], res["filter"]
         ok = (s["appearance"] == "none" and s["radius"] >= 6 and s["focus"] and same_color(s["focused"], s["accent"])
-              and not same_color(s["unfocused"], s["accent"]) and f["terms"] == "none" and f["actions"] == "none")
+              and not same_color(s["unfocused"], s["accent"]) and f["terms"] == "none" and f["actions"] == "none"
+              and abs(f["legend"][0] - f["label"][0]) <= 1 and abs(f["legend"][1] - f["label"][1]) < 0.5
+              and 500 <= f["legend"][2] <= 650 and f["box"] >= f["legend"][0] + 8)
         return ok, f"{res}"
-    check("Dialoge: Listen ohne harten Rahmen, Auswahl abgerundet in Akzentfarbe (Rechtschreibung), Filter-Editor ohne macOS-Rahmen", lists, results)
+    check("Dialoge: Listen ohne harten Rahmen, Auswahl abgerundet in Akzentfarbe (Rechtschreibung), Filter-Editor ohne macOS-Rahmen, „Apply filter when:“ bündig und gleich groß", lists, results)
 
     def tabs():
         res = m.js(COMPOSE_CHECK_JS + r"""
@@ -1257,6 +1381,57 @@ def compose_checks(m, results):
         ok = res.get("open") and res["border"] == 0 and res["radius"] >= 8 and rgba_alpha(res["bg"]) <= 0.15 and res["spring"][0] == "dashed" and res["spring"][1] >= 4
         return ok, f"{res}"
     check("Verfassen: Anpassen-Sheet mit ruhiger Palette ohne Rahmen, Platzhalter gestrichelt und gerundet", customize, results)
+
+    def compose_panels():
+        # Rand (und beim Anordnen-Panel die Fläche) neutral wie die Tooltips statt Thunderbirds bläulichem Panelgrau
+        res = m.js(COMPOSE_CHECK_JS + r"""
+          return await withCompose({}, async (cw, cd) => {
+            const val = (el, v) => { const x = csOf(el).getPropertyValue(v).trim(); return x ? colorOf(cd, x, "backgroundColor") : ""; };
+            const out = { border: colorOf(cd, "var(--mt-tooltip-border)", "backgroundColor"), bg: colorOf(cd, "var(--mt-tooltip-bg)", "backgroundColor") };
+            const look = p => p ? { border: val(p, "--panel-border-color"), bg: val(p, "--panel-background-color") } : null;
+            for (const id of ["reorderAttachmentsPanel", "customizeToolbarSheetPopup"]) out[id] = look(cd.getElementById(id));
+            // Adressvorschläge: die Empfängerfelder legen ein eigenes, namenloses Panel an (nicht #PopupAutoComplete) –
+            // in das An-Feld tippen und das tatsächlich offene Panel messen, samt berechnetem Rand der Inhaltsfläche
+            const inp = cd.querySelector(".address-row:not(.hidden) input.address-row-input, #toAddrInput");
+            inp.focus(); inp.value = "an"; inp.controller.handleText();
+            await till(() => inp.controller.matchCount > 0, 5000);
+            if (inp.popup.state != "open") inp.openPopup();
+            const ac = await till(() => [...cd.querySelectorAll('panel[type="autocomplete-richlistbox"]')].find(p => p.state == "open"), 4000);
+            out.autocomplete = look(ac);
+            if (ac) { out.autocomplete.id = ac.id; const c = ac.shadowRoot?.querySelector('[part~="content"]');
+              out.autocomplete.content = c ? csOf(c).borderTopColor : null; ac.hidePopup(); }
+            inp.value = ""; await pause(300);
+            return out; });""")
+        ids = ["reorderAttachmentsPanel", "autocomplete", "customizeToolbarSheetPopup"]
+        # Thunderbirds Panelrand #5e7799 / #91939f und Panelfläche #262d3b (Deckkraft egal)
+        rgb = lambda c: "rgb(" + ", ".join(__import__("re").findall(r"-?[\d.]+", c or "")[:3]) + ")"
+        bluish = lambda c: any(same_color(rgb(c), t, 4) for t in ["rgb(94, 119, 153)", "rgb(145, 147, 159)", "rgb(38, 45, 59)"])
+        ac = res.get("autocomplete") or {}
+        # Adressvorschläge: auch die Fläche unter der halbtransparenten Haarlinie neutral (sonst färbt sie den Rand bläulich)
+        ok = (ac.get("bg") and not bluish(ac["bg"]) and all(res.get(i) and same_color(res[i]["border"], res["border"]) and not bluish(res[i]["border"]) for i in ids)
+              and (ac.get("content") is None or (same_color(ac["content"], res["border"]) and not bluish(ac["content"])))
+              and same_color(res["reorderAttachmentsPanel"]["bg"], res["bg"]) and not bluish(res["reorderAttachmentsPanel"]["bg"]))
+        return ok, f"{res}"
+    check("Verfassen: Anhänge-anordnen-Panel neutral wie Tooltips, Adressvorschläge und Anpassen-Sheet mit Haarlinie statt bläulichem Rand", compose_panels, results)
+
+    def format_toolbox():
+        # Reintext: Thunderbird blendet nur die Formatleiste aus – die leere Box darf keine zweite Linie unter den Betreff legen;
+        # Farbfelder: dezenter Rand statt Thunderbirds rgba(255, 255, 255, 0.7), Ring in Fensterfarbe trennt Text- und Hintergrundfeld
+        res = m.js(COMPOSE_CHECK_JS + r"""
+          const html = await withCompose({}, async (cw, cd) => {
+            const box = cd.getElementById("FormatToolbox"), t = cd.getElementById("TextColorButton"), b = cd.getElementById("BackgroundColorButton");
+            return { line: parseFloat(csOf(box).borderBottomWidth), style: csOf(box).borderBottomStyle,
+                     shadow: csOf(t).boxShadow, window: colorOf(cd, "var(--mt-window)"), swatch: colorOf(cd, "var(--mt-swatch-border)"),
+                     borders: [csOf(t).borderTopColor, csOf(b).borderTopColor] }; });
+          const plain = await withCompose({ plain: true, body: "Hallo Anna,\n\ndas ist ein Testentwurf." }, async (cw, cd) => {
+            const box = cd.getElementById("FormatToolbox");
+            return { barHidden: cd.getElementById("FormatToolbar").hidden, line: parseFloat(csOf(box).borderBottomWidth), style: csOf(box).borderBottomStyle }; });
+          return { html, plain };""")
+        h, p = res["html"], res["plain"]
+        ok = (h["line"] > 0 and h["style"] != "none" and p["barHidden"] and (p["line"] == 0 or p["style"] == "none")
+              and h["window"] in h["shadow"] and all(same_color(c, h["swatch"]) and not same_color(c, "rgba(255, 255, 255, 0.7)") for c in h["borders"]))
+        return ok, f"{res}"
+    check("Verfassen: Formatleiste mit einer Haarlinie, im Reintext keine zweite Linie unter dem Betreff; Farbfelder mit dezentem Rand und Ring in Fensterfarbe", format_toolbox, results)
 
     def separator():
         res = m.js(COMPOSE_CHECK_JS + r"""
@@ -1346,6 +1521,240 @@ def compose_checks(m, results):
               and not tx["icons"] and tx["labels"] >= 3)
         return ok, f"{res}"
     check("Verfassen: schmales Fenster zeigt nur Symbole statt gekürzter Beschriftungen, Formatleiste bleibt im Fenster; breit wieder mit Beschriftung", narrow_toolbar, results)
+
+
+DIALOG_READING_JS = READING_JS + r"""
+  const { setTimeout: modT } = ChromeUtils.importESModule("resource://gre/modules/Timer.sys.mjs");
+  const nap = ms => new Promise(r => modT(r, ms));
+  const tillM = async (fn, ms = 8000) => { for (let t = 0; t < ms; t += 100) { const v = fn(); if (v) return v; await nap(100); } return fn(); };
+  const winOf = (part, ms = 10000) => tillM(() => [...Services.wm.getEnumerator(null)].find(x => x.location.href.includes(part) && x.document.readyState == "complete"), ms);
+  const colorIn = (doc, value, prop = "color") => { const e = doc.createElementNS("http://www.w3.org/1999/xhtml", "div"); e.style[prop] = value;
+    (doc.body || doc.documentElement).append(e); const c = doc.defaultView.getComputedStyle(e)[prop]; e.remove(); return c; };"""
+
+
+def dialog_checks(m, results):
+    """Seltene Dialoge: Ordnerwahl der Suchordner, Filterprotokoll, „Ordner komprimieren?“, Filterliste/Suche/OpenPGP,
+    Druckvorschau, Gespeicherte Dateien, „Öffnen von …“."""
+
+    def folder_picker():
+        # Suchordner → „Choose…“: Liste in der Inhaltsfläche mit Haarlinie (dunkel vorher tiefschwarz), Kästchen im macOS-Stil
+        # mit chrome://-Haken (die CSP sperrt data:); im Suchordner-Dialog +/− mittig zur Bedingungszeile
+        res = m.js(COMPOSE_CHECK_JS + r"""
+          const f = await testFolder(); tm.switchToTab(0); await pause(500); const a3 = tm.currentAbout3Pane; a3.displayFolder(f.URI); await pause(800);
+          return await dialog(() => a3.commandController.doCommand("cmd_newVirtualFolder"), "virtualFolderProperties", async (dw, dd) => {
+            const row = dd.querySelector("#searchTermList > richlistitem");
+            const btn = [...row.querySelectorAll(".small-button")].find(vis), ml = [...row.querySelectorAll("menulist")].find(vis);
+            const out = { mids: [mid(btn), mid(ml)] };
+            // die Ordnerwahl ist modal zum Dialog – über dessen Zeitgeber öffnen, sonst wartet dieses Skript, bis sie zu ist
+            dw.setTimeout(() => dd.getElementById("folderListPicker").click(), 0);
+            const lw = await winUrl("virtualFolderListEdit"); if (!lw) return { ...out, picker: false };
+            try {
+              await pause(1200); const ld = lw.document, t = ld.getElementById("folderPickerTree");
+              const cb = await till(() => t.querySelector('input[type="checkbox"]:checked'), 4000);
+              const s = csOf(t), c = cb && csOf(cb);
+              return { ...out, picker: true, bg: s.backgroundColor, window: colorOf(ld, "var(--mt-window)", "backgroundColor"), radius: s.borderTopLeftRadius,
+                       line: s.borderTopColor, paneLine: colorOf(ld, "var(--mt-pane-line)"), cb: c && [c.appearance, c.backgroundImage, c.backgroundColor], accent: colorOf(ld, "AccentColor") };
+            } finally { await shut(lw); } }); """)
+        ok = (res.get("picker") and same_color(res["bg"], res["window"]) and not same_color(res["bg"], "rgb(0, 0, 0)") and res["radius"] == "8px"
+              and same_color(res["line"], res["paneLine"]) and res["cb"] and res["cb"][0] == "none" and res["cb"][1].startswith('url("chrome://')
+              and same_color(res["cb"][2], res["accent"]) and None not in res["mids"] and abs(res["mids"][0] - res["mids"][1]) <= 1)
+        return ok, f"{res}"
+    check("Suchordner: Ordnerwahl in der Inhaltsfläche mit Haarlinie und 8 px, Kästchen im macOS-Stil mit Haken; +/− mittig zur Bedingungszeile", folder_picker, results)
+
+    def filter_windows():
+        # Filterliste, Filterprotokoll und Nachrichten suchen sind <window>: Listen und Felder trotzdem mit Haarlinie statt hartem Rahmen;
+        # Protokoll dunkel ohne weiße Fläche (Inhaltsprozess, noscroll.css)
+        res = m.js(COMPOSE_CHECK_JS + r"""
+          const look = el => { const s = csOf(el), dd = el.ownerDocument;
+            return { app: s.appearance, radius: s.borderTopLeftRadius, line: s.borderTopColor, paneLine: colorOf(dd, "var(--mt-pane-line)"), img: s.backgroundImage,
+                     h: Math.round(el.getBoundingClientRect().height) }; };
+          // Spaltenköpfe: ohne Thunderbirds Systemlinie (Schatten unten, Trenner links), Trenner als Haarlinie, erster Kopf ohne Trenner
+          const head = (dd, sel) => [...dd.querySelectorAll(sel + " > treecols > treecol")].filter(vis).slice(0, 3).map(c => { const s = csOf(c);
+            return { id: c.id, sh: s.boxShadow, bl: s.borderInlineStartWidth, blc: s.borderInlineStartColor }; });
+          // Spaltenwahl-Knopf rechts: Trenner links wie die übrigen Köpfe, kein Strich unten (inset-Schatten des Knopfs)
+          const pick = (dd, sel) => { const p = dd.querySelector(sel + " > treecols > treecolpicker"); if (!p) return null;
+            const s = csOf(p), b = csOf(p.querySelector(".tree-columnpicker-button") ?? p);
+            return { sh: s.boxShadow, bsh: b.boxShadow, blc: s.borderInlineStartColor, bb: s.borderBlockEndWidth }; };
+          const headOf = (dd, sel) => ({ cols: head(dd, sel), pick: pick(dd, sel), sep: colorOf(dd, "var(--mt-separator)"), bb: csOf(dd.querySelector(sel + " > treecols")).borderBottomColor });
+          const out = {};
+          const f = await testFolder(); w.MsgFilters(null, f);
+          const lw = await winUrl("FilterListDialog"); if (!lw) throw new Error("Filterliste nicht offen");
+          try {
+            await pause(1000); const ld = lw.document;
+            out.list = look(ld.getElementById("filterList")); out.search = look(ld.getElementById("searchBox"));
+            out.listHead = headOf(ld, "#filterList");
+            later(() => ld.getElementById("filterLogButton").click());
+            const vw = await winUrl("viewLog"); if (!vw) throw new Error("Filterprotokoll nicht offen");
+            try {
+              const lv = vw.document.getElementById("logView");
+              await till(() => lv.currentURI?.spec?.endsWith("filterlog.html"), 6000); await pause(1200);
+              out.log = look(lv);
+              const snap = await lv.browsingContext.currentWindowGlobal.drawSnapshot(new DOMRect(20, 20, 4, 4), 1, "rgb(255,0,255)");
+              const cv = vw.document.createElementNS("http://www.w3.org/1999/xhtml", "canvas"); cv.width = snap.width; cv.height = snap.height;
+              const cx = cv.getContext("2d"); cx.drawImage(snap, 0, 0); out.pixel = [...cx.getImageData(1, 1, 1, 1).data];
+            } finally { await shut(vw); }
+          } finally { await shut(lw); }
+          later(() => w.searchAllMessages());
+          const sw = await winUrl("SearchDialog"); if (!sw) throw new Error("Suchfenster nicht offen");
+          try { await pause(1000); const sd = sw.document;
+            out.terms = look(sd.getElementById("searchTermList")); out.field = look([...sd.querySelectorAll("#searchTermList input:not([type=checkbox])")].find(vis));
+            out.resHead = headOf(sd, "#threadTree");
+          } finally { await shut(sw); }
+          later(() => w.openKeyManager());
+          const kw = await winUrl("KeyManager"); if (!kw) throw new Error("OpenPGP-Schlüssel nicht offen");
+          try { await pause(1000); out.keys = look(kw.document.getElementById("pgpKeyList")); out.keyHead = headOf(kw.document, "#pgpKeyList"); } finally { await shut(kw); }
+          out.dark = dark; return out;""")
+        hair = lambda r, rad: r["radius"] == rad and same_color(r["line"], r["paneLine"])
+        px = res.get("pixel") or [255, 255, 255, 255]
+        log_ok = (sum(px[:3]) < 200) if res["dark"] else (min(px[:3]) >= 250)
+        ok = (res["list"]["app"] == "none" and hair(res["list"], "8px") and hair(res["search"], "7px") and res["search"]["img"] != "none"
+              and hair(res["log"], "8px") and log_ok and hair(res["terms"], "8px") and hair(res["field"], "7px") and res["field"]["h"] <= 30
+              and hair(res["keys"], "8px"))
+        def head_ok(h):
+            cols = h["cols"]
+            return (len(cols) >= 2 and same_color(h["bb"], h["sep"]) and all(c["sh"] == "none" for c in cols)
+                    and cols[0]["bl"] == "0px" and all(same_color(c["blc"], h["sep"]) for c in cols[1:])
+                    and (p := h["pick"]) is not None and p["sh"] == "none" and p["bsh"] == "none" and p["bb"] == "0px"
+                    and same_color(p["blc"], cols[1]["blc"]))
+        ok = ok and all(head_ok(res[k]) for k in ("listHead", "resHead", "keyHead"))
+        return ok, f"{res}"
+    check("Filterliste, Filterprotokoll, Suche, OpenPGP: Listen und Felder mit Haarlinie und Radius statt hartem Rahmen, Protokoll dunkel ohne weiße Fläche; Spaltenköpfe samt Spaltenwahl-Knopf mit Haarlinien statt Systemlinie", filter_windows, results)
+
+    def compact_icon():
+        # „Ordner komprimieren?“: Fragezeichen in der Akzentfarbe statt schwarz (dunkel unsichtbar); nie „Compact now“
+        res = m.js(COMPOSE_CHECK_JS + r"""
+          const bag = Cc["@mozilla.org/hash-property-bag;1"].createInstance(Ci.nsIWritablePropertyBag2); bag.setPropertyAsAString("compactSize", "120 MB");
+          w.openDialog("chrome://messenger/content/compactFoldersDialog.xhtml", "", "chrome,dialog,centerscreen", bag);
+          const cw = await winUrl("compactFoldersDialog"); if (!cw) throw new Error("Dialog nicht offen");
+          try { await pause(800); const cd = cw.document, img = cd.querySelector("#contentWrapper > img"), s = csOf(img), r = img.getBoundingClientRect();
+            // gezeichnet prüfen: fill wirkt nur mit -moz-context-properties (berechnet nicht abfragbar)
+            const cv = cd.createElementNS("http://www.w3.org/1999/xhtml", "canvas"); cv.width = Math.ceil(r.width); cv.height = Math.ceil(r.height);
+            const cx = cv.getContext("2d"); cx.drawWindow(cw, r.left, r.top, r.width, r.height, "rgb(128,128,128)");
+            const acc = rgba(colorOf(cd, "AccentColor")), px = cx.getImageData(0, 0, cv.width, cv.height).data; let hits = 0;
+            for (let i = 0; i < px.length; i += 4) if (Math.abs(px[i] - acc[0]) + Math.abs(px[i + 1] - acc[1]) + Math.abs(px[i + 2] - acc[2]) < 40) hits++;
+            return { fill: s.fill, accent: colorOf(cd, "AccentColor"), accentPixels: hits };
+          } finally { await shut(cw); }""")
+        ok = same_color(res["fill"], res["accent"]) and not same_color(res["fill"], "rgb(0, 0, 0)") and res["accentPixels"] >= 50
+        return ok, f"{res}"
+    check("„Ordner komprimieren?“: Fragezeichen in der Akzentfarbe statt schwarz", compact_icon, results)
+
+    def downloads():
+        # Gespeicherte Dateien (about:downloads) bekommt das Design: Kapsel-Knopf, Fläche in Fensterfarbe (dunkel nicht Navy)
+        res = m.js(COMPOSE_CHECK_JS + r"""
+          tm.switchToTab(0); await pause(300); await w.openSavedFilesWnd(); await pause(2000);
+          const t = tm.tabInfo.find(x => x.browser?.currentURI?.spec == "about:downloads"); if (!t) throw new Error("Tab fehlt");
+          try { const dd = t.browser.contentDocument; await till(() => dd.getElementById("clearDownloads") && dd.defaultView.__mcTheme, 5000); await pause(400);
+            const b = csOf(dd.getElementById("clearDownloads")), l = csOf(dd.getElementById("msgDownloadsRichListBox"));
+            return { theme: !!dd.defaultView.__mcTheme, radius: b.borderTopLeftRadius, bg: b.backgroundColor, control: colorOf(dd, "var(--mt-control)", "backgroundColor"),
+                     body: csOf(dd.body).backgroundColor, window: colorOf(dd, "var(--mt-window)", "backgroundColor"), list: [l.borderTopLeftRadius, l.borderTopColor],
+                     paneLine: colorOf(dd, "var(--mt-pane-line)") };
+          } finally { tm.closeTab(t); await pause(300); }""")
+        ok = (res["theme"] and res["radius"] == "999px" and same_color(res["bg"], res["control"]) and same_color(res["body"], res["window"])
+              and not same_color(res["body"], "rgb(26, 32, 44)") and res["list"][0] == "8px" and same_color(res["list"][1], res["paneLine"]))
+        return ok, f"{res}"
+    check("Gespeicherte Dateien: Design auch in about:downloads – Kapsel-Knopf, Fensterfarbe, Liste mit Haarlinie", downloads, results)
+
+    def import_export():
+        # Import und Export (about:import): Fläche in Fensterfarbe wie die übrigen Tabs, dunkel nicht Firefox-Blauschwarz #18181B
+        # (der leichte Schleier des body bleibt, damit sich hell die weiße Karte abhebt)
+        res = m.js(COMPOSE_CHECK_JS + r"""
+          tm.switchToTab(0); await pause(300); const out = {};
+          for (const [k, open] of [["imp", () => w.toImport()], ["exp", () => w.toExport()]]) {
+            open(); await pause(2000);
+            const t = tm.tabInfo.find(x => x.browser?.currentURI?.spec?.startsWith("about:import")); if (!t) throw new Error("Tab fehlt");
+            try { const dd = t.browser.contentDocument; await till(() => dd.getElementById("stepNav") && dd.defaultView.__mcTheme, 5000); await pause(400);
+              out[k] = { theme: !!dd.defaultView.__mcTheme, root: csOf(dd.documentElement).backgroundColor, body: csOf(dd.body).backgroundColor,
+                         color: csOf(dd.documentElement).color, hash: dd.location.hash,
+                         window: colorOf(dd, "var(--mt-window)", "backgroundColor"), text: colorOf(dd, "var(--mt-text)") };
+            } finally { tm.closeTab(t); await pause(300); }
+          }
+          return out;""")
+        def ok1(r):
+            return (r["theme"] and same_color(r["root"], r["window"]) and not same_color(r["root"], "rgb(24, 24, 27)")
+                    and same_color(r["color"], r["text"]))
+        return ok1(res["imp"]) and ok1(res["exp"]), f"{res}"
+    check("Import und Export: Fläche in Fensterfarbe wie die übrigen Tabs, dunkel kein Blauschwarz", import_export, results)
+
+    def print_preview():
+        # Druckvorschau einer Mail: Knopf „Print/Save“ in der Systemakzentfarbe statt Proton-Blau bzw. -Türkis, Panel neutral; nie drucken
+        res = m.js(DIALOG_READING_JS + r"""
+          await showMail("Halo Jetzt");
+          w.setTimeout(() => a3.commandController.doCommand("cmd_print"), 0);
+          const all = () => { const out = []; const walk = bc => { out.push(bc); bc.children.forEach(walk); }; walk(w.browsingContext); return out; };
+          const pd = await tillM(() => all().map(bc => { try { return bc.window?.document; } catch { return null; } })
+            .find(x => x && x.documentURI == "chrome://global/content/print.html" && x.getElementById("print-button")), 12000);
+          if (!pd) return { open: false };
+          try { await nap(1500); const pw = pd.defaultView, s = pw.getComputedStyle(pd.getElementById("print-button"));
+            return { open: true, btn: s.backgroundColor, text: s.color, accent: colorIn(pd, "AccentColor"), accentText: colorIn(pd, "AccentColorText"),
+                     root: pw.getComputedStyle(pd.documentElement).backgroundColor,
+                     sheet: colorIn(pd, "var(--mt-sheet)", "backgroundColor"), window: colorIn(pd, "var(--mt-window)", "backgroundColor") };
+          } finally { try { pd.getElementById("cancel-button")?.click(); } catch {} await nap(800);
+            try { if (!pd.defaultView.closed) pd.defaultView.close(); } catch {} await nap(400); }""")
+        ok = (res.get("open") and same_color(res["btn"], res["accent"]) and same_color(res["text"], res["accentText"])
+              and (same_color(res["root"], res["sheet"]) or same_color(res["root"], res["window"])) and not same_color(res["root"], "rgb(28, 27, 34)"))
+        return ok, f"{res}"
+    check("Druckvorschau: Hauptknopf in der Systemakzentfarbe statt Proton-Blau/-Türkis, Panel neutral", print_preview, results)
+
+    def open_with():
+        # Anhang ohne gespeicherte Aktion → „Öffnen von …“: Knöpfe flach wie in den übrigen Dialogen (Cancel grau, OK in Akzentfarbe)
+        # statt nativem eckigem Knopf neben flachem; nie OK – sonst würde die Datei geschrieben/geöffnet
+        res = m.js(DIALOG_READING_JS + r"""
+          const doc = await showMail("Halo Anhänge"); const mw = doc.defaultView;
+          const a = await tillM(() => mw.currentAttachments?.find(x => x.name == "Notizen.txt"), 4000); if (!a) return { open: false, why: "Anhang fehlt" };
+          const mi = Cc["@mozilla.org/mime;1"].getService(Ci.nsIMIMEService).getFromTypeAndExtension(a.contentType, "txt");
+          if (Cc["@mozilla.org/uriloader/handler-service;1"].getService(Ci.nsIHandlerService).exists(mi) && !mi.alwaysAskBeforeHandling)
+            return { open: false, why: "gespeicherte Aktion – der Dialog käme nicht" };
+          w.setTimeout(() => a.open(mw.browsingContext), 0);
+          const x = await winOf("unknownContentType"); if (!x) return { open: false, why: "Dialog nicht offen" };
+          const dl = x.document.getElementById("unknownContentType");
+          try { await nap(800); const sr = dl.shadowRoot, ok = sr.querySelector('[dlgtype="accept"]'), cancel = sr.querySelector('[dlgtype="cancel"]');
+            const look = b => { const s = x.getComputedStyle(b); return [s.appearance, s.backgroundColor, s.borderTopLeftRadius, Math.round(b.getBoundingClientRect().height)]; };
+            const out = { open: true, cancel: look(cancel), control: colorIn(x.document, "var(--mt-control)", "backgroundColor"), accent: colorIn(x.document, "AccentColor") };
+            // OK ist anfangs gesperrt (Sicherheitsverzögerung) – zum Messen freigeben, nie anklicken
+            ok.disabled = true; await nap(100); out.disabled = x.getComputedStyle(ok).opacity;
+            ok.disabled = false; await nap(150); out.ok = look(ok);
+            return out;
+          } finally { try { dl.cancelDialog(); } catch {} await tillM(() => x.closed, 3000); if (!x.closed) x.close(); await nap(300); }""")
+        if not res.get("open"):
+            return False, f"{res}"
+        c, o = res["cancel"], res["ok"]
+        ok = (c[0] == "none" and o[0] == "none" and c[2] == "999px" and o[2] == "999px" and c[3] == o[3]
+              and same_color(c[1], res["control"]) and same_color(o[1], res["accent"]) and float(res["disabled"]) < 1)
+        return ok, f"{res}"
+    check("„Öffnen von …“: Knöpfe als flache Kapseln wie in den Dialogen (Cancel grau, OK in Akzentfarbe) statt nativem Knopf", open_with, results)
+
+    def rule_rows():
+        # Bedingungszeilen (Suchordner-Dialog und Suchfenster): Auswahllisten nur in --mt-control ohne zweiten Verlauf (vorher doppelt
+        # grau bzw. Fensterfarbe), gleich wie die Auswahl außerhalb der Liste; +/− mit Lücke statt aneinander; im Suchfenster der Teiler
+        # als eine Haarlinie statt Doppellinie; Aktivitäten: „Clear List“ mit Luft zum Fensterrand, darüber eine Haarlinie
+        res = m.js(COMPOSE_CHECK_JS + r"""
+          const rows = dd => { const row = dd.querySelector("#searchTermList > richlistitem");
+            const ml = [...row.querySelectorAll("menulist")].find(vis), btn = [...row.querySelectorAll(".small-button")].filter(vis);
+            const other = [...dd.querySelectorAll("menulist")].find(x => vis(x) && !x.closest("richlistbox"));
+            return { img: csOf(ml).backgroundImage, bg: csOf(ml).backgroundColor, other: other && csOf(other).backgroundColor,
+                     control: colorOf(dd, "var(--mt-control)", "backgroundColor"),
+                     gap: btn.length == 2 ? btn[1].getBoundingClientRect().left - btn[0].getBoundingClientRect().right : null }; };
+          const f = await testFolder(); tm.switchToTab(0); await pause(500); const a3 = tm.currentAbout3Pane; a3.displayFolder(f.URI); await pause(800);
+          const out = {};
+          out.vf = await dialog(() => a3.commandController.doCommand("cmd_newVirtualFolder"), "virtualFolderProperties", async (dw, dd) => rows(dd));
+          later(() => w.searchAllMessages());
+          const sw = await winUrl("SearchDialog"); if (!sw) throw new Error("Suchfenster nicht offen");
+          try { await pause(1000); const sd = sw.document, s = csOf(sd.getElementById("gray_horizontal_splitter"));
+            out.search = rows(sd); out.split = { top: s.borderTopWidth, topColor: s.borderTopColor, bottom: s.borderBottomStyle, paneLine: colorOf(sd, "var(--mt-pane-line)") };
+          } finally { await shut(sw); }
+          later(() => w.openActivityMgr());
+          const aw = await winUrl("activity.xhtml"); if (!aw) throw new Error("Aktivitäten nicht offen");
+          try { await pause(800); const ad = aw.document, r = ad.getElementById("clearListButton").getBoundingClientRect(), v = csOf(ad.getElementById("activityView"));
+            out.act = { left: r.left, bottom: aw.innerHeight - r.bottom, line: v.borderBottomColor, paneLine: colorOf(ad, "var(--mt-pane-line)") };
+          } finally { await shut(aw); }
+          return out;""")
+        rows_ok = lambda r: (r["img"] == "none" and same_color(r["bg"], r["control"]) and r["other"] and same_color(r["bg"], r["other"])
+                             and r["gap"] is not None and r["gap"] >= 3)
+        sp, ac = res["split"], res["act"]
+        ok = (rows_ok(res["vf"]) and rows_ok(res["search"]) and sp["bottom"] == "none" and float(sp["top"].rstrip("px")) <= 1
+              and same_color(sp["topColor"], sp["paneLine"]) and ac["left"] >= 12 and ac["bottom"] >= 8 and same_color(ac["line"], ac["paneLine"]))
+        return ok, f"{res}"
+    check("Bedingungszeilen: Auswahllisten einfach grau wie die übrigen, +/− mit Lücke; Suche: Teiler eine Haarlinie; Aktivitäten: „Clear List“ mit Luft, Haarlinie", rule_rows, results)
 
 
 FOLDER_JS = r"""
@@ -1747,10 +2156,13 @@ def calendar_checks(m, results):
           await toWeek();
           return cols().map(({ h, hc }) => { const a = h.getBoundingClientRect(), b = hc.getBoundingClientRect();
             const el = d.elementFromPoint(a.left + a.width / 2, a.bottom - 2);
-            return { height: Math.round(a.height * 10) / 10, gap: Math.round((b.top - a.bottom) * 10) / 10, hit: !!el && h.contains(el) }; });""")
-        ok = len(res) == 7 and all(c["gap"] >= -0.6 and c["hit"] and c["height"] >= 28 for c in res)
+            const sp = [...h.children].find(s => !s.hidden && s.getBoundingClientRect().width > 0);
+            return { height: Math.round(a.height * 10) / 10, gap: Math.round((b.top - a.bottom) * 10) / 10, hit: !!el && h.contains(el),
+                     text: sp?.textContent, cut: !sp || sp.scrollWidth > sp.clientWidth + 0.5 }; });""")
+        # breites Fenster: Thunderbird wählt Lang- oder Kurzform so, dass sie passt – kein Kopf mit „…“ (früher „Wednesday Oct…“)
+        ok = len(res) == 7 and all(c["gap"] >= -0.6 and c["hit"] and c["height"] >= 28 and not c["cut"] for c in res)
         return ok, f"{res}"
-    check("Woche: Tagesköpfe ganz sichtbar (Ganztags-Zeile beginnt darunter, Unterlängen nicht abgeschnitten)", week_heads, results)
+    check("Woche: Tagesköpfe ganz sichtbar (Ganztags-Zeile beginnt darunter, Unterlängen nicht abgeschnitten, passende Lang- oder Kurzform ohne „…“)", week_heads, results)
 
     def narrow_heads():
         # schmales Fenster: Kopf nicht breiter als seine Spalte (Thunderbirds Inline-Mindestbreite), Text endet mit „…“
@@ -1823,9 +2235,16 @@ def calendar_checks(m, results):
                 sel: sel && csOf(sel).backgroundColor, accent: fd && colorOf(fd, "AccentColor", "backgroundColor") };
               await shutPop(dp);
             }
-            const sd = d.getElementById("ContentSelectDropdown")?.menupopup;
-            d.notifyUserGestureActivation(); f.repeat.showPicker();
-            // Diagnose, falls die Auswahlliste nicht messbar aufgeht (bisher nur unter macOS)
+            // showPicker() öffnet die Auswahlliste im Chrome-Dokument nicht (Thunderbird 158) – dann ein echter Klick wie vom Nutzer
+            d.notifyUserGestureActivation(); try { f.repeat.showPicker(); } catch {}
+            const sd = await till(() => d.getElementById("ContentSelectDropdown")?.menupopup, 4000);
+            if (sd && !await till(() => sd.state == "open", 1500)) {
+              const r = f.repeat.getBoundingClientRect(), wu = w.windowUtils, k = w.devicePixelRatio;
+              const x = (w.mozInnerScreenX + r.left + r.width / 2) * k, y = (w.mozInnerScreenY + r.top + r.height / 2) * k;
+              wu.sendNativeMouseEvent(x, y, wu.NATIVE_MOUSE_MESSAGE_BUTTON_DOWN, 0, 0, f.repeat);
+              wu.sendNativeMouseEvent(x, y, wu.NATIVE_MOUSE_MESSAGE_BUTTON_UP, 0, 0, f.repeat);
+            }
+            // Diagnose, falls die Auswahlliste nicht messbar aufgeht
             out.selectInfo = { os: Services.appinfo.OS, dropdown: !!sd, repeatVisible: vis(f.repeat) };
             if (sd && await isOpen(sd)) {
               await pause(300);
@@ -1945,6 +2364,301 @@ def calendar_checks(m, results):
         return ok, f"{res}"
     check("Termin-Dialog: Schrift 13 px auch in der Beschreibung, Abstand Beschriftung–Feld; Minimonat und Uhrzeit-Raster ruhig mit Akzent", event_dialog, results)
 
+    def event_dialog_lines():
+        # Termin-Dialog: Trennlinien im Raster als Haarlinie (Thunderbird: 1 px Feldrahmenfarbe); Statuszeile mit Abstand
+        # zwischen Beschriftung und Wert („Time as: Busy“ statt „Time as:Busy“); Beschreibung dunkel lesbar (früher schwarz auf #1E1E1E)
+        res = m.js(CAL_CHECK_JS + r"""
+          for (const x of [...Services.wm.getEnumerator(null)]) if (!x.location.href.includes("messenger.xhtml")) x.close();
+          const c = testCalendar(); const e = new CalEvent(); e.title = "Halo Linientermin"; e.calendar = c;
+          const s = cal.dtz.now(); s.minute = 0; s.second = 0; const en = s.clone(); en.hour += 1; e.startDate = s; e.endDate = en;
+          e.setProperty("DESCRIPTION", "Erfundene Beschreibung zum Kontrast."); e.setProperty("TRANSP", "OPAQUE"); e.setCategories(["Business"]); const saved = await c.addItem(e);
+          const out = { dark };
+          let dw = null;
+          try {
+            await toCalendar(); w.modifyEventWithDialog(saved, true);
+            dw = await winUrl("calendar-event-dialog"); if (!dw) return { dialog: false };
+            const iw = await till(() => { const f = dw.document.getElementById("calendar-item-panel-iframe")?.contentWindow;
+              return f?.document.readyState == "complete" && f.document.getElementById("event-grid") && f; }, 8000);
+            const id = iw.document, ed = id.getElementById("item-description");
+            const body = await till(() => { const b = ed.contentDocument?.body; return b && /Erfundene/.test(b.textContent) && b; }, 6000);
+            await pause(1800);
+            out.seps = [...id.querySelectorAll("#event-grid tr.separator td")].filter(vis).map(td => [csOf(td).borderBottomColor, csOf(td).borderBottomWidth]);
+            // Statuszeile „Time as: Busy“ (nur bei gesetzter Verfügbarkeit sichtbar)
+            const fb = await till(() => { const p = dw.document.getElementById("status-freebusy"); return vis(p) && p; }, 3000);
+            const labs = fb ? [...fb.querySelectorAll(":scope > label")].filter(l => !l.hidden && vis(l)) : [];
+            out.status = labs.length >= 2 ? Math.round((labs[1].getBoundingClientRect().left - labs[0].getBoundingClientRect().right) * 10) / 10 : null;
+            out.statusText = labs.map(l => l.value || l.textContent).join("|");
+            out.shadows = [...new Set([...dw.document.querySelectorAll("#status-bar :is(label, description)")].map(l => csOf(l).textShadow))];
+            // Kategorien: Farbpunkte im Menü mit feinem Ring, Farbchip der gewählten Kategorie im Feld mit Haarlinie
+            const cats = id.getElementById("item-categories"), cp = id.getElementById("item-categories-popup") || cats?.menupopup;
+            const mt = cp && [...cp.querySelectorAll(":scope > menuitem .menu-text")][0];
+            out.catDot = mt ? csOf(mt).backgroundImage.slice(0, 20) : null;
+            const chip = cats?.shadowRoot?.querySelector('[part~="color"]');
+            out.catChip = chip ? csOf(chip).boxShadow : null;
+            let bg = null;
+            for (let el = ed; el && el.nodeType == 1; el = el.parentElement) { const b = csOf(el).backgroundColor; if (!/rgba\(.*, 0\)$/.test(b) && b != "transparent") { bg = b; break; } }
+            out.desc = body ? { color: csOf(body).color, body: csOf(body).backgroundColor, field: bg } : null;
+          } finally {
+            if (dw && !dw.closed) { dw.close(); await till(() => dw.closed, 4000); }
+            try { await c.deleteItem(saved); } catch {}
+          }
+          return out;""")
+        if res.get("dialog") is False:
+            return False, "Termin-Dialog nicht offen"
+        seps, desc = res.get("seps") or [], res.get("desc") or {}
+        ok_desc = bool(desc) and (rgba_alpha(desc["body"]) == 0 or not res["dark"]) and (
+            contrast(desc["color"], desc["field"]) >= 4.5 if res["dark"] else luminance(desc["color"]) < 0.2)
+        ok = (len(seps) >= 2 and all(rgba_alpha(c) <= 0.12 and float(wd[:-2]) <= 1 for c, wd in seps)
+              and res.get("status") is not None and res["status"] >= 3 and ok_desc
+              and res.get("shadows") == ["none"] and (res.get("catDot") or "").startswith("radial-gradient")
+              and res.get("catChip") not in (None, "none"))
+        return ok, f"{res}"
+    check("Termin-Dialog: Trennlinien als Haarlinie, „Time as: Busy“ mit Abstand ohne Prägeschatten, Beschreibung lesbar (dunkel ≥ 4,5:1), Kategorie-Farbpunkte mit Ring", event_dialog_lines, results)
+
+    def reminder_dialog():
+        # Erinnerungen anpassen: Liste ohne native Rahmenzeichnung, mit Haarlinie; Trenner neben den Überschriften fein
+        res = m.js(CAL_CHECK_JS + r"""
+          for (const x of [...Services.wm.getEnumerator(null)]) if (!x.location.href.includes("messenger.xhtml")) x.close();
+          const c = testCalendar(); const e = new CalEvent(); e.title = "Halo Erinnerungstermin"; e.calendar = c;
+          const s = cal.dtz.now(); s.minute = 0; s.second = 0; s.day += 1; const en = s.clone(); en.hour += 1; e.startDate = s; e.endDate = en;
+          const saved = await c.addItem(e);
+          const out = { dark };
+          let dw = null, rw = null;
+          try {
+            await toCalendar(); w.modifyEventWithDialog(saved, true);
+            dw = await winUrl("calendar-event-dialog.xhtml"); if (!dw) return { dialog: false };
+            const iw = await till(() => { const f = dw.document.getElementById("calendar-item-panel-iframe")?.contentWindow;
+              return f?.document.readyState == "complete" && f.document.getElementById("item-alarm") && f; }, 8000);
+            await pause(800);
+            const ml = iw.document.getElementById("item-alarm"); ml.value = "custom"; later(() => iw.updateReminder());
+            rw = await winUrl("calendar-event-dialog-reminder"); if (!rw) return { reminder: false };
+            await pause(1200);
+            const rd = rw.document, lb = rd.getElementById("reminder-listbox");
+            out.list = { appearance: csOf(lb).appearance, border: csOf(lb).borderTopColor, bw: csOf(lb).borderTopWidth };
+            out.seps = [...rd.querySelectorAll("separator.groove")].filter(vis).map(x => [csOf(x).borderTopColor, csOf(x).borderTopWidth]);
+          } finally {
+            if (rw && !rw.closed) { rw.close(); await till(() => rw.closed, 4000); }
+            if (dw && !dw.closed) { dw.close(); await till(() => dw.closed, 4000); }
+            try { await c.deleteItem(saved); } catch {}
+          }
+          return out;""")
+        if res.get("dialog") is False or res.get("reminder") is False:
+            return False, f"Dialog nicht offen {res}"
+        lst, seps = res.get("list") or {}, res.get("seps") or []
+        ok = (lst.get("appearance") == "none" and rgba_alpha(lst["border"]) <= 0.12 and float(lst["bw"][:-2]) <= 1
+              and len(seps) >= 2 and all(float(wd[:-2]) <= 1 and not same_color(c, "rgba(128, 128, 128, 0.6)") and rgba_alpha(c) <= 0.12 for c, wd in seps))
+        return ok, f"{res}"
+    check("Erinnerungen anpassen: Liste und Trenner als Haarlinie ohne native Rahmen", reminder_dialog, results)
+
+    def recurrence_preview():
+        # Wiederholung: Monate der Vorschau mit Haarlinie und 10 px Radius statt 1 px Zinkgrau (dunkel #71717A), ohne Fläche
+        res = m.js(CAL_CHECK_JS + r"""
+          for (const x of [...Services.wm.getEnumerator(null)]) if (!x.location.href.includes("messenger.xhtml")) x.close();
+          const out = { dark };
+          let dw = null, rw = null;
+          try {
+            await toCalendar(); w.createEventWithDialog(testCalendar(), null, null, "Halo Wiederholungsvorschau");
+            dw = await winUrl("calendar-event-dialog.xhtml"); if (!dw) return { dialog: false };
+            const iw = await till(() => { const f = dw.document.getElementById("calendar-item-panel-iframe")?.contentWindow;
+              return f?.document.readyState == "complete" && f.document.getElementById("item-repeat") && f; }, 8000);
+            await pause(800);
+            const ml = iw.document.getElementById("item-repeat"); ml.value = "custom"; later(() => iw.editRepeat ? iw.editRepeat() : iw.updateRepeat());
+            rw = await winUrl("calendar-event-dialog-recurrence"); if (!rw) return { recurrence: false };
+            await pause(1500);
+            const rd = rw.document, mid = el => { const r = el.getBoundingClientRect(); return r.top + r.height / 2; };
+            const lab = [...rd.querySelectorAll("label.recurrence-pattern-hbox-label")].find(vis), pl = rd.getElementById("period-list");
+            const dd = rd.getElementById("daily-days");
+            out.align = lab && pl ? Math.round((mid(lab) - mid(pl)) * 10) / 10 : null;
+            out.heights = [pl && Math.round(pl.getBoundingClientRect().height * 10) / 10, dd && vis(dd) ? Math.round(dd.getBoundingClientRect().height * 10) / 10 : null];
+            out.months = [...rw.document.querySelectorAll("#recurrencePreview calendar-minimonth")].filter(vis).map(mm => { const st = csOf(mm);
+              return { bg: st.backgroundColor, bw: st.borderTopWidth, border: st.borderTopColor, radius: st.borderTopLeftRadius,
+                       busy: [...mm.querySelectorAll("td[busy]")].length }; });
+          } finally {
+            if (rw && !rw.closed) { rw.close(); await till(() => rw.closed, 4000); }
+            if (dw && !dw.closed) { dw.close(); await till(() => dw.closed, 4000); }
+          }
+          return out;""")
+        if res.get("dialog") is False or res.get("recurrence") is False:
+            return False, f"Dialog nicht offen {res}"
+        ms = res.get("months") or []
+        ok = (len(ms) >= 1 and all(rgba_alpha(x["bg"]) == 0 and float(x["bw"][:-2]) <= 1 and rgba_alpha(x["border"]) <= 0.12
+                                   and not same_color(x["border"], "rgb(113, 113, 122)") and float(x["radius"][:-2]) >= 10 for x in ms)
+              and any(x["busy"] for x in ms))
+        al, hs = res.get("align"), res.get("heights") or [None, None]
+        ok = ok and al is not None and abs(al) <= 1 and None not in hs and abs(hs[0] - 28) <= 1 and abs(hs[1] - 28) <= 1
+        return ok, f"{res}"
+    check("Wiederholung: Vorschau-Monate mit Haarlinie und 10 px Radius, ohne Fläche, Belegt-Punkte bleiben; „Repeat“ mittig zur Liste, Zahlenfeld 28 px", recurrence_preview, results)
+
+    def agenda_days():
+        # Today-Pane: Tagesspalte (ca. 38 px) eines Tags mit nur einem Eintrag ragte bis auf 2–6 px an den nächsten Tag
+        res = m.js(CAL_CHECK_JS + r"""
+          const c = testCalendar(); const added = [];
+          try {
+            for (const [dd, title] of [[5, "Halo Agenda Einzeltag"], [6, "Halo Agenda Folgetag"]]) {
+              const e = new CalEvent(); e.title = title; e.calendar = c; const s = today(); s.day += dd; const en = s.clone(); en.day += 1;
+              e.startDate = s; e.endDate = en; added.push(await c.addItem(e)); }
+            await toMail(); if (!w.TodayPane?.isVisible) d.getElementById("calendar_toggle_todaypane_command").doCommand();
+            await pause(2000);
+            const lis = [...d.querySelectorAll("#agenda > li.agenda-listitem")].filter(vis);
+            const out = { pairs: [], single: 0 };
+            lis.forEach((li, i) => { const h = li.querySelector(":scope > .agenda-date-header"); if (!h || h.hidden) return;
+              const next = lis.slice(i + 1).find(x => { const nh = x.querySelector(":scope > .agenda-date-header"); return nh && !nh.hidden; });
+              if (!next) return;
+              const single = lis[i + 1] == next; if (single) out.single++;
+              out.pairs.push([h.dataset.mcDay, single, Math.round(next.querySelector(":scope > .agenda-date-header").getBoundingClientRect().top - h.getBoundingClientRect().bottom)]); });
+            return out;
+          } finally { for (const it of added) try { await c.deleteItem(it); } catch {} }""")
+        ps = res.get("pairs") or []
+        ok = res.get("single", 0) >= 1 and len(ps) >= 2 and all(gap >= 12 for _, _, gap in ps)
+        return ok, f"{res}"
+    check("Today-Pane: Tage mit nur einem Eintrag ragen nicht in den nächsten Tag", agenda_days, results)
+
+    def occurrence_prompt():
+        # Rückfrage wiederholter Termin: Titelkasten ohne harten Rahmen, Kapselknöpfe ohne alte Kalendersymbole
+        res = m.js(CAL_CHECK_JS + r"""
+          const { CalRecurrenceInfo } = ChromeUtils.importESModule("resource:///modules/CalRecurrenceInfo.sys.mjs");
+          for (const x of [...Services.wm.getEnumerator(null)]) if (!x.location.href.includes("messenger.xhtml")) x.close();
+          const c = testCalendar(); const e = new CalEvent(); e.title = "Halo Serientermin"; e.calendar = c;
+          const s = cal.dtz.now(); s.minute = 0; s.second = 0; s.day -= 7; const en = s.clone(); en.hour += 1; e.startDate = s; e.endDate = en;
+          e.recurrenceInfo = new CalRecurrenceInfo(e); e.recurrenceInfo.appendRecurrenceItem(cal.createRecurrenceRule("RRULE:FREQ=WEEKLY;COUNT=10"));
+          const saved = await c.addItem(e);
+          const out = {};
+          let pw = null;
+          try {
+            await toCalendar(); w.switchToView("week"); await pause(800);
+            const occ = saved.recurrenceInfo.getNextOccurrence(cal.dtz.now()) || saved;
+            later(() => w.calendarViewController.deleteOccurrences([occ], false, false));
+            pw = await winUrl("calendar-occurrence-prompt"); if (!pw) return { prompt: false };
+            await pause(1000);
+            const pd = pw.document, h = pd.getElementById("occurrence-prompt-header");
+            out.header = { bw: csOf(h).borderTopWidth, radius: csOf(h).borderTopLeftRadius };
+            out.buttons = [...pd.querySelectorAll(".occurrence-accept-buttons")].filter(vis).map(b => { const ic = b.querySelector(".button-icon");
+              // Textbereich: das Label (.button-text) ist so breit wie sein Text
+              const lab = b.querySelector(".button-text"), t = lab ? lab.getBoundingClientRect() : { width: 0, left: 0, right: 0 }, br = b.getBoundingClientRect();
+              return { img: csOf(b).listStyleImage, icon: !!ic && vis(ic), tw: Math.round(t.width), bw: Math.round(br.width),
+                       padL: Math.round((t.left - br.left) * 10) / 10, padR: Math.round((br.right - t.right) * 10) / 10 }; });
+          } finally {
+            if (pw && !pw.closed) { pw.close(); await till(() => pw.closed, 4000); await pause(500); }
+            try { await c.deleteItem(saved); } catch {}
+          }
+          return out;""")
+        if res.get("prompt") is False:
+            return False, "Rückfrage nicht offen"
+        b = res.get("buttons") or []
+        ok = res["header"]["bw"] == "0px" and len(b) >= 2 and all(x["img"] == "none" and not x["icon"] for x in b)
+        ok = ok and all(0 < x["tw"] < x["bw"] - 20 and abs(x["padL"] - x["padR"]) <= 2 for x in b)
+        return ok, f"{res}"
+    check("Rückfrage wiederholter Termin: Titelkasten ohne harten Rahmen, Knöpfe ohne alte Kalendersymbole, Text mittig", occurrence_prompt, results)
+
+    def quick_segment():
+        # Schnellfenster: gewähltes Segment („Termin“/„Aufgabe“) heller als die Spur – dunkel früher dunkler (#1E1E1E)
+        res = m.js(CAL_CHECK_JS + r"""
+          await toWeek();
+          const li = [...d.querySelectorAll('#unifiedToolbarContent li[item-id="new-event"]')].find(vis);
+          li.querySelector("button").click();
+          const qp = await till(() => { const q = d.getElementById("mcQuickPanel"); return q?.state == "open" && q; }, 4000);
+          if (!qp) return { open: false, visibility: d.visibilityState };
+          await pause(300);
+          try {
+            const sel = qp.querySelector(".mc-qc-seg > button[selected]");
+            return { open: true, dark, sel: sel ? csOf(sel).backgroundColor : null, track: csOf(qp.querySelector(".mc-qc-seg")).backgroundColor };
+          } finally { await shutPop(qp); }""")
+        if not res.get("open"):
+            return res.get("visibility") == "hidden", f"Schnellfenster nicht offen {res}"
+        sel = res.get("sel")
+        ok = bool(sel) and (luminance(sel) > 0.08 and rgba_alpha(sel) == 1 if res["dark"] else same_color(sel, "rgb(255, 255, 255)"))
+        return ok, f"{res}"
+    check("Schnellfenster: gewähltes Segment heller als die Spur (auch dunkel)", quick_segment, results)
+
+    def quick_allday_calrow():
+        # Schnellfenster: „All Day“ als macOS-Kästchen (früher grau gefülltes Systemkästchen ohne Rand, wirkte deaktiviert);
+        # Kalendername 8 px hinter dem Farbpunkt statt ca. 21 px (Innenabstand der Auswahl)
+        res = m.js(CAL_CHECK_JS + r"""
+          await toWeek();
+          const li = [...d.querySelectorAll('#unifiedToolbarContent li[item-id="new-event"]')].find(vis);
+          li.querySelector("button").click();
+          const qp = await till(() => { const q = d.getElementById("mcQuickPanel"); return q?.state == "open" && q; }, 4000);
+          if (!qp) return { open: false, visibility: d.visibilityState };
+          await pause(300);
+          const out = { open: true, dark, checkBg: colorOf(d, "var(--mt-check-bg)", "backgroundColor"), accent: colorOf(d, "var(--mt-accent)", "backgroundColor") };
+          try {
+            const f = qp.__mc; if (!vis(f.allDay)) { f.summary.click(); await pause(600); }
+            const cb = f.allDay, st = csOf(cb);
+            out.cb = { app: st.appearance, bw: st.borderTopWidth, bg: st.backgroundColor, w: Math.round(cb.getBoundingClientRect().width) };
+            const was = cb.checked; cb.click(); await pause(250);
+            out.cbOn = { checked: cb.checked, bg: csOf(cb).backgroundColor, img: csOf(cb).backgroundImage.slice(0, 20) };
+            if (cb.checked != was) { cb.click(); await pause(150); }
+            const sel = f.calendar, card = sel.closest(".mc-qc-calcard");
+            out.calGap = Math.round((sel.getBoundingClientRect().left + parseFloat(csOf(sel).paddingInlineStart)
+              - (card.getBoundingClientRect().left + parseFloat(csOf(card).paddingInlineStart) + 12)) * 10) / 10;
+            return out;
+          } finally { await shutPop(qp); }""")
+        if not res.get("open"):
+            return res.get("visibility") == "hidden", f"Schnellfenster nicht offen {res}"
+        cb, on = res.get("cb") or {}, res.get("cbOn") or {}
+        ok = (cb.get("app") == "none" and float(cb["bw"][:-2]) >= 0.5 and same_color(cb["bg"], res["checkBg"])
+              and on.get("checked") and same_color(on["bg"], res["accent"]) and on["img"].startswith("url(")
+              and res.get("calGap") is not None and res["calGap"] <= 10)
+        return ok, f"{res}"
+    check("Schnellfenster: „Ganztägig“ als macOS-Kästchen, Kalendername dicht am Farbpunkt", quick_allday_calrow, results)
+
+    def quick_time_fits():
+        # Schnellfenster aufgeklappt: Datum, Uhrzeit (samt Uhrsymbol) und Auswahllisten bleiben auf der grauen Karte
+        # (früher feste 96-px-Labelspalte – das Uhrsymbol ragte über die Kartenkante); Labels ungekürzt, Felder bündig
+        res = m.js(CAL_CHECK_JS + r"""
+          await toWeek();
+          const li = [...d.querySelectorAll('#unifiedToolbarContent li[item-id="new-event"]')].find(vis);
+          li.querySelector("button").click();
+          const qp = await till(() => { const q = d.getElementById("mcQuickPanel"); return q?.state == "open" && q; }, 4000);
+          if (!qp) return { open: false, visibility: d.visibilityState };
+          await pause(300);
+          try {
+            const f = qp.__mc; if (!qp.querySelector(".mc-qc[data-expanded]")) { f.summary.click(); await pause(600); }
+            const card = qp.querySelector(".mc-qc-time"), cr = card.getBoundingClientRect();
+            const fields = [...card.querySelectorAll('input[type="date"], input[type="time"], select')].filter(vis).map(e => {
+              const r = e.getBoundingClientRect();
+              return { t: e.type || e.localName, over: Math.round((r.right - (cr.right - 4)) * 10) / 10,
+                       clip: e.type == "time" ? e.scrollWidth - e.clientWidth : 0, left: Math.round(r.left) };
+            });
+            const labels = [...card.querySelectorAll(".mc-qc-row > label")].filter(vis).map(l => ({ t: l.textContent, clip: l.scrollWidth - l.clientWidth }));
+            const ctrlLefts = [...new Set([...card.querySelectorAll(".mc-qc-row")].filter(vis).map(r => Math.round(r.querySelector(".mc-qc-ctrl").getBoundingClientRect().left)))];
+            return { open: true, fields, labels, ctrlLefts, card: Math.round(cr.width) };
+          } finally { await shutPop(qp); }""")
+        if not res.get("open"):
+            return res.get("visibility") == "hidden", f"Schnellfenster nicht offen {res}"
+        fields, labels = res.get("fields") or [], res.get("labels") or []
+        ok = (sum(1 for x in fields if x["t"] == "time") >= 2 and all(x["over"] <= 0 for x in fields)
+              and all(x["clip"] <= 1 for x in fields) and len(labels) >= 5 and all(x["clip"] <= 0 for x in labels)
+              and len(res.get("ctrlLefts") or []) == 1)
+        return ok, f"{res}"
+    check("Schnellfenster: Uhrzeit samt Uhrsymbol innerhalb der Karte, Labels ungekürzt, Felder bündig", quick_time_fits, results)
+
+    def enable_badge():
+        # Kalenderliste: Plakette „Aktivieren“ als graue Kapsel statt schieferblauer Fläche mit weißer Großschrift
+        res = m.js(CAL_CHECK_JS + r"""
+          const c = testCalendar(); c.setProperty("disabled", true);
+          try {
+            await toCalendar();
+            const b = await till(() => [...d.querySelectorAll("#calendar-list button.calendar-enable-button")].find(vis), 4000);
+            if (!b) return { badge: false };
+            // Haken im Farbkästchen des deaktivierten, eingeblendeten Kalenders: Textfarbe statt weiß
+            const li = b.closest("li"), shown = li?.querySelector("input.calendar-displayed")?.checked;
+            const sw = li?.querySelector(".calendar-color");
+            return { bg: csOf(b).backgroundColor, color: csOf(b).color, tt: csOf(b).textTransform, weight: csOf(b).fontWeight, radius: csOf(b).borderTopLeftRadius,
+                     dark: w.matchMedia("(prefers-color-scheme: dark)").matches, disabled: li?.hasAttribute("calendar-disabled"), shown,
+                     tick: sw ? w.getComputedStyle(sw, "::after").backgroundColor : null };
+          } finally { c.setProperty("disabled", false); await pause(500); }""")
+        if res.get("badge") is False:
+            return False, "Plakette nicht sichtbar"
+        ok = (not same_color(res["bg"], "rgb(107, 128, 164)") and not same_color(res["color"], "rgb(255, 255, 255)")
+              and res["tt"] == "none" and int(res["weight"]) <= 600)
+        if res.get("shown"):
+            ok = ok and res.get("disabled") and same_color(res["tick"], "rgb(161, 161, 166)" if res["dark"] else "rgb(110, 110, 115)")
+        else:
+            ok = False
+        return ok, f"{res}"
+    check("Kalenderliste: Plakette „Aktivieren“ als graue Kapsel ohne Großschrift; Haken des deaktivierten Kalenders grau statt weiß", enable_badge, results)
+
     def print_minimonths():
         # Drucken: „Von“/„Bis“-Minikalender passen ins Formular, Pfeile sichtbar, Knöpfe ohne helle Fläche (dunkel)
         res = m.js(CAL_CHECK_JS + r"""
@@ -1957,7 +2671,8 @@ def calendar_checks(m, results):
           const out = { print: true, dark, months: ["from-minimonth", "to-minimonth"].map(idm => { const mm = pd.getElementById(idm), r = mm.getBoundingClientRect();
             const fwd = mm.querySelector(".months-forward-button"), nav = mm.querySelector(".minimonth-nav-btn:not(.today-button, .years-back-button, .years-forward-button)");
             return { right: Math.round(r.right * 10) / 10, formRight: Math.round(fr.right * 10) / 10, fwd: Math.round(fwd.getBoundingClientRect().width),
-                     mask: csOf(fwd, "::before").maskImage.slice(0, 12), navBg: nav ? csOf(nav).backgroundColor : null }; }) };
+                     mask: csOf(fwd, "::before").maskImage.slice(0, 12), navBg: nav ? csOf(nav).backgroundColor : null,
+                     heads: [...mm.querySelectorAll(".minimonth-month-name, .minimonth-year-name")].map(i => csOf(i).appearance) }; }) };
           const cancel = pd.querySelector('#next-button-container button[is="cancel-button"]');
           if (cancel) cancel.click();
           await pause(800);
@@ -1972,9 +2687,10 @@ def calendar_checks(m, results):
             lum = sum(k * ((x / 255) / 12.92 if x / 255 <= 0.03928 else ((x / 255 + 0.055) / 1.055) ** 2.4) for k, x in zip((0.2126, 0.7152, 0.0722), v)) if len(v) == 3 else 1
             return rgba_alpha(c) < 0.2 or lum < 0.3
         ok = all(mm["right"] <= mm["formRight"] + 0.5 and mm["fwd"] > 0 and mm["mask"].startswith("url(")
-                 and (not res["dark"] or (mm["navBg"] and dim(mm["navBg"]))) for mm in res["months"])
+                 and (not res["dark"] or (mm["navBg"] and dim(mm["navBg"])))
+                 and len(mm["heads"]) == 2 and all(x == "none" for x in mm["heads"]) for mm in res["months"])
         return ok, f"{res}"
-    check("Drucken: Minikalender „Von“/„Bis“ im Formular, Pfeile sichtbar, Knöpfe ohne helle Fläche", print_minimonths, results)
+    check("Drucken: Minikalender „Von“/„Bis“ im Formular, Pfeile sichtbar, Knöpfe ohne helle Fläche, Monat/Jahr ohne Feldfläche", print_minimonths, results)
 
 
 def rgba_alpha(c):
@@ -1982,6 +2698,23 @@ def rgba_alpha(c):
     import re
     v = re.findall(r"-?[\d.]+(?:e-?\d+)?", c or "")
     return float(v[3]) if len(v) > 3 else 1.0
+
+
+def luminance(c):
+    """Relative Luminanz (WCAG) aus rgb()/rgba()/color(srgb …)."""
+    import re
+    v = [float(x) for x in re.findall(r"-?[\d.]+(?:e-?\d+)?", c or "")][:3]
+    if len(v) < 3:
+        return 0.0
+    k = 1 if (c or "").startswith("color(") else 255
+    lin = lambda x: x / 12.92 if x <= 0.03928 else ((x + 0.055) / 1.055) ** 2.4
+    return sum(f * lin(x / k) for f, x in zip((0.2126, 0.7152, 0.0722), v))
+
+
+def contrast(a, b):
+    """Kontrastverhältnis (WCAG) zweier Farben."""
+    la, lb = luminance(a), luminance(b)
+    return (max(la, lb) + 0.05) / (min(la, lb) + 0.05)
 
 
 def same_color(a, b, tol=2):
@@ -2016,6 +2749,34 @@ def run_checks(m, version, profile, results):
                     const a = await AddonManager.getAddonByID("%s"); return [a?.version, a?.isActive];""" % ADDON_ID)
         return v == [version, True], f"{v}"
     check("Erweiterung aktiv und richtige Version", addon, results)
+
+    def folder_start_width():
+        # Neues Profil, Mail-Tab zuerst offen: Ordnerliste 206 px wie in Apple Mail (und wie nach
+        # Doppelklick auf den Trenner) statt Thunderbirds 198 px, sodass „Local Folders“ in den
+        # Favoriten neben einer Ungelesen-Zahl nicht gekürzt wird. Muss vor „Ordnerleiste: Ziehen
+        # und Doppelklick“ laufen, das die gespeicherte Breite ändert
+        res = m.js("""
+          const { MailServices } = ChromeUtils.importESModule("resource:///modules/MailServices.sys.mjs");
+          try { MailServices.accounts.localFoldersServer; } catch { MailServices.accounts.createLocalMailAccount(); }
+          const root = MailServices.accounts.localFoldersServer.rootFolder;
+          if (!root.containsChildNamed("Inbox")) { root.createSubfolder("Inbox", null); }
+          const inbox = root.getChildNamed("Inbox");
+          const a3 = await toMail(); await wait(1000); const ad = a3.document;
+          const row = await until(() => [...ad.querySelectorAll('#folderTree > li[data-mode="smart"] li[is="folder-tree-row"]')]
+            .find(li => li.uri == inbox.URI && li.querySelector(":scope > .container .name")?.clientWidth), 8000);
+          const name = row?.querySelector(":scope > .container .name");
+          // Ungelesen-Zahl wie im Alltag (einstellig) nur für die Messung anzeigen
+          if (row) row.unreadCount = 6; await wait(300);
+          const out = { width: Math.round(ad.getElementById("folderPane").getBoundingClientRect().width),
+                        pref: Services.prefs.getIntPref("extensions.mailcards.sidebarWidth", 0), text: name?.textContent,
+                        count: row?.querySelector(":scope > .container .unread-count")?.textContent,
+                        client: name?.clientWidth, scroll: name?.scrollWidth };
+          if (row) row.unreadCount = inbox.getNumUnread(false);
+          return out;""")
+        ok = (res["width"] == 206 and res["pref"] in (0, 206) and res["text"] == "Local Folders"
+              and res["count"] == "6" and res["client"] and res["scroll"] <= res["client"])
+        return ok, f"{res}"
+    check("Ordnerliste: im neuen Profil 206 px breit, „Local Folders“ nicht gekürzt", folder_start_width, results)
 
     def list_width():
         res = m.js("""
@@ -2099,10 +2860,20 @@ def run_checks(m, version, profile, results):
           const it = (await items("Halo NL Essen"))[0];
           if (!it) return null;
           const s = cal.dtz.dateTimeToJsDate(it.startDate), e = cal.dtz.dateTimeToJsDate(it.endDate), tm2 = new Date(); tm2.setDate(tm2.getDate() + 1);
-          return { tomorrow: s.getDate() == tm2.getDate(), start: s.getHours() * 60 + s.getMinutes(), minutes: (e - s) / 60000 };''')
-        ok = bool(res) and res["tomorrow"] and res["start"] == 750 and res["minutes"] == 90
+          // nur Tag und Dauer („morgen für 2h“): nicht ganztägig, 2 Stunden lang
+          li.querySelector("button").click(); await wait(900);
+          const t2 = p.querySelector(".mc-qc-title");
+          p.querySelector(".mc-qc-calsel").value = testCalendar().id; p.querySelector(".mc-qc-calsel").dispatchEvent(new w.Event("change"));
+          t2.value = "Halo NL Dauer morgen für 2h"; t2.dispatchEvent(new w.Event("input", { bubbles: true })); await wait(300);
+          p.querySelector(".mc-qc-primary").click(); await wait(1200);
+          const it2 = (await items("Halo NL Dauer"))[0];
+          const dur = it2 ? { allDay: it2.startDate.isDate, minutes: (cal.dtz.dateTimeToJsDate(it2.endDate) - cal.dtz.dateTimeToJsDate(it2.startDate)) / 60000,
+                              tomorrow: cal.dtz.dateTimeToJsDate(it2.startDate).getDate() == tm2.getDate() } : null;
+          return { tomorrow: s.getDate() == tm2.getDate(), start: s.getHours() * 60 + s.getMinutes(), minutes: (e - s) / 60000, dur };''')
+        ok = (bool(res) and res["tomorrow"] and res["start"] == 750 and res["minutes"] == 90
+              and bool(res["dur"]) and res["dur"]["allDay"] is False and res["dur"]["minutes"] == 120 and res["dur"]["tomorrow"])
         return ok, f"{res}"
-    check("Schnellfenster: natürliche Eingabe („morgen 12:30 für 90 min“)", natural, results)
+    check("Schnellfenster: natürliche Eingabe („morgen 12:30 für 90 min“, „morgen für 2h“ nicht ganztägig)", natural, results)
 
     def natural_rules():
         # parseNatural direkt über das Experiment-Modul, „jetzt“ = Di 20.10.2026 15:00
@@ -2115,9 +2886,10 @@ def run_checks(m, version, profile, results):
           const out = {};
           for (const t of ["Lunch für 2h um 12 Uhr", "Workshop für 1.5h morgen um 10 Uhr", "Meeting 14:00 für 2h", "Arzt Freitag morgen 8 Uhr",
                            "Arzt morgen 8 Uhr", "Termin 1.3.25", "Call 11-1pm", "Call 2-4pm", "Party 22-2 Uhr", "Arbeit 9-5",
-                           "Schicht 18-7 Uhr", "Standup 11-12am", "Gottesdienst Karfreitag morgen 10 Uhr"]) {
+                           "Schicht 18-7 Uhr", "Standup 11-12am", "Gottesdienst Karfreitag morgen 10 Uhr", "Party 11-1am", "Party 10-2am",
+                           "Meeting morgen für 2h"]) {
             const r = parse(t, new Date(2026, 9, 20, 15, 0));
-            out[t] = `${r.title} | ${f(r.start)} – ${f(r.end)}`;
+            out[t] = `${r.title} | ${f(r.start)} – ${f(r.end)}` + (!r.end && !r.allDay ? ` | ohne Uhrzeit, ${r.duration} min` : "");
           }
           return out;''' % ADDON_ID)
         expected = {
@@ -2134,9 +2906,12 @@ def run_checks(m, version, profile, results):
             "Schicht 18-7 Uhr": "Schicht | 20.10.2026 18:00 – 21.10.2026 07:00",
             "Standup 11-12am": "Standup | 20.10.2026 11:00 – 20.10.2026 12:00",
             "Gottesdienst Karfreitag morgen 10 Uhr": "Gottesdienst Karfreitag | 21.10.2026 10:00 – 21.10.2026 11:00",
+            "Party 11-1am": "Party | 20.10.2026 23:00 – 21.10.2026 01:00",
+            "Party 10-2am": "Party | 20.10.2026 22:00 – 21.10.2026 02:00",
+            "Meeting morgen für 2h": "Meeting | 21.10.2026 00:00 – - | ohne Uhrzeit, 120 min",
         }
         bad = [f"„{k}“ → {res.get(k)}" for k, v in expected.items() if res.get(k) != v]
-        return not bad, "; ".join(bad) or f"{len(expected)} Eingaben richtig (Dauer, „Freitag morgen“, „Karfreitag morgen“, Jahr „25“, am/pm, „12am“, über Mitternacht)"
+        return not bad, "; ".join(bad) or f"{len(expected)} Eingaben richtig (Dauer, Dauer ohne Uhrzeit, „Freitag morgen“, „Karfreitag morgen“, Jahr „25“, am/pm, „12am“, „11-1am“, über Mitternacht)"
     check("Schnellfenster: Dauer, Wochentag mit „morgen“, zweistelliges Jahr, Zeiträume", natural_rules, results)
 
     def quick_late_allday():
@@ -2732,6 +3507,7 @@ def run_checks(m, version, profile, results):
     reading_checks(m, results)
     compose_checks(m, results)
     folder_checks(m, results)
+    dialog_checks(m, results)
     menu_checks(m, results)
     calendar_checks(m, results)
 
@@ -2747,6 +3523,9 @@ def run_checks(m, version, profile, results):
           await probe("mail", () => toMail(), () => tm.currentAbout3Pane.document.getElementById("messagePane"));
           await probe("calendar", () => toCalendar(), () => d.getElementById("calendarDisplayBox"));
           await probe("settings", async () => { w.openPreferencesTab(); await wait(2000); }, () => tm.currentTabInfo.browser.contentDocument.getElementById("preferencesContainer"));
+          // Chat: früher sperrte der ausgeblendete Kalender die Breite (Fenster ließ sich nicht verkleinern)
+          await probe("chat", async () => { tm.openTab("chat", {}); await wait(1500); }, () => d.getElementById("conversationsBox"));
+          out.chat.inside = d.documentElement.getBoundingClientRect().width <= w.innerWidth + 1;
           w.resizeTo(1500, 900); await wait(800); await toMail();
           return out;''')
         # Adressbuch (Bearbeiten): schmales Fenster und weit gezogener Teiler –
@@ -2761,9 +3540,168 @@ def run_checks(m, version, profile, results):
           ab.detailsPane.isDirty = false; ad.getElementById("cancelEditButton").click(); await wait(300);
           tm.closeTab(tm.currentTabInfo); w.resizeTo(1500, 900); await wait(800); await toMail();
           return out;''')
-        ok = res["addressbook"]["inside"] and res["addressbook"]["min"] >= 560 and all(v["pane"] is not None and v["pane"] >= v["min"] - 1 and v["window"] > 600 for v in res.values())
+        ok = res["chat"]["window"] < 1400 and res["chat"]["inside"] and res["addressbook"]["inside"] and res["addressbook"]["min"] >= 560 and all(v["pane"] is not None and v["pane"] >= v["min"] - 1 and v["window"] > 600 for v in res.values())
         return ok, f"{res}"
     check("Mindestbreiten: Fenster wird nicht schmaler als die Bereiche", min_widths, results)
+
+    def ab_min_width_unselected():
+        # Adressbuch ohne Auswahl: das Fenster lässt sich wieder schmaler ziehen
+        # (früher sperrte der ausgeblendete Kalender die Breite auf die aktuelle);
+        # nach Wahl eines Kontakts bleiben die Details mindestens so breit wie vorgegeben
+        res = m.js(r"""
+          w.resizeTo(1500, 900); await wait(800);
+          tm.openTab("addressBookTab", {});
+          const tab = tm.currentTabInfo;
+          const ab = await until(() => { const c = tab.browser?.contentWindow; return c?.document?.getElementById("cards")?.view?.rowCount && c; }, 8000);
+          const ad = ab.document, list = ad.getElementById("cards"), dp = ad.getElementById("detailsPane");
+          const out = {};
+          try {
+            await wait(800);
+            list.selectedIndices = []; await wait(800);
+            out.hidden = dp.hidden || !dp.getClientRects().length;
+            w.resizeTo(1500, 900); await wait(1000);
+            w.resizeTo(1250, 900); await wait(1200);
+            out.narrow = w.outerWidth;
+            list.selectedIndex = 0; await wait(1000);
+            w.resizeTo(600, 900); await wait(1500);
+            const r = dp.getBoundingClientRect();
+            out.pane = Math.round(r.width); out.min = parseFloat(ab.getComputedStyle(dp).minWidth);
+            out.inside = r.right <= ab.innerWidth + 1; out.window = w.outerWidth;
+          } finally {
+            tm.closeTab(tab); w.resizeTo(1500, 900); await wait(800);
+          }
+          return out;""")
+        ok = (res["hidden"] and res["narrow"] < 1450 and res["pane"] >= res["min"] - 1 and res["min"] >= 560
+              and res["inside"] and res["window"] > 600)
+        return ok, f"{res}"
+    check("Adressbuch ohne Auswahl: Fenster lässt sich verkleinern, Details danach mindestens so breit wie vorgegeben", ab_min_width_unselected, results)
+
+    def chat_toolbar():
+        # Chat ohne Konto: leerer Zustand ruhig (Info-Symbol in Tertiärgrau, Text 13 px grau,
+        # Knopf voll deckend und ohne Dauer-Fokusring); Statuskapsel mit 13-px-Text und flachem
+        # Punkt; deaktivierte Knöpfe ohne Hover; Knöpfe und Suche überlappen nie
+        res = m.js(r"""
+          const cs = el => w.getComputedStyle(el);
+          const colorOf = (value, prop = "color") => { const e = d.createElementNS("http://www.w3.org/1999/xhtml", "div"); e.style[prop] = value;
+            d.documentElement.append(e); const c = cs(e)[prop]; e.remove(); return c; };
+          const { IMServices } = ChromeUtils.importESModule("resource:///modules/IMServices.sys.mjs");
+          const gus = IMServices.core.globalUserStatus;
+          const q = s => d.querySelector(s);
+          const search = () => q('#unifiedToolbarContent > li[item-id="search-bar"]').getBoundingClientRect();
+          const out = {};
+          try {
+            w.resizeTo(1500, 900); await wait(800);
+            tm.openTab("chat", {}); await wait(1500);
+            // leerer Zustand: Gruppe voll deckend, Erklärtext 13 px grau, Knopf in Akzentfarbe, eigenes Info-Symbol in Tertiärgrau
+            const box = d.getElementById("noConvBox"), btn = d.getElementById("openIMAccountWizardButton");
+            let dim = []; for (let e = btn; e && !e.classList?.contains("im-placeholder-screen"); e = e.parentElement) { if (parseFloat(cs(e).opacity) < 1) dim.push(e.id || e.className); }
+            const desc = d.getElementById("noAccountDesc");
+            out.empty = { inner: cs(d.getElementById("noAccountInnerBox")).opacity, dim, descSize: cs(desc).fontSize,
+              descOk: cs(desc).color == colorOf("var(--mt-text-secondary)"), btnOk: cs(btn).backgroundColor == colorOf("var(--mt-accent)", "backgroundColor"),
+              icon: cs(box).backgroundImage.includes("mailcards/icons/info.svg"), stroke: cs(box).stroke == colorOf("var(--mt-text-tertiary)") };
+            // Standardknopf: nach dem Öffnen fokussiert, aber ohne Ring; per Tastatur mit Ring
+            out.focus = { active: d.activeElement === btn, fv: btn.matches(":focus-visible"), outline: cs(btn).outlineStyle };
+            // (Fenster nach vorn, sonst greift :focus-visible nicht)
+            w.focus(); await until(() => Services.focus.activeWindow == w, 3000); await wait(200);
+            btn.blur(); btn.focus({ focusVisible: true }); await wait(100);
+            out.focus.kbFv = btn.matches(":focus-visible");
+            out.focus.kbOutline = cs(btn).outlineStyle; out.focus.kbWidth = parseFloat(cs(btn).outlineWidth);
+            btn.blur();
+            // Statuskapsel: Text 13 px wie „Add Contact“, ohne Konto gedimmt wie die übrigen Knöpfe; flacher Punkt
+            const lbl = d.getElementById("statusMessageLabel"), type = d.getElementById("statusTypeIcon"), ic = q("#statusTypeIcon > .toolbarbutton-icon");
+            const addText = q("#button-add-buddy .toolbarbutton-text"), addIcon = q("#button-add-buddy .toolbarbutton-icon");
+            const ir = ic.getBoundingClientRect(), sr = q("#chat-status-selector").getBoundingClientRect();
+            out.status = { size: cs(lbl).fontSize, addSize: cs(addText).fontSize, disabled: type.hasAttribute("disabled"),
+              lblOp: cs(lbl).opacity, addTextOp: cs(addText).opacity, dotOp: cs(ic).opacity, addIconOp: cs(addIcon).opacity,
+              img: cs(ic).listStyleImage, w: ir.width, h: ir.height, mid: Math.abs((ir.top + ir.bottom) / 2 - (sr.top + sr.bottom) / 2),
+              online: cs(ic).backgroundColor == colorOf("var(--mt-status-online)", "backgroundColor") };
+            // Innenabstand der Kapsel links (bis zum Punkt) und rechts (hinter dem Textende) gleich
+            // und wie bei „Add Contact“ (Symbol links, Text rechts)
+            const textRight = el => { const r = d.createRange(); r.selectNodeContents(el); const rr = r.getBoundingClientRect();
+              return rr.width > 0 ? rr.right : el.getBoundingClientRect().right - parseFloat(cs(el).paddingRight); };
+            const ar = q("#button-add-buddy").getBoundingClientRect(), air = addIcon.getBoundingClientRect();
+            Object.assign(out.status, { padL: ir.left - sr.left, padR: sr.right - textRight(lbl),
+              addL: air.left - ar.left, addR: ar.right - textRight(addText), text: lbl.value || lbl.textContent });
+            const st = type.getAttribute("status"); type.setAttribute("status", "away"); await wait(100);
+            out.status.away = cs(ic).backgroundColor == colorOf("var(--mt-status-away)", "backgroundColor");
+            type.setAttribute("status", st);
+            // deaktivierte Knöpfe (ohne Konto) werden beim Überfahren nicht dunkler
+            out.hover = {};
+            for (const id of ["button-join-chat", "button-add-buddy"]) {
+              const b = d.getElementById(id), base = cs(b).backgroundColor;
+              InspectorUtils.addPseudoClassLock(b, ":hover");
+              out.hover[id] = { disabled: b.hasAttribute("disabled"), same: cs(b).backgroundColor == base };
+              InspectorUtils.clearPseudoClassLocks(b);
+            }
+            // Knöpfe an der Kante der Mailliste, solange Platz ist
+            out.edge1500 = Math.round(d.getElementById("chat-view-toolbox").getBoundingClientRect().left);
+            // langer Statustext endet mit „…“; Knöpfe und Suche überlappen bei keiner Fensterbreite
+            gus.setStatus(Ci.imIStatusInfo.STATUS_AWAY, "I am currently away from the computer and will be back later. ".repeat(2));
+            await wait(1500);
+            out.long = { vb: Math.round(q("#chat-status-selector > vbox").getBoundingClientRect().width), to: cs(lbl).textOverflow, ox: cs(lbl).overflowX };
+            out.widths = {};
+            for (const W of [1500, 1280, 1150, 1000, 900]) {
+              w.resizeTo(W, 900); await wait(1200);
+              const tb = d.getElementById("chat-view-toolbox").getBoundingClientRect(), s = search(), lp = d.getElementById("listPaneBox").getBoundingClientRect();
+              out.widths[W] = { win: w.outerWidth, tbl: Math.round(tb.left), tbr: Math.round(tb.right), sl: Math.round(s.left), lpr: Math.round(lp.right), inner: w.innerWidth };
+            }
+          } finally {
+            gus.setStatus(Ci.imIStatusInfo.STATUS_AVAILABLE, "");
+            w.resizeTo(1500, 900); await wait(800); await toMail();
+          }
+          return out;""")
+        e, f, st, wd = res["empty"], res["focus"], res["status"], res["widths"]
+        empty_ok = (e["inner"] == "1" and not e["dim"] and e["descSize"] == "13px" and e["descOk"] and e["btnOk"]
+                    and e["icon"] and e["stroke"])
+        focus_ok = f["active"] and not f["fv"] and f["outline"] == "none" and f["kbOutline"] != "none" and f["kbWidth"] >= 2
+        status_ok = (st["size"] == "13px" == st["addSize"] and st["img"] == "none" and abs(st["w"] - 10) <= 0.5
+                     and abs(st["h"] - 10) <= 0.5 and st["mid"] <= 1 and st["online"] and st["away"]
+                     and abs(st["padL"] - st["padR"]) <= 3 and abs(st["padL"] - st["addL"]) <= 3
+                     and (not st["disabled"] or (st["lblOp"] == st["addTextOp"] and st["dotOp"] == st["addIconOp"])))
+        hover_ok = all(v["same"] for v in res["hover"].values() if v["disabled"])
+        long_ok = res["long"]["vb"] <= 161 and res["long"]["to"] == "ellipsis" and res["long"]["ox"] == "hidden"
+        widths_ok = all(v["tbr"] + 4 <= v["sl"] and v["tbl"] >= v["lpr"] and v["tbr"] <= v["inner"] for v in wd.values())
+        edge_ok = abs(wd["1500"]["tbl"] - res["edge1500"]) <= 1
+        ok = empty_ok and focus_ok and status_ok and hover_ok and long_ok and widths_ok and edge_ok
+        return ok, f"{res}"
+    check("Chat: leerer Zustand ruhig ohne Dauer-Fokusring, Statuskapsel 13 px mit flachem Punkt und beidseitig gleichem Innenabstand wie „Add Contact“, kein Hover auf deaktivierten Knöpfen, langer Statustext mit „…“, Knöpfe und Suche überlappen bei keiner Fensterbreite", chat_toolbar, results)
+
+    def side_line():
+        # Trennlinie der Seitenleiste läuft in der Toolbar-Zeile ohne Versatz und
+        # ohne Farbsprung weiter: --mc-side-right ist die Außenkante samt der
+        # 1-px-Linie der Seitenleiste, die Linie oben liegt auf dem letzten Pixel davor
+        res = m.js(r"""
+          const out = {};
+          const pixels = async r => { const cv = d.createElementNS("http://www.w3.org/1999/xhtml", "canvas");
+            cv.width = Math.round(r.width); cv.height = Math.round(r.height); const ctx = cv.getContext("2d");
+            try { const bm = await w.browsingContext.currentWindowGlobal.drawSnapshot(new w.DOMRect(r.left, r.top, r.width, r.height), 1, "white"); ctx.drawImage(bm, 0, 0); }
+            catch { ctx.drawWindow(w, r.left, r.top, r.width, r.height, "white"); }
+            const data = ctx.getImageData(0, 0, cv.width, cv.height).data;
+            return (x, y) => { const i = (Math.round(y) * cv.width + Math.round(x)) * 4; return [data[i], data[i + 1], data[i + 2]]; }; };
+          try {
+            w.resizeTo(1500, 900); await wait(800);
+            for (const [mode, id] of [["chat", "listPaneBox"], ["calendar", "calSidebar"]]) {
+              tm.openTab(mode, {}); await wait(1500);
+              const rowEl = d.getElementById("unifiedToolbarContainer"), row = rowEl.getBoundingClientRect();
+              const side = parseFloat(w.getComputedStyle(rowEl).getPropertyValue("--mc-side-right"));
+              const paneEl = d.getElementById(id), pane = paneEl.getBoundingClientRect();
+              const bg = w.getComputedStyle(rowEl).backgroundImage;
+              // je ein Bildpunkt links von, auf und rechts von der Linie, über und unter der Toolbar-Kante
+              const px = await pixels(new w.DOMRect(Math.round(pane.right) - 3, row.bottom - 4, 5, 8));
+              const col = x => ({ up: px(x, 1), down: px(x, 6) });
+              out[mode] = { off: row.left + side - pane.right, border: w.getComputedStyle(paneEl).borderInlineEndWidth,
+                layers: (bg.match(/linear-gradient/g) || []).length, cols: [col(1), col(2), col(3)] };
+            }
+          } finally {
+            await toMail();
+          }
+          return out;""")
+        def same(a, b):
+            return all(abs(x - y) <= 6 for x, y in zip(a, b))
+        ok = all(v["border"] == "1px" and abs(v["off"]) <= 0.5 and v["layers"] == 2
+                 and all(same(c["up"], c["down"]) for c in v["cols"]) for v in res.values())
+        return ok, f"{res}"
+    check("Bereiche: Trennlinie der Seitenleiste läuft in der Toolbar-Zeile ohne Versatz und Farbsprung weiter (Chat, Kalender)", side_line, results)
 
     def today_closed():
         # Today-Pane aus: keine graue Fläche oben rechts neben dem Knopf
@@ -2968,6 +3906,381 @@ def run_checks(m, version, profile, results):
         return ok, f"{res}"
     check("Adressbuch: Kontakt bearbeiten in Systemschrift, Überschriften über den Feldern, Wichtiges zuerst, Weiteres auf Wunsch, Initialen mittig über dem Namen", contact_edit, results)
 
+    ab_views_res = {}
+
+    def ab_views():
+        # Kontakt-, Listen-, Auswahl-, Tabellen- und Leeransicht einmal messen
+        if not ab_views_res:
+            ab_views_res.update(m.js(r"""
+  const { MailServices } = ChromeUtils.importESModule("resource:///modules/MailServices.sys.mjs");
+  const { VCardUtils } = ChromeUtils.importESModule("resource:///modules/VCardUtils.sys.mjs");
+  const book = MailServices.ab.getDirectory("jsaddrbook://abook.sqlite");
+  const mk = props => { const c = Cc["@mozilla.org/addressbook/cardproperty;1"].createInstance(Ci.nsIAbCard);
+    for (const [k, v] of Object.entries(props)) if (!["DisplayName", "PrimaryEmail"].includes(k)) c.setProperty(k, v);
+    c.displayName = props.DisplayName; c.primaryEmail = props.PrimaryEmail; return c; };
+  const has = name => book.childCards.some(c => c.displayName == name);
+  // was hier angelegt wird, am Ende wieder entfernen (spätere Prüfungen zählen Kontakte)
+  const made = [];
+  if (!has("Anna Beispiel")) book.addCard(mk({ FirstName: "Anna", LastName: "Beispiel", DisplayName: "Anna Beispiel", PrimaryEmail: "anna@example.invalid", Company: "Beispiel GmbH", JobTitle: "Leitung", WorkPhone: "+43 1 234" }));
+  if (!has("Ben Muster")) made.push(book.addCard(mk({ FirstName: "Ben", LastName: "Muster", DisplayName: "Ben Muster", PrimaryEmail: "ben@example.invalid" })));
+  if (!has("Jonas Ärmel")) made.push(book.addCard(VCardUtils.vCardToAbCard("BEGIN:VCARD\r\nVERSION:4.0\r\nFN:Jonas Ärmel\r\nN:Ärmel;Jonas;;;\r\nEMAIL;PREF=1:jonas@example.invalid\r\nTEL;TYPE=work:+43 1 777\r\nNOTE:Erfundener Testkontakt\r\nEND:VCARD\r\n")));
+  if (!book.childNodes.some(l => l.dirName == "Halo Liste")) {
+    const l = Cc["@mozilla.org/addressbook/directoryproperty;1"].createInstance(Ci.nsIAbDirectory);
+    l.isMailList = true; l.dirName = "Halo Liste"; l.listNickName = "haloliste";
+    const ml = book.addMailList(l);
+    for (const c of book.childCards) if (["Anna Beispiel", "Ben Muster", "Jonas Ärmel"].includes(c.displayName)) ml.addCard(c);
+  }
+  if (!MailServices.ab.directories.some(b => b.dirName == "Halo Leer")) MailServices.ab.newAddressBook("Halo Leer", "", Ci.nsIAbManager.JS_DIRECTORY_TYPE);
+  tm.openTab("addressBookTab", {});
+  const ab = await until(() => tm.currentTabInfo.browser?.contentWindow?.cardsPane && tm.currentTabInfo.browser.contentWindow, 8000);
+  await wait(1500);
+  const abTab = tm.currentTabInfo;
+  const ad = ab.document, cs = e => ab.getComputedStyle(e);
+  const R = e => e.getBoundingClientRect(), mid = e => { const r = R(e); return (r.left + r.right) / 2; };
+  const list = ad.getElementById("cards");
+  const rows = () => [...Array(list.view.rowCount).keys()];
+  const pick = async name => { list.selectedIndex = rows().find(k => list.view.getCardFromRow(k)?.displayName == name); await wait(900); };
+  // Hilfselement für die berechnete Akzentfarbe
+  const probe = ad.createElement("span"); probe.style.color = "AccentColor"; ad.body.append(probe);
+  const accent = cs(probe).color; probe.remove();
+  const out = { accent };
+  try {
+    // Kontakt: Kopf mittig, Links in Akzentfarbe, eine Kante in den Karten
+    await pick("Jonas Ärmel");
+    const body = ad.getElementById("detailsBody"), photo = ad.getElementById("viewContactPhoto");
+    const em = ad.querySelector("#emailAddresses");
+    const firstVal = em.querySelector(".entry-value"), link = em.querySelector("a");
+    const telType = ad.querySelector("#phoneNumbers .entry-type"), note = ad.querySelector("#notes > div");
+    out.contact = { photoMid: Math.round(mid(photo) - mid(body)), photoW: Math.round(R(photo).width),
+      link: link && [cs(link).textDecorationLine, cs(link).color],
+      edges: [em.querySelector("h2"), firstVal, telType, note].map(e => e ? Math.round(R(e).left) : null),
+      // Notiz so groß wie die übrigen Werte
+      noteFont: note && [cs(note).fontSize, cs(firstVal).fontSize] };
+    // Darstellungsmenü „…“: drei Abschnitte mit genau einer Trennlinie dazwischen
+    const sc = ad.getElementById("sortContext");
+    const shownP = new Promise(r => sc.addEventListener("popupshown", r, { once: true }));
+    sc.openPopup(list, "after_start"); await Promise.race([shownP, wait(3000)]); await wait(300);
+    out.sortMenu = [...sc.children].filter(e => !e.hidden && cs(e).display != "none")
+      .map(e => e.localName == "menuseparator" ? "|" : e.localName == "menucaption" ? "#" + e.getAttribute("label") : (e.getAttribute("value") || e.id || "item"));
+    const hiddenP = new Promise(r => sc.addEventListener("popuphidden", r, { once: true }));
+    sc.hidePopup(); await Promise.race([hiddenP, wait(2000)]);
+    // neuer Kontakt ohne Namen: Personen-Silhouette statt Initialen aus „New Contact“,
+    // nach Eingabe von Vor- und Nachname deren Initialen
+    {
+      ab.detailsPane.editNewContact(); await wait(800);
+      const ph = ad.querySelector("#photoInput .contact-photo");
+      const srcOf = () => decodeURIComponent(ph?.getAttribute("src") || "");
+      const before = srcOf();
+      const typeIn = (id, v) => { const f = ad.getElementById(id); f.value = v; f.dispatchEvent(new ab.InputEvent("input", { bubbles: true })); };
+      typeIn("vcard-n-firstname", "Test"); typeIn("vcard-n-lastname", "Person"); await wait(500);
+      const after = srcOf();
+      out.newContact = { before: before.slice(-40), person: before.endsWith("person-avatar.svg"),
+        initials: after.startsWith("data:") && after.includes(">TP<"), heading: ad.getElementById("editContactHeadingName")?.textContent };
+      ab.detailsPane.isDirty = false;
+      ad.getElementById("cancelEditButton").click(); await wait(600);
+    }
+    // Kontakt bearbeiten: Papierkorb im Knopf „Delete“ mit Abstand zum Text,
+    // links und rechts etwa gleich viel Rand in der Kapsel
+    {
+      await pick("Jonas Ärmel");
+      ad.getElementById("editButton").click(); await wait(1200);
+      const del = ad.getElementById("detailsDeleteButton");
+      const tn = []; { const tw = ad.createTreeWalker(del, ab.NodeFilter.SHOW_TEXT); while (tw.nextNode()) if (tw.currentNode.textContent.trim()) tn.push(tw.currentNode); }
+      const rg = ad.createRange(); if (tn.length) { rg.setStart(tn[0], 0); rg.setEnd(tn[tn.length - 1], tn[tn.length - 1].length); }
+      const tr = tn.length ? rg.getBoundingClientRect() : null, br = R(del);
+      const bx = parseFloat(cs(del).backgroundPositionX), ps = parseFloat(cs(del).paddingInlineStart);
+      out.del = { visible: del.getClientRects().length > 0, bx, ps, gap: ps - (bx + 16),
+        left: bx, right: tr ? Math.round(br.right - tr.right) : null, textGap: tr ? Math.round(tr.left - br.left - bx - 16) : null };
+      ab.detailsPane.isDirty = false;
+      ad.getElementById("cancelEditButton").click(); await wait(600);
+    }
+    // breiter Detailbereich (> 64em): Kopf bleibt auf der Achse
+    const dp = ad.getElementById("detailsPane");
+    out.wide = { pane: Math.round(R(dp).width) };
+    // Tabellenansicht: kleines Foto, erste Karte ohne Scrollen sichtbar, Kopf auf der Achse
+    ab.cardsPane.toggleLayout(true); await wait(1500); await pick("Jonas Ärmel"); await wait(600);
+    // Darstellungsmenü in der Tabelle: ohne Sortierung kein leerer Titel „Sort“
+    {
+      w.focus(); abTab.browser.focus(); await wait(200);
+      const shown = new Promise(r => sc.addEventListener("popupshown", r, { once: true }));
+      sc.openPopup(list, "after_start"); await Promise.race([shown, wait(3000)]); await wait(300);
+      out.sortMenuState = sc.state;
+      out.sortMenuTable = [...sc.children].filter(e => !e.hidden && e.getClientRects().length > 0)
+        .map(e => e.localName == "menuseparator" ? "|" : e.localName == "menucaption" ? "#" + e.getAttribute("mc-section") : (e.getAttribute("value") || e.id || "item"));
+      const hid = new Promise(r => sc.addEventListener("popuphidden", r, { once: true }));
+      sc.hidePopup(); await Promise.race([hid, wait(2000)]);
+    }
+    const lh2 = d.querySelector("#mcListHeader .mc-lh-more"), search = d.querySelector("#unifiedToolbarContent global-search-bar, #unifiedToolbarContent search-bar, #unifiedToolbarContent .search-bar");
+    out.table = { photoW: Math.round(R(photo).width), photoMid: Math.round(mid(photo) - mid(body)),
+      emTop: Math.round(R(em).top), paneBottom: Math.round(R(dp).bottom), dpW: Math.round(R(dp).width),
+      more: lh2 && [Math.round(lh2.getBoundingClientRect().left), Math.round(lh2.getBoundingClientRect().right)],
+      search: search && [search.localName, Math.round(search.getBoundingClientRect().left), Math.round(search.getBoundingClientRect().width)],
+      line: w.getComputedStyle(d.getElementById("unifiedToolbarContainer"), "::before").content,
+      firstBtn: [...d.querySelectorAll("#unifiedToolbarContent > li:not([item-id=spacer])")].filter(e => e.getClientRects().length && e.getBoundingClientRect().width).map(e => [e.getAttribute("item-id"), Math.round(e.getBoundingClientRect().left)]).slice(0, 6) };
+    ab.cardsPane.toggleLayout(false); await wait(1500);
+    out.cardsView = { photoW: Math.round(R(photo).width),
+      more: lh2 && [Math.round(lh2.getBoundingClientRect().left), Math.round(lh2.getBoundingClientRect().right)],
+      search: search && [Math.round(search.getBoundingClientRect().left), Math.round(search.getBoundingClientRect().width)],
+      line: w.getComputedStyle(d.getElementById("unifiedToolbarContainer"), "::before").content };
+    // Liste: Kontaktkopf weg, Listenkopf mittig mit Verlaufs-Kreis
+    const lrow = [...ad.querySelectorAll("#books li.listRow")].find(li => li.textContent.includes("Halo Liste"));
+    ab.booksList.selectedIndex = ab.booksList.rows.indexOf(lrow); await wait(1200);
+    const lc = lrow.querySelector(".listRow-container") || lrow.firstElementChild;
+    // Auswahl unfokussiert grau, fokussiert wie die Ordnerliste akzentgetönt
+    list.focus(); await wait(300);
+    const bgBlur = cs(lc).backgroundColor;
+    const tint = ad.createElement("span"); ad.body.append(tint);
+    tint.style.backgroundColor = "var(--mt-selected-unfocused)"; const unfocused = cs(tint).backgroundColor;
+    tint.style.backgroundColor = "color-mix(in srgb, var(--mt-accent) 22%, transparent)"; const focused = cs(tint).backgroundColor;
+    tint.remove();
+    // Hauptfenster und Tab nach vorn, sonst gilt :focus-within nicht
+    w.focus(); abTab.browser.focus(); ad.getElementById("books").focus(); await wait(300);
+    const licon = lrow.querySelector(".listRow-icon");
+    out.listSel = { bgBlur, bgFocus: cs(lc).backgroundColor, unfocused, focused, fw: ad.getElementById("books").matches(":focus-within"),
+      icon: [cs(licon).backgroundColor, cs(licon).maskImage.startsWith('url("data:'), Math.round(R(licon).width)] };
+    const brow = ad.querySelector("#books .bookRow > .bookRow-container");
+    out.listRow = { border: cs(lc).borderTopWidth, radius: cs(lc).borderTopLeftRadius, font: cs(lc).fontSize,
+      h: Math.round(R(lc).height), bookH: Math.round(R(brow).height), bg: cs(lc).backgroundColor,
+      // eingerückt unter seinem Buch
+      indent: Math.round(R(lrow.querySelector(".listRow-icon")).left - R(lrow.parentElement.closest("li").querySelector(".bookRow-icon")).left) };
+    // Abstand Symbol → Name gleich bei Verteilerliste und Buch
+    {
+      const brow2 = lrow.parentElement.closest("li");
+      out.nameGap = { list: Math.round(R(lrow.querySelector(".listRow-name")).left - R(lrow.querySelector(".listRow-icon")).right),
+        book: Math.round(R(brow2.querySelector(".bookRow-name")).left - R(brow2.querySelector(".bookRow-icon")).right) };
+    }
+    // Auswahlfarbe einer gewählten Buchzeile zum Vergleich
+    ab.booksList.selectedIndex = 0; await wait(1200);
+    await pick("Halo Liste");
+    // Zeile der Verteilerliste: Symbol weiß und klein auf dem Verlauf
+    const lav = list.getRowAtIndex?.(list.selectedIndex)?.querySelector("contact-avatar.is-mail-list");
+    const limg = lav?.shadowRoot?.querySelector("img");
+    out.listAvatar = lav && { bg: cs(lav).backgroundImage.includes("linear-gradient"), color: cs(lav).color,
+      w: Math.round(R(lav).width), img: limg ? Math.round(R(limg).width) : null };
+    const ch = ad.querySelector("#viewContact .contact-header"), lh = ad.querySelector("#viewContact .list-header");
+    const lname = ad.getElementById("viewListName"), av = lh.querySelector(".recipient-avatar");
+    out.list = { headerDisplay: cs(ch).display, photoRects: photo.getClientRects().length, hidden: ch.hidden,
+      listMid: Math.round(mid(lname) - mid(body)), font: [cs(lname).fontSize, cs(lname).fontWeight],
+      avatar: [Math.round(R(av).width), cs(av).backgroundImage.slice(0, 15), Math.round(mid(av) - mid(body))] };
+    // Mehrfachauswahl
+    ad.getElementById("cards").focus();
+    list.selectedIndices = rows().filter(k => ["Anna Beispiel", "Ben Muster", "Jonas Ärmel"].includes(list.view.getCardFromRow(k)?.displayName)); await wait(1200);
+    const cnt = ad.getElementById("viewSelectionCount"), sel = ad.getElementById("selectedCards");
+    const avs = [...sel.querySelectorAll("contact-avatar")];
+    out.multi = { headerDisplay: cs(ch).display, photoRects: photo.getClientRects().length,
+      countMid: Math.round(mid(cnt) - mid(sel)), font: cs(cnt).fontSize, n: avs.length,
+      avatars: avs.map(a => [cs(a).backgroundImage.includes("linear-gradient"), cs(a).color, cs(a).fontSize]) };
+    // leeres Buch
+    const erow = [...ad.querySelectorAll("#books li")].find(li => li.textContent.includes("Halo Leer"));
+    ab.booksList.selectedIndex = ab.booksList.rows.indexOf(erow); await wait(1500);
+    const slot = list.shadowRoot?.querySelector('slot[name="placeholders"]') || ad.querySelector('#cards > slot[name="placeholders"]');
+    const btn = ad.getElementById("placeholderCreateContact"), empty = ad.getElementById("placeholderEmptyBook");
+    out.empty = { opacity: slot && cs(slot).opacity, btn: [btn.getClientRects().length, cs(btn).fontSize, cs(btn).color],
+      emptyColor: cs(empty).color, tert: cs(ad.documentElement).getPropertyValue("--mt-text-tertiary").trim() };
+    // leeres Buch: Details ausgeblendet, rechts derselbe Grund wie die Kontaktliste
+    {
+      const dpR = R(ad.getElementById("cardsPane"));
+      let el = ad.elementFromPoint(Math.round((dpR.right + ab.innerWidth) / 2), Math.round(ab.innerHeight / 2)), bg = null;
+      for (; el; el = el.parentElement) { const c = cs(el).backgroundColor; if (c != "transparent" && !/rgba\(.*, 0\)$/.test(c)) { bg = [el.id || el.localName, c]; break; } }
+      if (!bg) bg = ["root", cs(ad.documentElement).backgroundColor];
+      out.emptyBg = { detailsHidden: ad.getElementById("detailsPane").hidden || cs(ad.getElementById("detailsPane")).display == "none",
+        root: cs(ad.documentElement).backgroundColor, cards: cs(ad.getElementById("cardsPane")).backgroundColor, right: bg };
+    }
+    ab.booksList.selectedIndex = 0; await wait(1200);
+  } finally {
+    tm.closeTab(abTab);
+    const ml = book.childNodes.find(l => l.dirName == "Halo Liste"); if (ml) book.deleteDirectory(ml);
+    if (made.length) book.deleteCards(made);
+    const eb = MailServices.ab.directories.find(b => b.dirName == "Halo Leer"); if (eb) MailServices.ab.deleteAddressBook(eb.URI);
+    await wait(500);
+  }
+  return out;"""))
+        return ab_views_res
+
+    def ab_heads():
+        # Verteilerliste und Mehrfachauswahl: kein leerer Kontaktkreis, Kopf mittig
+        # und groß (Liste im Verlauf der Initialen-Kreise); Mitglieder-Kreise wie
+        # in der Liste; Kontaktkopf auch im breiten Detailbereich (Tabelle) mittig
+        res = ab_views()
+        li, mu, ta = res["list"], res["multi"], res["table"]
+        ok = (li["headerDisplay"] == "none" and li["photoRects"] == 0 and abs(li["listMid"]) <= 2
+              and li["font"] == ["28px", "700"] and li["avatar"][0] == 120 and li["avatar"][1] == "linear-gradient" and abs(li["avatar"][2]) <= 2
+              and mu["headerDisplay"] == "none" and mu["photoRects"] == 0 and abs(mu["countMid"]) <= 2 and mu["font"] == "28px"
+              and mu["n"] >= 3 and all(a == [True, "rgb(255, 255, 255)", "15px"] for a in mu["avatars"])
+              and abs(res["contact"]["photoMid"]) <= 2 and abs(ta["photoMid"]) <= 2 and ta["dpW"] > 840)
+        return ok, f"{res}"
+    check("Adressbuch: Verteilerliste und Mehrfachauswahl ohne leeren Kreis, Kopf mittig; Mitglieder-Kreise im Verlauf; Kontaktkopf auch breit mittig", ab_heads, results)
+
+    def ab_details_cards():
+        # Detailkarten: Links in der Akzentfarbe ohne Unterstrich, Überschrift,
+        # Bezeichnungen, Werte ohne Bezeichnung und Notiz an einer Kante;
+        # Verteilerliste in der Bücherliste wie die Buchzeilen; leeres Buch mit
+        # kräftigem „New Contact“ statt halb durchsichtigem Hinweis
+        res = ab_views()
+        c, lr, e = res["contact"], res["listRow"], res["empty"]
+        edges = c["edges"]
+        ok = (c["link"] == ["none", res["accent"]] and None not in edges and max(edges) - min(edges) <= 1
+              and lr["border"] == "0px" and lr["radius"] == "8px" and lr["font"] == "13px" and abs(lr["h"] - lr["bookH"]) <= 1 and lr["indent"] >= 16
+              and e["opacity"] == "1" and e["btn"] == [1, "13px", res["accent"]])
+        return ok, f"{res}"
+    check("Adressbuch: Links in Akzentfarbe, Karteninhalt an einer Kante, Verteilerliste in der Bücherliste wie Buchzeilen, leeres Buch mit kräftigem Knopf", ab_details_cards, results)
+
+    def ab_footer_gaps():
+        # Bearbeiten: Papierkorb im Knopf „Delete“ mit Abstand zum Text (statt
+        # fast daran klebend), Rand links/rechts ähnlich; Bücherliste: Name der
+        # Verteilerliste so weit hinter dem Symbol wie bei den Büchern (eingerückt);
+        # leeres Buch: rechts kein dunklerer, blaustichiger Seitengrund
+        res = ab_views()
+        dl, ng, eb, lr = res.get("del") or {}, res.get("nameGap") or {}, res.get("emptyBg") or {}, res.get("listRow") or {}
+        ok = (dl.get("visible") and dl["gap"] >= 4 and dl["bx"] >= 10 and dl["textGap"] is not None and dl["textGap"] >= 4
+              and abs(dl["left"] - dl["right"]) <= 6
+              and ng and abs(ng["list"] - ng["book"]) <= 1 and 4 <= ng["book"] <= 8 and lr.get("indent", 0) > 0
+              and eb.get("detailsHidden") and same_color(eb["root"], eb["cards"]) and same_color(eb["right"][1], eb["cards"]))
+        return ok, f"del={dl} nameGap={ng} emptyBg={eb}"
+    check("Adressbuch: Papierkorb im Knopf „Delete“ mit Abstand zum Text; Verteilerliste in der Bücherliste mit gleichem Namensabstand wie Bücher; leeres Buch rechts im Grund der Kontaktliste", ab_footer_gaps, results)
+
+    def ab_table():
+        # Tabellenansicht: kleines Foto, erste Karte ohne Scrollen sichtbar;
+        # „…“ des Listenkopfs nicht über dem Suchfeld, Knöpfe rechts davon,
+        # Suche so breit wie in der Kartenansicht, ohne Trennlinie ohne Spalte
+        res = ab_views()
+        ta, cv = res["table"], res["cardsView"]
+        btns = [b[1] for b in ta["firstBtn"]]
+        ok = (ta["photoW"] <= 100 and ta["emTop"] < ta["paneBottom"] and cv["photoW"] == 260
+              and ta["more"] and ta["search"] and ta["more"][1] <= ta["search"][1] and btns and min(btns) >= ta["more"][1]
+              and ta["search"][2] >= cv["search"][1] - 2 and ta["line"] == "none" and cv["line"] != "none")
+        return ok, f"{res}"
+    check("Adressbuch-Tabelle: kleines Foto mit sichtbaren Karten; „…“ nicht über der Suche, Knöpfe an ihrem Platz", ab_table, results)
+
+    def ab_list_menu():
+        # Notiz in 14 px wie die übrigen Werte; Verteilerliste in der Kontaktliste
+        # mit weißem, kleinem Symbol auf dem Verlauf statt frei stehendem Umriss;
+        # Darstellungsmenü: „Show Names As“ | „Sort“ | „View“ – je genau eine
+        # Trennlinie, innerhalb von „View“ keine
+        res = ab_views()
+        c, la, sm = res["contact"], res.get("listAvatar"), res.get("sortMenu") or []
+        view = sm.index("#View") if "#View" in sm else -1
+        ok = (c.get("noteFont") == ["14px", "14px"]
+              and bool(la) and la["bg"] and la["color"] == "rgb(255, 255, 255)" and la["img"] is not None and la["img"] <= 24
+              and sm.count("|") == 2 and view > 0 and sm[view - 1] == "|" and "|" not in sm[view:]
+              and "mcHideDuplicates" in sm[view:] and "sortContextTableLayout" in sm[view:] and "addrbook" in sm[view:])
+        return ok, f"note={c.get('noteFont')} listAvatar={la} sortMenu={sm}"
+    check("Adressbuch: Notiz so groß wie die Werte; Verteilerliste in der Liste im Verlaufskreis; Darstellungsmenü mit je einer Trennlinie zwischen den Abschnitten", ab_list_menu, results)
+
+    def ab_list_select_new():
+        # Verteilerliste in der Bücherliste: Auswahl unfokussiert grau, fokussiert
+        # akzentgetönt wie die Ordnerliste, Symbol in der Akzentfarbe; Tabellen-
+        # ansicht ohne leeren Titel „Sort“ und ohne doppelte Linie; neuer
+        # Kontakt ohne Namen mit Silhouette statt „NC“, danach mit Initialen
+        res = ab_views()
+        ls, st, nc = res.get("listSel") or {}, res.get("sortMenuTable") or [], res.get("newContact") or {}
+        # keine Linie am Rand oder doppelt; jeder Titel nach dem ersten mit Linie davor und Eintrag danach
+        seps_ok = (bool(st) and st[0] != "|" and st[-1] != "|" and "#sort" not in st
+                   and all(not (x == "|" and y == "|") for x, y in zip(st, st[1:]))
+                   and all(i + 1 < len(st) and st[i + 1] != "|" and not st[i + 1].startswith("#") and (i == 0 or st[i - 1] == "|")
+                           for i, x in enumerate(st) if x.startswith("#")))
+        ok = (bool(ls) and same_color(ls["bgBlur"], ls["unfocused"]) and same_color(ls["bgFocus"], ls["focused"])
+              and not same_color(ls["bgFocus"], ls["bgBlur"])
+              and same_color(ls["icon"][0], res["accent"]) and ls["icon"][1] and ls["icon"][2] == 18
+              and seps_ok and "sortContextTableLayout" in st
+              and nc.get("person") is True and nc.get("initials") is True)
+        return ok, f"listSel={ls} sortMenuTable={st} state={res.get('sortMenuState')} newContact={nc}"
+    check("Adressbuch: Verteilerliste in der Bücherliste fokussiert akzentgetönt mit Akzentsymbol; Tabellen-Darstellungsmenü ohne leeres „Sort“; neuer Kontakt mit Silhouette statt „NC“", ab_list_select_new, results)
+
+    def ab_search_dialog():
+        # Adressen suchen: Bedingungen und Ergebnisse als Flächen mit Haarlinie
+        # und 8 px Radius (dunkel keine schwarze Liste), Teiler als eine Linie
+        res = m.js(COMPOSE_CHECK_JS + r"""
+          later(() => w.MsgSearchAddresses());
+          const sw = await winUrl("abSearchDialog"); if (!sw) throw new Error("Adressen suchen nicht offen");
+          await pause(1000);
+          try {
+            const sd = sw.document, t = sd.getElementById("abResultsTree"), l = sd.getElementById("searchTermList"), sp = sd.getElementById("gray_horizontal_splitter");
+            return { tree: [csOf(t).backgroundColor, csOf(t).borderTopLeftRadius, csOf(t).borderTopColor],
+                     terms: [csOf(l).backgroundColor, csOf(l).borderTopLeftRadius, csOf(l).borderTopColor],
+                     split: [csOf(sp).borderTopWidth, csOf(sp).borderBottomWidth],
+                     win: colorOf(sd, "var(--mt-window)", "backgroundColor"), line: colorOf(sd, "var(--mt-pane-line)", "borderTopColor") };
+          } finally { await shut(sw); }""")
+        ok = (all(same_color(x[0], res["win"]) and x[1] == "8px" and same_color(x[2], res["line"]) for x in (res["tree"], res["terms"]))
+              and res["tree"][0] != "rgb(0, 0, 0)" and res["split"][1] == "0px" and res["split"][0] in ("1px", "0.5px"))
+        return ok, f"{res}"
+    check("Adressen suchen: Bedingungen und Ergebnisse als Flächen mit Haarlinie, keine schwarze Liste, Teiler als eine Linie", ab_search_dialog, results)
+
+    def ab_edit_dialogs():
+        # Bearbeiten gleich nach dem Öffnen: das Layout (Weitere Felder) greift
+        # auch, wenn vcard-edit erst nach dem ersten Aufruf definiert wird;
+        # Kontaktbild-Dialog zeigt Hinweis und Symbol (Dateifeld durchsichtig,
+        # Fläche als Karte); Unterdialoge im Tab auf neutraler Fläche (dunkel
+        # nicht Thunderbirds Blaugrau)
+        res = m.js(r"""
+  const { MailServices } = ChromeUtils.importESModule("resource:///modules/MailServices.sys.mjs");
+  const book = MailServices.ab.getDirectory("jsaddrbook://abook.sqlite");
+  if (!book.childCards.some(c => c.displayName == "Anna Beispiel")) {
+    const c = Cc["@mozilla.org/addressbook/cardproperty;1"].createInstance(Ci.nsIAbCard);
+    c.setProperty("FirstName", "Anna"); c.setProperty("LastName", "Beispiel");
+    c.displayName = "Anna Beispiel"; c.primaryEmail = "anna@example.invalid"; book.addCard(c);
+  }
+  const out = { race: [] };
+  // Wettlauf: Tab neu öffnen und ohne Wartezeit bearbeiten – das Layout greift trotzdem
+  for (let n = 0; n < 3; n++) {
+    tm.openTab("addressBookTab", {});
+    const tab = tm.currentTabInfo;
+    const ab = await until(() => { const c = tab.browser?.contentWindow; return c?.document?.getElementById("cards")?.view?.rowCount && c; }, 8000);
+    const ad = ab.document, list = ad.getElementById("cards");
+    list.selectedIndex = [...Array(list.view.rowCount).keys()].find(k => list.view.getCardFromRow(k)?.displayName == "Anna Beispiel");
+    await until(() => !ad.getElementById("editButton").hidden && ad.getElementById("editButton").getClientRects().length, 4000);
+    ad.getElementById("editButton").click();
+    await until(() => ad.querySelector("#addr-book-edit-n .mc-more-button"), 4000);
+    const url = ad.getElementById("addr-book-edit-url");
+    out.race.push({ more: !!ad.querySelector("#addr-book-edit-n .mc-more-button"), url: url ? url.getClientRects().length : null,
+      layout: ab.customElements.get("vcard-edit")?.prototype.__mcLayout === true });
+    if (n == 2) {
+      // Kontaktbild-Dialog: Hinweis sichtbar, Feld durchsichtig, Fläche als Karte
+      ad.getElementById("photoButton").click();
+      const dlg = await until(() => ad.getElementById("photoDialog")?.open && ad.getElementById("photoDialog"), 4000);
+      const fi = ad.getElementById("dialogFileInput"), dt = ad.getElementById("photoDropTarget");
+      const lab = ad.querySelector('label[for="dialogFileInput"]');
+      out.photo = { open: !!dlg, bg: ab.getComputedStyle(fi).backgroundColor, border: ab.getComputedStyle(fi).borderTopWidth,
+        radius: ab.getComputedStyle(dt).borderTopLeftRadius, label: lab?.getClientRects().length,
+        // Hinweis unter dem Symbol (nicht darüber), Knopfleiste ohne eigene Fläche
+        below: Math.round(lab.getBoundingClientRect().top + parseFloat(ab.getComputedStyle(lab).paddingTop) - dt.getBoundingClientRect().top),
+        menu: ab.getComputedStyle(ad.querySelector("#photoDialog .dialog-menu-container")).backgroundColor,
+        dlgBg: ab.getComputedStyle(ad.getElementById("photoDialog")).backgroundColor,
+        sheet: ab.getComputedStyle(ad.documentElement).getPropertyValue("--mt-sheet").trim() };
+      ad.getElementById("photoDialog").close(); await wait(300);
+    }
+    ab.detailsPane.isDirty = false;
+    ad.getElementById("cancelEditButton").click(); await wait(400);
+    if (n == 2) {
+      // Unterdialog „Neue Verteilerliste“: neutrale Fläche
+      w.setTimeout(() => ab.createList(), 0);
+      const fr = await until(() => [...ad.querySelectorAll(".dialogFrame")].find(f => f.contentDocument?.readyState == "complete" && f.contentDocument.location.href != "about:blank"), 6000);
+      await wait(800);
+      const box = ad.querySelector(".dialogBox"), sd = fr.contentDocument, sw = fr.contentWindow;
+      const dlg = sd.querySelector("dialog");
+      out.sub = { box: ab.getComputedStyle(box).backgroundColor, root: sw.getComputedStyle(sd.documentElement).backgroundColor,
+        dialog: dlg && sw.getComputedStyle(dlg).backgroundColor, subAttr: sd.documentElement.hasAttribute("subdialog"),
+        sheet: sw.getComputedStyle(sd.documentElement).getPropertyValue("--mt-sheet").trim() };
+      (sd.querySelector("dialog")?.getButton?.("cancel") || null)?.click();
+      await wait(600);
+    }
+    tm.closeTab(tab); await wait(300);
+  }
+  return out;""")
+        import re
+        ph, sub = res.get("photo", {}), res.get("sub", {})
+        def neutral(c):
+            v = [int(x) for x in re.findall(r"\d+", c or "")[:3]]
+            return len(v) == 3 and max(v) - min(v) <= 4
+        ok = (len(res["race"]) == 3 and all(r == {"more": True, "url": 0, "layout": True} for r in res["race"])
+              and ph.get("open") and ph.get("bg") in ("rgba(0, 0, 0, 0)", "transparent") and ph.get("border") == "0px"
+              and ph.get("radius") == "12px" and ph.get("label", 0) > 0 and ph.get("below", 0) >= 90
+              and ph.get("menu") in ("rgba(0, 0, 0, 0)", "transparent") and neutral(ph.get("dlgBg"))
+              and sub.get("subAttr") and all(neutral(sub.get(k)) for k in ("box", "root", "dialog"))
+              and sub.get("box") != "rgb(26, 32, 44)" and sub.get("box") == sub.get("dialog"))
+        return ok, f"{res}"
+    check("Adressbuch: Bearbeiten-Layout auch sofort nach dem Öffnen; Kontaktbild-Dialog mit Hinweis; Unterdialoge auf neutraler Fläche", ab_edit_dialogs, results)
+
     OPEN_BOOKS_JS = r"""
           tm.openTab("addressBookTab", {});
           const cw = await until(() => { const c = tm.currentTabInfo?.browser?.contentWindow; return c?.document?.getElementById("mcBooksHeader") && c; }, 8000);
@@ -3081,14 +4394,100 @@ def run_checks(m, version, profile, results):
           const size = sel => parseFloat(hw?.getComputedStyle(hw.document.querySelector(sel)).fontSize);
           const head = icon && h1 && ver ? { offsets: [mid(icon), mid(h1), mid(ver)],
             stacked: icon.bottom <= h1.top && h1.bottom <= ver.top + 1, sizes: [size("h1"), size("#version")] } : null;
+          // nicht scrollbar (früher 3 px zu niedrig); Status in deckender Farbe, sonst malt Gecko das Emoji blass
+          const overflow = hw ? hw.document.documentElement.scrollHeight - hw.innerHeight : null;
+          const status = hw ? hw.getComputedStyle(hw.document.getElementById("emoji-status")).color : null;
           w.openLinkExternally = orig; hw?.close();
-          return { window: !!hw, opened, address, room, head };''')
+          return { window: !!hw, opened, address, room, head, overflow, status };''')
         url = res.get("opened") or ""
         ok = url.startswith("https://buymeacoffee.com/diversion?") and "utm_content=about-window" in url
         head = res.get("head") or {}
         centered = head and all(o is not None and abs(o) <= 2 for o in head["offsets"]) and head["stacked"] and head["sizes"][1] < 12
-        return ok and centered and not res["address"] and res["room"] is not None and 10 <= res["room"] <= 30, f"{res}"
-    check("Info-Fenster: Logo, Name und Version mittig untereinander; „Say Thanks“ öffnet die Spendenseite, keine Mailadresse unten", donate, results)
+        # Einstellungsseite (eingebettet, nicht per Marionette erreichbar): Sekundärfarbe ohne Alpha in der Datei
+        import re
+        opts = open(os.path.join(ROOT, "extension", "options", "options.css")).read()
+        opaque = not re.search(r"--text-secondary:\s*rgba", opts) and (res.get("status") or "").startswith("rgb(")
+        return (ok and centered and not res["address"] and res["room"] is not None and 16 <= res["room"] <= 22
+                and res.get("overflow") is not None and res["overflow"] <= 0 and opaque), f"{res}"
+    check("Info-Fenster: Logo, Name und Version mittig untereinander; „Say Thanks“ öffnet die Spendenseite, keine Mailadresse unten; "
+          "nicht scrollbar, unten 18 px; Emojis in Status und Hinweisen in voller Farbe", donate, results)
+
+    def addons_manager():
+        # Add-ons-Verwaltung (Thunderbird 140+, Bausteine im Schatten-DOM): Seitenleiste 34 px/13 px, Seite und Kopf in
+        # --mt-window (dunkel kein #18181B), Suchfeld als Kapsel ohne Rahmen, Werkzeug und „…“ gleich (24 × 24, ohne
+        # Fläche), Schalter mit weißem Knopf, Menüs wie halo (12 px, 22-px-Zeilen, Akzent), Detailansicht mit
+        # Haarlinien ohne Doppellinie, eingebettete Einstellungen ohne eigene Fläche
+        res = m.js(r'''
+          w.resizeTo(1500, 900);
+          const ID = "mail-cards@sebastian.local";
+          w.openAddonsMgr("addons://list/extension");
+          const ad = await until(() => { const x = tm.currentTabInfo.browser?.contentDocument; return x?.querySelector(`addon-card[addon-id="${ID}"] .extension-options-button`) && x; }, 8000);
+          await wait(800);
+          const aw = ad.defaultView; const cs = (e, p) => aw.getComputedStyle(e, p); const R = e => e.getBoundingClientRect();
+          const probe = (prop, v) => { const p = ad.createElement("div"); p.style[prop] = v; ad.body.append(p); const c = cs(p)[prop]; p.remove(); return c; };
+          const bg = v => probe("backgroundColor", v), fg = v => probe("color", v);
+          const out = {};
+          const btns = [...ad.querySelectorAll("categories-box moz-page-nav-button")].map(b => b.shadowRoot?.querySelector("a[href], button")).filter(b => b && R(b).height);
+          out.nav = btns.map(b => [Math.round(R(b).height), cs(b).fontSize, Math.round(R(b.querySelector(".page-nav-icon") || b).width)]);
+          const sel = btns.find(b => b.matches("[selected]"));
+          out.navSel = !!sel && cs(sel).backgroundColor == bg("var(--mt-selected-unfocused)");
+          const win = bg("var(--mt-window)");
+          out.page = [ad.documentElement, ad.querySelector(".sticky-container"), ad.querySelector(".main-search"), ad.querySelector(".main-heading")].map(e => !!e && cs(e).backgroundColor == win);
+          const inp = ad.querySelector("search-addons moz-input-search")?.shadowRoot?.querySelector("#input");
+          out.search = inp ? [cs(inp).borderTopColor, parseFloat(cs(inp).borderTopLeftRadius), cs(inp).backgroundColor == bg("var(--mt-control)"), Math.round(R(inp).height)] : null;
+          const knobs = c => [c.querySelector(".extension-options-button"), c.querySelector(".more-options-button")?.shadowRoot?.querySelector('[part="button"]')]
+            .map(b => b ? [Math.round(R(b).width * 2) / 2, Math.round(R(b).height * 2) / 2, cs(b).backgroundColor, cs(b).borderTopLeftRadius] : null);
+          const card = ad.querySelector(`addon-card[addon-id="${ID}"]`);
+          out.knobs = [knobs(card)];
+          const tb = card.querySelector("moz-toggle")?.shadowRoot?.querySelector('button[aria-pressed="true"]');
+          out.toggleDot = tb ? cs(tb, "::before").backgroundColor : null;
+          out.menus = [];
+          for (const [btnSel, listSel] of [[`addon-card[addon-id="${ID}"] .more-options-button`, `addon-card[addon-id="${ID}"] addon-options > panel-list`],
+                                           ["addon-page-header .page-options-menu .more-options-button", "addon-page-options > panel-list"]]) {
+            ad.querySelector(btnSel).click();
+            const pl = await until(() => { const p = ad.querySelector(listSel); return p?.open && R(p).height && p; }, 4000);
+            await wait(300);
+            if (!pl) { out.menus.push(null); continue; }
+            const ib = [...pl.querySelectorAll("panel-item")].find(i => !i.disabled && !i.hidden && R(i).height)?.shadowRoot.querySelector("button");
+            InspectorUtils.addPseudoClassLock(ib, ":hover"); const hover = cs(ib).backgroundColor; InspectorUtils.removePseudoClassLock(ib, ":hover");
+            const hr = [...pl.querySelectorAll("hr")].find(h => R(h).width);
+            const back = cs(pl).backgroundColor.match(/[\d.]+/g).map(Number);
+            out.menus.push({ radius: cs(pl).borderTopLeftRadius, border: cs(pl).borderTopWidth, bg: cs(pl).backgroundColor == bg("var(--mt-tooltip-bg)"),
+              blue: Math.abs(back[0] - back[2]) > 6, itemRadius: cs(ib).borderTopLeftRadius, itemH: Math.round(R(ib).height),
+              hover: hover == bg("var(--mt-accent)"), hr: hr ? cs(hr).borderTopColor == fg("var(--mt-separator)") : null });
+            pl.hide(); await wait(300);
+          }
+          w.openAddonsMgr("addons://detail/" + encodeURIComponent(ID));
+          const tg = await until(() => { const t = ad.querySelector("addon-details .tab-group"); return t && R(t).height && t; }, 6000); await wait(800);
+          const row = [...ad.querySelectorAll('addon-details section[name="details"] > .addon-detail-row')].find(e => R(e).height > 0);
+          out.detail = tg && row ? { tgBottom: cs(tg).borderBottomWidth, gap: Math.round(R(row).top - R(tg).bottom), rowLine: cs(row).borderTopColor == fg("var(--mt-separator)"),
+            tgTop: cs(tg).borderTopColor == fg("var(--mt-separator)") } : null;
+          out.knobs.push(knobs(ad.querySelector("addon-card")));
+          w.openAddonsMgr("addons://detail/" + encodeURIComponent(ID) + "/preferences");
+          const br = await until(() => { const b = ad.querySelector("addon-card .addon-inline-options"); return b && R(b).height > 100 && b; }, 8000);
+          await wait(1500);
+          out.inline = br ? cs(br).backgroundColor : null;
+          if (br) {
+            // Schnappschuss mit Magenta als Grund: ist die Seite durchsichtig, bleibt der Rand magenta
+            const snap = await br.browsingContext.currentWindowGlobal.drawSnapshot(new DOMRect(2, 2, 4, 4), 1, "rgb(255,0,255)");
+            const cv = ad.createElement("canvas"); cv.width = snap.width; cv.height = snap.height; const cx = cv.getContext("2d"); cx.drawImage(snap, 0, 0);
+            out.inlinePixel = [...cx.getImageData(1, 1, 1, 1).data];
+          }
+          tm.closeTab(tm.currentTabInfo); await wait(300);
+          return out;''')
+        nav_ok = len(res["nav"]) >= 4 and all(32 <= h <= 36 and f == "13px" and i == 18 for h, f, i in res["nav"]) and res["navSel"]
+        s = res.get("search") or [None, 0, False, 0]
+        search_ok = rgba_alpha(s[0]) == 0 and s[1] >= 14 and s[2] and 26 <= s[3] <= 30
+        knobs_ok = all(k and all(b and b[0] == 24 and b[1] == 24 and b[2] == "rgba(0, 0, 0, 0)" and b[3] == "50%" for b in k) for k in res["knobs"])
+        menus_ok = len(res["menus"]) == 2 and all(mn and mn["radius"] == "12px" and mn["border"] == "0px" and mn["bg"] and not mn["blue"]
+                                                   and mn["itemRadius"] == "6px" and mn["itemH"] >= 22 and mn["hover"] and mn["hr"] is not False for mn in res["menus"])
+        dt = res.get("detail") or {}
+        detail_ok = dt.get("tgBottom") == "0px" and dt.get("gap") is not None and abs(dt["gap"]) <= 1 and dt.get("rowLine") and dt.get("tgTop")
+        inline_ok = res.get("inline") == "rgba(0, 0, 0, 0)" and res.get("inlinePixel") == [255, 0, 255, 255]
+        ok = nav_ok and all(res["page"]) and search_ok and knobs_ok and res.get("toggleDot") == "rgb(255, 255, 255)" and menus_ok and detail_ok and inline_ok
+        return ok, f"{res}"
+    check("Add-ons: Seitenleiste 34 px/13 px, Seite und Kopf in Fensterfarbe, Suchfeld als Kapsel, Symbolknöpfe gleich, Schalter weiß, "
+          "Menüs wie macOS, Detailansicht mit Haarlinien ohne Doppellinie, Einstellungen ohne eigene Fläche", addons_manager, results)
 
     def tasks_view():
         # Leeranzeige, iCloud-Platzhalter ausgeblendet, Hinweis neben dem Plus, Kapsel-Knöpfe
@@ -3128,19 +4527,299 @@ def run_checks(m, version, profile, results):
         return ok, f"{res}"
     check("Aufgaben: Leeranzeige, iCloud-Platzhalter ausgeblendet, Hinweis neben dem Plus, Kapseln", tasks_view, results)
 
+    def tasks_details():
+        # Aufgaben: Beschreibung im Detailbereich in Systemschrift 13 px ohne Body-Rand, dunkel hell lesbar (früher schwarz
+        # auf #1E1E1E); Spaltenköpfe ohne zweiten Strich aus tree.css; Menüteil von „Erledigt“ als schmaler Pfeil;
+        # überfällige Aufgaben rot (--mt-red), Auswahl mit Fokus ohne eckiges Fokusrechteck
+        res = m.js(CAL_CHECK_JS + r'''
+          w.resizeTo(1500, 900);
+          const c = testCalendar();
+          tm.openTab("tasks", {}); await pause(1500);
+          const { CalTodo } = ChromeUtils.importESModule("resource:///modules/CalTodo.sys.mjs");
+          const tree = d.getElementById("calendar-task-tree");
+          const todo = new CalTodo(); todo.title = "Halo Detailaufgabe"; todo.calendar = c; todo.priority = 1;
+          const due = cal.dtz.now(); due.day -= 2; todo.dueDate = due;
+          todo.setProperty("DESCRIPTION", "Halo Notiz"); const saved = await c.addItem(todo);
+          const out = { dark };
+          // Bildpunkte aus dem Fenster (Bäume malen Zeilen als Pseudo-Elemente – nur so prüfbar)
+          const pixels = async r => { const cv = d.createElementNS("http://www.w3.org/1999/xhtml", "canvas");
+            cv.width = Math.round(r.width); cv.height = Math.round(r.height); const ctx = cv.getContext("2d");
+            try { const bm = await w.browsingContext.currentWindowGlobal.drawSnapshot(new w.DOMRect(r.left, r.top, r.width, r.height), 1, "white"); ctx.drawImage(bm, 0, 0); }
+            catch { ctx.drawWindow(w, r.left, r.top, r.width, r.height, "white"); }
+            const data = ctx.getImageData(0, 0, cv.width, cv.height).data;
+            return (x, y) => { const i = (Math.round(y) * cv.width + Math.round(x)) * 4; return [data[i], data[i + 1], data[i + 2]]; }; };
+          try {
+            const row = await till(() => { for (let i = 0; i < tree.mTreeView.rowCount; i++) if (tree.mTreeView.getItemAtIndex?.(i)?.title == "Halo Detailaufgabe" || tree.getTaskAtRow?.(i)?.title == "Halo Detailaufgabe") return i + 1; return 0; }, 6000) - 1;
+            out.row = row;
+            if (row < 0) return out;
+            tree.focus(); tree.mTreeView.selection.select(row); await pause(900);
+            const frame = d.getElementById("calendar-task-details-description");
+            const b = await till(() => { const x = frame.contentDocument?.body; return x && /Halo Notiz/.test(x.textContent) && x; }, 4000);
+            if (b) { const cs = frame.contentWindow.getComputedStyle(b); out.desc = { font: cs.fontSize, margin: cs.marginTop, family: cs.fontFamily, color: cs.color }; }
+            // Spaltenköpfe
+            out.heads = [...d.querySelectorAll("#calendar-task-tree > treecols > treecol")].filter(vis).map(t => csOf(t).boxShadow);
+            const pick = d.querySelector("#calendar-task-tree .tree-columnpicker-button");
+            out.picker = pick ? csOf(pick).boxShadow : null;
+            out.headLine = [csOf(d.querySelector("#calendar-task-tree > treecols")).borderBottomColor, csOf(d.documentElement).getPropertyValue("--mt-pane-line").trim()];
+            out.red = csOf(d.documentElement).getPropertyValue("--mt-red").trim();
+            // „Erledigt“: Menüteil schmal, Pfeil als Maske
+            const cap = d.getElementById("task-actions-markcompleted");
+            const dm = cap?.querySelector(".toolbarbutton-menubutton-dropmarker");
+            if (dm && vis(dm)) { const a = cap.getBoundingClientRect(), r = dm.getBoundingClientRect();
+              out.marker = { w: Math.round(r.width * 10) / 10, mask: csOf(dm).maskImage.slice(0, 12), gap: Math.round((a.right - r.right) * 10) / 10,
+                            dy: Math.round(((r.top + r.bottom) - (a.top + a.bottom)) / 2 * 10) / 10 }; }
+            // ausgewählt mit Fokus: Zeilenrand links wie die Zeilenfläche daneben (kein Fokusrechteck)
+            const tc = tree.querySelector("treechildren"), tr = tc.getBoundingClientRect(), rh = tree.rowHeight || 40;
+            const top = tr.top + (row - tree.getFirstVisibleRow()) * rh;
+            w.focus(); await till(() => Services.focus.activeWindow == w, 3000); tree.focus(); await pause(400);
+            out.focused = Services.focus.activeWindow == w && (d.activeElement == tree || tree.contains(d.activeElement));
+            out.rule = /treechildren::-moz-tree-row\(current, focus\)\s*\{\s*outline: none !important/.test(await (await fetch(`resource://mailcards/theme.css`)).text());
+            const px1 = await pixels({ left: tr.left, top, width: 12, height: rh });
+            out.edge = [px1(0, rh / 2), px1(4, rh / 2), px1(6, 0), px1(6, 3)];
+            // ohne Auswahl: Text der überfälligen Zeile rot
+            tree.mTreeView.selection.clearSelection(); await pause(600);
+            const px2 = await pixels({ left: tr.left, top, width: Math.min(tr.width, 700), height: rh });
+            let redPx = 0; for (let x = 0; x < Math.min(tr.width, 700); x++) for (let y = 4; y < rh - 4; y++) { const [r, g, bb] = px2(x, y); if (r > 200 && g < 120 && bb < 120) redPx++; }
+            out.redPx = redPx;
+          } finally { try { await c.deleteItem(saved); } catch {} }
+          return out;''')
+        if res.get("row", -1) < 0:
+            return False, f"Aufgabe nicht in der Liste {res}"
+        desc, mk = res.get("desc") or {}, res.get("marker") or {}
+        fam = desc.get("family", "")
+        ok_desc = (desc.get("font") == "13px" and desc.get("margin") == "0px" and ("-apple-system" in fam or "system-ui" in fam)
+                   and same_color(desc.get("color", ""), "rgb(245, 245, 247)" if res["dark"] else "rgb(29, 29, 31)"))
+        ok_head = (len(res["heads"]) >= 3 and all(s == "none" for s in res["heads"]) and res.get("picker") in (None, "none")
+                   and same_color(res["headLine"][0], res["headLine"][1]))
+        ok_marker = bool(mk) and mk["w"] <= 12 and mk["mask"].startswith("url(") and 8 <= mk["gap"] <= 16 and abs(mk["dy"]) <= 1.5
+        e = res.get("edge") or []
+        diff = lambda a, b: max(abs(x - y) for x, y in zip(a, b))
+        # Rand nur mit fokussiertem Fenster sichtbar (parallele Läufe nehmen den Fokus) – sonst nur die Regel prüfen
+        ok_focus = res.get("rule") and (not res.get("focused") or (len(e) == 4 and diff(e[0], e[1]) <= 12 and diff(e[2], e[3]) <= 12))
+        ok_red = res.get("red", "").upper() == ("#FF6961" if res["dark"] else "#FF3B30") and res.get("redPx", 0) >= 10
+        ok = ok_desc and ok_head and ok_marker and ok_focus and ok_red
+        return ok, f"desc={ok_desc} kopf={ok_head} pfeil={ok_marker} fokus={ok_focus} rot={ok_red} {res}"
+    check("Aufgaben: Beschreibung 13 px ohne Rand und dunkel lesbar, Spaltenköpfe ohne zweiten Strich, „Erledigt“ mit schmalem Pfeil, überfällig rot, kein Fokusrechteck", tasks_details, results)
+
+    def tasks_list_states():
+        # erledigte Aufgaben aufrecht (Thunderbird: kursiv) mit Kreis in der Systemakzentfarbe statt fest #007AFF;
+        # ohne Auswahl kein Teiler über der Statusleiste (früher zwei Haarlinien); Leeranzeige bei Suche ohne Treffer
+        # „No Results“ statt „No Tasks“; Kalenderliste im niedrigen Fenster ≥ 3 Zeilen, Monatskalender weicht
+        res = m.js(CAL_CHECK_JS + r"""
+          w.resizeTo(1500, 900);
+          const c = testCalendar();
+          tm.openTab("tasks", {}); await pause(1500);
+          const { CalTodo } = ChromeUtils.importESModule("resource:///modules/CalTodo.sys.mjs");
+          const tree = d.getElementById("calendar-task-tree");
+          const out = {};
+          const theme = await (await fetch("resource://mailcards/theme.css")).text();
+          const ruleOf = sel => { const i = theme.indexOf(sel + " {"); return i < 0 ? "" : theme.slice(i, theme.indexOf("}", i)); };
+          out.italic = /font-style: normal !important/.test(ruleOf(".calendar-task-tree treechildren::-moz-tree-cell-text(completed)"));
+          const doneRule = ruleOf(".calendar-task-tree > treechildren::-moz-tree-image(calendar-task-tree-col-completed, completed)");
+          out.doneRule = !/007AFF/i.test(doneRule) && doneRule.includes("resource://mailcards/icons/task-done.svg") && /fill: var\(--mt-accent\)/.test(doneRule);
+          out.svg = /context-fill/.test(await (await fetch("resource://mailcards/icons/task-done.svg")).text());
+          const pixels = async r => { const cv = d.createElementNS("http://www.w3.org/1999/xhtml", "canvas");
+            cv.width = Math.round(r.width); cv.height = Math.round(r.height); const ctx = cv.getContext("2d");
+            try { const bm = await w.browsingContext.currentWindowGlobal.drawSnapshot(new w.DOMRect(r.left, r.top, r.width, r.height), 1, "white"); ctx.drawImage(bm, 0, 0); }
+            catch { ctx.drawWindow(w, r.left, r.top, r.width, r.height, "white"); }
+            const data = ctx.getImageData(0, 0, cv.width, cv.height).data;
+            return (x, y) => { const i = (Math.round(y) * cv.width + Math.round(x)) * 4; return [data[i], data[i + 1], data[i + 2]]; }; };
+          const todo = new CalTodo(); todo.title = "Halo Erledigt"; todo.calendar = c;
+          const saved = await c.addItem(todo);
+          const done = saved.clone(); done.isCompleted = true; const savedDone = await c.modifyItem(done, saved);
+          const prevAccent = Services.prefs.getStringPref("ui.accentcolor", "");
+          const comp = cal.view.getCompositeCalendar(w), prevDefault = comp.defaultCalendar;
+          try {
+            // Filter „Alle“, damit die erledigte Aufgabe in der Liste steht
+            d.getElementById("opt_all_filter")?.click(); await pause(800);
+            const row = await till(() => { for (let i = 0; i < tree.mTreeView.rowCount; i++) if (tree.getTaskAtRow?.(i)?.title == "Halo Erledigt") return i + 1; return 0; }, 6000) - 1;
+            out.row = row;
+            if (row >= 0) {
+              // andere Akzentfarbe (Rosa) – der Kreis muss ihr folgen
+              Services.prefs.setStringPref("ui.accentcolor", "#FF2D55"); await pause(800);
+              out.accent = colorOf(d, "AccentColor");
+              tree.mTreeView.selection.clearSelection(); tree.ensureRowIsVisible(row); await pause(500);
+              const col = tree.columns.getNamedColumn("calendar-task-tree-col-completed");
+              const tc = tree.querySelector("treechildren").getBoundingClientRect();
+              const cr = tree.getCoordsForCellItem(row, col, "image");
+              out.cell = [Math.round(cr.x), Math.round(cr.y), Math.round(cr.width), Math.round(cr.height)];
+              const px = await pixels({ left: tc.left, top: tc.top + (row - tree.getFirstVisibleRow()) * (tree.rowHeight || 40), width: 120, height: tree.rowHeight || 40 });
+              // kräftigstes Pixel im Kästchenbereich (weißer Haken ausgenommen)
+              let best = null, sat = -1;
+              for (let x = 0; x < 120; x++) for (let y = 0; y < (tree.rowHeight || 40); y++) { const p = px(x, y); const s = Math.max(...p) - Math.min(...p); if (s > sat) { sat = s; best = p; } }
+              out.circle = best;
+            }
+            // ohne Auswahl kein Teiler, mit Auswahl Teiler und Details sichtbar
+            tree.mTreeView.selection.clearSelection(); await pause(500);
+            const sp = d.getElementById("calendar-task-view-splitter"), det = d.getElementById("calendar-task-details-container");
+            out.splitNone = csOf(sp).display;
+            if (row >= 0) { tree.mTreeView.selection.select(row); await pause(600); }
+            out.splitSel = [csOf(sp).display, vis(det)];
+            // Suche ohne Treffer
+            const f = d.getElementById("task-text-filter-field"), box = d.getElementById("mcTasksEmpty");
+            f.value = "xyzxyz"; f.dispatchEvent(new w.Event("input", { bubbles: true })); f.dispatchEvent(new w.Event("command"));
+            await till(() => tree.mTreeView.rowCount == 0, 4000); await pause(400);
+            out.search = [tree.mTreeView.rowCount, !box.hidden, box.querySelector(".mc-te-title")?.textContent, box.querySelector(".mc-te-text")?.textContent];
+            f.value = ""; f.dispatchEvent(new w.Event("input", { bubbles: true })); f.dispatchEvent(new w.Event("command"));
+            await till(() => tree.mTreeView.rowCount > 0, 4000); await pause(400);
+            out.cleared = [tree.mTreeView.rowCount, box.hidden, box.querySelector(".mc-te-title")?.textContent];
+            // Filter „Überfällig“ ohne Treffer: kein Versprechen „Tasks you add appear here.“ (dort erscheinen sie nicht);
+            // Filter „Offen“ ohne Treffer (nur die erledigte Aufgabe): wieder der Normaltext
+            // beschreibbarer Standardkalender, sonst gilt „No Task List Selected“ vorrangig
+            comp.defaultCalendar = c; w.taskEdit?.callOnBlurForAllTaskFields(); await pause(300);
+            d.getElementById("opt_overdue_filter")?.click();
+            await till(() => tree.mTreeView.rowCount == 0, 4000); await pause(500);
+            out.overdue = [tree.mTreeView.rowCount, !box.hidden, box.querySelector(".mc-te-title")?.textContent, box.querySelector(".mc-te-text")?.textContent];
+            d.getElementById("opt_open_filter")?.click();
+            await till(() => tree.mTreeView.rowCount == 0 && tree.getAttribute("filterValue") == "open", 4000); await pause(500);
+            out.open = [tree.mTreeView.rowCount, !box.hidden, box.querySelector(".mc-te-text")?.textContent];
+            d.getElementById("opt_all_filter")?.click(); await till(() => tree.mTreeView.rowCount > 0, 4000); await pause(300);
+            // niedriges Fenster: Kalenderliste mindestens drei Zeilen, Monatskalender ausgeblendet oder ganz darunter
+            w.resizeTo(1136, 700); await pause(1000);
+            const list = d.getElementById("calendar-list"), mm = d.getElementById("minimonth-pane");
+            const lr = list.getBoundingClientRect(), mr = mm.getBoundingClientRect();
+            out.low = { h: list.clientHeight, mm: csOf(mm).display, mmTop: Math.round(mr.top), mmBottom: Math.round(mr.bottom), listBottom: Math.round(lr.bottom), win: w.innerHeight };
+            w.resizeTo(1500, 900); await pause(1000);
+            out.high = { mm: csOf(mm).display, vis: vis(mm), h: list.clientHeight };
+          } finally {
+            if (prevAccent) Services.prefs.setStringPref("ui.accentcolor", prevAccent); else Services.prefs.clearUserPref("ui.accentcolor");
+            d.getElementById("opt_throughcurrent_filter")?.click();
+            if (prevDefault) { comp.defaultCalendar = prevDefault; w.taskEdit?.callOnBlurForAllTaskFields(); }
+            w.resizeTo(1500, 900);
+            try { await c.deleteItem(savedDone); } catch {}
+          }
+          return out;""")
+        if res.get("row", -1) < 0:
+            return False, f"erledigte Aufgabe nicht in der Liste {res}"
+        ci = res.get("circle") or [0, 0, 0]
+        ok_static = res.get("italic") and res.get("doneRule") and res.get("svg")
+        # Rosa (#FF2D55) dominiert: Rot deutlich vor Blau und Grün
+        ok_circle = ci[0] > 180 and ci[0] - ci[2] > 60 and ci[0] - ci[1] > 100
+        ok_split = res.get("splitNone") == "none" and res["splitSel"][0] != "none" and res["splitSel"][1]
+        se, cl = res.get("search") or [], res.get("cleared") or []
+        ok_search = len(se) == 4 and se[0] == 0 and se[1] and se[2] == "No Results" and se[3] == "No tasks match your search." and cl[0] > 0 and cl[1]
+        ov, op = res.get("overdue") or [], res.get("open") or []
+        ok_filter = (len(ov) == 4 and ov[0] == 0 and ov[1] and ov[2] == "No Tasks" and ov[3] == "No tasks in this view."
+                     and len(op) == 3 and op[0] == 0 and op[1] and op[2] == "Tasks you add appear here.")
+        lo, hi = res.get("low") or {}, res.get("high") or {}
+        ok_low = lo.get("h", 0) >= 90 and (lo.get("mm") == "none" or lo["mmTop"] >= lo["listBottom"]) and hi.get("mm") != "none" and hi.get("vis")
+        ok = bool(ok_static and ok_circle and ok_split and ok_search and ok_filter and ok_low)
+        return ok, f"statisch={ok_static} kreis={ok_circle} teiler={ok_split} suche={ok_search} filter={ok_filter} niedrig={ok_low} {res}"
+    check("Aufgaben: erledigt aufrecht mit Kreis in Akzentfarbe, ohne Auswahl kein Teiler, „No Results“ bei Suche, Leeranzeige je Filter, Kalenderliste im niedrigen Fenster", tasks_list_states, results)
+
+    def tasks_hint():
+        # Eingabehinweis bleibt grau, auch wenn Thunderbird ihn ohne focus/blur neu setzt (Wechsel des Standardkalenders);
+        # Hinweis „schreibgeschützter Kalender“ im schmalen Fenster endet vor dem Suchfeld (früher über Lupe und „Search“)
+        res = m.js(CAL_CHECK_JS + r'''
+          w.resizeTo(1500, 900);
+          tm.openTab("tasks", {}); await pause(1500);
+          const field = d.getElementById("view-task-edit-field"), tree = d.getElementById("calendar-task-tree");
+          let ro = cal.manager.getCalendars().find(x => x.name == "Halo Nur Lesen");
+          if (!ro) { ro = cal.manager.createCalendar("storage", Services.io.newURI("moz-storage-calendar://")); ro.name = "Halo Nur Lesen"; cal.manager.registerCalendar(ro); ro.readOnly = true; }
+          const comp = cal.view.getCompositeCalendar(w); const before = comp.defaultCalendar;
+          const out = {};
+          try {
+            tree.focus(); field.removeAttribute("mc-hint");
+            comp.defaultCalendar = ro; await pause(500);
+            comp.defaultCalendar = testCalendar(); await pause(600);
+            out.hint = { shows: field.showsInstructions, attr: field.hasAttribute("mc-hint"), color: csOf(field).color,
+                         tertiary: colorOf(d, "var(--mt-text-tertiary)"), focused: d.activeElement == field };
+            w.resizeTo(1136, 760); await pause(900);
+            comp.defaultCalendar = ro; await pause(900);
+            const sb = d.querySelector('#unifiedToolbarContent > li[item-id="search-bar"]:not([hidden])')?.getBoundingClientRect();
+            const fr = field.getBoundingClientRect();
+            out.narrow = { readOnly: field.readOnly, right: Math.round(fr.right), search: sb?.width ? Math.round(sb.left) : null, width: Math.round(fr.width) };
+          } finally { comp.defaultCalendar = before; w.resizeTo(1500, 900); await pause(800); }
+          return out;''')
+        h, n = res.get("hint", {}), res.get("narrow", {})
+        ok_hint = h.get("shows") and h.get("attr") and same_color(h.get("color", ""), h.get("tertiary", "x"))
+        ok_narrow = n.get("readOnly") and n.get("search") is not None and n["right"] <= n["search"] - 8 and n["width"] > 40
+        return bool(ok_hint and ok_narrow), f"{res}"
+    check("Aufgaben: Eingabehinweis grau auch nach Kalenderwechsel, Hinweis „schreibgeschützt“ im schmalen Fenster vor dem Suchfeld", tasks_hint, results)
+
+    def task_dialog():
+        # Aufgaben-Dialog (calendar-task-dialog-inner) im selben Stil wie der Termin-Dialog: Felder grau ohne Rahmen, 32 px,
+        # Fläche --mt-window; Haken aus chrome:// (CSP sperrt data:); Zeitkopplung als Kettensymbol aus chrome:// ohne
+        # alte untere Klammer „↵“; Trennlinien als Haarlinie – Klammer und Kette auch im Termin-Dialog
+        res = m.js(CAL_CHECK_JS + r'''
+          const others = () => [...Services.wm.getEnumerator(null)].filter(x => !x.closed && !x.location.href.includes("messenger.xhtml"));
+          for (const x of others()) x.close();
+          await till(() => !others().length, 4000);
+          const out = { dark };
+          // nur ein neu geöffnetes Fenster (ein eben geschlossenes kann noch in der Liste stehen)
+          const inner = async (open, ready) => {
+            const before = new Set(Services.wm.getEnumerator(null));
+            open();
+            const dw = await till(() => [...Services.wm.getEnumerator(null)].find(x => !before.has(x) && !x.closed && x.location.href.includes("calendar-event-dialog.xhtml") && x.document.readyState == "complete"), 10000);
+            if (!dw) return null;
+            const iw = await till(() => { const f = dw.document.getElementById("calendar-item-panel-iframe")?.contentWindow;
+              return f?.document.readyState == "complete" && f.document.getElementById(ready) && f; }, 8000);
+            await pause(1200); return [dw, iw ? dw.document.getElementById("calendar-item-panel-iframe").contentDocument : null];
+          };
+          const link = id => { const kb = id.getElementById("keepduration-button"), lb = id.getElementById("link-image-bottom");
+            const st = kb ? csOf(kb, "::before") : null;
+            const kr = kb?.getBoundingClientRect(), sr = id.getElementById("event-grid-startdate-row")?.getBoundingClientRect();
+            return { bottom: lb ? csOf(lb).display : null, bg: st ? st.backgroundImage.slice(0, 45) : null, mask: st?.maskImage, w: st?.width,
+                     mid: kr && sr ? Math.round(((kr.top + kr.bottom) / 2 - sr.bottom) * 10) / 10 : null }; };
+          // Beschreibung ganz im Fenster (früher im Aufgaben-Fenster unten abgeschnitten); Zahlenfeld ohne Pfeile
+          const fits = id => { const e = id.getElementById("item-description"); const r = e?.getBoundingClientRect();
+            return r ? [Math.round(r.bottom), Math.round(id.body.getBoundingClientRect().bottom), Math.round(r.height)] : null; };
+          let dw = null;
+          try {
+            await toCalendar();
+            let r = await inner(() => w.createTodoWithDialog(testCalendar(), null, "Halo Aufgabendialog"), "todo-has-duedate");
+            if (!r || !r[1]) return { dialog: false };
+            [dw] = r; const id = r[1];
+            out.id = id.documentElement.id;
+            const t = id.getElementById("item-title"), pc = id.getElementById("percent-complete-textbox"), cat = id.getElementById("item-categories");
+            out.title = { border: csOf(t).borderTopStyle, h: csOf(t).height, bg: csOf(t).backgroundColor, cat: cat ? csOf(cat).backgroundColor : null };
+            out.percent = pc ? { h: Math.round(pc.getBoundingClientRect().height), border: csOf(pc).borderTopStyle } : null;
+            out.bg = [csOf(id.documentElement).backgroundColor, colorOf(id, "var(--mt-window)", "backgroundColor")];
+            const cb = id.getElementById("todo-has-duedate"); cb.checked = true; await pause(300);
+            const ck = cb.querySelector(".checkbox-check");
+            out.check = ck ? [csOf(ck).backgroundImage.slice(0, 20), csOf(ck).backgroundColor] : null;
+            out.taskLink = link(id); out.taskDesc = fits(id); out.spin = pc ? csOf(pc).appearance : null;
+            out.seps = [...id.querySelectorAll("tr.separator > td")].filter(vis).map(td => [csOf(td).borderBottomColor, csOf(td).borderBottomWidth]);
+            dw.close(); await till(() => dw.closed, 4000);
+            r = await inner(() => w.createEventWithDialog(testCalendar(), null, null, "Halo Termindialog Kette"), "event-all-day");
+            if (r && r[1]) { [dw] = r; const ed = r[1]; const ad = ed.getElementById("event-all-day"); ad.checked = true; await pause(300);
+              const ac = ad.querySelector(".checkbox-check"); out.eventCheck = ac ? csOf(ac).backgroundImage.slice(0, 20) : null; ad.checked = false;
+              out.eventLink = link(ed); out.eventDesc = fits(ed); }
+          } finally { if (dw && !dw.closed) { dw.close(); await till(() => dw.closed, 4000); } }
+          return out;''')
+        if res.get("dialog") is False:
+            return False, "Aufgaben-Dialog nicht offen"
+        t, p, bg = res.get("title") or {}, res.get("percent") or {}, res.get("bg") or ["", "x"]
+        lk = lambda x: (bool(x) and x["bottom"] == "none" and (x["bg"] or "").startswith('url("chrome://global/skin/icons/link.svg') and x["mask"] == "none"
+                        and x["w"] == "16px" and x["mid"] is not None and abs(x["mid"]) <= 2)
+        fit = lambda x: bool(x) and x[0] <= x[1] - 4 and x[2] >= 40
+        seps = res.get("seps") or []
+        ok = (res.get("id") == "calendar-task-dialog-inner" and t.get("border") == "none" and t.get("h") == "32px" and same_color(t.get("bg", ""), t.get("cat") or "x")
+              and p.get("h") == 32 and p.get("border") == "none" and same_color(bg[0], bg[1])
+              and res.get("check") and res["check"][0].startswith('url("chrome://') and rgba_alpha(res["check"][1]) > 0
+              and (res.get("eventCheck") or "").startswith('url("chrome://')
+              and lk(res.get("taskLink")) and lk(res.get("eventLink")) and fit(res.get("taskDesc")) and fit(res.get("eventDesc"))
+              and res.get("spin") == "textfield"
+              and len(seps) >= 2 and all(rgba_alpha(c) <= 0.12 and float(wd[:-2]) <= 1 for c, wd in seps))
+        return ok, f"{res}"
+    check("Aufgaben-Dialog: Felder und Fläche wie im Termin-Dialog, Haken sichtbar, Kettensymbol ohne alte Klammer (auch Termin-Dialog), Trennlinien als Haarlinie", task_dialog, results)
+
     def month_spans():
-        # mehrtägige ganztägige Termine als durchgehender Balken; Kalendersymbol ohne Emoji
+        # mehrtägige ganztägige Termine als durchgehender Balken; Titel läuft über alle Stücke weiter (früher nach
+        # einer Spalte „Konferenz in Wi…“); Kalendersymbol ohne Emoji
         res = m.js(r'''
           w.resizeTo(1500, 900);
           const c = testCalendar();
           const mk = async (title, dd, days) => { const e = new CalEvent(); e.title = title; e.calendar = c;
             const s = cal.createDateTime(); s.resetTo(2026, 9, dd, 0, 0, 0, cal.dtz.floating); s.isDate = true; const en = s.clone(); en.day += days;
             e.startDate = s; e.endDate = en; return await c.addItem(e); };
-          const made = [await mk("Halo Mehrtagig", 23, 4), await mk("Qwrtz Abgabe", 27, 1)];
+          const made = [await mk("Halo Mehrtagig Konferenz in Wien", 23, 4), await mk("Qwrtz Abgabe", 27, 1)];
           await toCalendar(); w.switchToView("month"); w.currentView().goToDay(cal.createDateTime("20261015")); await wait(1500);
           const all = [...d.querySelectorAll("calendar-month-day-box-item")];
-          const parts = all.filter(e => e.occurrence?.title == "Halo Mehrtagig").map(e => { const b = e.getBoundingClientRect();
-            return { l: Math.round(b.left), r: Math.round(b.right), t: Math.round(b.top), jl: e.hasAttribute("data-mc-join-l"), jr: e.hasAttribute("data-mc-join-r") }; });
+          const parts = all.filter(e => e.occurrence?.title == "Halo Mehrtagig Konferenz in Wien").map(e => { const b = e.getBoundingClientRect();
+            const lab = e.querySelector(".event-name-label"), cs = w.getComputedStyle(lab);
+            return { l: Math.round(b.left), r: Math.round(b.right), t: Math.round(b.top), jl: e.hasAttribute("data-mc-join-l"), jr: e.hasAttribute("data-mc-join-r"),
+                     ll: Math.round(lab.getBoundingClientRect().left * 10) / 10, vis: cs.visibility, indent: parseFloat(cs.textIndent), ov: cs.textOverflow }; });
           const plain = all.find(e => e.occurrence?.title == "Qwrtz Abgabe")?.querySelector(".event-name-label");
           const icon = plain ? w.getComputedStyle(plain, "::before").maskImage : null;
           for (const e of made) { try { await c.deleteItem(e); } catch {} }
@@ -3153,8 +4832,13 @@ def run_checks(m, version, profile, results):
             not r[0]["jl"] and not r[-1]["jr"]
             and all(abs(r[i + 1]["l"] - r[i]["r"]) <= 2 and r[i]["jr"] and r[i + 1]["jl"] for i in range(len(r) - 1))
             for r in rows)
-        return joined and res["icon"].startswith("url(") and not res["emoji"], f"{res}"
-    check("Kalender: mehrtägige Termine als Balken, Kalendersymbol ohne Emoji", month_spans, results)
+        # Folgestücke: Titel sichtbar, um den Abstand zum ersten Stück eingerückt; Stücke mit Fortsetzung schneiden ohne „…“
+        flow = joined and all(
+            all(q["vis"] == "visible" and abs(q["indent"] + (q["ll"] - r[0]["ll"])) <= 1 for q in r[1:])
+            and all(q["ov"] == "clip" for q in r[:-1])
+            for r in rows)
+        return joined and flow and res["icon"].startswith("url(") and not res["emoji"], f"{res}"
+    check("Kalender: mehrtägige Termine als Balken, Titel läuft über alle Stücke weiter, Kalendersymbol ohne Emoji", month_spans, results)
 
     def month_more():
         # volle Tage zeigen „+N weitere“ – danach bleibt die Ansicht ruhig (früher setzte
@@ -3283,12 +4967,18 @@ def run_checks(m, version, profile, results):
           const checked = [...cd.querySelectorAll("#paneDeck checkbox[checked]")].find(c => c.getBoundingClientRect().width)?.querySelector(".checkbox-check");
           const radio = cd.querySelector("#paneDeck radio:not(.appearance-options radio) .radio-check");
           const tileCheck = cd.querySelector("#appearanceStyleCards .radio-check");
+          // verschachtelte Unterüberschriften („Card view options“, „Display width“) wie der Kartentitel 13 px
+          const legends = [...new Set([...cd.querySelectorAll("#paneDeck legend")].map(l => cs(l).fontSize))];
           cw.gotoPref("paneChat"); await wait(1200);
           const num = cd.querySelector("#paneDeck input[type=number]");
           const out = { width: Math.round(deck.width), offset: Math.round((deck.left - box.left) - (box.right - deck.right)),
             checkbox: checked ? [cs(checked).appearance, cs(checked).borderTopLeftRadius] : null,
             radio: radio ? [cs(radio).appearance, cs(radio).borderTopLeftRadius] : null,
-            tileCheck: tileCheck ? cs(tileCheck).display : null, number: num ? cs(num).appearance : null };
+            tileCheck: tileCheck ? cs(tileCheck).display : null, number: num ? cs(num).appearance : null, legends };
+          // Zahlenfeld ohne macOS-Feldrahmen: dieselbe Haarlinie und Fläche wie die Textfelder
+          const txt = [...cd.querySelectorAll("#paneDeck input[type=text]")][0];
+          out.numberLook = num && txt ? [cs(num).borderTopColor == cs(txt).borderTopColor,
+            cs(num).backgroundColor == cs(cd.getElementById("preferencesContainer")).backgroundColor] : null;
           tm.closeTab(tm.currentTabInfo);
           w.MsgAccountManager(null);
           // je nach Konto die Liste (Ausgangsserver) oder ein Eingabefeld (Kontoseite)
@@ -3297,11 +4987,323 @@ def run_checks(m, version, profile, results):
           out.accountList = el ? [el.localName, el.ownerDocument.defaultView.getComputedStyle(el).borderTopLeftRadius] : null;
           tm.closeTab(tm.currentTabInfo);
           return out;''')
-        ok = (res["width"] <= 800 and abs(res["offset"]) <= 4 and res["checkbox"] == ["none", "4px"]
-              and res["radio"] and res["radio"][0] == "none" and res["tileCheck"] == "none" and res["number"] == "textfield"
+        ok = (res["width"] <= 800 and abs(res["offset"]) <= 4 and res["checkbox"] == ["none", "4px"] and res["legends"] == ["13px"]
+              and res["radio"] and res["radio"][0] == "none" and res["tileCheck"] == "none" and res["number"] == "none" and res["numberLook"] == [True, True]
               and res["accountList"] in (["richlistbox", "12px"], ["input", "7px"]))
         return ok, f"{res}"
     check("Einstellungen: Inhalt mittig, Kästchen und Optionsfelder wie macOS, Kacheln, Kontoeinstellungen", settings_style, results)
+
+    def settings_cards():
+        # Einstellungen: Grundschrift 13 px, Seitenleiste bündig, Listen mit Haarlinie, sicheres DNS als Karte,
+        # Export für Mobilgeräte ohne Marineblau, leere Abstandhalter weg, Unterdialoge (Offline, Bäume)
+        res = m.js(r'''
+          w.resizeTo(1500, 950); w.openPreferencesTab("paneGeneral"); await wait(2500);
+          const cw = tm.currentTabInfo.browser.contentWindow; const cd = cw.document;
+          const cs = e => e.ownerDocument.defaultView.getComputedStyle(e);
+          const vis = sel => [...cd.querySelectorAll(sel)].find(e => e.getBoundingClientRect().width);
+          const win = cs(cd.getElementById("preferencesContainer")).backgroundColor;
+          const line = cs(cd.querySelector("#paneDeck input[type=text]")).borderTopColor;
+          const left = el => { const r = cd.createRange(); r.selectNodeContents(el); return r.getBoundingClientRect().left; };
+          const out = {};
+          const lab = vis("#paneDeck checkbox .checkbox-label"); const desc = vis("#paneDeck description");
+          const fontLab = cd.getElementById("defaultFont")?.parentNode.querySelector("label");
+          out.font = [lab && cs(lab).fontSize, fontLab && cs(fontLab).fontSize, desc && cs(desc).fontSize];
+          const cn = cd.querySelector("#category-general .category-name"), fl = cd.querySelector("#accountButton .sidebar-footer-label");
+          out.side = [Math.abs(left(cn) - left(fl)) <= 1, cs(cn).fontSize, cs(fl).fontSize];
+          out.lists = ["tagList", "handlersView"].map(id => { const e = cd.getElementById(id);
+            return [cs(e).borderTopLeftRadius, parseFloat(cs(e).borderTopWidth) <= 1, cs(e).borderTopColor == line]; });
+          out.handlers = [cs(cd.querySelector("#handlersTable thead > tr")).backgroundColor == win, cs(cd.getElementById("handlersView")).overflowY];
+          // Offline-Einstellungen: Optionen untereinander, jede einzeilig
+          const ob = cd.getElementById("offlineSettingsButton"); ob.scrollIntoView({ block: "center" }); ob.click();
+          let fr = await until(() => [...cd.querySelectorAll(".dialogFrame")].find(f => f.contentDocument?.readyState == "complete" && f.contentDocument.location.href.includes("offline")), 8000);
+          if (fr) { await wait(800); const dd = fr.contentDocument;
+            const rs = [...dd.querySelectorAll("#whengoingOnlinestate radio")].map(r => r.getBoundingClientRect());
+            out.offline = [rs.length > 1 && rs.every((r, i) => !i || (r.top >= rs[i - 1].bottom - 1 && Math.abs(r.left - rs[0].left) < 1)),
+              Math.max(...[...dd.querySelectorAll("#whengoingOnlinestate radio, #whengoingOfflinestate radio")].map(r => r.getBoundingClientRect().height))];
+            cw.gSubDialog._topDialog?.close(); await wait(600); }
+          cw.gotoPref("panePrivacy"); await wait(1500);
+          const arrow = cd.getElementById("dohDefaultArrow"); const icon = arrow?.querySelector(".button-icon");
+          // -moz-context-properties steht nicht im berechneten Stil – stroke ist ohne die Regel „none“
+          out.doh = arrow ? [cs(icon).stroke == cs(arrow).color, cs(arrow).backgroundColor,
+            Math.round(arrow.getBoundingClientRect().width) <= 28] : null;
+          const box = cd.getElementById("dohBox"), opt = cd.getElementById("dohOptionDefault");
+          out.dohBox = [cs(box).borderTopLeftRadius, cs(box).backgroundColor != "rgba(0, 0, 0, 0)",
+            cs(opt).borderTopLeftRadius, parseFloat(cs(opt).borderTopWidth) <= 1, cs(opt).borderTopColor == line];
+          out.pwSep = cs(cd.getElementById("privacyPasswordsCategory").nextElementSibling).display;
+          // Sicheres DNS: Statuskasten ohne Netzwerkstatus verborgen, mit Statustext sichtbar (Gegenprobe)
+          const dss = cd.getElementById("dohStatusSection"), dst = cd.getElementById("dohStatus");
+          const dssH = () => Math.round(dss.getBoundingClientRect().height);
+          out.dohStatus = [dst.textContent, cs(dss).display, dssH()];
+          const oldStatus = dst.textContent; dst.textContent = "Status: Off"; await wait(200);
+          out.dohStatus.push(dssH()); dst.textContent = oldStatus; await wait(100);
+          // Unterüberschriften (auch verschachtelte legend) nicht größer als der Kartentitel
+          out.legendsPrivacy = [...new Set([...cd.querySelectorAll("#paneDeck legend")].map(l => cs(l).fontSize))];
+          // OCSP einzeilig (eine Zeile ca. 23 px, zwei ca. 46 px), Knöpfe weiterhin rechts in der Karte
+          const ocsp = cd.querySelector("#enableOCSP .checkbox-label"), ocspCard = cd.getElementById("enableOCSP").closest("fieldset");
+          out.ocsp = [Math.round(ocsp.getBoundingClientRect().height),
+            ["manageCertificatesButton", "viewSecurityDevicesButton"].map(id => { const r = cd.getElementById(id).getBoundingClientRect();
+              return r.width > 0 && r.right <= ocspCard.getBoundingClientRect().right && r.left > ocsp.getBoundingClientRect().right; })];
+          // Cookie-Ausnahmen: Baum mit Haarlinie und 8 px
+          const cb = cd.getElementById("cookieExceptions"); cb.scrollIntoView({ block: "center" }); cb.click();
+          fr = await until(() => [...cd.querySelectorAll(".dialogFrame")].find(f => f.contentDocument?.readyState == "complete" && f.contentDocument.querySelector("tree")), 8000);
+          if (fr) { await wait(800); const dd = fr.contentDocument; const t = dd.querySelector("tree");
+            const probe = dd.createElementNS("http://www.w3.org/1999/xhtml", "div"); probe.style.color = "var(--mt-pane-line)"; dd.documentElement.append(probe);
+            out.tree = [cs(t).borderTopLeftRadius, parseFloat(cs(t).borderTopWidth) <= 1, cs(t).borderTopColor == cs(probe).color];
+            probe.remove(); cw.gSubDialog._topDialog?.close(); await wait(600); }
+          cw.gotoPref("paneCalendar"); await wait(1500);
+          const fs = vis("#paneDeck fieldset"); const dp = cd.getElementById("datePrefsBox");
+          out.cal = [fs.firstElementChild.localName, cs(fs.firstElementChild).display, Math.round(dp.getBoundingClientRect().top - dp.closest("fieldset").getBoundingClientRect().top)];
+          cw.gotoPref("paneQrExport"); await wait(1500);
+          const qr = cd.getElementById("qrExportIntroForm"); const rgb = cs(qr).backgroundColor.match(/[\d.]+/g).map(Number);
+          out.qr = [cs(qr).borderTopStyle, cs(qr).borderTopLeftRadius, Math.abs(rgb[0] - rgb[2]) <= 3,
+            cs(cd.querySelector(".qr-small")).fontSize, cs(cd.getElementById("qrExportSelectAll")).textTransform];
+          tm.closeTab(tm.currentTabInfo);
+          return out;''')
+        ok = (res["font"] == ["13px", "13px", "12px"] and res["side"] == [True, "13px", "13px"]
+              and res["lists"] == [["8px", True, True]] * 2 and res["handlers"] == [True, "auto"]
+              and res.get("offline") and res["offline"][0] is True and res["offline"][1] <= 24
+              and res["doh"] and res["doh"][0] and res["doh"][1] == "rgba(0, 0, 0, 0)" and res["doh"][2]
+              and res["dohBox"] == ["12px", True, "10px", True, True] and res["pwSep"] == "none"
+              and res["dohStatus"][1:3] == ["none", 0] and res["dohStatus"][3] > 0
+              and res["legendsPrivacy"] == ["13px"] and res["ocsp"][0] <= 30 and res["ocsp"][1] == [True, True]
+              and res.get("tree") == ["8px", True, True]
+              and res["cal"][:2] == ["separator", "none"] and res["cal"][2] <= 20
+              and res["qr"] == ["none", "12px", True, "11px", "none"])
+        return ok, f"{res}"
+    check("Einstellungen: Schrift 13 px, Seitenleiste bündig, Listen/DNS/Export als ruhige Karten, leerer DNS-Status verborgen, Unterüberschriften 13 px, OCSP einzeilig, Offline-Dialog untereinander", settings_cards, results)
+
+    def settings_e2ee_cards():
+        # Einstellungen: Karte nur mit „Advanced settings“ ohne Fläche (andere Karten behalten sie);
+        # Ende-zu-Ende-Texte (html:p) wie Erklärtexte 12 px grau ohne Abstand oben, Linie als Haarlinie,
+        # Link „Account settings“ behält seine Linkfarbe
+        res = m.js(r"""
+          w.resizeTo(1500, 950); w.openPreferencesTab("paneGeneral"); await wait(2500);
+          const cw = tm.currentTabInfo.browser.contentWindow; const cd = cw.document;
+          const cs = e => e.ownerDocument.defaultView.getComputedStyle(e);
+          const out = {};
+          const adv = cd.getElementById("configEditor").closest("fieldset");
+          const other = [...cd.querySelectorAll("#paneDeck fieldset")].find(f => f != adv && f.querySelector(":scope > legend") && f.getBoundingClientRect().width);
+          out.adv = [cs(adv).backgroundColor, cs(adv).paddingTop, cs(adv).marginBottom,
+            other ? cs(other).backgroundColor != "rgba(0, 0, 0, 0)" : null];
+          cw.gotoPref("panePrivacy"); await wait(1500);
+          const p = cd.querySelector("#emailE2eeKeyServers > p"), hr = cd.querySelector("#emailE2eeKeyServers > hr");
+          const ref = cd.querySelector("#emailE2eeGroupAutomatism description");
+          const first = cd.querySelector("#emailE2eeGroupPreparation > p");
+          const probe = cd.createElementNS("http://www.w3.org/1999/xhtml", "div");
+          probe.style.borderTop = "1px solid var(--mt-pane-line)"; cd.getElementById("paneDeck").append(probe);
+          out.p = p && ref ? [cs(p).fontSize, cs(p).color == cs(ref).color, cs(p).lineHeight] : null;
+          out.hr = hr ? [parseFloat(cs(hr).borderTopWidth) <= 1, cs(hr).borderTopColor == cs(probe).borderTopColor,
+            cs(hr).borderBottomStyle] : null;
+          out.first = first ? [cs(first).marginTop, cs(first).fontSize] : null;
+          const a = first?.querySelector("a");
+          out.link = a ? cs(a).color != cs(first).color : "kein Link";
+          probe.remove();
+          tm.closeTab(tm.currentTabInfo);
+          return out;""")
+        ok = (res["adv"][0] in ("rgba(0, 0, 0, 0)", "transparent") and res["adv"][1] == "0px"
+              and res["adv"][2] == "12px" and res["adv"][3] is True
+              and res["p"] and res["p"][:2] == ["12px", True]
+              and res["hr"] and res["hr"][:2] == [True, True] and res["hr"][2] == "none"
+              and res["first"] == ["0px", "12px"] and res["link"] in (True, "kein Link"))
+        return ok, f"{res}"
+    check("Einstellungen: Karte „Advanced settings“ ohne leere Fläche; Ende-zu-Ende-Texte 12 px grau mit Haarlinie", settings_e2ee_cards, results)
+
+    def settings_details():
+        # Einstellungen: Arbeitstage mittig und mit Abstand, Chat-Vorschau mit Abstand/Rahmen und dunkel als
+        # Variante „Dark“, Schlagwörter lesbar, „Verzeichnisse bearbeiten“ wie die übrigen Knöpfe (Bearbeiten im
+        # Adressbuch bleibt groß), Update-Chronik mit Abstand, Port-Felder ohne Pfeile, schmales Fenster ohne Abschneiden,
+        # Schriftgröße kompakt, Kryptographie-Module mit ungekürzten Namen und Abstand zwischen den Listen
+        res = m.js(ADDRESS_EDIT_JS.replace('ad.getElementById("editButton").click(); await wait(1200);', '') + r"""
+          const abEdit = ad.getElementById("editButton"); const out = { abEdit: [ab.getComputedStyle(abEdit).height, ab.getComputedStyle(abEdit).fontWeight] };
+          tm.closeTab(tm.currentTabInfo);
+          const dark = w.matchMedia("(prefers-color-scheme: dark)").matches;
+          w.resizeTo(1500, 950); w.openPreferencesTab("paneGeneral"); await wait(2500);
+          const cw = tm.currentTabInfo.browser.contentWindow; const cd = cw.document;
+          const cs = e => e.ownerDocument.defaultView.getComputedStyle(e);
+          // color-mix() liefert „color(srgb 0–1 …)“ statt rgb()
+          const rgb = c => { const n = c.match(/[\d.]+/g).slice(0, 3).map(Number); return c.startsWith("color(") ? n.map(x => x * 255) : n; };
+          const lum = c => { const [r, g, b] = c.map(x => { x /= 255; return x <= 0.03928 ? x / 12.92 : ((x + 0.055) / 1.055) ** 2.4; }); return 0.2126 * r + 0.7152 * g + 0.0722 * b; };
+          const contrast = (a, b) => { const [x, y] = [lum(a), lum(b)].sort((p, q) => q - p); return Math.round((x + 0.05) / (y + 0.05) * 100) / 100; };
+          const mid = r => (r.left + r.right) / 2;
+          const bg = rgb(cs(cd.getElementById("tagList")).backgroundColor);
+          out.tags = [...cd.querySelectorAll("#tagList > richlistitem:not([selected]) > label")].map(l => contrast(rgb(cs(l).color), bg));
+          // Schriftgröße neben der Schriftart kompakt statt gleich breit
+          const fsz = cd.getElementById("defaultFontSize");
+          out.size = [Math.round(fsz.getBoundingClientRect().width), Math.round(cd.getElementById("defaultFont").getBoundingClientRect().width)];
+          // Kryptographie-Module: linke Liste breit genug für die Namen, Dialog ohne Überbreite
+          cw.gSubDialog.open("chrome://pippki/content/device_manager.xhtml");
+          let fd = await until(() => [...cd.querySelectorAll(".dialogFrame")].find(f => f.contentDocument?.readyState == "complete" && f.contentDocument.getElementById("device_tree")), 8000);
+          if (fd) { await wait(400); const dd = fd.contentDocument, de = dd.documentElement;
+            const dt = dd.getElementById("device_tree"), it = dd.getElementById("info_tree");
+            // Namen ungekürzt: Zellentext passt in die Spalte (ohne Ellipse)
+            const names = [];
+            for (let i = 0; i < dt.view.rowCount; i++) names.push(dt.view.getCellText(i, dt.columns[0]));
+            const cv = dd.createElementNS("http://www.w3.org/1999/xhtml", "canvas").getContext("2d"); cv.font = `${cs(dt).fontSize} ${cs(dt).fontFamily}`;
+            const colW = dt.columns[0].element.getBoundingClientRect().width;
+            out.dev = [Math.round(dt.getBoundingClientRect().width), de.scrollWidth <= de.clientWidth,
+              Math.round(it.getBoundingClientRect().left - dt.getBoundingClientRect().right),
+              names.length > 0 && names.every((n, i) => cv.measureText(n).width + 16 * (dt.view.getLevel(i) + 1) + 24 <= colW)];
+            cw.gSubDialog._topDialog?.close(); await wait(400); }
+          // Update-Chronik: Hinweis „No updates installed yet“ nicht am Listenrand
+          cw.gSubDialog.open("chrome://mozapps/content/update/history.xhtml");
+          let fr = await until(() => [...cd.querySelectorAll(".dialogFrame")].find(f => f.contentDocument?.readyState == "complete" && f.contentDocument.getElementById("historyItems")), 8000);
+          if (fr) { await wait(400); const hi = fr.contentDocument.getElementById("historyItems"), lb = hi.querySelector(":scope > label");
+            out.history = lb ? [Math.round(lb.getBoundingClientRect().left - hi.getBoundingClientRect().left), Math.round(lb.getBoundingClientRect().top - hi.getBoundingClientRect().top)] : "kein Hinweis";
+            cw.gSubDialog._topDialog?.close(); await wait(400); }
+          // Verbindungs-Einstellungen: Port-Felder ohne Pfeile, Wert mittig
+          cw.gSubDialog.open("chrome://messenger/content/preferences/connection.xhtml");
+          fr = await until(() => [...cd.querySelectorAll(".dialogFrame")].find(f => f.contentDocument?.readyState == "complete" && f.contentDocument.getElementById("networkProxyHTTP_Port")), 8000);
+          if (fr) { await wait(400); const pt = fr.contentDocument.getElementById("networkProxyHTTP_Port");
+            out.port = [cs(pt).appearance, cs(pt).textAlign, cs(pt).borderTopLeftRadius];
+            cw.gSubDialog._topDialog?.close(); await wait(400); }
+          cw.gotoPref("paneCompose"); await wait(1500);
+          const eb = cd.getElementById("editButton"), ar = cd.getElementById("attachment_reminder_button");
+          out.edit = [Math.abs(eb.getBoundingClientRect().height - ar.getBoundingClientRect().height) <= 1, cs(eb).fontWeight];
+          cw.gotoPref("paneChat"); await wait(1500);
+          const pb = cd.getElementById("previewBox"); const pl = pb.parentNode.querySelector(":scope > label");
+          out.preview = [Math.round(pb.getBoundingClientRect().left - pl.getBoundingClientRect().right), cs(pb).borderTopLeftRadius, parseFloat(cs(pb).borderTopWidth) <= 1];
+          const body = await until(() => cd.querySelector("#previewBox browser")?.contentDocument?.body, 5000);
+          out.chat = [Services.prefs.getCharPref("messenger.options.messagesStyle.variant"), dark,
+            body ? Math.round(lum(rgb(body.ownerDocument.defaultView.getComputedStyle(body).backgroundColor)) * 100) / 100 : null];
+          cw.gotoPref("paneCalendar"); await wait(1500);
+          const days = [0, 1, 2, 3, 4, 5, 6].map(i => cd.getElementById("dayoff" + i)).filter(Boolean);
+          days[1].scrollIntoView({ block: "center" }); await wait(300);
+          const labs = days.map(b => b.querySelector(".checkbox-label").getBoundingClientRect());
+          out.days = [days.length, Math.max(...days.map((b, i) => Math.abs(mid(b.querySelector(".checkbox-check").getBoundingClientRect()) - mid(labs[i])))),
+            Math.min(...labs.slice(1).map((l, i) => l.left - labs[i].right))];
+          // kleinste Fensterbreite: keine Seite breiter als der Inhaltsbereich
+          w.resizeTo(800, 900); await wait(800);
+          out.narrow = {};
+          for (const p of ["paneGeneral", "paneAppearance", "paneCompose", "panePrivacy", "paneChat", "paneCalendar", "paneQrExport"]) {
+            cw.gotoPref(p); await wait(700);
+            const c = cd.getElementById("preferencesContainer");
+            // abgeschnitten ist, was über die sichtbare Fläche (Innenabstand eingeschlossen) hinausragt
+            const right = c.getBoundingClientRect().left + c.clientWidth;
+            const over = [...cd.querySelectorAll(`#paneDeck [data-category="${p}"] :is(fieldset, .subcategory, #forwardMessageMode, #addExtension)`)]
+              .filter(e => e.getBoundingClientRect().width && e.getBoundingClientRect().right > right + 1).length;
+            out.narrow[p] = [c.scrollWidth - c.clientWidth, over];
+          }
+          w.resizeTo(1500, 950); await wait(500);
+          tm.closeTab(tm.currentTabInfo);
+          return out;""")
+        narrow_ok = all(v[0] <= 1 and v[1] == 0 for v in res["narrow"].values())
+        chat = res["chat"]
+        chat_ok = (chat[0] == "Dark" and chat[2] is not None and chat[2] < 0.2) if chat[1] else (chat[0] != "Dark" and chat[2] is not None and chat[2] > 0.5)
+        ok = (res["abEdit"] == ["38px", "500"] and res["tags"] and min(res["tags"]) >= 4.5
+              and isinstance(res.get("history"), list) and res["history"][0] >= 6 and res["history"][1] >= 4
+              and res.get("port") == ["none", "center", "7px"] and res["edit"] == [True, "400"]
+              and res["preview"][0] >= 6 and res["preview"][1:] == ["8px", True] and chat_ok
+              and res["days"][0] == 7 and res["days"][1] <= 1 and res["days"][2] >= 4 and narrow_ok
+              and res["size"][0] <= 100 and res["size"][0] < res["size"][1] / 2
+              and bool(res.get("dev")) and res["dev"][1] is True and res["dev"][0] >= 250 and res["dev"][2] >= 6 and res["dev"][3] is True)
+        return ok, f"{res}"
+    check("Einstellungen: Arbeitstage, Chat-Vorschau (dunkel „Dark“), Schlagwörter lesbar, Knöpfe, Update-Chronik, Ports, schmales Fenster, Schriftgröße, Kryptographie-Module", settings_details, results)
+
+    def account_pages():
+        # Kontoeinstellungen: „Add-ons and Themes“ einzeilig, Seiten dunkel in --mt-window, Überschrift mit 12 px
+        # Abstand zur ersten Karte, Junk ohne doppelten Kartenabstand und mit niedrigen Adressbuch-Zeilen, deren
+        # Auswahl das Kästchen nicht verdeckt, „Default: 587“ mit Abstand, Archiv-Beispiel mit Haarlinie und 8 px
+        res = m.js(r"""
+          w.resizeTo(1500, 950); w.MsgAccountManager(null);
+          const aw = await until(() => tm.currentTabInfo.browser?.contentWindow?.document.getElementById("accounttree") && tm.currentTabInfo.browser.contentWindow, 8000);
+          await wait(1200); const ad = aw.document;
+          const cs = e => e.ownerDocument.defaultView.getComputedStyle(e); const R = e => e.getBoundingClientRect();
+          const out = { dark: w.matchMedia("(prefers-color-scheme: dark)").matches };
+          out.footer = [...ad.querySelectorAll("#accountTreeBox .sidebar-footer-label")].filter(e => R(e).width).map(e => [Math.round(R(e).height), cs(e).whiteSpace]);
+          const probe = ad.createElementNS("http://www.w3.org/1999/xhtml", "div"); probe.style.color = "var(--mt-window)"; ad.documentElement.append(probe);
+          const line = ad.createElementNS("http://www.w3.org/1999/xhtml", "div"); line.style.color = "var(--mt-pane-line)"; ad.documentElement.append(line);
+          const winColor = cs(probe).color, lineColor = cs(line).color; probe.remove(); line.remove();
+          const tree = ad.getElementById("accounttree");
+          const page = async tag => { const li = [...tree.querySelectorAll("li")].find(l => (l.getAttribute("PageTag") || "") == tag);
+            if (!li) return null; tree.selectedIndex = tree.rows.indexOf(li);
+            return await until(() => { const d = ad.getElementById("contentFrame").contentDocument;
+              return d?.readyState == "complete" && d.location.href.includes(tag) && d.getElementById("containerBox") && d; }, 8000); };
+          const sub = async () => { const f = await until(() => [...ad.querySelectorAll(".dialogFrame")].find(fr => fr.contentDocument?.readyState == "complete" && fr.contentDocument.location.href != "about:blank"), 8000);
+            await wait(600); return f?.contentDocument; };
+          const headGap = d => { const h = d.querySelector("#containerBox > .dialogheader"); const f = [...d.querySelectorAll("#containerBox fieldset")].find(e => R(e).width);
+            return h && f ? Math.round(R(f).top - R(h).bottom) : null; };
+          out.gap = {}; out.bg = {};
+          for (const tag of ["am-copies.xhtml", "am-junk.xhtml", "am-offline.xhtml", "am-smtp.xhtml"]) {
+            const d = await page(tag); if (!d) { out.gap[tag] = "fehlt"; continue; } await wait(500);
+            out.bg[tag] = cs(d.documentElement).backgroundColor == winColor;
+            if (tag != "am-smtp.xhtml") out.gap[tag] = headGap(d);
+            if (tag == "am-junk.xhtml") {
+              const fs = [...d.querySelectorAll("#containerBox > div > fieldset")].filter(e => R(e).width);
+              out.junkGap = fs.length > 1 ? Math.round(R(fs[1]).top - R(fs[0]).bottom) : null;
+              const wl = d.getElementById("whiteListAbURI"); const items = [...wl.children].filter(e => R(e).width);
+              out.rows = items.map(e => Math.round(R(e).height));
+              const it = items[0], cb = it.querySelector("checkbox"), was = cb.checked;
+              cb.checked = true; wl.selectedIndex = 0; await wait(200);
+              out.sel = cs(it).backgroundColor != cs(it.querySelector(".checkbox-check")).backgroundColor;
+              cb.checked = was;
+            }
+            if (tag == "am-copies.xhtml") {
+              const b = d.getElementById("archiveHierarchyButton"); b.scrollIntoView({ block: "center" });
+              setTimeout(() => b.click(), 0); const sd = await sub();
+              if (sd) { const p = sd.getElementById("archiveTree").parentElement;
+                out.archive = [cs(p).borderTopColor == lineColor, cs(p).borderTopLeftRadius, parseFloat(cs(p).borderTopWidth) <= 1];
+                const dl = sd.querySelector("dialog"); if (dl?.cancelDialog) dl.cancelDialog(); else sd.defaultView.close(); await wait(600); }
+            }
+            if (tag == "am-smtp.xhtml") {
+              const b = d.getElementById("addButton"); setTimeout(() => b.click(), 0); const sd = await sub();
+              if (sd) { const sp = sd.getElementById("smtp.port"), l1 = sp.nextElementSibling, l2 = sd.getElementById("smtp.defaultPort");
+                out.smtp = [Math.round(R(l1).left - R(sp).right), Math.round(R(l2).left - R(l1).right)];
+                const dl = sd.querySelector("dialog"); if (dl?.cancelDialog) dl.cancelDialog(); else sd.defaultView.close(); await wait(600); }
+            }
+          }
+          tm.closeTab(tm.currentTabInfo);
+          return out;""")
+        ok = (bool(res["footer"]) and all(h < 30 and ws == "nowrap" for h, ws in res["footer"])
+              and all(res["bg"].values()) and len(res["bg"]) == 4
+              and all(isinstance(v, int) and 10 <= v <= 16 for v in res["gap"].values())
+              and res.get("junkGap") is not None and res["junkGap"] <= 16
+              and res.get("rows") and all(22 <= h <= 30 for h in res["rows"]) and res.get("sel") is True
+              and res.get("archive") == [True, "8px", True]
+              and res.get("smtp") and min(res["smtp"]) >= 4)
+        return ok, f"{res}"
+    check("Kontoeinstellungen: Fußzeile einzeilig, Fläche --mt-window, Abstände Überschrift/Karten, Junk-Adressbücher, SMTP-Port, Archiv-Beispiel", account_pages, results)
+
+    def account_wizards():
+        # Konto-Assistenten (Feed, Newsgruppen, Chat): Knöpfe flach ohne Rahmen, 13 px, 28 px hoch und lesbar
+        # (dunkel war „Cancel“ weiß auf #8F8F9D), Felder mit 7 px, Chat-Netzliste mit Haarlinie und 8 px
+        res = m.js(r"""
+          const rgba = c => { const v = (String(c).match(/-?[\d.]+(?:e-?\d+)?/g) || []).map(Number); const k = String(c).startsWith("color(") ? 255 : 1;
+            return [v[0] * k, v[1] * k, v[2] * k, v.length > 3 ? v[3] : 1]; };
+          const over = (fg, bg) => fg.slice(0, 3).map((x, i) => x * fg[3] + bg[i] * (1 - fg[3])).concat(1);
+          const lum = c => { const [r, g, b] = c.slice(0, 3).map(x => { x /= 255; return x <= 0.03928 ? x / 12.92 : ((x + 0.055) / 1.055) ** 2.4; }); return 0.2126 * r + 0.7152 * g + 0.0722 * b; };
+          const contrast = (a, b) => { const [x, y] = [lum(a), lum(b)].sort((p, q) => q - p); return Math.round((x + 0.05) / (y + 0.05) * 100) / 100; };
+          const out = {};
+          // nicht modal öffnen (wie Thunderbird, aber ohne „modal“), damit das Skript weiterläuft
+          for (const [name, url] of [["feed", "chrome://messenger-newsblog/content/feedAccountWizard.xhtml"],
+                                     ["news", "chrome://messenger/content/AccountWizard.xhtml"],
+                                     ["chat", "chrome://messenger/content/chat/imAccountWizard.xhtml"]]) {
+            const ww = w.openDialog(url, "_blank", "chrome,titlebar,centerscreen,dialog=no");
+            await until(() => ww.document?.readyState == "complete" && ww.document.querySelector("wizard"), 10000);
+            if (!ww.document?.querySelector("wizard")) { out[name] = "nicht offen"; ww.close(); continue; }
+            await wait(800);
+            const wd = ww.document, wz = wd.querySelector("wizard"), cs = e => ww.getComputedStyle(e);
+            const b = wz.getButton("cancel"), s = cs(b), bg = rgba(cs(wd.documentElement).backgroundColor);
+            const i = wd.querySelector("wizardpage:not([hidden]) input:not([type=checkbox], [type=radio])") || wd.querySelector("input:not([type=checkbox], [type=radio])");
+            const r = { contrast: contrast(over(rgba(s.color), over(rgba(s.backgroundColor), bg)), over(rgba(s.backgroundColor), bg)),
+              border: s.borderTopWidth, font: s.fontSize, h: Math.round(b.getBoundingClientRect().height),
+              var: cs(wz).getPropertyValue("--button-border-color").trim(), input: i ? cs(i).borderTopLeftRadius : null };
+            const pl = wd.getElementById("protolist");
+            if (pl) { const it = pl.querySelector("richlistitem[selected]") || pl.querySelector("richlistitem");
+              if (it && !it.selected) { pl.selectedItem = it; await wait(200); }
+              r.list = [cs(pl).borderTopLeftRadius, rgba(cs(pl).borderTopColor)[3], it ? cs(it).borderTopLeftRadius : null]; }
+            out[name] = r;
+            ww.close(); await wait(400);
+          }
+          return out;""")
+        ok = True
+        for name in ("feed", "news", "chat"):
+            r = res.get(name)
+            ok = ok and isinstance(r, dict) and r["contrast"] >= 4.5 and r["border"] == "0px" and r["font"] == "13px" \
+                and r["h"] >= 27 and r["var"] == "transparent" and r["input"] == "7px"
+        c = res.get("chat")
+        ok = ok and isinstance(c, dict) and c.get("list") and c["list"][0] == "8px" and c["list"][1] <= 0.15 and c["list"][2] == "6px"
+        return ok, f"{res}"
+    check("Konto-Assistenten: Knöpfe flach und lesbar, Felder 7 px, Chat-Netzliste mit Haarlinie und 8 px", account_wizards, results)
 
     def no_placeholder_in_ui():
         # Platzhalter für blockierte Bilder nur in Mails – nicht in der Oberfläche (Lupe im Suchfeld)
@@ -3537,7 +5539,9 @@ def run_checks(m, version, profile, results):
                          endless: await run("/endlos", { max: 512 * 1024 }), head: await run("/endlos", { max: 200000, truncate: true }),
                          stall: await run("/stumm"),
                          post: await run("/abmelden", { method: "POST", headers: { "Content-Type": "application/x-www-form-urlencoded" },
-                                                        body: "List-Unsubscribe=One-Click", max: 0, truncate: true }) };
+                                                        body: "List-Unsubscribe=One-Click", max: 0, truncate: true }),
+                         postRedirect: await run("/abmelden-umleitung", { method: "POST", headers: { "Content-Type": "application/x-www-form-urlencoded" },
+                                                        body: "List-Unsubscribe=One-Click", max: 0, truncate: true, followRedirects: false }) };
               } finally {
                 co.clearValidityOverride(HOST, PORT, {});
                 Services.prefs.clearUserPref("network.dns.localDomains");
@@ -3550,9 +5554,10 @@ def run_checks(m, version, profile, results):
               and res["auth"].get("status") == 401
               and res["endless"].get("error") == "too large" and res["head"].get("len") == 200000
               and res["stall"].get("error") == "timeout" and res["stall"]["ms"] < 15000
-              and res["post"].get("ok") and posts == ["List-Unsubscribe=One-Click"])
+              and res["post"].get("ok") and res["postRedirect"].get("ok") and res["postRedirect"].get("status") == 303
+              and posts == ["List-Unsubscribe=One-Click"] * 2)
         return ok, f"{res}"
-    check("Absenderbilder: Umleitung ins lokale Netz gesperrt, bevor verbunden wird; Zeitlimit und Größengrenze für die ganze Antwort", net_guard, results)
+    check("Absenderbilder: Umleitung ins lokale Netz gesperrt, bevor verbunden wird; Zeitlimit und Größengrenze für die ganze Antwort; Ein-Klick-Abmeldung mit Umleitung gilt als erledigt", net_guard, results)
 
     def keyboard():
         res = m.js('''
@@ -3572,8 +5577,10 @@ def run_checks(m, version, profile, results):
     def auto_update():
         res = m.js('''
           const last = await until(() => Services.prefs.getIntPref("extensions.mailcards.autoUpdateLast", 0), 25000);
-          return { last, ageSec: last ? Math.round(Date.now() / 1000 - last) : null };''')
-        return bool(res["last"]) and res["ageSec"] < 600, f"Update-Prüfung beim Start gelaufen: {res}"
+          // seit dem Start dieses Thunderbird-Prozesses (statt fester 10 Minuten: unter Last dauert der Lauf länger)
+          const start = Math.floor(Services.startup.getStartupInfo().process / 1000);
+          return { last, ageSec: last ? Math.round(Date.now() / 1000 - last) : null, sinceStart: last ? last - start : null };''')
+        return bool(res["last"]) and res["sinceStart"] is not None and res["sinceStart"] >= -5, f"Update-Prüfung beim Start gelaufen: {res}"
     check("Updates: Prüfung beim Start", auto_update, results)
 
     ENH_JS = '''
@@ -3628,17 +5635,45 @@ def run_checks(m, version, profile, results):
           // wie nach 3.2.0: deren stop() ließ das Merkmal als „true“ stehen
           fp.__mcWidthWatch = true;
           out.header1 = !!cw?.document.getElementById("mcBooksHeader");
+          // Überschrift einer älteren Fassung (ohne Kennung) bleibt stehen: wird ersetzt
+          if (cw) { const old = cw.document.createElement("div"); old.id = "mcBooksHeader"; cw.document.getElementById("books")?.before(old); }
           out.local1 = nameOf(local()); out.server = local()?._serverName;
           Cu.evalInSandbox("enhancer = new CardEnhancer({}); enhancer.start();", g);
-          out.header2 = !!(await until(() => cw?.document.getElementById("mcBooksHeader"), 8000));
+          const owner = Cu.evalInSandbox("HOOK_OWNER", g);
+          out.header2 = !!(await until(() => cw?.document.getElementById("mcBooksHeader")?.__mcOwner === owner, 8000));
+          out.headers2 = cw ? cw.document.querySelectorAll("#mcBooksHeader").length : 0;
           out.watch2 = await until(() => typeof fp.__mcWidthWatch == "object", 8000);
           out.local2 = await until(() => nameOf(local()) == out.local0 && out.local0, 6000);
           tm.closeTab(tm.currentTabInfo); await toMail();
           return out;''')
-        ok = (res["tab"] and res["watch0"] and not res["watch1"] and res["watch2"] and not res["header1"] and res["header2"]
+        ok = (res["tab"] and res["watch0"] and not res["watch1"] and res["watch2"] and not res["header1"] and res["header2"] and res["headers2"] == 1
               and res["local0"] != res["server"] and res["local1"] == res["server"] and res["local2"])
         return ok, f"{res}"
-    check("Erweiterung: Aus- und Einschalten setzt Ordnernamen und Einfügungen zurück und hängt sie wieder an", restart_cycle, results)
+    check("Erweiterung: Aus- und Einschalten setzt Ordnernamen und Einfügungen zurück und hängt sie wieder an; Einfügungen einer älteren Fassung werden ersetzt", restart_cycle, results)
+
+    def local_collapse():
+        # „Auf meinem Mac“ klappt auch nach einer Suche zu: der eigene Suchordner
+        # (mit Trefferzahl) zählt nicht als Inhalt, ein Ordner mit Mails schon
+        res = m.js(ENH_JS + '''
+          const sf = enh.searchFolder(true);
+          const empty = { hasSubFolders: false, getTotalMessages: () => 0 };
+          const full = { hasSubFolders: false, getTotalMessages: () => 3 };
+          // gleicher Name, aber kein eigener Suchordner: zählt mit Trefferzahl
+          const foreign = { name: sf?.name, hasSubFolders: false, getTotalMessages: () => 3, getFlag: () => true, parent: sf?.parent, server: null };
+          const root = subFolders => ({ subFolders });
+          // Suchordner mit Treffern (wie nach einer Suche): als eigener Suchordner erkannt
+          const hits = { hasSubFolders: false, getTotalMessages: () => 5 };
+          const own = enh.isSearchFolder;
+          enh.isSearchFolder = f => f === hits || own.call(enh, f);
+          try {
+            return { search: own.call(enh, sf), onlySearch: enh.localIsEmpty(root([sf, empty])), withHits: enh.localIsEmpty(root([hits, empty])),
+                     withMail: enh.localIsEmpty(root([sf, hits, empty, full])), foreign: enh.localIsEmpty(root([foreign, empty])) };
+          } finally {
+            delete enh.isSearchFolder;
+          }''')
+        ok = res["search"] and res["onlySearch"] is True and res["withHits"] is True and res["withMail"] is False and res["foreign"] is False
+        return ok, f"{res}"
+    check("Ordnerliste: „Auf meinem Mac“ klappt trotz Suchordner mit Treffern zu, mit eigenen Mails nicht", local_collapse, results)
 
     def errors():
         res = m.js("""

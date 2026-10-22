@@ -1,7 +1,9 @@
 /* Halo Spaces – Info-Fenster im Stil des Designs (Hell/Dunkel wie das System) */
 :root {
   --text: #1d1d1f;
-  --text-secondary: rgba(60, 60, 67, 0.72);
+  /* deckend statt halbtransparent: Gecko malt Farb-Emojis mit der Deckkraft
+     der Schrift – in Hinweisen und Status wirkten sie sonst ausgewaschen */
+  --text-secondary: #6e6e73;
   --window: #ffffff;
   --control: rgba(0, 0, 0, 0.05);
   --control-hover: rgba(0, 0, 0, 0.09);
@@ -13,7 +15,7 @@
 @media (prefers-color-scheme: dark) {
   :root {
     --text: #f5f5f7;
-    --text-secondary: rgba(235, 235, 245, 0.62);
+    --text-secondary: #a1a1a6;
     --window: #1e1e20;
     --control: rgba(255, 255, 255, 0.07);
     --control-hover: rgba(255, 255, 255, 0.12);

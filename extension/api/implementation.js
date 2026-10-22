@@ -166,8 +166,11 @@ const DE = {
   "Messages in system font": "Mails in Systemschrift",
   "like Apple Mail; messages with their own font keep it – off: Thunderbird’s fonts": "wie Apple Mail; Mails mit eigener Schrift behalten sie – aus: Thunderbirds Schriften",
   "Yesterday": "Gestern",
+  "No Results": "Keine Ergebnisse",
+  "No tasks match your search.": "Keine Aufgabe passt zur Suche.",
   "No Tasks": "Keine Aufgaben",
   "Tasks you add appear here.": "Neue Aufgaben erscheinen hier.",
+  "No tasks in this view.": "Keine Aufgaben in dieser Ansicht.",
   "No Task List Selected": "Keine Aufgabenliste ausgewählt",
   "Choose a calendar that supports tasks in the sidebar.": "Wähle links einen Kalender, der Aufgaben unterstützt.",
   "Searching": "Suche",
@@ -318,8 +321,11 @@ const FR = {
   "Messages in system font": "Messages dans la police système",
   "like Apple Mail; messages with their own font keep it – off: Thunderbird’s fonts": "comme Apple Mail ; les messages avec leur propre police la gardent – désactivé : polices de Thunderbird",
   "Yesterday": "Hier",
+  "No Results": "Aucun résultat",
+  "No tasks match your search.": "Aucune tâche ne correspond à la recherche.",
   "No Tasks": "Aucune tâche",
   "Tasks you add appear here.": "Les tâches ajoutées apparaissent ici.",
+  "No tasks in this view.": "Aucune tâche dans cette vue.",
   "No Task List Selected": "Aucune liste de tâches sélectionnée",
   "Choose a calendar that supports tasks in the sidebar.": "Choisissez dans la barre latérale un calendrier qui prend en charge les tâches.",
   "Searching": "Recherche",
@@ -470,8 +476,11 @@ const ES = {
   "Messages in system font": "Mensajes en la fuente del sistema",
   "like Apple Mail; messages with their own font keep it – off: Thunderbird’s fonts": "como Apple Mail; los mensajes con su propia fuente la conservan – desactivado: fuentes de Thunderbird",
   "Yesterday": "Ayer",
+  "No Results": "Sin resultados",
+  "No tasks match your search.": "Ninguna tarea coincide con la búsqueda.",
   "No Tasks": "No hay tareas",
   "Tasks you add appear here.": "Las tareas que añadas aparecerán aquí.",
+  "No tasks in this view.": "No hay tareas en esta vista.",
   "No Task List Selected": "No hay ninguna lista de tareas seleccionada",
   "Choose a calendar that supports tasks in the sidebar.": "Elige en la barra lateral un calendario que admita tareas.",
   "Searching": "Buscando",
@@ -622,8 +631,11 @@ const IT = {
   "Messages in system font": "Messaggi nel font di sistema",
   "like Apple Mail; messages with their own font keep it – off: Thunderbird’s fonts": "come Apple Mail; i messaggi con un proprio font lo mantengono – disattivato: font di Thunderbird",
   "Yesterday": "Ieri",
+  "No Results": "Nessun risultato",
+  "No tasks match your search.": "Nessuna attività corrisponde alla ricerca.",
   "No Tasks": "Nessuna attività",
   "Tasks you add appear here.": "Le attività aggiunte appaiono qui.",
+  "No tasks in this view.": "Nessuna attività in questa vista.",
   "No Task List Selected": "Nessun elenco attività selezionato",
   "Choose a calendar that supports tasks in the sidebar.": "Scegli nella barra laterale un calendario che supporta le attività.",
   "Searching": "Ricerca",
@@ -821,16 +833,30 @@ const APPEARANCE_THEMES = {
   light: "thunderbird-compact-light@mozilla.org",
   dark: "thunderbird-compact-dark@mozilla.org",
 };
+// Kennung dieser geladenen Fassung: Einfügungen einer älteren Fassung (Update
+// ohne Neustart, 3.2.0 räumte sie nicht weg) werden ersetzt statt übernommen
+const HOOK_OWNER = {};
+// vorhandenes Element dieser Fassung liefern, das einer älteren entfernen
+function ownedElement(doc, id) {
+  const el = doc.getElementById(id);
+  if (el && el.__mcOwner !== HOOK_OWNER) {
+    el.remove();
+    return null;
+  }
+  return el;
+}
+
 // Adressbuch: kleine Überschrift über der Liste wie „Favoriten“ in der Mail
 // und „Kalender“ im Kalender
 function hookBooksHeader(cw, restorers = null) {
   const doc = cw.document;
   const books = doc.getElementById("books");
-  if (!books || doc.getElementById("mcBooksHeader")) {
+  if (!books || ownedElement(doc, "mcBooksHeader")) {
     return;
   }
   const header = doc.createElement("div");
   header.id = "mcBooksHeader";
+  header.__mcOwner = HOOK_OWNER;
   header.textContent = tr("Address Books");
   books.before(header);
   restorers?.push(() => header.remove());
@@ -842,7 +868,7 @@ function hookAppearanceChoice(cw, restorers = null) {
   if (!colorGroup) {
     return;
   }
-  const existing = doc.getElementById("mcAppearanceGroup");
+  const existing = ownedElement(doc, "mcAppearanceGroup");
   if (existing) {
     // Thunderbird blendet beim Seitenwechsel alles ohne passende Kategorie aus
     existing.setAttribute("data-category", "paneAppearance");
@@ -852,6 +878,7 @@ function hookAppearanceChoice(cw, restorers = null) {
   const X = "http://www.w3.org/1999/xhtml";
   const group = doc.createElementNS(X, "fieldset");
   group.id = "mcAppearanceGroup";
+  group.__mcOwner = HOOK_OWNER;
   group.setAttribute("data-category", "paneAppearance");
   group.hidden = colorGroup.hidden;
   const legend = doc.createElementNS(X, "legend");
@@ -1000,7 +1027,8 @@ const CSS = `
   font-weight: 400 !important;
   line-height: 16px;
   margin-top: 1px;
-  padding-inline-start: 4px;
+  /* 3 px wie der Innenabstand des Absenders: bündig mit Absender und Betreff */
+  padding-inline-start: 3px;
   color: color-mix(in srgb, currentColor 58%, transparent);
   white-space: normal;
   overflow: hidden;
@@ -1416,7 +1444,7 @@ let fetchTimeouts = 0;
 // Zeitlimit und Größengrenze (max Bytes) gelten für die ganze Antwort, danach
 // wird abgebrochen; mit truncate liefert eine längere Antwort nur ihren Anfang.
 // Ergebnis wie bei fetch: ok, status, url, headers.get(), text(), arrayBuffer()
-function fetchWithTimeout(win, url, { method = "GET", headers = {}, body = null, max = 2 * 1024 * 1024, truncate = false } = {}) {
+function fetchWithTimeout(win, url, { method = "GET", headers = {}, body = null, max = 2 * 1024 * 1024, truncate = false, followRedirects = true } = {}) {
   return new Promise((resolve, reject) => {
     if (!isPublicHttps(url)) {
       reject(new Error("blocked url"));
@@ -1443,7 +1471,8 @@ function fetchWithTimeout(win, url, { method = "GET", headers = {}, body = null,
     let settled = false;
     const parts = [];
     let size = 0;
-    const finish = request => {
+    // redirected: Antwort 3xx, der nicht gefolgt wurde – gilt als Erfolg
+    const finish = (request, redirected = false) => {
       if (settled) {
         return;
       }
@@ -1458,7 +1487,7 @@ function fetchWithTimeout(win, url, { method = "GET", headers = {}, body = null,
       try {
         const http = request.QueryInterface(Ci.nsIHttpChannel);
         resolve({
-          ok: http.requestSucceeded,
+          ok: http.requestSucceeded || (redirected && http.responseStatus >= 300 && http.responseStatus < 400),
           status: http.responseStatus,
           url: http.URI.spec,
           headers: {
@@ -1497,6 +1526,15 @@ function fetchWithTimeout(win, url, { method = "GET", headers = {}, body = null,
         return this.QueryInterface(iid);
       },
       asyncOnChannelRedirect(oldChannel, newChannel, flags, callback) {
+        // ohne Weiterleiten (Ein-Klick-Abmeldung): der Server hat die Anfrage
+        // schon erhalten – die 3xx-Antwort ist das Ergebnis, die Bestätigungsseite
+        // (oft http oder intern) wird nicht mehr geladen
+        if (!followRedirects) {
+          callback.onRedirectVerifyCallback(Cr.NS_ERROR_ABORT);
+          finish(oldChannel, true);
+          fail(new Error("redirect not followed"));
+          return;
+        }
         // das Ziel muss ebenfalls öffentlich sein – sonst gar nicht erst verbinden
         if (!isPublicHttps(newChannel.URI.spec)) {
           callback.onRedirectVerifyCallback(Cr.NS_ERROR_ABORT);
@@ -2519,6 +2557,14 @@ function parseNatural(text, now = new Date()) {
     if (!range[3] && range[6] && toMinutes(range[1], range[2], range[6]) < endMin) {
       startMin = toMinutes(range[1], range[2], range[6]);
     }
+    // nur das Ende hat „am“ und liegt nach Mitternacht: der Beginn ist am
+    // Abend davor („11-1am“ → 23–1 Uhr, nicht 11 Uhr bis 1 Uhr nachts)
+    if (!range[3] && /^a/i.test(range[6] || "") && startMin > endMin) {
+      const pm = toMinutes(range[1], range[2], "pm");
+      if (pm > endMin) {
+        startMin = pm;
+      }
+    }
   } else if ((m = take(new RegExp(`${B}(?:um\\s+|at\\s+)?(\\d{1,2})(?:[:.](\\d{2}))?\\s*(?:uhr|h)${E}`, "iu")))) {
     startMin = toMinutes(m[1], m[2]);
   } else if ((m = take(new RegExp(`${B}(?:um\\s+|at\\s+)?(\\d{1,2})(?:[:.](\\d{2}))?\\s*(am|pm)${E}`, "iu")))) {
@@ -2538,7 +2584,12 @@ function parseNatural(text, now = new Date()) {
   const title = rest.replace(new RegExp(`${B}(am|um|on|at|von|from)\\s*$`, "iu"), "")
     .replace(/\s+/g, " ").replace(/\s+([,.;:!?])/g, "$1").replace(/^[\s,–-]+|[\s,–-]+$/g, "").trim();
   const base = day || new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  const result = { title: title || text.trim(), allDay: allDay || (startMin == null && !!day) };
+  // Dauer ohne Uhrzeit („Meeting morgen für 2h“): nicht ganztägig, die
+  // Uhrzeit kommt aus der Vorbelegung des Schnellfensters
+  const result = { title: title || text.trim(), allDay: allDay || (startMin == null && !!day && duration == null) };
+  if (duration != null) {
+    result.duration = duration;
+  }
   if (!result.allDay && startMin != null) {
     result.start = new Date(base.getFullYear(), base.getMonth(), base.getDate(), Math.floor(startMin / 60), startMin % 60);
     let end = endMin != null ? endMin : startMin + (duration ?? 60);
@@ -2666,7 +2717,7 @@ const ThemeSheet = {
   wanted(doc) {
     const url = doc?.documentURI || "";
     return url.startsWith("chrome://") ||
-      /^about:(addressbook|preferences|addons|accountsettings|accountsetup|message|3pane|import|profiling)/.test(url);
+      /^about:(addressbook|preferences|addons|accountsettings|accountsetup|message|3pane|import|profiling|downloads)/.test(url);
   },
   apply(win) {
     if (!this.active || !win || win.__mcTheme == this.uri || !this.wanted(win.document)) {
@@ -2958,6 +3009,7 @@ class CardEnhancer {
       chromeURLs: ["chrome://messenger/content/messenger.xhtml"],
       onLoadWindow: w => this.watchMainWindow(w),
     });
+    this.watchChatVariant();
     // Verfassen-Fenster: Symbolleiste nur mit Symbolen, sobald Beschriftungen
     // gekürzt würden (siehe watchComposeToolbar)
     const composeCleanups = new Set();
@@ -2972,6 +3024,61 @@ class CardEnhancer {
           cleanup();
         } catch {}
       }
+    });
+  }
+
+  // Chat-Stil „Thunderbird“ (mail): im Dunkelmodus die mitgelieferte Variante
+  // „Dark“ statt der weißen „Light“ – für Vorschau in den Einstellungen und
+  // Unterhaltungen. Nur der Standardwert wird umgestellt; wer eine Variante
+  // oder einen anderen Stil gewählt hat, behält ihn.
+  watchChatVariant() {
+    const VARIANT = "messenger.options.messagesStyle.variant";
+    const defaults = Services.prefs.getDefaultBranch("");
+    let original;
+    try {
+      original = defaults.getCharPref(VARIANT);
+    } catch {
+      return;
+    }
+    const sync = w => {
+      const theme = Services.prefs.getCharPref("messenger.options.messagesStyle.theme", "mail");
+      const dark = theme == "mail" && w.matchMedia("(prefers-color-scheme: dark)").matches;
+      const want = dark ? "Dark" : original;
+      if (defaults.getCharPref(VARIANT) != want) {
+        defaults.setCharPref(VARIANT, want);
+        debugLog("Chat-Variante (Standard)", want);
+      }
+    };
+    const queries = new Map();
+    // anderer Stil gewählt: Standard zurück, sonst fehlte dort die Variante
+    const themeObserver = () => {
+      const w = Services.wm.getMostRecentWindow("mail:3pane");
+      if (w) {
+        sync(w);
+      }
+    };
+    Services.prefs.addObserver("messenger.options.messagesStyle.theme", themeObserver);
+    ExtensionSupport.registerWindowListener("mail-cards-chatvariant", {
+      chromeURLs: ["chrome://messenger/content/messenger.xhtml"],
+      onLoadWindow: w => {
+        const mq = w.matchMedia("(prefers-color-scheme: dark)");
+        const onChange = () => sync(w);
+        mq.addEventListener("change", onChange);
+        queries.set(w, () => mq.removeEventListener("change", onChange));
+        w.addEventListener("unload", () => queries.delete(w), { once: true });
+        sync(w);
+      },
+    });
+    this.restorers.push(() => {
+      ExtensionSupport.unregisterWindowListener("mail-cards-chatvariant");
+      Services.prefs.removeObserver("messenger.options.messagesStyle.theme", themeObserver);
+      for (const remove of queries.values()) {
+        try {
+          remove();
+        } catch {}
+      }
+      queries.clear();
+      defaults.setCharPref(VARIANT, original);
     });
   }
 
@@ -3062,20 +3169,54 @@ class CardEnhancer {
     const root = d.documentElement;
     const tabmail = d.getElementById("tabmail");
     const FLEX = ["messagePane", "detailsPane", "preferencesContainer", "calendarDisplayBox", "conversationsBox"];
-    let observed = null;
+    // Elemente im Hauptdokument nur im passenden Tab (ausgeblendete Tabs behalten
+    // ihre Breite: der Kalender maß sonst 560×0 px und sperrte die Fensterbreite)
+    const MODE = { calendarDisplayBox: ["calendar", "tasks"], conversationsBox: ["chat"] };
+    const shown = el => {
+      const r = el?.getBoundingClientRect();
+      return !!r && r.width > 0 && r.height > 0 && (el.checkVisibility?.() ?? true);
+    };
+    let observed = new Set();
     const ro = new w.ResizeObserver(() => update());
-    const flexElement = () => {
+    // { width, min, watch }: Breite und Mindestbreite des Bereichs, der beim
+    // Verkleinern schrumpft, und die zu beobachtenden Elemente
+    const measure = () => {
       const tab = tabmail?.currentTabInfo;
-      const docs = [tab?.chromeBrowser?.contentDocument, tab?.browser?.contentDocument, d].filter(Boolean);
+      const mode = tab?.mode?.name;
+      const bd = tab?.browser?.contentDocument;
+      if (mode == "addressBookTab" && bd?.getElementById("cardsPane")) {
+        // Adressbuch: ohne Auswahl ist die Detailspalte ausgeblendet – dann zählt
+        // der freie Platz rechts der Liste; das Ein- und Ausblenden meldet der
+        // ResizeObserver (kein resize-Ereignis)
+        const cw = bd.defaultView;
+        const dp = bd.getElementById("detailsPane"), cp = bd.getElementById("cardsPane");
+        const watch = [dp, cp].filter(Boolean);
+        const min = (dp && parseFloat(cw.getComputedStyle(dp).minWidth)) || 560;
+        if (shown(dp)) {
+          return { width: dp.getBoundingClientRect().width, min: parseFloat(cw.getComputedStyle(dp).minWidth) || 0, watch };
+        }
+        if (!shown(cp)) {
+          return { watch };
+        }
+        if (bd.body.classList.contains("layout-table")) {
+          return { width: cp.getBoundingClientRect().width, min, watch };
+        }
+        return { width: cw.innerWidth - cp.getBoundingClientRect().right, min, watch };
+      }
+      const docs = [tab?.chromeBrowser?.contentDocument, bd, d].filter(Boolean);
       for (const doc of docs) {
         for (const id of FLEX) {
+          if (doc == d && MODE[id] && !MODE[id].includes(mode)) {
+            continue;
+          }
           const el = doc.getElementById(id);
-          if (el && el.getBoundingClientRect().width > 0) {
-            return el;
+          if (shown(el)) {
+            const min = parseFloat(el.ownerDocument.defaultView.getComputedStyle(el).minWidth) || 0;
+            return { width: el.getBoundingClientRect().width, min, watch: [el] };
           }
         }
       }
-      return null;
+      return { watch: [] };
     };
     let later = null;
     const update = () => {
@@ -3087,20 +3228,37 @@ class CardEnhancer {
           later = w.setTimeout(update, 350);
           return;
         }
-        const el = flexElement();
-        if (el !== observed) {
-          observed && ro.unobserve(observed);
-          el && ro.observe(el);
-          observed = el;
+        const { width, min, watch } = measure();
+        const next = new Set(watch);
+        for (const el of observed) {
+          if (!next.has(el)) {
+            ro.unobserve(el);
+          }
         }
-        if (!el) {
+        for (const el of next) {
+          if (!observed.has(el)) {
+            ro.observe(el);
+          }
+        }
+        observed = next;
+        // ohne sichtbares Element keine Mindestbreite (nie innerWidth sperren)
+        if (width === undefined) {
           root.style.removeProperty("min-width");
           return;
         }
-        const min = parseFloat(el.ownerDocument.defaultView.getComputedStyle(el).minWidth) || 0;
-        const slack = Math.max(0, el.getBoundingClientRect().width - min);
+        const slack = Math.max(0, width - min);
         // nie unter 800 px (dann wäre schon die Toolbar zu eng)
-        const value = Math.max(800, Math.round(w.innerWidth - slack));
+        let value = Math.max(800, Math.round(w.innerWidth - slack));
+        // Chat: Kontaktspalte + Chat-Knöpfe + kleinstes Suchfeld (40 px) + was
+        // rechts der Suche liegt müssen nebeneinander passen
+        if (tabmail?.currentTabInfo?.mode?.name == "chat") {
+          const lp = d.getElementById("listPaneBox")?.getBoundingClientRect();
+          const tb = d.getElementById("chat-view-toolbox")?.getBoundingClientRect();
+          const s = d.querySelector('#unifiedToolbarContent > li[item-id="search-bar"]')?.getBoundingClientRect();
+          if (lp?.width && tb?.width && s?.width) {
+            value = Math.max(value, Math.ceil(lp.right + 12 + tb.width + 12 + 40 + (w.innerWidth - s.right)));
+          }
+        }
         // nur bei echter Änderung schreiben (jedes Setzen gestaltet das Fenster neu)
         if (Math.abs((parseFloat(root.style.minWidth) || 0) - value) >= 2) {
           root.style.minWidth = `${value}px`;
@@ -3151,6 +3309,27 @@ class CardEnhancer {
     let sidebarTip = null;
     let newPopup = null;
     this.hookMinWindowWidth(w);
+    // Leerer Chat: Thunderbird fokussiert den Standardknopf („Get started“)
+    // per Skript, Gecko zeigt dann dauerhaft den Fokusring – Fokus behalten
+    // (Return löst ihn aus), den Ring aber nur bei Tastaturbedienung zeigen
+    const ch = w.chatHandler;
+    if (ch && typeof ch._updateFocus == "function" && !ch.__mcFocusHooked) {
+      const origFocus = ch._updateFocus;
+      ch._updateFocus = function (...args) {
+        const res = origFocus.apply(this, args);
+        const el = w.document.activeElement;
+        if (el?.matches?.(".im-placeholder-screen button") && el.matches(":focus-visible")) {
+          el.blur();
+          el.focus({ focusVisible: false });
+        }
+        return res;
+      };
+      ch.__mcFocusHooked = true;
+      this.restorers.push(() => {
+        ch._updateFocus = origFocus;
+        delete ch.__mcFocusHooked;
+      });
+    }
     log("main window", { tabs: w.document.getElementById("tabmail")?.tabInfo?.length ?? null });
     // Attribut „mc-mail“ am Hauptfenster, solange ein Mail-Tab vorne ist –
     // userChrome.css färbt Toolbar- und Tab-Leiste nur dann wie Apple Mail.
@@ -3296,7 +3475,14 @@ class CardEnhancer {
           }
         }
         const cr = cards?.getBoundingClientRect();
-        if (cr?.width) {
+        // Tabellenansicht: die Liste reicht bis zum Fensterrand – Knöpfe und
+        // Suche bleiben an ihrem Platz, die Kopfzeile endet davor, und die
+        // Trennlinie entfällt (keine Spaltenkante darunter)
+        const table = el.ownerDocument.body.classList.contains("layout-table");
+        d.documentElement.toggleAttribute("mc-ab-table", table);
+        if (cr?.width && table) {
+          setBarVar(d, "--mc-ab-list-right", `${Math.round(edge - 6 - rowLeft)}px`);
+        } else if (cr?.width) {
           // Knöpfe nie über der Kontaktliste
           edge = Math.max(this.mcButtonsLeft ? edge : 0, shift + cr.right + 6);
           setBarVar(d, "--mc-ab-list-right", `${Math.round(shift + cr.right - rowLeft)}px`);
@@ -3305,6 +3491,19 @@ class CardEnhancer {
       const toggle = d.getElementById("spacesPinnedButton")?.getBoundingClientRect();
       if (toggle?.width) {
         edge = Math.max(edge, toggle.right + 12);
+      }
+      // Chat: Knöpfe und Suche dürfen sich nie überlagern – erst die Suche bis
+      // 160 px kürzen, dann die Knöpfe nach links rücken (höchstens bis neben
+      // die Kontaktspalte), zuletzt die Suche bis 40 px kürzen (das Suchfeld
+      // steht rechtsbündig, seine rechte Kante bleibt beim Kürzen stehen)
+      if (tab.mode.name == "chat") {
+        const tb = d.getElementById("chat-view-toolbox")?.getBoundingClientRect();
+        const s = d.querySelector('#unifiedToolbarContent > li[item-id="search-bar"]')?.getBoundingClientRect();
+        if (tb?.width && s?.width) {
+          const sideEdge = Math.max(shift + (r.width ? r.right : 0) + 12, toggle?.width ? toggle.right + 12 : 0);
+          edge = Math.max(sideEdge, Math.min(edge, s.right - 12 - 160 - tb.width));
+          setBarVar(d, "--mc-chat-search-max", `${Math.max(40, Math.floor(s.right - (edge + tb.width) - 12))}px`);
+        }
       }
       setBarVar(d, "--mc-tab-offset", `${Math.max(0, Math.round(edge - start))}px`);
       // dieselbe Kante im Fenster und die Toolbar-Zeile – für Leisten, die
@@ -3323,6 +3522,12 @@ class CardEnhancer {
         setVar(d.getElementById("today-minimonth"), "--mc-mm-w", `${calMm.offsetWidth}px`);
       }
       rowVar("--mc-tab-left", `${Math.round(edge)}px`);
+      // linke Kante des Suchfelds: der Hinweis „schreibgeschützter Kalender“
+      // in der Toolbar-Zeile endet davor
+      const sb = d.querySelector('#unifiedToolbarContent > li[item-id="search-bar"]:not([hidden])')?.getBoundingClientRect();
+      if (sb?.width) {
+        rowVar("--mc-search-left", `${Math.round(sb.left)}px`);
+      }
       rowVar("--mc-row-top", `${Math.round(rr.top)}px`);
       rowVar("--mc-row-h", `${Math.round(rr.height)}px`);
       const toggle2 = d.getElementById("viewToggle");
@@ -3341,7 +3546,8 @@ class CardEnhancer {
     this.sideEdgeUpdaters ??= new Set();
     this.sideEdgeUpdaters.add(updateSideEdge);
     const sideRO = new w.ResizeObserver(updateSideEdge);
-    for (const id of ["calSidebar", "listPaneBox", "tabmail-container"]) {
+    // (chat-view-toolbox: andere Breite der Chat-Knöpfe, z. B. neuer Statustext)
+    for (const id of ["calSidebar", "listPaneBox", "tabmail-container", "chat-view-toolbox"]) {
       const el = w.document.getElementById(id);
       if (el) {
         sideRO.observe(el);
@@ -3400,6 +3606,8 @@ class CardEnhancer {
       return !!org && !card.firstName && !card.lastName;
     };
     const COMPANY_AVATAR = "resource://mailcards/icons/company-avatar.svg";
+    // neuer Kontakt noch ohne Namen: Person auf dem Verlauf statt Initialen
+    const PERSON_AVATAR = "resource://mailcards/icons/person-avatar.svg";
     // großes Bild ohne Foto: Initialen auf dem Verlauf der Liste (statt
     // Thunderbirds Umriss-Figur)
     const initialsImage = text => {
@@ -3495,9 +3703,9 @@ class CardEnhancer {
           return;
         }
         const generate = () => {
-          const { card, name, first, last } = info();
+          const { card, name, first, last, person } = info();
           const text = initialOf(name, { firstName: first ?? card?.firstName, lastName: last ?? card?.lastName });
-          const url = card && isCompany(card) ? COMPANY_AVATAR : text ? initialsImage(text) : "";
+          const url = card && isCompany(card) ? COMPANY_AVATAR : text ? initialsImage(text) : person ? PERSON_AVATAR : "";
           if (url && url != photo.getAttribute("src")) {
             photo.__mcGenerated = url;
             photo.src = url;
@@ -3541,129 +3749,161 @@ class CardEnhancer {
       const editHeading = cw.document.getElementById("editContactHeadingName");
       const fixEditPhoto = hookPhoto(cw.document.querySelector("#photoInput .contact-photo"), () => {
         const val = id => cw.document.getElementById(id)?.value?.trim();
-        return { card: cw.detailsPane?.currentCard, name: editHeading?.textContent,
-          first: val("vcard-n-firstname"), last: val("vcard-n-lastname") };
+        const card = cw.detailsPane?.currentCard;
+        const first = val("vcard-n-firstname");
+        const last = val("vcard-n-lastname");
+        if (card) {
+          return { card, name: editHeading?.textContent, first, last };
+        }
+        // neuer Kontakt: Überschrift ist anfangs der Platzhalter „New Contact“ –
+        // Initialen nur aus den Feldern (Anzeigename, Vor-/Nachname, E-Mail)
+        const email = cw.document.querySelector('#vcard-email input[type="email"]')?.value?.trim();
+        const name = val("vCardDisplayName") || [first, last].filter(Boolean).join(" ") ||
+          (email ? email.split("@")[0] : "");
+        return { card: null, name, first, last, person: true };
       });
       if (fixEditPhoto && editHeading) {
         const mo = new cw.MutationObserver(fixEditPhoto);
         mo.observe(editHeading, { childList: true, characterData: true, subtree: true });
         restorers.push(() => mo.disconnect());
       }
-      // Bearbeiten wie Apple Kontakte: sichtbar sind Vor- und Nachname, E-Mail,
-      // Telefon und Adressen; leere seltene Felder erst nach „Weitere Felder“,
-      // Präfix, zweiter Vorname, Suffix, Spitzname, Anzeigename nach
-      // „Weitere Namensfelder“. Was schon ausgefüllt ist, bleibt immer sichtbar.
-      const EditCard = cw.customElements?.get("vcard-edit");
-      if (EditCard && !EditCard.prototype.__mcLayout) {
-        const OPTIONAL = {
-          url: ["url"],
-          tz: ["tz"],
-          impp: ["impp"],
-          "bday-anniversary": ["bday", "anniversary"],
-          note: ["note"],
-          org: ["title", "role", "org"],
-          custom: ["x-custom1", "x-custom2", "x-custom3", "x-custom4"],
-        };
-        const NAME_PARTS = ["prefix", "middlename", "suffix"];
-        const filled = value => [value].flat().some(v => v != null && String(v).trim());
-        const moreButton = (onClick) => {
-          const b = cw.document.createElement("button");
-          b.type = "button";
-          b.className = "mc-more-button";
-          b.addEventListener("click", onClick);
-          return b;
-        };
-        const label = (b, open, more, fewer) => {
-          if (b) {
-            b.textContent = tr(open ? fewer : more);
-            b.setAttribute("aria-expanded", String(open));
-          }
-        };
-        const markOptional = ve => {
-          const entries = ve.vCardProperties?.entries || [];
-          for (const [id, keys] of Object.entries(OPTIONAL)) {
-            const fs = ve.querySelector(`#addr-book-edit-${id}`);
-            fs?.setAttribute("mc-optional", "");
-            fs?.toggleAttribute("mc-filled", entries.some(e => keys.includes(e.name) && filled(e.value)));
-          }
-        };
-        const markNames = n => {
-          for (const part of NAME_PARTS) {
-            const el = n.querySelector(`#n-list-component-${part}`);
-            el?.toggleAttribute("mc-filled", filled(el.querySelector("input")?.value));
-          }
-          const nick = n.querySelector("vcard-nickname");
-          nick?.toggleAttribute("mc-filled", filled(nick.querySelector("input")?.value));
-        };
-        const setNames = (n, open) => {
-          if (open) {
-            // gleich als Felder zeigen statt Thunderbirds einzelner „+“-Knöpfe
-            for (const part of NAME_PARTS) {
-              const el = n.querySelector(`#n-list-component-${part}`);
-              if (el?.classList.contains("hasButton")) {
-                el.querySelector("label").hidden = false;
-                el.querySelector("input").hidden = false;
-                el.querySelector("button").hidden = true;
-                el.classList.remove("hasButton");
-              }
-            }
-          } else {
-            markNames(n);
-          }
-          n.classList.toggle("mc-more", open);
-          label(n.__mcButton, open, "More name fields", "Fewer name fields");
-        };
-        const setMore = (ve, open) => {
-          if (!open) {
-            markOptional(ve);
-          }
-          ve.classList.toggle("mc-more", open);
-          label(ve.__mcButton, open, "More fields", "Fewer fields");
-        };
-        const layout = ve => {
-          const n = ve.querySelector("#addr-book-edit-n");
-          if (!n || !ve.vCardProperties) {
-            return;
-          }
-          markOptional(ve);
-          n.__mcButton = moreButton(() => setNames(n, !n.classList.contains("mc-more")));
-          n.append(n.__mcButton);
-          setNames(n, false);
-          if (!ve.__mcButton) {
-            ve.__mcButton = moreButton(() => setMore(ve, !ve.classList.contains("mc-more")));
-          }
-          if (!ve.__mcButton.isConnected) {
-            ve.after(ve.__mcButton);
-          }
-          setMore(ve, false);
-        };
-        const origUpdate = EditCard.prototype.updateView;
-        EditCard.prototype.updateView = function (...args) {
-          const result = origUpdate.apply(this, args);
-          try {
-            layout(this);
-          } catch (e) {
-            log("contact edit layout error", e);
-          }
-          return result;
-        };
-        EditCard.prototype.__mcLayout = true;
-        restorers.push(() => {
-          EditCard.prototype.updateView = origUpdate;
-          delete EditCard.prototype.__mcLayout;
-          for (const el of cw.document.querySelectorAll(".mc-more-button")) {
-            el.remove();
-          }
-        });
-        for (const ve of cw.document.querySelectorAll("vcard-edit")) {
-          layout(ve);
-        }
-      }
       // schon angezeigte Fotos ebenfalls prüfen
       for (const el of cw.document.querySelectorAll("contact-avatar")) {
         fixAvatar(el, () =>
           el.closest(".card-container")?.querySelector(".name")?.textContent ||
           cw.document.getElementById("viewContactName")?.textContent || "");
+      }
+    };
+
+    // Bearbeiten wie Apple Kontakte: sichtbar sind Vor- und Nachname, E-Mail,
+    // Telefon und Adressen; leere seltene Felder erst nach „Weitere Felder“,
+    // Präfix, zweiter Vorname, Suffix, Spitzname, Anzeigename nach
+    // „Weitere Namensfelder“. Was schon ausgefüllt ist, bleibt immer sichtbar.
+    const hookEditLayout = cw => {
+      const restorers = { push: fn => this.addWinRestorer(cw, fn) };
+      // vcard-edit definiert erst edit.mjs am Ende des Dokuments – läuft der
+      // erste Aufruf früher, auf die Definition warten statt das Fenster
+      // ungepatcht zu lassen
+      const EditCard = cw.customElements?.get("vcard-edit");
+      if (!EditCard) {
+        if (cw.customElements && !cw.__mcLayoutWait) {
+          cw.__mcLayoutWait = true;
+          cw.customElements.whenDefined("vcard-edit").then(() => {
+            cw.__mcLayoutWait = false;
+            try {
+              hookEditLayout(cw);
+            } catch (e) {
+              log("contact edit layout error", e);
+            }
+          });
+        }
+        return;
+      }
+      if (EditCard.prototype.__mcLayout) {
+        return;
+      }
+      const OPTIONAL = {
+        url: ["url"],
+        tz: ["tz"],
+        impp: ["impp"],
+        "bday-anniversary": ["bday", "anniversary"],
+        note: ["note"],
+        org: ["title", "role", "org"],
+        custom: ["x-custom1", "x-custom2", "x-custom3", "x-custom4"],
+      };
+      const NAME_PARTS = ["prefix", "middlename", "suffix"];
+      const filled = value => [value].flat().some(v => v != null && String(v).trim());
+      const moreButton = (onClick) => {
+        const b = cw.document.createElement("button");
+        b.type = "button";
+        b.className = "mc-more-button";
+        b.addEventListener("click", onClick);
+        return b;
+      };
+      const label = (b, open, more, fewer) => {
+        if (b) {
+          b.textContent = tr(open ? fewer : more);
+          b.setAttribute("aria-expanded", String(open));
+        }
+      };
+      const markOptional = ve => {
+        const entries = ve.vCardProperties?.entries || [];
+        for (const [id, keys] of Object.entries(OPTIONAL)) {
+          const fs = ve.querySelector(`#addr-book-edit-${id}`);
+          fs?.setAttribute("mc-optional", "");
+          fs?.toggleAttribute("mc-filled", entries.some(e => keys.includes(e.name) && filled(e.value)));
+        }
+      };
+      const markNames = n => {
+        for (const part of NAME_PARTS) {
+          const el = n.querySelector(`#n-list-component-${part}`);
+          el?.toggleAttribute("mc-filled", filled(el.querySelector("input")?.value));
+        }
+        const nick = n.querySelector("vcard-nickname");
+        nick?.toggleAttribute("mc-filled", filled(nick.querySelector("input")?.value));
+      };
+      const setNames = (n, open) => {
+        if (open) {
+          // gleich als Felder zeigen statt Thunderbirds einzelner „+“-Knöpfe
+          for (const part of NAME_PARTS) {
+            const el = n.querySelector(`#n-list-component-${part}`);
+            if (el?.classList.contains("hasButton")) {
+              el.querySelector("label").hidden = false;
+              el.querySelector("input").hidden = false;
+              el.querySelector("button").hidden = true;
+              el.classList.remove("hasButton");
+            }
+          }
+        } else {
+          markNames(n);
+        }
+        n.classList.toggle("mc-more", open);
+        label(n.__mcButton, open, "More name fields", "Fewer name fields");
+      };
+      const setMore = (ve, open) => {
+        if (!open) {
+          markOptional(ve);
+        }
+        ve.classList.toggle("mc-more", open);
+        label(ve.__mcButton, open, "More fields", "Fewer fields");
+      };
+      const layout = ve => {
+        const n = ve.querySelector("#addr-book-edit-n");
+        if (!n || !ve.vCardProperties) {
+          return;
+        }
+        markOptional(ve);
+        n.__mcButton = moreButton(() => setNames(n, !n.classList.contains("mc-more")));
+        n.append(n.__mcButton);
+        setNames(n, false);
+        if (!ve.__mcButton) {
+          ve.__mcButton = moreButton(() => setMore(ve, !ve.classList.contains("mc-more")));
+        }
+        if (!ve.__mcButton.isConnected) {
+          ve.after(ve.__mcButton);
+        }
+        setMore(ve, false);
+      };
+      const origUpdate = EditCard.prototype.updateView;
+      EditCard.prototype.updateView = function (...args) {
+        const result = origUpdate.apply(this, args);
+        try {
+          layout(this);
+        } catch (e) {
+          log("contact edit layout error", e);
+        }
+        return result;
+      };
+      EditCard.prototype.__mcLayout = true;
+      restorers.push(() => {
+        EditCard.prototype.updateView = origUpdate;
+        delete EditCard.prototype.__mcLayout;
+        for (const el of cw.document.querySelectorAll(".mc-more-button")) {
+          el.remove();
+        }
+      });
+      for (const ve of cw.document.querySelectorAll("vcard-edit")) {
+        layout(ve);
       }
     };
 
@@ -3956,22 +4196,45 @@ class CardEnhancer {
       const menu = cw.document.getElementById("sortContext");
       // Abschnittstitel, damit klar ist, dass „Anzeigename“ eine Auswahl ist
       if (menu && !menu.querySelector(".mc-caption")) {
-        const caption = (label, before) => {
+        const caption = (label, before, sep, section) => {
           if (!before) {
             return;
           }
           const c = cw.document.createXULElement("menucaption");
           c.className = "mc-caption";
+          // Abschnitt für das CSS (Tabellenansicht blendet „Sort“ aus)
+          c.setAttribute("mc-section", section);
           c.setAttribute("label", label);
+          // „View“ folgt ohne Thunderbirds Trenner auf „Sort“: eigene Trennlinie davor
+          const s = sep ? cw.document.createXULElement("menuseparator") : null;
+          if (s) {
+            s.className = "mc-caption-sep";
+            before.before(s);
+          }
           before.before(c);
-          restorers.push(() => c.remove());
+          restorers.push(() => {
+            c.remove();
+            s?.remove();
+          });
         };
-        caption(tr("Show Names As"), menu.querySelector('menuitem[name="format"]'));
-        caption(tr("Sort"), menu.querySelector('menuitem[name="sort"]'));
-        caption(tr("View"), menu.querySelector('menuitem[value="addrbook"]'));
+        caption(tr("Show Names As"), menu.querySelector('menuitem[name="format"]'), false, "format");
+        caption(tr("Sort"), menu.querySelector('menuitem[name="sort"]'), false, "sort");
+        caption(tr("View"), menu.querySelector('menuitem[value="addrbook"]'), true, "view");
+        // Thunderbirds Trenner vor „Table layout“ ausblenden: „View“ (Address
+        // Book, Table layout, Merge Duplicate Contacts) hat innen keine Linie
+        let tbSep = menu.querySelector("#sortContextTableLayout")?.previousElementSibling;
+        while (tbSep && tbSep.localName != "menuseparator") {
+          tbSep = tbSep.previousElementSibling;
+        }
+        if (tbSep && !tbSep.hidden && menu.querySelector(".mc-caption-sep")) {
+          tbSep.hidden = true;
+          restorers.push(() => {
+            tbSep.hidden = false;
+          });
+        }
       }
       if (menu && !cw.document.getElementById("mcHideDuplicates")) {
-        const sep = cw.document.createXULElement("menuseparator");
+        // ohne eigenen Trenner: gehört zum Abschnitt „View“
         const item = cw.document.createXULElement("menuitem");
         item.id = "mcHideDuplicates";
         item.setAttribute("type", "checkbox");
@@ -3984,11 +4247,8 @@ class CardEnhancer {
           // Liste neu aufbauen (ausgeschaltet kommen die Doppelten zurück)
           cw.booksList?.dispatchEvent(new cw.CustomEvent("select"));
         });
-        menu.append(sep, item);
-        restorers.push(() => {
-          sep.remove();
-          item.remove();
-        });
+        menu.append(item);
+        restorers.push(() => item.remove());
       }
       // aktuelle Liste sofort bereinigen
       cw.booksList?.dispatchEvent(new cw.CustomEvent("select"));
@@ -4016,6 +4276,7 @@ class CardEnhancer {
         if (cw && url.startsWith("about:addressbook")) {
           try {
             hookAvatars(cw);
+            hookEditLayout(cw);
             hookBooksHeader(cw, winRestorers);
             hookSplitterReset(cw.document);
           } catch (e) {
@@ -4126,7 +4387,8 @@ class CardEnhancer {
       if (!Services.prefs.getIntPref(WIDTH_PREF, 0) && tab.mode?.name == "mail3PaneTab") {
         const width = Math.round(el.getBoundingClientRect().width);
         if (width >= 160) {
-          Services.prefs.setIntPref(WIDTH_PREF, width);
+          // nie schmaler als Apple Mails 206 px; Thunderbirds Vorgabe (198) ist keine eigene Wahl
+          Services.prefs.setIntPref(WIDTH_PREF, Math.max(width, 206));
         }
       }
       // Nur echtes Ziehen am Trenner zählt als neue Breite – übernommen erst
@@ -5270,9 +5532,11 @@ class CardEnhancer {
     };
     // Mehrtägige ganztägige Termine in Monat/Mehrwochen als durchgehender
     // Balken wie in Apple Kalender: jedes Tagesstück weiß, ob es links/rechts
-    // weitergeht (innerhalb einer Wochenzeile); der Titel steht nur im
-    // ersten Stück je Woche
+    // weitergeht (innerhalb einer Wochenzeile); der Titel läuft über alle
+    // Stücke weiter: Folgestücke rücken ihn um ihren Abstand zum ersten
+    // Stück derselben Zeile ein (--mc-span-x, data-mc-span)
     const annotateSpans = root => {
+      const joined = [];
       for (const el of root.querySelectorAll("calendar-month-day-box-item")) {
         let left = false;
         let right = false;
@@ -5293,6 +5557,34 @@ class CardEnhancer {
         } catch {}
         el.toggleAttribute("data-mc-join-l", left);
         el.toggleAttribute("data-mc-join-r", right);
+        if (left) {
+          joined.push(el);
+        } else if (el.hasAttribute("data-mc-span")) {
+          el.removeAttribute("data-mc-span");
+          el.style.removeProperty("--mc-span-x");
+        }
+      }
+      for (const el of joined) {
+        let dx = null;
+        try {
+          const id = el.occurrence?.hashId;
+          const row = el.closest("tr");
+          const first = id && row && [...row.querySelectorAll("calendar-month-day-box-item[allday]:not([data-mc-join-l])")]
+            .find(x => x.occurrence?.hashId == id);
+          const a = el.querySelector(".event-name-label")?.getBoundingClientRect();
+          const b = first?.querySelector(".event-name-label")?.getBoundingClientRect();
+          // ohne Layout (verdeckte Ansicht) den letzten Einzug behalten; nie
+          // gemessene Folgestücke zeigen keinen Titel
+          if (a?.width && b?.width) {
+            dx = Math.round((a.left - b.left) * 10) / 10;
+          }
+        } catch {}
+        if (dx !== null) {
+          if (el.style.getPropertyValue("--mc-span-x") != `${dx}px`) {
+            el.style.setProperty("--mc-span-x", `${dx}px`);
+          }
+          el.setAttribute("data-mc-span", "");
+        }
       }
     };
     const hookCalendarEmoji = () => {
@@ -5318,20 +5610,37 @@ class CardEnhancer {
           }
         });
         mo.observe(root, { childList: true, subtree: true, characterData: true });
+        // Spaltenbreiten ändern sich mit dem Fenster – Einzug der Balkentitel neu messen
+        let ro = null;
+        if (id == "view-box" && w.ResizeObserver) {
+          ro = new w.ResizeObserver(() => {
+            if (!pending) {
+              pending = true;
+              w.setTimeout(run, 16);
+            }
+          });
+          // auch die Ansichten selbst: beim Wechsel zu Monat/Mehrwochen bekommen sie erst dann eine Größe
+          for (const v of [root, ...root.querySelectorAll(":scope > *")]) {
+            ro.observe(v);
+          }
+        }
         const prefObs = { observe: () => { resetEmojiRules(); annotateEmoji(root); } };
         Services.prefs.addObserver(EMOJI_PREF, prefObs);
         Services.prefs.addObserver(EMOJI_CUSTOM_PREF, prefObs);
         run();
         this.restorers.push(() => {
           mo.disconnect();
+          ro?.disconnect();
           Services.prefs.removeObserver(EMOJI_PREF, prefObs);
           Services.prefs.removeObserver(EMOJI_CUSTOM_PREF, prefObs);
           for (const label of root.querySelectorAll("[data-mc-emoji]")) {
             label.removeAttribute("data-mc-emoji");
           }
-          for (const el of root.querySelectorAll("[data-mc-join-l], [data-mc-join-r]")) {
+          for (const el of root.querySelectorAll("[data-mc-join-l], [data-mc-join-r], [data-mc-span]")) {
             el.removeAttribute("data-mc-join-l");
             el.removeAttribute("data-mc-join-r");
+            el.removeAttribute("data-mc-span");
+            el.style.removeProperty("--mc-span-x");
           }
           delete root.__mcEmoji;
         });
@@ -5345,6 +5654,8 @@ class CardEnhancer {
       const d = w.document;
       const tree = d.getElementById("calendar-task-tree");
       const field = d.getElementById("view-task-edit-field");
+      const filter = d.getElementById("task-text-filter-field");
+      const group = d.getElementById("task-tree-filtergroup");
       if (!tree?.mTreeView || d.getElementById("mcTasksEmpty")) {
         return;
       }
@@ -5364,8 +5675,16 @@ class CardEnhancer {
         const empty = !tree.mTreeView || tree.mTreeView.rowCount == 0;
         // ohne Aufgabenkalender ist das Eingabefeld schreibgeschützt (Hinweis als Wert)
         const noList = !!field && (field.readOnly || field.getAttribute("aria-disabled") == "true");
-        title.textContent = noList ? tr("No Task List Selected") : tr("No Tasks");
-        text.textContent = noList ? tr("Choose a calendar that supports tasks in the sidebar.") : tr("Tasks you add appear here.");
+        // Suchfeld oben gefüllt: es gibt Aufgaben, nur passt keine zur Suche
+        const searching = !!filter?.value.trim();
+        // Filter „Überfällig“/„Erledigt“: neue Aufgaben erscheinen dort gerade
+        // nicht – dann nicht „Neue Aufgaben erscheinen hier“ versprechen
+        const shown = tree.getAttribute("filterValue") || group?.value || "all";
+        const narrowed = ["overdue", "completed"].includes(shown);
+        title.textContent = searching ? tr("No Results") : noList ? tr("No Task List Selected") : tr("No Tasks");
+        text.textContent = searching ? tr("No tasks match your search.")
+          : noList ? tr("Choose a calendar that supports tasks in the sidebar.")
+          : narrowed ? tr("No tasks in this view.") : tr("Tasks you add appear here.");
         box.hidden = !empty;
       };
       let pending = false;
@@ -5389,15 +5708,25 @@ class CardEnhancer {
         return [name, orig];
       });
       tree.addEventListener("refresh", later);
+      for (const type of ["input", "command"]) {
+        filter?.addEventListener(type, later);
+      }
       const mo = field ? new w.MutationObserver(later) : null;
       mo?.observe(field, { attributes: true, attributeFilter: ["readonly", "aria-disabled"] });
+      // Filterwechsel (Seitenleiste oder Menü „Ansicht → Aufgaben“) setzt filterValue am Baum
+      const moFilter = new w.MutationObserver(later);
+      moFilter.observe(tree, { attributes: true, attributeFilter: ["filterValue"] });
       update();
       this.restorers.push(() => {
         for (const [name, orig] of wrapped) {
           view[name] = orig;
         }
         tree.removeEventListener("refresh", later);
+        for (const type of ["input", "command"]) {
+          filter?.removeEventListener(type, later);
+        }
         mo?.disconnect();
+        moFilter.disconnect();
         box.remove();
       });
     };
@@ -5561,6 +5890,67 @@ class CardEnhancer {
           delete field.__mcHint;
         });
       }
+      // Thunderbird setzt den Hinweis auch ohne focus/blur (Wechsel des
+      // Standardkalenders, Fensterstart) – dann über setupTaskField abgleichen;
+      // showsInstructions setzt onBlur erst danach, daher setTimeout 0
+      const te = w.taskEdit;
+      if (te?.setupTaskField && !te.__mcHintWrapped) {
+        const orig = te.setupTaskField;
+        te.setupTaskField = function (target, ...rest) {
+          const r = orig.call(this, target, ...rest);
+          if (target?.__mcHint) {
+            w.setTimeout(() => target.toggleAttribute("mc-hint", !!target.showsInstructions), 0);
+          }
+          return r;
+        };
+        te.__mcHintWrapped = true;
+        this.restorers.push(() => {
+          te.setupTaskField = orig;
+          delete te.__mcHintWrapped;
+        });
+      }
+    };
+
+    // Beschreibung im Detailbereich der Aufgaben: eigenes Inhaltsdokument
+    // (about:blank), das theme.css nicht erreicht – dunkel stand sie schwarz
+    // auf dunkler Fläche, hell in der Inhaltsschrift mit 8 px Rand. Benutzer-
+    // Stylesheet einmal je Dokument (Thunderbird tauscht nur den Inhalt aus)
+    const hookTaskDescription = () => {
+      const d = w.document;
+      const frame = d.getElementById("calendar-task-details-description");
+      if (!frame || frame.__mcDescHooked) {
+        return;
+      }
+      frame.__mcDescHooked = true;
+      const uri = `resource://mailcards/taskdesc.css?v=${extensionVersion}`;
+      const apply = () => {
+        const cw = frame.contentWindow;
+        if (!cw || cw.__mcDesc == uri || !Services.prefs.getBoolPref("extensions.mailcards.bundledTheme", true)) {
+          return;
+        }
+        try {
+          cw.windowUtils.loadSheetUsingURIString(uri, cw.windowUtils.USER_SHEET);
+          cw.__mcDesc = uri;
+        } catch (e) {
+          log("task description sheet error", String(e).slice(0, 120));
+        }
+      };
+      const tree = d.getElementById("calendar-task-tree");
+      frame.addEventListener("load", apply, true);
+      tree?.addEventListener("select", apply);
+      apply();
+      this.restorers.push(() => {
+        frame.removeEventListener("load", apply, true);
+        tree?.removeEventListener("select", apply);
+        const cw = frame.contentWindow;
+        if (cw?.__mcDesc) {
+          try {
+            cw.windowUtils.removeSheetUsingURIString(cw.__mcDesc, cw.windowUtils.USER_SHEET);
+          } catch {}
+          delete cw.__mcDesc;
+        }
+        delete frame.__mcDescHooked;
+      });
     };
 
     // Kalender und Aufgaben: ein „+“ wie in Apple Kalender – öffnet gleich das
@@ -5662,7 +6052,14 @@ class CardEnhancer {
         popup.classList.remove("mc-up");
         lastAnchor = anchor;
         popup.addEventListener("popupshown", () => aimArrow(anchor), { once: true });
-        popup.openPopup(anchor, "after_end", 28, 6);
+        // am Bildschirmrand nur so weit versetzen, wie Platz ist – ragt das
+        // Popover hinaus, spiegelt Gecko den Versatz (28 px nach innen) und
+        // der Knopf läge rechts neben dem Popover
+        const a = anchor.getBoundingClientRect();
+        const rtl = w.getComputedStyle(anchor).direction == "rtl";
+        const room = rtl ? w.mozInnerScreenX + a.left - w.screen.availLeft
+          : w.screen.availLeft + w.screen.availWidth - (w.mozInnerScreenX + a.right);
+        popup.openPopup(anchor, "after_end", Math.max(0, Math.min(28, Math.floor(room))), 6);
       };
       newPopup = { above, below };
       const onHidden = () => {
@@ -5821,6 +6218,7 @@ class CardEnhancer {
       hookTasksEmpty();
       hookCalendarDoubleClick();
       hookTaskHint();
+      hookTaskDescription();
       hookTitle();
       labelToday();
       hookTodayPaneHeader();
@@ -6417,8 +6815,13 @@ class CardEnhancer {
         const r = parseNatural(f.title.value);
         const def = panel.__mcDefaults;
         panel.__mcParsed = r.start ? r : null;
-        const start = r.start || def.start;
-        const end = r.end || (r.allDay ? start : new Date(start.getTime() + 3600 * 1000));
+        let start = r.start || def.start;
+        let end = r.end || (r.allDay ? start : new Date(start.getTime() + 3600 * 1000));
+        // nur Tag und Dauer erkannt: Uhrzeit wie vorbelegt, Ende nach der Dauer
+        if (r.start && !r.allDay && !r.end && r.duration != null) {
+          start = new Date(r.start.getFullYear(), r.start.getMonth(), r.start.getDate(), def.start.getHours(), def.start.getMinutes());
+          end = new Date(start.getTime() + r.duration * 60000);
+        }
         const allDay = r.start ? !!r.allDay : def.allDay;
         if (state.mode == "task") {
           f.hasDue.checked = !!r.start || def.hasDue;
@@ -7575,7 +7978,7 @@ class CardEnhancer {
       },
     };
     const hw = w.openDialog("resource://mailcards/about/halo.html", "halo-spaces",
-      `chrome,dialog=yes,centerscreen,resizable=no,width=360,height=${(api.mac ? 438 : 390) + (platformNote ? 64 : 0)}`);
+      `chrome,dialog=yes,centerscreen,resizable=no,width=360,height=${(api.mac ? 441 : 390) + (platformNote ? 64 : 0)}`);
     // erst lädt das Fenster about:blank, dann unsere Seite – darauf warten
     let tries = 0;
     const wire = () => {
@@ -7949,15 +8352,9 @@ class CardEnhancer {
       }
     };
 
-    // Lokale Ordner nur zusammenklappen, wenn darin nichts Eigenes liegt
-    // (nur leere Standardordner) – POP3-Konten mit globalem Posteingang,
-    // Archive oder Filterziele dort bleiben sichtbar
     const localIsEmpty = () => {
       try {
-        const root = MailServices.accounts.localFoldersServer?.rootFolder;
-        // der eigene Suchordner zählt nicht – er behält nach einer Suche die
-        // Trefferzahl; gespeicherte Suchen des Nutzers zählen weiter
-        return !root || root.subFolders.every(f => this.isSearchFolder(f) || (!f.hasSubFolders && f.getTotalMessages(false) == 0));
+        return this.localIsEmpty(MailServices.accounts.localFoldersServer?.rootFolder);
       } catch {
         return false;
       }
@@ -8213,6 +8610,15 @@ class CardEnhancer {
         markHits(el, term);
       }
     }
+  }
+
+  // Lokale Ordner nur zusammenklappen, wenn darin nichts Eigenes liegt
+  // (nur leere Standardordner) – POP3-Konten mit globalem Posteingang,
+  // Archive oder Filterziele dort bleiben sichtbar. Der eigene Suchordner
+  // zählt nicht – er behält nach einer Suche die Trefferzahl; gespeicherte
+  // Suchen des Nutzers zählen weiter
+  localIsEmpty(root) {
+    return !root || root.subFolders.every(f => this.isSearchFolder(f) || (!f.hasSubFolders && f.getTotalMessages(false) == 0));
   }
 
   isSearchFolder(folder) {
@@ -8816,9 +9222,11 @@ class CardEnhancer {
             method: "POST",
             headers: { "Content-Type": "application/x-www-form-urlencoded" },
             body: "List-Unsubscribe=One-Click",
-            // die Antwortseite selbst wird nicht gebraucht
+            // die Antwortseite selbst wird nicht gebraucht; eine Umleitung auf
+            // eine Bestätigungsseite heißt schon „erledigt“
             max: 0,
             truncate: true,
+            followRedirects: false,
           });
           if (!res.ok) {
             throw new Error(`status ${res.status}`);

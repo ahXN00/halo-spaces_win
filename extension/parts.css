@@ -22,6 +22,12 @@
   box-shadow: none !important;
 }
 
+/* Termin-Dialog: Farbchips der gewählten Kategorien im Feld mit feinem Ring
+   wie die Punkte im Menü (spaces.css) – helle bzw. dunkle Farben verschwanden */
+#item-categories::part(color) {
+  box-shadow: inset 0 0 0 0.5px color-mix(in srgb, var(--mt-text) 30%, transparent) !important;
+}
+
 /* Dialog-Knöpfe rund wie im übrigen Design */
 dialog::part(dialog-button) {
   min-height: 30px !important;
@@ -71,4 +77,43 @@ dialog::part(dialog-button) {
 .invitation-table td:not(.description) {
   text-align: start !important;
   overflow-wrap: anywhere !important;
+}
+
+/* Add-ons-Verwaltung: „…“-Knopf im Kartenkopf wie das Werkzeug daneben
+   (spaces.css) – 24 × 24, rund, ohne Fläche, dezenter Hover */
+addon-card .more-options-button::part(button) {
+  width: 24px !important;
+  height: 24px !important;
+  min-width: 24px !important;
+  min-height: 24px !important;
+  border: none !important;
+  border-radius: 50% !important;
+  background-color: transparent !important;
+  box-shadow: none !important;
+}
+
+addon-card .more-options-button::part(button):hover {
+  background-color: var(--mt-hover) !important;
+}
+
+/* Add-ons-Verwaltung: Zeilen der Menüs („…“ an der Karte, Zahnrad im Kopf)
+   wie die übrigen halo-Menüs – 22 px hoch, 6 px Radius, beim Überfahren und
+   mit Tastaturfokus Akzentfläche statt Grau bzw. blauem Rechteckring. Hover
+   und Fokus getrennt, hinter ::part() geht kein :is() */
+:is(addon-options, addon-page-options) panel-item::part(button) {
+  min-height: 22px !important;
+  padding-block: 3px !important;
+  padding-inline-end: 10px !important;
+  border-radius: 6px !important;
+}
+
+:is(addon-options, addon-page-options) panel-item:not([disabled])::part(button):hover {
+  background-color: var(--mt-accent) !important;
+  color: var(--mt-accent-text) !important;
+}
+
+:is(addon-options, addon-page-options) panel-item:not([disabled])::part(button):focus-visible {
+  background-color: var(--mt-accent) !important;
+  color: var(--mt-accent-text) !important;
+  outline: none !important;
 }

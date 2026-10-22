@@ -7,3 +7,26 @@
 :root {
   scrollbar-width: none !important;
 }
+
+/* Filter- und Junk-Protokoll (Thunderbirds filterlog.html/junklog.html im
+   Inhaltsprozess, ohne eigenes color-scheme): dunkel sonst eine weiße
+   Fläche im dunklen Fenster. Dieses Stilblatt gilt als einziges auch im
+   Inhaltsprozess; die Schrift (Monospace) bleibt. Die --mt-Farben von
+   theme.css kommen dort nicht an – Fensterfarbe daher hier eigens, dunkel
+   neutral statt des lilastichigen Canvas (#1C1B22) */
+@-moz-document regexp(".*/(filterlog|junklog)\\.html") {
+  :root {
+    --mt-window: #FFFFFF;
+    --mt-text: #1D1D1F;
+    color-scheme: light dark !important;
+    background-color: var(--mt-window) !important;
+    color: var(--mt-text) !important;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --mt-window: #1E1E1E;
+      --mt-text: #F5F5F7;
+    }
+  }
+}
