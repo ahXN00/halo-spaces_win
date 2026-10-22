@@ -803,7 +803,9 @@ SURFACES = [
       ' const atts = ["Angebot-Entwurf.txt", "Zweiter Anhang mit langem Namen.txt"].map(n => { const a = Cc["@mozilla.org/messengercompose/attachment;1"].createInstance(Ci.nsIMsgAttachment); a.url = Services.io.newFileURI(f).spec; a.name = n; a.size = 20; return a; });'
       ' cw.AddAttachments(atts); await wait(1500);', cap="window", win="messengercompose"),
     S("verfassen-kontakte", "verfassen", "fenster", "Verfassen mit Kontakte-Seitenleiste",
-      'const cw = await compose(); cw.toggleContactsSidebar(); await wait(2500);', cap="window", win="messengercompose"),
+      'const cw = await compose(); cw.toggleContactsSidebar(); await wait(2500);', cap="window", win="messengercompose",
+      # Seitenleiste wieder zu, sonst merkt Thunderbird sie sich für alle späteren Verfassen-Bilder
+      close='const cw = Services.wm.getMostRecentWindow("msgcompose"); if (cw) { cw.toggleContactsSidebar(); await wait(600); }'),
     S("verfassen-absender-menue", "verfassen", "popup", "Verfassen: Absender-Auswahl",
       'const cw = await compose(); const b = cw.document.getElementById("msgIdentity"); return await openBtnPop(cw.document.getElementById("msgIdentityPopup"), b);', cap="popup"),
     S("verfassen-autovervollstaendigung", "verfassen", "popup", "Verfassen: Adress-Vorschläge beim Tippen",
@@ -968,8 +970,6 @@ SURFACES = [
       'await toMail(); const el = d.getElementById("unifiedToolbarContent"); return await ctxPop("unifiedToolbarMenu", el, { ox: el.getBoundingClientRect().width - 400 });', cap="popup"),
     S("kontext-bereich", "menues", "popup", "Kontextmenü: Bereiche-Leiste (Bereich)",
       'await toMail(); return await ctxPop("spacesContextMenu", d.getElementById("calendarButton"));', cap="popup"),
-    S("kontext-bereiche-leiste", "menues", "popup", "Kontextmenü: Bereiche-Leiste (leere Fläche)",
-      'await toMail(); const tb = d.getElementById("spacesToolbar"); return await ctxPop("spacesToolbarContextMenu", tb, { oy: tb.getBoundingClientRect().height - 200 });', cap="popup"),
     S("kontext-einstellungen-knopf", "menues", "popup", "Kontextmenü: Einstellungen-Knopf der Bereiche-Leiste",
       'await toMail(); return await ctxPop("settingsContextMenu", d.getElementById("settingsButton"));', cap="popup"),
     S("kontext-schnellfilter", "menues", "popup", "Kontextmenü: Schnellfilter-Leiste",
@@ -1377,21 +1377,27 @@ def png_size(path):
     return int.from_bytes(head[16:20], "big"), int.from_bytes(head[20:24], "big")
 
 
-def crop_to_popup(path, win, wins, margin=16):
-    """Panels als Kindfenster: screencapture liefert das Elternfenster mit – dann auf das Panel (plus Rand) zuschneiden."""
+def crop_to_popup(path, win, wins, margin=16, cap=None):
+    """Panels als Kindfenster: screencapture liefert das Elternfenster mit – dann auf das Panel (plus Rand) zuschneiden.
+    cap = das aufgenommene Fenster (Panel), win = das Rechteck, auf das zugeschnitten wird."""
     width, height = png_size(path)
     if width <= win["w"] * 3 + 4 and height <= win["h"] * 3 + 4 and abs(width / max(win["w"], 1) - height / max(win["h"], 1)) < 0.1:
         return  # Bild zeigt nur das Popup
-    for host in sorted(wins, key=lambda w: -w["w"] * w["h"]):
-        for scale in (1, 2, 3):
-            if host["w"] * scale == width and host["h"] * scale == height:
-                x0 = max(0, (win["x"] - host["x"] - margin) * scale)
-                y0 = max(0, (win["y"] - host["y"] - margin) * scale)
-                cw = min(width - x0, (win["w"] + 2 * margin) * scale)
-                ch = min(height - y0, (win["h"] + 2 * margin) * scale)
-                subprocess.run(["sips", "-c", str(int(ch)), str(int(cw)), "--cropOffset", str(int(y0)), str(int(x0)), path, "--out", path],
-                               capture_output=True, timeout=20)
-                return
+    hosts = [(h, s) for h in sorted(wins, key=lambda w: -w["w"] * w["h"]) for s in (1, 2, 3) if h["w"] * s == width and h["h"] * s == height]
+    if not hosts and cap:
+        # ragt das Panel über das Elternfenster hinaus (z. B. „+“ der Today-Pane am rechten Rand), zeigt
+        # das Bild die Vereinigung beider Fenster
+        for h in sorted(wins, key=lambda w: -w["w"] * w["h"]):
+            x, y = min(h["x"], cap["x"]), min(h["y"], cap["y"])
+            uw, uh = max(h["x"] + h["w"], cap["x"] + cap["w"]) - x, max(h["y"] + h["h"], cap["y"] + cap["h"]) - y
+            hosts += [({"x": x, "y": y}, s) for s in (1, 2, 3) if uw * s == width and uh * s == height]
+    for host, scale in hosts[:1]:
+        x0 = max(0, (win["x"] - host["x"] - margin) * scale)
+        y0 = max(0, (win["y"] - host["y"] - margin) * scale)
+        cw = min(width - x0, (win["w"] + 2 * margin) * scale)
+        ch = min(height - y0, (win["h"] + 2 * margin) * scale)
+        subprocess.run(["sips", "-c", str(int(ch)), str(int(cw)), "--cropOffset", str(int(y0)), str(int(x0)), path, "--out", path],
+                       capture_output=True, timeout=20)
 
 
 # ------------------------------------------------------------------ Rundgang
@@ -1581,7 +1587,9 @@ class Tour:
         files = []
         for n, win in enumerate([primary] + extra[:3]):
             path = capture_window(self.pid, win["id"], self.path(sid, n))
-            crop_to_popup(path, win, wins)
+            # das gemerkte Popup auf sein eigenes Rechteck zuschneiden: manche Panels (z. B. „+“ der
+            # Today-Pane) liefern als Fenster das ganze Hauptfenster
+            crop_to_popup(path, info if n == 0 else win, wins, cap=win)
             files.append(path)
         return files
 
