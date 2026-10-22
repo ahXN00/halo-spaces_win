@@ -2588,6 +2588,24 @@ html:root.customizingUnifiedToolbar #unifiedToolbarContainer::before {
   border-inline-start: none !important;
 }
 
+/* Spaltenwahl-Knopf rechts ebenso, sonst bleibt Thunderbirds Systemwinkel
+   (Trenner links und Strich unten als inset-Schatten, dunkel hell leuchtend);
+   der Trenner links bleibt als Haarlinie wie bei den übrigen Köpfen */
+:is(#filterList, #searchMailWindow #threadTree, #pgpKeyList) > treecols > treecolpicker {
+  appearance: none !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  border-color: var(--mt-separator) !important;
+  border-block-end: none !important;
+}
+
+:is(#filterList, #searchMailWindow #threadTree, #pgpKeyList) > treecols > treecolpicker .tree-columnpicker-button {
+  appearance: none !important;
+  box-shadow: none !important;
+  background: transparent !important;
+  border: none !important;
+}
+
 /* Filterliste und Nachrichten suchen sind <window>, nicht <dialog> – die
    Feldregeln der Dialoge greifen dort nicht: Suchfeld und Textfeld der
    Bedingung mit Haarlinie statt dunklem Rand; nur background-color, damit
@@ -5743,6 +5761,16 @@ categories-box moz-page-nav-button {
 :root:has(#sidebar > categories-box) {
   --in-content-page-background: var(--mt-window) !important;
   background-color: var(--mt-window) !important;
+}
+
+/* Import/Export (about:import) dunkel in Fensterfarbe wie die übrigen
+   Tabs statt Firefox-Blauschwarz #18181B. Den leichten Schleier
+   rgba(0,0,0,0.03) des body aus aboutImport.css bewusst behalten: hell
+   hebt sich nur so die weiße Karte der Schritte von der Seite ab */
+:root:has(#stepNav) {
+  --in-content-page-background: var(--mt-window) !important;
+  background-color: var(--mt-window) !important;
+  color: var(--mt-text) !important;
 }
 
 /* Thunderbird malt Suchzeile und Überschrift darin noch einmal in

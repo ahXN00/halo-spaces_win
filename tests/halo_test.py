@@ -1563,7 +1563,11 @@ def dialog_checks(m, results):
           // Spaltenköpfe: ohne Thunderbirds Systemlinie (Schatten unten, Trenner links), Trenner als Haarlinie, erster Kopf ohne Trenner
           const head = (dd, sel) => [...dd.querySelectorAll(sel + " > treecols > treecol")].filter(vis).slice(0, 3).map(c => { const s = csOf(c);
             return { id: c.id, sh: s.boxShadow, bl: s.borderInlineStartWidth, blc: s.borderInlineStartColor }; });
-          const headOf = (dd, sel) => ({ cols: head(dd, sel), sep: colorOf(dd, "var(--mt-separator)"), bb: csOf(dd.querySelector(sel + " > treecols")).borderBottomColor });
+          // Spaltenwahl-Knopf rechts: Trenner links wie die übrigen Köpfe, kein Strich unten (inset-Schatten des Knopfs)
+          const pick = (dd, sel) => { const p = dd.querySelector(sel + " > treecols > treecolpicker"); if (!p) return null;
+            const s = csOf(p), b = csOf(p.querySelector(".tree-columnpicker-button") ?? p);
+            return { sh: s.boxShadow, bsh: b.boxShadow, blc: s.borderInlineStartColor, bb: s.borderBlockEndWidth }; };
+          const headOf = (dd, sel) => ({ cols: head(dd, sel), pick: pick(dd, sel), sep: colorOf(dd, "var(--mt-separator)"), bb: csOf(dd.querySelector(sel + " > treecols")).borderBottomColor });
           const out = {};
           const f = await testFolder(); w.MsgFilters(null, f);
           const lw = await winUrl("FilterListDialog"); if (!lw) throw new Error("Filterliste nicht offen");
@@ -1601,10 +1605,12 @@ def dialog_checks(m, results):
         def head_ok(h):
             cols = h["cols"]
             return (len(cols) >= 2 and same_color(h["bb"], h["sep"]) and all(c["sh"] == "none" for c in cols)
-                    and cols[0]["bl"] == "0px" and all(same_color(c["blc"], h["sep"]) for c in cols[1:]))
+                    and cols[0]["bl"] == "0px" and all(same_color(c["blc"], h["sep"]) for c in cols[1:])
+                    and (p := h["pick"]) is not None and p["sh"] == "none" and p["bsh"] == "none" and p["bb"] == "0px"
+                    and same_color(p["blc"], cols[1]["blc"]))
         ok = ok and all(head_ok(res[k]) for k in ("listHead", "resHead", "keyHead"))
         return ok, f"{res}"
-    check("Filterliste, Filterprotokoll, Suche, OpenPGP: Listen und Felder mit Haarlinie und Radius statt hartem Rahmen, Protokoll dunkel ohne weiße Fläche; Spaltenköpfe mit Haarlinien statt Systemlinie", filter_windows, results)
+    check("Filterliste, Filterprotokoll, Suche, OpenPGP: Listen und Felder mit Haarlinie und Radius statt hartem Rahmen, Protokoll dunkel ohne weiße Fläche; Spaltenköpfe samt Spaltenwahl-Knopf mit Haarlinien statt Systemlinie", filter_windows, results)
 
     def compact_icon():
         # „Ordner komprimieren?“: Fragezeichen in der Akzentfarbe statt schwarz (dunkel unsichtbar); nie „Compact now“
@@ -1639,6 +1645,27 @@ def dialog_checks(m, results):
               and not same_color(res["body"], "rgb(26, 32, 44)") and res["list"][0] == "8px" and same_color(res["list"][1], res["paneLine"]))
         return ok, f"{res}"
     check("Gespeicherte Dateien: Design auch in about:downloads – Kapsel-Knopf, Fensterfarbe, Liste mit Haarlinie", downloads, results)
+
+    def import_export():
+        # Import und Export (about:import): Fläche in Fensterfarbe wie die übrigen Tabs, dunkel nicht Firefox-Blauschwarz #18181B
+        # (der leichte Schleier des body bleibt, damit sich hell die weiße Karte abhebt)
+        res = m.js(COMPOSE_CHECK_JS + r"""
+          tm.switchToTab(0); await pause(300); const out = {};
+          for (const [k, open] of [["imp", () => w.toImport()], ["exp", () => w.toExport()]]) {
+            open(); await pause(2000);
+            const t = tm.tabInfo.find(x => x.browser?.currentURI?.spec?.startsWith("about:import")); if (!t) throw new Error("Tab fehlt");
+            try { const dd = t.browser.contentDocument; await till(() => dd.getElementById("stepNav") && dd.defaultView.__mcTheme, 5000); await pause(400);
+              out[k] = { theme: !!dd.defaultView.__mcTheme, root: csOf(dd.documentElement).backgroundColor, body: csOf(dd.body).backgroundColor,
+                         color: csOf(dd.documentElement).color, hash: dd.location.hash,
+                         window: colorOf(dd, "var(--mt-window)", "backgroundColor"), text: colorOf(dd, "var(--mt-text)") };
+            } finally { tm.closeTab(t); await pause(300); }
+          }
+          return out;""")
+        def ok1(r):
+            return (r["theme"] and same_color(r["root"], r["window"]) and not same_color(r["root"], "rgb(24, 24, 27)")
+                    and same_color(r["color"], r["text"]))
+        return ok1(res["imp"]) and ok1(res["exp"]), f"{res}"
+    check("Import und Export: Fläche in Fensterfarbe wie die übrigen Tabs, dunkel kein Blauschwarz", import_export, results)
 
     def print_preview():
         # Druckvorschau einer Mail: Knopf „Print/Save“ in der Systemakzentfarbe statt Proton-Blau bzw. -Türkis, Panel neutral; nie drucken
