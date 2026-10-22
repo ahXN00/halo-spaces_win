@@ -5789,6 +5789,11 @@ search-addons moz-input-search {
   --input-search-border-radius: 999px !important;
   --input-text-background-color: var(--mt-control) !important;
   --input-text-min-height: 28px !important;
+  /* Thunderbird 159+: moz-input-text liest dieselben Werte ohne „-text“ */
+  --input-border: 1px solid transparent !important;
+  --input-border-radius: 999px !important;
+  --input-background-color: var(--mt-control) !important;
+  --input-min-height: 28px !important;
   --focus-outline: 3px solid color-mix(in srgb, var(--mt-accent) 30%, transparent) !important;
 }
 
