@@ -5369,7 +5369,8 @@ menupopup menucaption {
 #chat-toolbar > #chat-status-selector {
   order: 4 !important;
   border-radius: 999px !important;
-  padding-inline: 4px 14px !important;
+  /* Polsterung für den flachen 10-px-Punkt: links und rechts ca. 14 px wie bei „Add Contact“ */
+  padding-inline: 9px 6px !important;
   color: var(--mt-text) !important;
 }
 

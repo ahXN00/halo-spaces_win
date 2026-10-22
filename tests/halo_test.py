@@ -3469,6 +3469,13 @@ def run_checks(m, version, profile, results):
               lblOp: cs(lbl).opacity, addTextOp: cs(addText).opacity, dotOp: cs(ic).opacity, addIconOp: cs(addIcon).opacity,
               img: cs(ic).listStyleImage, w: ir.width, h: ir.height, mid: Math.abs((ir.top + ir.bottom) / 2 - (sr.top + sr.bottom) / 2),
               online: cs(ic).backgroundColor == colorOf("var(--mt-status-online)", "backgroundColor") };
+            // Innenabstand der Kapsel links (bis zum Punkt) und rechts (hinter dem Textende) gleich
+            // und wie bei „Add Contact“ (Symbol links, Text rechts)
+            const textRight = el => { const r = d.createRange(); r.selectNodeContents(el); const rr = r.getBoundingClientRect();
+              return rr.width > 0 ? rr.right : el.getBoundingClientRect().right - parseFloat(cs(el).paddingRight); };
+            const ar = q("#button-add-buddy").getBoundingClientRect(), air = addIcon.getBoundingClientRect();
+            Object.assign(out.status, { padL: ir.left - sr.left, padR: sr.right - textRight(lbl),
+              addL: air.left - ar.left, addR: ar.right - textRight(addText), text: lbl.value || lbl.textContent });
             const st = type.getAttribute("status"); type.setAttribute("status", "away"); await wait(100);
             out.status.away = cs(ic).backgroundColor == colorOf("var(--mt-status-away)", "backgroundColor");
             type.setAttribute("status", st);
@@ -3503,6 +3510,7 @@ def run_checks(m, version, profile, results):
         focus_ok = f["active"] and not f["fv"] and f["outline"] == "none" and f["kbOutline"] != "none" and f["kbWidth"] >= 2
         status_ok = (st["size"] == "13px" == st["addSize"] and st["img"] == "none" and abs(st["w"] - 10) <= 0.5
                      and abs(st["h"] - 10) <= 0.5 and st["mid"] <= 1 and st["online"] and st["away"]
+                     and abs(st["padL"] - st["padR"]) <= 3 and abs(st["padL"] - st["addL"]) <= 3
                      and (not st["disabled"] or (st["lblOp"] == st["addTextOp"] and st["dotOp"] == st["addIconOp"])))
         hover_ok = all(v["same"] for v in res["hover"].values() if v["disabled"])
         long_ok = res["long"]["vb"] <= 161 and res["long"]["to"] == "ellipsis" and res["long"]["ox"] == "hidden"
@@ -3510,7 +3518,7 @@ def run_checks(m, version, profile, results):
         edge_ok = abs(wd["1500"]["tbl"] - res["edge1500"]) <= 1
         ok = empty_ok and focus_ok and status_ok and hover_ok and long_ok and widths_ok and edge_ok
         return ok, f"{res}"
-    check("Chat: leerer Zustand ruhig ohne Dauer-Fokusring, Statuskapsel 13 px mit flachem Punkt, kein Hover auf deaktivierten Knöpfen, langer Statustext mit „…“, Knöpfe und Suche überlappen bei keiner Fensterbreite", chat_toolbar, results)
+    check("Chat: leerer Zustand ruhig ohne Dauer-Fokusring, Statuskapsel 13 px mit flachem Punkt und beidseitig gleichem Innenabstand wie „Add Contact“, kein Hover auf deaktivierten Knöpfen, langer Statustext mit „…“, Knöpfe und Suche überlappen bei keiner Fensterbreite", chat_toolbar, results)
 
     def side_line():
         # Trennlinie der Seitenleiste läuft in der Toolbar-Zeile ohne Versatz und
