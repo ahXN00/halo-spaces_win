@@ -1837,12 +1837,15 @@ def calendar_checks(m, results):
         if not res.get("open"):
             return res.get("visibility") == "hidden", f"Schnellfenster nicht offen {res}"
         p, k = res["panel"], res.get("picker") or {}
+        # unter macOS zeigt Thunderbird Auswahllisten als natives Menü – dort gibt es keine Kacheln zu prüfen
+        si = res.get("selectInfo") or {}
+        select_native = "select" not in res and si.get("os") == "Darwin" and si.get("state") == "closed"
         no_border = lambda c, wd: wd == "0px" or rgba_alpha(c) == 0
         ok = (no_border(p["border"], p["bw"]) and same_color(p["bg"], res["token"])
               and same_color(res["token"], "rgb(44, 44, 46)" if res["dark"] else "rgb(251, 251, 252)")
               and bool(k) and no_border(k["border"], k["bw"]) and same_color(k["bg"], k["body"])
               and rgba_alpha(k["month"]) == 0 and rgba_alpha(k["clear"]) == 0 and (k["sel"] is None or same_color(k["sel"], k["accent"]))
-              and bool(res.get("select")) and all(rgba_alpha(c) == 0 for c in res["select"]))
+              and (select_native or bool(res.get("select"))) and all(rgba_alpha(c) == 0 for c in res.get("select") or []))
         return ok, f"{res}"
     check("Schnellfenster: deckende Fläche ohne Rand; Datumsauswahl ein Popover ohne harte Ränder; Auswahlliste ohne Kacheln", quick_panel_surfaces, results)
 
