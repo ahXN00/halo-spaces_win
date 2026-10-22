@@ -909,6 +909,13 @@ hr[is="pane-splitter"],
   padding-inline-start: 3px !important;
 }
 
+/* Gruppiert nach Sortierung: Thunderbird nimmt dem Absender der Karten unter
+   einem Gruppenkopf (thread-children) seinen Einzug von 3 px – wieder setzen,
+   sonst stehen Betreff und Vorschau 3 px rechts vom Absender */
+#threadTree tr[is="thread-card"][data-properties~="thread-children"]:not([data-properties~="dummy"]) .card-container .sender {
+  padding-inline-start: 3px !important;
+}
+
 #threadTree tr[is="thread-card"]:not([data-properties~="dummy"]) .thread-card-icon-info {
   margin-inline-start: 4px !important;
 }

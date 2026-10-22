@@ -609,11 +609,28 @@ def maillist_checks(m, results):
           } finally {
             Services.prefs.clearUserPref("mail.uidensity"); list.markMessagesFlagged([hdr], false); await wait(1000);
           }
+          // gruppiert nach Sortierung: Karten unter einem Gruppenkopf (thread-children)
+          // verlieren sonst Thunderbirds Einzug des Absenders – Betreff/Vorschau 3 px rechts davon
+          const v = a3.gViewWrapper; v.sort(Ci.nsMsgViewSortType.byDate, Ci.nsMsgViewSortOrder.descending);
+          v.showGroupedBySort = true; await wait(1200); cmd("cmd_expandAllThreads"); await wait(1200);
+          try {
+            const g = await until(() => cards().find(r => !props(r).includes("dummy") && props(r).includes("thread-children")
+                                                      && r.querySelector(".mc-preview")?.textContent), 8000);
+            if (!g) out.gruppiert = { fehlt: true };
+            else {
+              const T = sel => { const rg = ad.createRange(); rg.selectNodeContents(g.querySelector(sel)); return rg.getBoundingClientRect().left; };
+              const sn = T(".sender");
+              out.gruppiert = { subject: +(T(".subject") - sn).toFixed(2), preview: +(T(".mc-preview") - sn).toFixed(2) };
+            }
+          } finally { v.showGroupedBySort = false; v.showThreaded = true; await wait(800); cmd("cmd_collapseAllThreads"); await wait(800); }
           return out;""")
-        ok = len(res) == 3 and all("fehlt" not in v and abs(v["subject"]) <= 1 and abs(v["preview"]) <= 1 and v["twisty"] >= 2
-                                   and v["icons"] is not None and v["icons"] >= 2 for v in res.values())
+        grp = res.get("gruppiert", {})
+        dens = [v for k, v in res.items() if k != "gruppiert"]
+        ok = (len(dens) == 3 and all("fehlt" not in v and abs(v["subject"]) <= 1 and abs(v["preview"]) <= 1 and v["twisty"] >= 2
+                                     and v["icons"] is not None and v["icons"] >= 2 for v in dens)
+              and "fehlt" not in grp and abs(grp.get("subject", 9)) <= 0.5 and abs(grp.get("preview", 9)) <= 0.5)
         return ok, f"{res}"
-    check("Mailliste: Betreff der Karte bündig mit Absender und Vorschau, Abstand zu Thread-Knopf und Symbolen", card_alignment, results)
+    check("Mailliste: Betreff der Karte bündig mit Absender und Vorschau (auch gruppiert), Abstand zu Thread-Knopf und Symbolen", card_alignment, results)
 
     def thread_sender():
         # zugeklappt: Name und Bild der neuesten Mail (Carla), aufgeklappt die Wurzel (Ben)
