@@ -1112,7 +1112,7 @@ COMPOSE_CHECK_JS = r"""
     fields.to = o.to ?? "Anna Beispiel <anna@example.invalid>"; fields.subject = o.subject ?? "Halo Entwurf";
     if (o.cc) fields.cc = o.cc;
     fields.body = o.body ?? "<p>Hallo Anna,</p><p>das ist ein Testentwurf.</p>";
-    params.composeFields = fields; params.identity = acc.identities[0]; params.format = Ci.nsIMsgCompFormat.HTML;
+    params.composeFields = fields; params.identity = acc.identities[0]; params.format = o.plain ? Ci.nsIMsgCompFormat.PlainText : Ci.nsIMsgCompFormat.HTML;
     const before = new Set(Services.wm.getEnumerator("msgcompose"));
     MailServices.compose.OpenComposeWindowWithParams(null, params);
     const cw = await till(() => [...Services.wm.getEnumerator("msgcompose")].find(x => !before.has(x) && x.document.readyState == "complete" && x.gMsgCompose), 12000);
@@ -1380,18 +1380,50 @@ def compose_checks(m, results):
           return await withCompose({}, async (cw, cd) => {
             const val = (el, v) => { const x = csOf(el).getPropertyValue(v).trim(); return x ? colorOf(cd, x, "backgroundColor") : ""; };
             const out = { border: colorOf(cd, "var(--mt-tooltip-border)", "backgroundColor"), bg: colorOf(cd, "var(--mt-tooltip-bg)", "backgroundColor") };
-            for (const id of ["reorderAttachmentsPanel", "PopupAutoComplete", "customizeToolbarSheetPopup"]) {
-              const p = cd.getElementById(id);
-              out[id] = p ? { border: val(p, "--panel-border-color"), bg: val(p, "--panel-background-color") } : null; }
+            const look = p => p ? { border: val(p, "--panel-border-color"), bg: val(p, "--panel-background-color") } : null;
+            for (const id of ["reorderAttachmentsPanel", "customizeToolbarSheetPopup"]) out[id] = look(cd.getElementById(id));
+            // Adressvorschläge: die Empfängerfelder legen ein eigenes, namenloses Panel an (nicht #PopupAutoComplete) –
+            // in das An-Feld tippen und das tatsächlich offene Panel messen, samt berechnetem Rand der Inhaltsfläche
+            const inp = cd.querySelector(".address-row:not(.hidden) input.address-row-input, #toAddrInput");
+            inp.focus(); inp.value = "an"; inp.controller.handleText();
+            await till(() => inp.controller.matchCount > 0, 5000);
+            if (inp.popup.state != "open") inp.openPopup();
+            const ac = await till(() => [...cd.querySelectorAll('panel[type="autocomplete-richlistbox"]')].find(p => p.state == "open"), 4000);
+            out.autocomplete = look(ac);
+            if (ac) { out.autocomplete.id = ac.id; const c = ac.shadowRoot?.querySelector('[part~="content"]');
+              out.autocomplete.content = c ? csOf(c).borderTopColor : null; ac.hidePopup(); }
+            inp.value = ""; await pause(300);
             return out; });""")
-        ids = ["reorderAttachmentsPanel", "PopupAutoComplete", "customizeToolbarSheetPopup"]
+        ids = ["reorderAttachmentsPanel", "autocomplete", "customizeToolbarSheetPopup"]
         # Thunderbirds Panelrand #5e7799 / #91939f und Panelfläche #262d3b (Deckkraft egal)
         rgb = lambda c: "rgb(" + ", ".join(__import__("re").findall(r"-?[\d.]+", c or "")[:3]) + ")"
         bluish = lambda c: any(same_color(rgb(c), t, 4) for t in ["rgb(94, 119, 153)", "rgb(145, 147, 159)", "rgb(38, 45, 59)"])
-        ok = (all(res.get(i) and same_color(res[i]["border"], res["border"]) and not bluish(res[i]["border"]) for i in ids)
+        ac = res.get("autocomplete") or {}
+        # Adressvorschläge: auch die Fläche unter der halbtransparenten Haarlinie neutral (sonst färbt sie den Rand bläulich)
+        ok = (ac.get("bg") and not bluish(ac["bg"]) and all(res.get(i) and same_color(res[i]["border"], res["border"]) and not bluish(res[i]["border"]) for i in ids)
+              and (ac.get("content") is None or (same_color(ac["content"], res["border"]) and not bluish(ac["content"])))
               and same_color(res["reorderAttachmentsPanel"]["bg"], res["bg"]) and not bluish(res["reorderAttachmentsPanel"]["bg"]))
         return ok, f"{res}"
     check("Verfassen: Anhänge-anordnen-Panel neutral wie Tooltips, Adressvorschläge und Anpassen-Sheet mit Haarlinie statt bläulichem Rand", compose_panels, results)
+
+    def format_toolbox():
+        # Reintext: Thunderbird blendet nur die Formatleiste aus – die leere Box darf keine zweite Linie unter den Betreff legen;
+        # Farbfelder: dezenter Rand statt Thunderbirds rgba(255, 255, 255, 0.7), Ring in Fensterfarbe trennt Text- und Hintergrundfeld
+        res = m.js(COMPOSE_CHECK_JS + r"""
+          const html = await withCompose({}, async (cw, cd) => {
+            const box = cd.getElementById("FormatToolbox"), t = cd.getElementById("TextColorButton"), b = cd.getElementById("BackgroundColorButton");
+            return { line: parseFloat(csOf(box).borderBottomWidth), style: csOf(box).borderBottomStyle,
+                     shadow: csOf(t).boxShadow, window: colorOf(cd, "var(--mt-window)"), swatch: colorOf(cd, "var(--mt-swatch-border)"),
+                     borders: [csOf(t).borderTopColor, csOf(b).borderTopColor] }; });
+          const plain = await withCompose({ plain: true, body: "Hallo Anna,\n\ndas ist ein Testentwurf." }, async (cw, cd) => {
+            const box = cd.getElementById("FormatToolbox");
+            return { barHidden: cd.getElementById("FormatToolbar").hidden, line: parseFloat(csOf(box).borderBottomWidth), style: csOf(box).borderBottomStyle }; });
+          return { html, plain };""")
+        h, p = res["html"], res["plain"]
+        ok = (h["line"] > 0 and h["style"] != "none" and p["barHidden"] and (p["line"] == 0 or p["style"] == "none")
+              and h["window"] in h["shadow"] and all(same_color(c, h["swatch"]) and not same_color(c, "rgba(255, 255, 255, 0.7)") for c in h["borders"]))
+        return ok, f"{res}"
+    check("Verfassen: Formatleiste mit einer Haarlinie, im Reintext keine zweite Linie unter dem Betreff; Farbfelder mit dezentem Rand und Ring in Fensterfarbe", format_toolbox, results)
 
     def separator():
         res = m.js(COMPOSE_CHECK_JS + r"""

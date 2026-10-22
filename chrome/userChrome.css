@@ -32,6 +32,8 @@
   /* deckende Popover-Fläche (Schnellfenster, „+“-Popover, Datumsauswahl) */
   --mt-popover-bg: #FBFBFC;
   --mt-tooltip-border: rgba(0, 0, 0, 0.15);
+  /* Rand der Farbfelder (Text-/Hintergrundfarbe in der Formatleiste) */
+  --mt-swatch-border: rgba(0, 0, 0, 0.25);
   --mt-check-bg: #FFFFFF;
   --mt-check-border: rgba(0, 0, 0, 0.22);
   --mt-pane-line: rgba(0, 0, 0, 0.11);
@@ -67,6 +69,7 @@
     --mt-tooltip-bg: #2C2C2E;
     --mt-popover-bg: #2C2C2E;
     --mt-tooltip-border: rgba(255, 255, 255, 0.14);
+    --mt-swatch-border: rgba(255, 255, 255, 0.30);
     --mt-check-bg: rgba(255, 255, 255, 0.08);
     --mt-check-border: rgba(255, 255, 255, 0.28);
     --mt-pane-line: rgba(255, 255, 255, 0.10);
@@ -2208,9 +2211,19 @@ panel {
 }
 
 /* Adressvorschläge im Verfassen-Fenster: Haarlinie statt bläulichem Panelrand
-   (die Fläche zeigt die Liste selbst, sie ist schon neutral) */
-#PopupAutoComplete {
+   (die Fläche zeigt die Liste selbst, sie ist schon neutral). Die
+   Empfängerfelder haben kein autocompletepopup-Attribut und legen ein eigenes,
+   namenloses Panel an – deshalb auch über den Typ; Gloda hat einen eigenen Typ */
+#PopupAutoComplete,
+panel[type="autocomplete-richlistbox"] {
   --panel-border-color: var(--mt-tooltip-border) !important;
+}
+
+/* die halbtransparente Haarlinie liegt auf der Panelfläche – dunkel ist die
+   bläulich (#262d3b) und färbt den Rand mit; die Liste darüber hat ohnehin
+   die Fensterfarbe */
+panel[type="autocomplete-richlistbox"] {
+  --panel-background-color: var(--mt-window) !important;
 }
 
 /* Symbolzeile oben im Nachrichten-Kontextmenü: die Erweiterung macht daraus
@@ -5903,6 +5916,25 @@ addon-card .addon-inline-options {
   background: var(--mt-window) !important;
   border: none !important;
   border-bottom: var(--mt-hairline) solid var(--mt-pane-line) !important;
+}
+
+/* Reintext (oder Formatleiste ausgeblendet): Thunderbird blendet nur die
+   Leiste aus, die leere Box soll keine zweite Linie unter den Betreff legen */
+#FormatToolbox:not(:has(> toolbar:not([hidden], [collapsed="true"]))) {
+  border-bottom: none !important;
+}
+
+/* Farbfelder wie unter macOS: dezenter Rand statt Thunderbirds hellem
+   Knopfrand (dunkel weiß auf weißem Feld); ein Ring in Fensterfarbe trennt das
+   Textfarbfeld vom darunterliegenden Hintergrundfeld, auch wenn beide gleich
+   hell sind */
+#FormatToolbar .color-button {
+  border-color: var(--mt-swatch-border) !important;
+  border-radius: 3px !important;
+}
+
+#TextColorButton {
+  box-shadow: 0 0 0 1px var(--mt-window) !important;
 }
 
 #FormatToolbar menulist {

@@ -3219,6 +3219,25 @@ addon-card .addon-inline-options {
   border-bottom: var(--mt-hairline) solid var(--mt-pane-line) !important;
 }
 
+/* Reintext (oder Formatleiste ausgeblendet): Thunderbird blendet nur die
+   Leiste aus, die leere Box soll keine zweite Linie unter den Betreff legen */
+#FormatToolbox:not(:has(> toolbar:not([hidden], [collapsed="true"]))) {
+  border-bottom: none !important;
+}
+
+/* Farbfelder wie unter macOS: dezenter Rand statt Thunderbirds hellem
+   Knopfrand (dunkel weiß auf weißem Feld); ein Ring in Fensterfarbe trennt das
+   Textfarbfeld vom darunterliegenden Hintergrundfeld, auch wenn beide gleich
+   hell sind */
+#FormatToolbar .color-button {
+  border-color: var(--mt-swatch-border) !important;
+  border-radius: 3px !important;
+}
+
+#TextColorButton {
+  box-shadow: 0 0 0 1px var(--mt-window) !important;
+}
+
 #FormatToolbar menulist {
   min-height: 28px !important;
   border: none !important;
