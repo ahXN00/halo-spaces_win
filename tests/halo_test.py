@@ -2599,14 +2599,23 @@ def calendar_checks(m, results):
             await toCalendar();
             const b = await till(() => [...d.querySelectorAll("#calendar-list button.calendar-enable-button")].find(vis), 4000);
             if (!b) return { badge: false };
-            return { bg: csOf(b).backgroundColor, color: csOf(b).color, tt: csOf(b).textTransform, weight: csOf(b).fontWeight, radius: csOf(b).borderTopLeftRadius };
+            // Haken im Farbkästchen des deaktivierten, eingeblendeten Kalenders: Textfarbe statt weiß
+            const li = b.closest("li"), shown = li?.querySelector("input.calendar-displayed")?.checked;
+            const sw = li?.querySelector(".calendar-color");
+            return { bg: csOf(b).backgroundColor, color: csOf(b).color, tt: csOf(b).textTransform, weight: csOf(b).fontWeight, radius: csOf(b).borderTopLeftRadius,
+                     dark: w.matchMedia("(prefers-color-scheme: dark)").matches, disabled: li?.hasAttribute("calendar-disabled"), shown,
+                     tick: sw ? w.getComputedStyle(sw, "::after").backgroundColor : null };
           } finally { c.setProperty("disabled", false); await pause(500); }""")
         if res.get("badge") is False:
             return False, "Plakette nicht sichtbar"
         ok = (not same_color(res["bg"], "rgb(107, 128, 164)") and not same_color(res["color"], "rgb(255, 255, 255)")
               and res["tt"] == "none" and int(res["weight"]) <= 600)
+        if res.get("shown"):
+            ok = ok and res.get("disabled") and same_color(res["tick"], "rgb(161, 161, 166)" if res["dark"] else "rgb(110, 110, 115)")
+        else:
+            ok = False
         return ok, f"{res}"
-    check("Kalenderliste: Plakette „Aktivieren“ als graue Kapsel ohne Großschrift", enable_badge, results)
+    check("Kalenderliste: Plakette „Aktivieren“ als graue Kapsel ohne Großschrift; Haken des deaktivierten Kalenders grau statt weiß", enable_badge, results)
 
     def print_minimonths():
         # Drucken: „Von“/„Bis“-Minikalender passen ins Formular, Pfeile sichtbar, Knöpfe ohne helle Fläche (dunkel)
