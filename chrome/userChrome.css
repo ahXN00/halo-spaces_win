@@ -5214,6 +5214,90 @@ search-bar {
   display: none !important;
 }
 
+/* eingebettet ohne eigene Leiste (Kontenliste bzw. Extensions/Themes …):
+   ihre Einträge stehen als Unterpunkte in der Seitenleiste der Einstellungen,
+   der Inhalt beginnt direkt rechts davon wie bei den übrigen Kategorien */
+:root[mc-embedded] #sidebar:has(categories-box),
+:root[mc-embedded] #accountTreeBox > :not(menupopup) {
+  display: none !important;
+}
+
+/* (die Kontenliste selbst bleibt im Dokument, ohne Breite: Darin steckt das
+   Menü „Konto hinzufügen“, das ohne Rahmen nicht aufginge) */
+:root[mc-embedded] #accountTreeBox {
+  position: absolute !important;
+  inline-size: 0 !important;
+  min-inline-size: 0 !important;
+  border: none !important;
+  padding: 0 !important;
+  overflow: visible !important;
+}
+
+:root[mc-embedded] body:has(> #accountTreeBox) {
+  grid-template-columns: 1fr !important;
+}
+
+/* Add-ons: eine Spalte und mittig wie die Einstellungen daneben */
+:root[mc-embedded] #full:has(> #sidebar > categories-box) {
+  grid-template-columns: minmax(0, 1fr) !important;
+}
+
+:root[mc-embedded]:has(#sidebar > categories-box) {
+  --main-margin-start: auto !important;
+  --main-margin-end: auto !important;
+  --page-main-content-width: 748px !important;
+}
+
+/* Unterpunkte unter „Kontoeinstellungen“ bzw. „Add-ons“: eingerückt bis an
+   den Text der Kategorie, Konto-Seiten eine Stufe weiter */
+#categories > .mc-subcats {
+  margin: 0 0 4px !important;
+}
+
+.mc-subcat {
+  margin: 1px 0;
+  padding-inline: 42px 8px;
+  border-radius: 8px;
+  color: var(--mt-text);
+  font-size: 13px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: block;
+  line-height: 30px;
+  cursor: default;
+  outline: none;
+}
+
+.mc-subcat[level="2"] {
+  padding-inline-start: 58px;
+  color: var(--mt-text-secondary, var(--mt-text));
+}
+
+.mc-subcat:hover {
+  background: color-mix(in srgb, var(--mt-text) 5%, transparent);
+}
+
+.mc-subcat[current] {
+  background: var(--mt-selected-unfocused);
+  color: var(--mt-text);
+  font-weight: 500;
+}
+
+.mc-subcat:focus-visible {
+  outline: 2px solid AccentColor;
+  outline-offset: -2px;
+}
+
+.mc-subcat-action {
+  color: AccentColor;
+}
+
+/* Kategorie mit gewähltem Unterpunkt: nur fett, die Fläche trägt der Unterpunkt */
+#categories > richlistitem.category[selected].mc-has-current {
+  background: transparent !important;
+}
+
 .mc-embed-frame {
   display: block !important;
   inline-size: 100% !important;

@@ -1007,7 +1007,7 @@ function hookPrefCategories(cw, restorers = null) {
     return;
   }
   // Reste einer älteren Fassung (Update ohne Neustart) entfernen
-  for (const old of doc.querySelectorAll(".mc-embed-cat, .mc-embed-pane")) {
+  for (const old of doc.querySelectorAll(".mc-embed-cat, .mc-embed-pane, .mc-subcats")) {
     old.remove();
   }
   // Kontoeinstellungen und Add-ons laufen nicht innerhalb dieser Seite: Sie
@@ -1016,6 +1016,7 @@ function hookPrefCategories(cw, restorers = null) {
   // Fläche rechts der Seitenleiste – wie in einem eigenen Tab
   const host = cw.browsingContext?.embedderElement?.parentNode;
   const overlays = new Map();
+  const detach = [];
   const X = "http://www.w3.org/1999/xhtml";
   const added = [];
   for (const pane of PREF_PANES) {
@@ -1043,6 +1044,16 @@ function hookPrefCategories(cw, restorers = null) {
     name.textContent = label;
     item.append(img, name);
     categories.append(item);
+    // Unterpunkte der Seite direkt darunter (nur bei gewählter Kategorie sichtbar)
+    let subs = null;
+    if (pane.src) {
+      subs = doc.createXULElement("vbox");
+      subs.className = "mc-subcats";
+      subs.id = "mcSub-" + pane.value;
+      subs.hidden = true;
+      categories.append(subs);
+      added.push(subs);
+    }
     // Inhalt: leere Fläche (Thunderbird zeigt beim Wechsel nur, was zur
     // Kategorie gehört), die Seite lädt erst beim ersten Öffnen
     const box = doc.createXULElement("vbox");
@@ -1058,7 +1069,9 @@ function hookPrefCategories(cw, restorers = null) {
       if (pane.options) {
         loadOptionsPane(cw, box);
       } else if (!overlays.has(pane.value)) {
-        overlays.set(pane.value, embedPage(host, pane.src));
+        const browser = embedPage(host, pane.src);
+        overlays.set(pane.value, browser);
+        detach.push(attachSubnav(subs, browser, pane.src));
         mark();
       }
     };
@@ -1100,6 +1113,9 @@ function hookPrefCategories(cw, restorers = null) {
     for (const [key, browser] of overlays) {
       browser.hidden = key != value;
     }
+    for (const subs of categories.querySelectorAll(".mc-subcats")) {
+      subs.hidden = subs.id != "mcSub-" + value;
+    }
     place();
   }
   doc.addEventListener("paneSelected", mark);
@@ -1116,6 +1132,7 @@ function hookPrefCategories(cw, restorers = null) {
   restorers?.push(() => {
     doc.removeEventListener("paneSelected", mark);
     ro.disconnect();
+    detach.forEach(f => f());
     const was = categories.selectedItem?.classList.contains("mc-embed-cat");
     added.forEach(el => el.remove());
     overlays.forEach(browser => browser.remove());
@@ -1583,6 +1600,126 @@ function embedPage(host, src) {
   }, true);
   host.append(browser);
   return browser;
+}
+
+// Unterpunkte der eingebetteten Seite (Konten mit ihren Seiten bzw.
+// Extensions, Themes …) eingerückt unter ihrer Kategorie in der Seitenleiste
+// der Einstellungen – wie die übrigen Kategorien ohne zweite Leiste dazwischen.
+// Die Leiste der Seite selbst bleibt im Dokument (blendet nur das CSS aus),
+// gewählt wird weiter über sie.
+const ADDON_VIEWS = { discover: "addons://discover/", "available-updates": "addons://updates/available", "recent-updates": "addons://updates/recent" };
+const SUBNAV = {
+  "about:addons": d => {
+    const box = d.querySelector("categories-box");
+    if (!box) {
+      return null;
+    }
+    const aw = d.defaultView;
+    // Thunderbird 140+: moz-page-nav-button[view], 128: button.category[viewid]
+    const entries = [...box.querySelectorAll("moz-page-nav-button[view], .category[viewid]")].filter(b => !b.hidden).map(b => {
+      const view = b.getAttribute("viewid") || ADDON_VIEWS[b.getAttribute("view")] || `addons://list/${b.getAttribute("view")}`;
+      return {
+        label: (b.querySelector(".category-name, span[data-l10n-id]") || b).textContent.trim(),
+        current: !!(b.selected || b.hasAttribute("selected")),
+        level: 1,
+        go: () => aw.gViewController?.loadView(view),
+      };
+    });
+    return { watch: box, entries };
+  },
+  "about:accountsettings": d => {
+    const tree = d.getElementById("accounttree");
+    if (!tree?.children.length) {
+      return null;
+    }
+    const sel = tree.selectedRow || tree.querySelector("li.selected");
+    const pick = li => {
+      const top = li.parentNode.closest("li");
+      if (top?.classList.contains("collapsed")) {
+        tree.expandRow(top);
+      }
+      const i = tree.rows.indexOf(li);
+      if (i >= 0) {
+        tree.selectedIndex = i;
+      }
+    };
+    const name = li => li.querySelector(":scope > .container .name")?.textContent.trim() || li.title || "";
+    const entries = [];
+    for (const li of tree.querySelectorAll(":scope > li")) {
+      entries.push({ label: name(li), current: li == sel, level: 1, go: () => pick(li) });
+      // Seiten eines Kontos nur beim gewählten Konto (wie aufgeklappt)
+      if (sel && li.contains(sel)) {
+        for (const kid of li.querySelectorAll(":scope > ul > li")) {
+          entries.push({ label: name(kid), current: kid == sel, level: 2, go: () => pick(kid) });
+        }
+      }
+    }
+    // „Konto hinzufügen“ (128: „Kontenaktionen“) öffnet Thunderbirds Menü an diesem Eintrag
+    const btn = d.getElementById("accountTreeCreateAccount") || d.getElementById("accountActionsButton");
+    const popup = d.getElementById("accountAddPopup") || d.getElementById("accountActionsDropdown");
+    const label = (btn?.textContent || btn?.getAttribute("label") || "").trim();
+    if (popup && label) {
+      entries.push({ label: label + "…", level: 1, action: true, go: el => {
+        const cw = el.ownerDocument.defaultView, r = el.getBoundingClientRect();
+        // Menüs gehen in Inhalts-Browsern nur mit Fokus auf
+        d.defaultView.browsingContext.embedderElement?.focus();
+        popup.openPopupAtScreen(Math.round(cw.mozInnerScreenX + r.left), Math.round(cw.mozInnerScreenY + r.bottom), false);
+      } });
+    }
+    return { watch: tree, entries };
+  },
+};
+function attachSubnav(list, browser, src) {
+  const read = SUBNAV[src];
+  const cdoc = list.ownerDocument;
+  let observed = null, timer = 0;
+  const mo = new cdoc.defaultView.MutationObserver(() => schedule());
+  const render = () => {
+    timer = 0;
+    const d = browser.contentDocument;
+    const nav = d && read(d);
+    if (nav && nav.watch != observed) {
+      mo.disconnect();
+      // Inhalt, Übersetzung, Auswahl (Klasse/hidden) und neu aufgebaute Konten
+      mo.observe(nav.watch, { subtree: true, childList: true, characterData: true, attributes: true, attributeFilter: ["class", "hidden", "selected"] });
+      observed = nav.watch;
+    }
+    const rows = (nav?.entries || []).filter(e => e.label).map(e => {
+      const row = cdoc.createElementNS("http://www.w3.org/1999/xhtml", "div");
+      row.className = "mc-subcat" + (e.action ? " mc-subcat-action" : "");
+      row.setAttribute("level", e.level);
+      row.setAttribute("role", "button");
+      row.tabIndex = 0;
+      row.toggleAttribute("current", !!e.current);
+      row.title = e.label;
+      row.textContent = e.label;
+      row.addEventListener("click", () => e.go(row));
+      row.addEventListener("keydown", ev => {
+        if (ev.key == "Enter" || ev.key == " ") {
+          ev.preventDefault();
+          e.go(row);
+        }
+      });
+      return row;
+    });
+    list.replaceChildren(...rows);
+    list.previousElementSibling?.classList.toggle("mc-has-current", rows.some(r => r.hasAttribute("current")));
+  };
+  const schedule = () => {
+    timer ||= cdoc.defaultView.setTimeout(render, 30);
+  };
+  // Thunderbird 140+ setzt die Auswahl der Add-ons nur als Eigenschaft
+  const onView = () => schedule();
+  browser.addEventListener("load", schedule, true);
+  browser.addEventListener("view-selected", onView, true);
+  browser.addEventListener("select", onView, true);
+  schedule();
+  return () => {
+    mo.disconnect();
+    browser.removeEventListener("load", schedule, true);
+    browser.removeEventListener("view-selected", onView, true);
+    browser.removeEventListener("select", onView, true);
+  };
 }
 
 // halo.spaces-Einstellungen (options_ui): Erweiterungsseiten laufen in einem

@@ -5900,6 +5900,54 @@ def run_checks(m, version, profile, results):
         return ok, f"Seitenleiste rechts bei {right} {res}"
     check("Einstellungen: Kontoeinstellungen und Add-ons als Kategorien, Seitenleiste bleibt gleich breit, Kontoseite mittig, Ausblenden zieht mit", pref_embedded_pages, results)
 
+    def pref_embedded_subnav():
+        # keine zweite graue Leiste: Konten (mit Seiten des gewählten Kontos) bzw. Extensions/Themes … als eingerückte
+        # Unterpunkte der Kategorie, nur bei gewählter Kategorie; Klick wählt in der Seite, „Konto hinzufügen“ öffnet das Menü
+        res = m.js(r"""
+          const { MailServices } = ChromeUtils.importESModule("resource:///modules/MailServices.sys.mjs");
+          try { MailServices.accounts.localFoldersServer; } catch { MailServices.accounts.createLocalMailAccount(); await wait(500); }
+        """ + PREFS_OPEN_JS + r"""
+          const list = v => [...pd.querySelectorAll(`#mcSub-${v} .mc-subcat`)].map(e => [+e.getAttribute("level"), e.textContent, e.hasAttribute("current")]);
+          const vis = v => !pd.getElementById("mcSub-" + v).hidden;
+          const out = { general: [vis("paneMcAccounts"), vis("paneMcAddons")] };
+          await pick("paneMcAccounts", 3500);
+          const acc = page("about:accountsettings"), fd = acc.contentDocument, tree = fd.getElementById("accounttree");
+          const local = MailServices.accounts.localFoldersServer.key;
+          // Konto „Lokale Ordner“ wählen, dann seine zweite Seite (Speicherplatz)
+          [...pd.querySelectorAll("#mcSub-paneMcAccounts .mc-subcat[level='1']")].find(e => e.textContent == tree.querySelector(`li[data-server-key="${local}"] .name`).textContent).click(); await wait(1500);
+          out.acc = list("paneMcAccounts"); out.vis = [vis("paneMcAccounts"), vis("paneMcAddons")];
+          out.parentBg = pw.getComputedStyle(pd.getElementById("mcCat-paneMcAccounts")).backgroundColor;
+          out.tree = Math.round(fd.getElementById("accountTreeBox").getBoundingClientRect().width);
+          out.frameLeft = Math.round(fd.getElementById("contentFrame").getBoundingClientRect().left);
+          pd.querySelectorAll("#mcSub-paneMcAccounts .mc-subcat[level='2']")[1]?.click(); await wait(1500);
+          out.acc2 = list("paneMcAccounts"); out.inner = fd.getElementById("contentFrame").contentDocument?.location.href.split("/").pop();
+          const pop = fd.getElementById("accountAddPopup") || fd.getElementById("accountActionsDropdown");
+          pd.querySelector("#mcSub-paneMcAccounts .mc-subcat-action")?.click(); await wait(800); out.popup = pop?.state; pop?.hidePopup(); await wait(300);
+          await pick("paneMcAddons", 3500);
+          const ad = page("about:addons"), aw = ad.contentWindow;
+          out.add = list("paneMcAddons"); out.vis2 = [vis("paneMcAccounts"), vis("paneMcAddons")];
+          out.side = Math.round(ad.contentDocument.getElementById("sidebar").getBoundingClientRect().width);
+          const theme = [...pd.querySelectorAll("#mcSub-paneMcAddons .mc-subcat")].find(e => e.textContent == ad.contentDocument.querySelector("#category-theme span, .category[viewid='addons://list/theme'] .category-name")?.textContent.trim());
+          theme?.click(); await wait(1500);
+          out.view = aw.gViewController?.currentViewId; out.add2 = list("paneMcAddons").filter(e => e[2]).map(e => e[1]);
+          const main = ad.contentDocument.getElementById("main"), cat = pd.getElementById("pref-category-box").getBoundingClientRect();
+          out.gaps = [Math.round(main.getBoundingClientRect().left), Math.round(ad.getBoundingClientRect().width - main.getBoundingClientRect().right)];
+          aw.gViewController.loadView("addons://list/extension"); await wait(800);
+          await pick("paneGeneral", 800); out.back = [vis("paneMcAccounts"), vis("paneMcAddons")];
+          tm.closeTab(tm.currentTabInfo); await wait(400);
+          return out;""")
+        acc, acc2, add = res["acc"], res["acc2"], res["add"]
+        cur = [e for e in acc if e[2]]
+        ok = (res["general"] == [False, False] and res["vis"] == [True, False] and res["vis2"] == [False, True] and res["back"] == [False, False]
+              and len(cur) == 1 and cur[0][0] == 1 and sum(1 for e in acc if e[0] == 2) >= 2 and rgba_alpha(res["parentBg"]) == 0
+              and res["tree"] == 0 and res["frameLeft"] <= 1
+              and [e for e in acc2 if e[2]] == [[2, acc2[[i for i, e in enumerate(acc2) if e[0] == 2][1]][1], True]] and (res["inner"] or "").startswith("am-")
+              and acc[-1][1].endswith("…") and res["popup"] == "open"
+              and len(add) >= 3 and [e[1] for e in add if e[2]] and res["side"] == 0
+              and res["view"] == "addons://list/theme" and len(res["add2"]) == 1 and abs(res["gaps"][0] - res["gaps"][1]) <= 2)
+        return ok, f"{res}"
+    check("Einstellungen: Konten und Add-on-Bereiche als Unterpunkte in der Seitenleiste statt zweiter grauer Leiste, Klick wählt, Konto hinzufügen öffnet das Menü", pref_embedded_subnav, results)
+
     def account_wizards():
         # Konto-Assistenten (Feed, Newsgruppen, Chat): Knöpfe flach ohne Rahmen, 13 px, 28 px hoch und lesbar
         # (dunkel war „Cancel“ weiß auf #8F8F9D), Felder mit 7 px, Chat-Netzliste mit Haarlinie und 8 px
