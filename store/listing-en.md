@@ -10,15 +10,18 @@ A calm, tidy macOS-style design for Thunderbird: colourful spaces, message cards
 <ul>
 <li>Message cards with a two-line preview and sender pictures: from your address book, macOS Contacts (optional), the sender's BIMI logo or website icon, otherwise initials</li>
 <li>Optional: flag, archive and delete right on the card when you hover over it (Preferences)</li>
-<li>Message header like Apple Mail: sender picture, folder and time, a mailing-list note with Unsubscribe</li>
+<li>Whole conversations like Apple Mail: received mails and your own replies from Sent, newest first, each shown in full (can be turned off)</li>
+<li>Message header like Apple Mail: sender picture, folder and time, a mailing-list note with Unsubscribe that disappears once you have unsubscribed</li>
 <li>Messages in the system font like Apple Mail (Mac: SF Pro, Windows: Segoe UI, Linux: your desktop font)</li>
-<li>Unified inboxes, Inbox always first, the search field top right</li>
+<li>Unified inboxes, Inbox always first, the search field top right – it searches the selected folder, or all mailboxes from a unified folder</li>
+<li>Card view or table (classic or wide) in one menu; optionally a light accent tint behind unread mail</li>
 </ul>
 
 <b>Calendar and tasks</b>
 <ul>
 <li>Day, week, multiweek and month switcher in the title bar, a month view without scrollbars</li>
 <li>Quick event window: type naturally – “tomorrow 12:30 for 90 min”, “Fri 9–11”. A double-click in the calendar opens it too</li>
+<li>Date and time in one popover like Apple Calendar</li>
 <li>Matching emoji before event titles (birthday, dentist, training …), with your own keywords</li>
 <li>Birthdays from your address books as their own read-only calendar</li>
 </ul>
@@ -33,11 +36,13 @@ A calm, tidy macOS-style design for Thunderbird: colourful spaces, message cards
 <li>Coloured spaces for Mail, Contacts, Calendar, Tasks and Chat, all with the same toolbar and sidebar edges</li>
 <li>Light and dark follow the system, the accent colour follows macOS</li>
 <li>No scrollbars – scrolling still works with wheel, trackpad and keyboard</li>
-<li>Unified address book: duplicates merged, account labels in the account colours</li>
-<li>Settings page: Add-ons and Themes → halo.spaces → Preferences</li>
+<li>Unified address book: duplicates merged, account labels in the account colours, cards with name or company only</li>
+<li>Respects “Increase contrast” in the macOS accessibility settings</li>
+<li>Settings → halo.spaces: all options in Thunderbird's settings, next to Account Settings and Add-ons, which now open there too; a short welcome after installing points the way</li>
+<li>Optional: load the design before the first window appears, so the old look never flashes at start (writes a userChrome.css into your profile, removed again when turned off)</li>
 </ul>
 
-<b>Theme:</b> halo.spaces brings its own colours and is made for Thunderbird's default theme, <i>System theme – auto</i>. If you use a different theme, switch back to it under Add-ons and Themes → Themes – other themes paint their own colours over the design.
+<b>Theme:</b> halo.spaces brings its own colours and is made for Thunderbird's default theme, <i>System theme – auto</i>. On first install it switches to it unless Thunderbird's Light or Dark theme is active; other themes paint their own colours over the design.
 
 Made for macOS. Windows and Linux work, but window buttons and some spacing differ there.
 

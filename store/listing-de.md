@@ -10,15 +10,18 @@ Ein ruhiges, aufgeräumtes Design im Stil von macOS für Thunderbird: farbige Be
 <ul>
 <li>Mailkarten mit zweizeiliger Vorschau und Absenderbildern: aus dem Adressbuch, der macOS-Kontakte-App (optional), dem BIMI-Logo oder Website-Symbol des Absenders, sonst Initialen</li>
 <li>Optional: Markieren, Archivieren und Löschen direkt auf der Karte, wenn man darüberfährt (Einstellungen)</li>
-<li>Mailkopf wie in Apple Mail: Absenderbild, Ordner und Uhrzeit, Verteiler-Hinweis mit Abmelden</li>
+<li>Ganze Konversationen wie in Apple Mail: empfangene Mails und eigene Antworten aus „Gesendet“, neueste oben, jede vollständig (abschaltbar)</li>
+<li>Mailkopf wie in Apple Mail: Absenderbild, Ordner und Uhrzeit, Verteiler-Hinweis mit Abmelden, der Knopf verschwindet nach der Abmeldung</li>
 <li>Mails in der Systemschrift wie bei Apple Mail (Mac: SF Pro, Windows: Segoe UI, Linux: Schrift der Oberfläche)</li>
-<li>Gemeinsame Posteingänge, der Posteingang immer zuerst, das Suchfeld oben rechts</li>
+<li>Gemeinsame Posteingänge, der Posteingang immer zuerst, das Suchfeld oben rechts – es sucht im gewählten Ordner, aus einem Sammelordner in allen Postfächern</li>
+<li>Kartenansicht oder Tabelle (klassisch oder breit) in einem Menü; auf Wunsch ungelesene Mails zart in der Akzentfarbe hinterlegt</li>
 </ul>
 
 <b>Kalender und Aufgaben</b>
 <ul>
 <li>Umschalter für Tag, Woche, Mehrere Wochen und Monat in der Titelleiste, Monatsansicht ohne Scrollbalken</li>
 <li>Schnellfenster für Termine: einfach schreiben – „morgen 12:30 für 90 min“, „Fr 9–11“. Auch ein Doppelklick im Kalender öffnet es</li>
+<li>Datum und Uhrzeit in einem Popover wie in Apple Kalender</li>
 <li>Passende Emojis vor Termintiteln (Geburtstag, Zahnarzt, Training …), mit eigenen Stichwörtern</li>
 <li>Geburtstage aus den Adressbüchern als eigener, schreibgeschützter Kalender</li>
 </ul>
@@ -33,11 +36,13 @@ Ein ruhiges, aufgeräumtes Design im Stil von macOS für Thunderbird: farbige Be
 <li>Farbige Bereiche für Mail, Kontakte, Kalender, Aufgaben und Chat, alle mit denselben Kanten bei Toolbar und Seitenleiste</li>
 <li>Hell und dunkel folgen dem System, die Akzentfarbe folgt macOS</li>
 <li>Keine Scrollbalken – Scrollen geht weiterhin mit Mausrad, Trackpad und Tastatur</li>
-<li>Gemeinsames Adressbuch: Doppelte zusammengeführt, Kontobezeichnungen in den Kontofarben</li>
-<li>Einstellungsseite: Add-ons und Themes → halo.spaces → Einstellungen</li>
+<li>Gemeinsames Adressbuch: Doppelte zusammengeführt, Kontobezeichnungen in den Kontofarben, Karten nur mit Name oder Firma</li>
+<li>Berücksichtigt „Kontrast erhöhen“ aus den Bedienungshilfen von macOS</li>
+<li>Einstellungen → halo.spaces: alle Optionen in Thunderbirds Einstellungen, neben Kontoeinstellungen und Add-ons, die sich jetzt ebenfalls dort öffnen; eine kurze Begrüßung nach der Installation zeigt den Weg</li>
+<li>Optional: das Design schon vor dem ersten Fenster laden, damit beim Start nichts Altes aufblitzt (schreibt eine userChrome.css ins Profil, die beim Ausschalten wieder entfernt wird)</li>
 </ul>
 
-<b>Theme:</b> halo.spaces bringt eigene Farben mit und ist für Thunderbirds Standard-Theme <i>Systemthema – automatisch</i> gemacht. Wer ein anderes Theme nutzt, stellt es unter Add-ons und Themes → Themes zurück – andere Themes legen ihre eigenen Farben über das Design.
+<b>Theme:</b> halo.spaces bringt eigene Farben mit und ist für Thunderbirds Standard-Theme <i>Systemthema – automatisch</i> gemacht. Bei der Erstinstallation stellt es darauf um, außer Thunderbirds helles oder dunkles Theme ist aktiv; andere Themes legen ihre eigenen Farben über das Design.
 
 Gemacht für macOS. Windows und Linux funktionieren, dort sehen Fensterknöpfe und einige Abstände anders aus.
 
