@@ -1831,9 +1831,24 @@ def calendar_checks(m, results):
               await pause(300);
               out.select = [...sd.children].filter(x => x.localName == "menuitem" && x.getAttribute("_moz-menuactive") != "true" && vis(x)).map(x => csOf(x).backgroundColor);
               await shutPop(sd);
-            } else { out.selectInfo.state = sd?.state ?? null; }
-          } finally { await shutPop(qp); }
+            } else {
+              // unter macOS bleibt die Liste nach showPicker() zu – dann ein echter Mausklick (unten), Schnellfenster bleibt offen
+              out.selectInfo.state = sd?.state ?? null;
+              const r = f.repeat.getBoundingClientRect(); out.click = [Math.round(r.left + r.width / 2), Math.round(r.top + r.height / 2)];
+            }
+          } finally { if (!out.click) await shutPop(qp); }
           return out;""")
+        if res.get("click"):
+            x, y = res["click"]
+            m.pointer([{"type": "pointerMove", "x": x, "y": y, "origin": "viewport"}, {"type": "pointerDown", "button": 0}, {"type": "pointerUp", "button": 0}])
+            res["select"] = m.js(CAL_CHECK_JS + r"""
+              const qp = d.getElementById("mcQuickPanel"), sd = d.getElementById("ContentSelectDropdown")?.menupopup;
+              try {
+                if (!sd || !await isOpen(sd)) return null;
+                await pause(300);
+                const c = [...sd.children].filter(x => x.localName == "menuitem" && x.getAttribute("_moz-menuactive") != "true" && vis(x)).map(x => csOf(x).backgroundColor);
+                await shutPop(sd); return c;
+              } finally { await shutPop(qp); }""")
         if not res.get("open"):
             return res.get("visibility") == "hidden", f"Schnellfenster nicht offen {res}"
         p, k = res["panel"], res.get("picker") or {}
@@ -1866,7 +1881,14 @@ def calendar_checks(m, results):
             await shutPop(np); return r; };
           w.moveTo(0, 0); w.resizeTo(1500, 900); out.left = await measure();
           // rechter Fensterrand am Bildschirmrand (wie maximiert): Gecko schiebt das Popover nach links
-          w.resizeTo(1300, 900); await pause(800); w.moveTo(w.screen.availLeft + w.screen.availWidth - w.outerWidth, w.screen.availTop); out.edge = await measure();
+          w.resizeTo(1300, 900); await pause(800); w.moveTo(w.screen.availLeft + w.screen.availWidth - w.outerWidth, w.screen.availTop);
+          // das „+“ selbst 26 px vor dem Bildschirmrand wie im maximierten Fenster unter macOS (unter Linux/Windows
+          // liegt es wegen Menü und Fensterknöpfen weiter innen, Gecko klappte das Popover dort nie um)
+          await pause(800); const nb = d.getElementById("mcTodayNew");
+          if (!w.TodayPane.isVisible) { d.getElementById("mcTodayToggle").click(); await pause(900); }
+          const shift = w.screen.availLeft + w.screen.availWidth - 26 - (w.mozInnerScreenX + nb.getBoundingClientRect().right);
+          if (Math.abs(shift) > 2) { w.moveTo(w.screenX + Math.round(shift), w.screen.availTop); await pause(800); }
+          out.edge = await measure();
           w.moveTo(sx, sy); w.resizeTo(sw, sh); await pause(800);
           out.token = colorOf(d, "var(--mt-popover-bg)", "backgroundColor");
           return out;""")
@@ -2918,6 +2940,8 @@ def run_checks(m, version, profile, results):
         # Kontakt bearbeiten wie Apple Kontakte: eine Schrift, Überschriften über den Feldern,
         # volle Breite; zuerst nur Vor-/Nachname, E-Mail, Telefon, Adressen und Ausgefülltes
         res = m.js(ADDRESS_EDIT_JS + r"""
+          // unter Last kommen die „Mehr“-Knöpfe erst nach den festen Wartezeiten dazu
+          await until(() => ad.querySelector("#addr-book-edit-n .mc-more-button") && ad.querySelector("vcard-edit + .mc-more-button"), 6000);
           const font = ab.getComputedStyle(ad.documentElement).getPropertyValue("--mt-font").trim().split(",")[0];
           const ve = ad.querySelector("#editContactForm vcard-edit");
           const scroll = ve.parentElement;
