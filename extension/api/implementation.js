@@ -1328,8 +1328,12 @@ class ConversationCards {
       box.append(note);
     }
     const own = this.ownAddresses();
+    // eigene Mail: in einem Gesendet-Ordner oder von einer eigenen Adresse
     const ownMail = m => {
       try {
+        if (m.folder?.getFlag(Ci.nsMsgFolderFlags.SentMail)) {
+          return true;
+        }
         return own.has((MailServices.headerParser.parseDecodedHeader(m.mime2DecodedAuthor || m.author)[0]?.email || "").toLowerCase());
       } catch {
         return false;

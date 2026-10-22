@@ -677,16 +677,21 @@ def maillist_checks(m, results):
           const unread = () => cards().find(c => !props(c).includes("dummy") && props(c).includes("unread") && !c.classList.contains("selected"));
           const read = () => cards().find(c => !props(c).includes("dummy") && !props(c).includes("unread") && !c.classList.contains("selected"));
           const bg = r => r ? cs(r.querySelector(".card-container")).backgroundColor : null;
+          let selHdr = null;
           const out = { off: { unread: bg(unread()), read: bg(read()) } };
           Services.prefs.setBoolPref("extensions.mailcards.unreadTint", true); await wait(800);
           try {
             out.on = { unread: bg(unread()), read: bg(read()) };
-            const sel = cards().find(c => !props(c).includes("dummy") && props(c).includes("unread"));
-            a3.threadTree.selectedIndex = a3.threadTree.view.rowCount > 0 ? [...Array(a3.threadTree.view.rowCount).keys()].find(i => a3.threadTree.getRowAtIndex(i) == sel) ?? -1 : -1;
+            sel = cards().find(c => !props(c).includes("dummy") && props(c).includes("unread"));
+            const idx = a3.threadTree.view.rowCount > 0 ? [...Array(a3.threadTree.view.rowCount).keys()].find(i => a3.threadTree.getRowAtIndex(i) == sel) ?? -1 : -1;
+            selHdr = idx >= 0 ? a3.gDBView.getMsgHdrAt(idx) : null;
+            a3.threadTree.selectedIndex = idx;
             await wait(400);
             out.selected = sel ? bg(sel) : null; out.selUnread = sel ? props(sel).includes("unread") : null;
           } finally {
             Services.prefs.clearUserPref("extensions.mailcards.unreadTint"); a3.threadTree.selectedIndex = -1; await wait(500);
+            // die ausgewählte Mail wurde dabei gelesen – für die folgenden Prüfungen wieder ungelesen
+            if (selHdr) { selHdr.folder.markMessagesRead([selHdr], false); await wait(500); }
           }
           out.after = bg(unread());
           return out;""")
