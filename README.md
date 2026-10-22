@@ -41,14 +41,15 @@ Features
 
 Personal data in the screenshots is blurred.
 
-3.2.0 Release Notes
+3.3.0 Release Notes
 --------
-- **Contacts like Apple Contacts**: a much larger photo when viewing a contact; editing shows headings above the fields and one card per group – first and last name side by side, then email, phone and addresses. Prefix, middle name, suffix, nickname and display name sit behind "More name fields", rarely used groups behind "More fields"; anything already filled in always stays visible. The edit photo shows the initials and follows the name as you type; the details keep a minimum width so nothing gets pushed out of view
-- **One-click unsubscribe**: for mailing lists that support it (e.g. Google), "Unsubscribe" asks once and unsubscribes directly instead of opening an empty browser page, then shows "Unsubscribed"
-- **Gmail**: read/unread now applies right away to the copies in the other label folders (Important, All Mail …); folders with unread mail are checked every 5 minutes, so mail read on your phone or on the web no longer stays unread
-- **Message cards and header**: senders without a name show the name from their domain like Apple Mail ("rueckgabe@amazon.de" becomes "Amazon"); dates before yesterday are shown in full; card content is centred vertically
-- **Status bar**: flat and slim (22 px) with small text and icons, without the Today pane button; in Mail the sidebar grey runs down to the bottom edge
-- Today pane: showing and hiding it is smooth; "+" → New Event opens the quick window fully on screen instead of cut off at the right edge
+- **A design pass over every window**: message list, reading pane, compose window, folder pane, menus, calendar, tasks, contacts, chat, settings, account settings, add-ons and the rarer dialogs now follow Apple Mail, Calendar and Contacts throughout – hairlines instead of hard frames, flat buttons and fields of one height, the system accent colour, and in dark mode the window colour instead of blue-black or white islands. Nothing is cut off in narrow windows any more
+- **Calendar and tasks**: week headers and multi-day events show their full text; event and task dialogs, the quick window and its date picker in macOS style; completed tasks upright with a check in the accent colour, overdue tasks red again, clear texts when a view is empty
+- **Quick event window understands more**: "Meeting tomorrow for 2h" becomes a two-hour event, "Party 11-1am" runs from 23:00 to 01:00, night shifts like "18-7" end the next morning, "Friday morning 8" means Friday, two-digit years stay as written
+- **Message list**: delete and archive on a card can be undone with Cmd+Z; new or renamed accounts get their colour dot right away; mail dated in the future shows the full date; favourites keep the names of subfolders
+- **One-click unsubscribe** also works on Thunderbird 128 and when the list redirects to a confirmation page; an unsubscribe mail is sent from the address the list mail went to
+- **Reliability**: disabling or updating without a restart leaves nothing behind; with several main windows each keeps its own Today pane and "+" button; contact photos stay off once turned off; sender logos never contact devices on your local network
+- Today pane: the "+" popover points at the button even when the window touches the right edge of the screen
 
 See [Releases](https://github.com/sruf79/halo-spaces/releases) for all versions.
 
