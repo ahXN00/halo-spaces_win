@@ -4552,7 +4552,8 @@ def run_checks(m, version, profile, results):
           const status = hw ? hw.getComputedStyle(hw.document.getElementById("update-status")).color : null;
           // Fotos/Emojis stehen nur noch auf der Einstellungsseite
           const toggles = hw ? ["photos", "emoji"].filter(id => hw.document.getElementById(id)) : null;
-          // „Settings…“ öffnet Einstellungen → halo.spaces
+          // „Settings…“ öffnet Einstellungen → halo.spaces – auch wenn schon ein Einstellungs-Tab offen ist
+          w.openPreferencesTab("paneGeneral"); await wait(1500); await toMail(); await wait(300);
           hw?.document.getElementById("settings")?.click();
           const pw = await until(() => tm.currentTabInfo.mode.name == "preferencesTab" && tm.currentTabInfo.browser?.contentWindow?.document.getElementById("categories")?.selectedItem?.value == "paneMcHalo" && tm.currentTabInfo.browser.contentWindow, 8000);
           const settings = !!pw; if (pw) tm.closeTab(tm.currentTabInfo);

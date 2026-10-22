@@ -1076,8 +1076,15 @@ function hookPrefCategories(cw, restorers = null) {
 // Einstellungen → halo.spaces öffnen (Info-Fenster, Begrüßung): Thunderbird
 // springt beim Öffnen sofort zur Kategorie, die gibt es erst kurz danach
 async function openHaloSettings(w) {
-  const pw = await w.openPreferencesTab?.("paneGeneral");
-  for (let i = 0; pw && i < 50 && !pw.document?.getElementById("mcCat-" + HALO_PANE); i++) {
+  // (das Versprechen von openPreferencesTab erfüllt sich nur bei einem neuen
+  // Tab – ist schon einer offen, wechselt Thunderbird nur dorthin)
+  w.openPreferencesTab?.("paneGeneral");
+  const prefsWindow = () => {
+    const tab = w.document.getElementById("tabmail")?.currentTabInfo;
+    return tab?.mode?.name == "preferencesTab" ? tab.browser?.contentWindow : null;
+  };
+  let pw = null;
+  for (let i = 0; i < 80 && !(pw = prefsWindow())?.document?.getElementById("mcCat-" + HALO_PANE); i++) {
     await new Promise(r => setTimeout(r, 100));
   }
   pw?.gotoPref?.(HALO_PANE);
