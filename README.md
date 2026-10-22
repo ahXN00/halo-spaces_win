@@ -41,15 +41,15 @@ Features
 
 Personal data in the screenshots is blurred.
 
-3.3.0 Release Notes
+3.4.0 Release Notes
 --------
-- **A design pass over every window**: message list, reading pane, compose window, folder pane, menus, calendar, tasks, contacts, chat, settings, account settings, add-ons and the rarer dialogs now follow Apple Mail, Calendar and Contacts throughout – hairlines instead of hard frames, flat buttons and fields of one height, the system accent colour, and in dark mode the window colour instead of blue-black or white islands. Nothing is cut off in narrow windows any more
-- **Calendar and tasks**: week headers and multi-day events show their full text; event and task dialogs, the quick window and its date picker in macOS style; completed tasks upright with a check in the accent colour, overdue tasks red again, clear texts when a view is empty
-- **Quick event window understands more**: "Meeting tomorrow for 2h" becomes a two-hour event, "Party 11-1am" runs from 23:00 to 01:00, night shifts like "18-7" end the next morning, "Friday morning 8" means Friday, two-digit years stay as written
-- **Message list**: delete and archive on a card can be undone with Cmd+Z; new or renamed accounts get their colour dot right away; mail dated in the future shows the full date; favourites keep the names of subfolders
-- **One-click unsubscribe** also works on Thunderbird 128 and when the list redirects to a confirmation page; an unsubscribe mail is sent from the address the list mail went to
-- **Reliability**: disabling or updating without a restart leaves nothing behind; with several main windows each keeps its own Today pane and "+" button; contact photos stay off once turned off; sender logos never contact devices on your local network
-- Today pane: the "+" popover points at the button even in a maximised window or when the window touches the right edge of the screen
+- **Whole conversations like Apple Mail**: selecting a message shows the entire conversation – received mails and your own replies from Sent, newest first, each one in full. Collapsed threads show the same instead of a text summary. Can be turned off in Settings → halo.spaces
+- **Settings → halo.spaces**: all options now live in Thunderbird's settings. Account Settings and Add-ons and Themes open there too, with the sidebar staying in place; the help window links to it. New installs get a short welcome and are switched to *System theme – auto*
+- **Search like Apple Mail**: the search field searches the selected folder, a unified folder searches all mailboxes; switching folders keeps searching there, and the placeholder says where ("Search Sent", "Search Calendar" …). Scrolling through results stays smooth while previews load
+- **Message list**: card view, classic table or wide table in one menu; optional light accent tint behind unread mail; the time no longer touches the edge of the selection; quick filter labels no longer overlap their icons; folders light up while you drag mail onto them; the Unsubscribe button disappears once you have unsubscribed
+- **Calendar and contacts**: date and time in one popover like Apple Calendar; the "Invite Attendees" window is restyled; contact cards show only name or company, sized like the mail cards
+- **Everywhere**: the sidebar slides in and out smoothly in every space; "Increase contrast" in the macOS accessibility settings is respected; optional design loading before the first window, so the old look never flashes at start
+- Account settings no longer go blank when the sidebar is hidden
 
 See [Releases](https://github.com/sruf79/halo-spaces/releases) for all versions.
 
