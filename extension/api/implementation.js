@@ -208,6 +208,8 @@ const DE = {
   "Table View": "Tabellenansicht",
   "Dialogs inside the window": "Dialoge im Fenster",
   "questions appear as a sheet at the top of the window, dialogs without title bar; for newly opened windows": "Nachfragen erscheinen als Kachel oben im Fenster, Dialoge ohne Titelleiste; für neu geöffnete Fenster",
+  "Hide “Collected Addresses”": "„Collected Addresses“ ausblenden",
+  "in the address book sidebar, like Apple Contacts – completion while writing keeps working": "in der Seitenleiste des Adressbuchs, wie in Apple Kontakte – die Ergänzung beim Schreiben bleibt",
 };
 const FR = {
   "Install version {v}": "Installer la version {v}",
@@ -387,6 +389,8 @@ const FR = {
   "Table View": "Vue tableau",
   "Dialogs inside the window": "Dialogues dans la fenêtre",
   "questions appear as a sheet at the top of the window, dialogs without title bar; for newly opened windows": "les questions s’affichent en haut de la fenêtre, dialogues sans barre de titre ; pour les fenêtres nouvellement ouvertes",
+  "Hide “Collected Addresses”": "Masquer « Collected Addresses »",
+  "in the address book sidebar, like Apple Contacts – completion while writing keeps working": "dans la barre latérale du carnet d’adresses, comme Contacts d’Apple – la saisie automatique reste active",
 };
 const ES = {
   "Install version {v}": "Instalar la versión {v}",
@@ -566,6 +570,8 @@ const ES = {
   "Table View": "Vista de tabla",
   "Dialogs inside the window": "Diálogos dentro de la ventana",
   "questions appear as a sheet at the top of the window, dialogs without title bar; for newly opened windows": "las preguntas aparecen arriba en la ventana, diálogos sin barra de título; para ventanas nuevas",
+  "Hide “Collected Addresses”": "Ocultar “Collected Addresses”",
+  "in the address book sidebar, like Apple Contacts – completion while writing keeps working": "en la barra lateral de la libreta de direcciones, como Contactos de Apple – el autocompletado sigue funcionando",
 };
 const IT = {
   "Install version {v}": "Installa la versione {v}",
@@ -745,6 +751,8 @@ const IT = {
   "Table View": "Vista tabella",
   "Dialogs inside the window": "Finestre di dialogo nella finestra",
   "questions appear as a sheet at the top of the window, dialogs without title bar; for newly opened windows": "le domande appaiono in alto nella finestra, finestre di dialogo senza barra del titolo; per le finestre aperte di nuovo",
+  "Hide “Collected Addresses”": "Nascondi “Collected Addresses”",
+  "in the address book sidebar, like Apple Contacts – completion while writing keeps working": "nella barra laterale della rubrica, come Contatti di Apple – il completamento automatico continua a funzionare",
 };
 const TRANSLATIONS = { de: DE, fr: FR, es: ES, it: IT };
 // tr("+{n} more", { n: 3 }) – Platzhalter in geschweiften Klammern
@@ -1848,6 +1856,48 @@ function relinkTaskTree(win, restorers) {
   restorers?.push(() => {
     proto.setTree = orig;
     delete proto.__mcRelink;
+  });
+}
+
+// Adressbuch: „Collected Addresses“ (automatisch gesammelte Empfänger) nicht
+// in der Seitenleiste – Apple Kontakte kennt so etwas nicht (Apple Mail führt
+// sie getrennt als „Frühere Empfänger“). Das Adressbuch selbst bleibt, die
+// Ergänzung beim Schreiben funktioniert weiter. Einstellung, Standard: aus.
+const HIDE_COLLECTED_PREF = "extensions.mailcards.hideCollectedAddresses";
+
+function hookCollectedAddresses(cw, restorers) {
+  const doc = cw.document;
+  const books = cw.booksList;
+  if (!books || books.__mcCollected) {
+    return;
+  }
+  books.__mcCollected = true;
+  const { MailServices } = ChromeUtils.importESModule("resource:///modules/MailServices.sys.mjs");
+  const mark = () => {
+    const hide = Services.prefs.getBoolPref(HIDE_COLLECTED_PREF, true);
+    doc.documentElement.toggleAttribute("mc-hide-collected", hide);
+    let uid = null;
+    try {
+      uid = MailServices.ab.directories.find(d => d.dirPrefId == "ldap_2.servers.history")?.UID;
+    } catch {}
+    for (const row of books.querySelectorAll(":scope > li")) {
+      row.toggleAttribute("data-mc-collected", !!uid && row.dataset.uid == uid);
+    }
+    // war das gesammelte Buch gewählt: auf „Alle Adressbücher“ wechseln
+    if (hide && books.selectedRow?.hasAttribute("data-mc-collected")) {
+      books.selectedIndex = 0;
+    }
+  };
+  const mo = new cw.MutationObserver(mark);
+  mo.observe(books, { childList: true });
+  const prefObs = () => mark();
+  Services.prefs.addObserver(HIDE_COLLECTED_PREF, prefObs);
+  mark();
+  restorers?.push(() => {
+    mo.disconnect();
+    Services.prefs.removeObserver(HIDE_COLLECTED_PREF, prefObs);
+    doc.documentElement.removeAttribute("mc-hide-collected");
+    delete books.__mcCollected;
   });
 }
 
@@ -6051,6 +6101,11 @@ class CardEnhancer {
             hookSplitterReset(cw.document);
           } catch (e) {
             log("avatar fix error", e);
+          }
+          try {
+            hookCollectedAddresses(cw, winRestorers);
+          } catch (e) {
+            log("collected addresses error", e);
           }
           try {
             hookPhotoDialog(cw, winRestorers);
@@ -11722,6 +11777,7 @@ const SETTINGS = {
   plainTextSystemFont: [PLAIN_TEXT_PREF, "bool", true],
   autoUpdate: [AUTO_UPDATE_PREF, "bool", true],
   hideDuplicateContacts: ["extensions.mailcards.hideDuplicateContacts", "bool", true],
+  hideCollectedAddresses: [HIDE_COLLECTED_PREF, "bool", true],
   calendarOffline: ["extensions.mailcards.calendarOffline", "bool", false],
   appleIcons: ["extensions.mailcards.appleIcons", "bool", true],
   bundledTheme: ["extensions.mailcards.bundledTheme", "bool", true],

@@ -4543,6 +4543,26 @@ def run_checks(m, version, profile, results):
         return ok, f"{res}"
     check("Adressbuch: Kontaktfoto mit „Choose…“, rundem Ausschnitt ohne Eckgriffe und Zoom-Regler darunter", photo_dialog, results)
 
+    def collected_hidden():
+        # „Collected Addresses“ nicht in der Seitenleiste des Adressbuchs; ausgeschaltet wieder sichtbar
+        res = m.js(r"""
+          tm.openTab("addressBookTab", {}); await wait(2000);
+          const ab = tm.currentTabInfo.browser.contentWindow, ad = ab.document;
+          const { MailServices } = ChromeUtils.importESModule("resource:///modules/MailServices.sys.mjs");
+          const uid = MailServices.ab.directories.find(x => x.dirPrefId == "ldap_2.servers.history")?.UID;
+          const row = () => ad.querySelector(`#books > li[data-uid="${uid}"]`);
+          const vis = () => !!row() && row().getBoundingClientRect().height > 0;
+          const out = { uid: !!uid, hidden: !vis(), pab: [...ad.querySelectorAll("#books > li")].some(r => r.getBoundingClientRect().height > 0 && r.dataset.uid != uid) };
+          Services.prefs.setBoolPref("extensions.mailcards.hideCollectedAddresses", false); await wait(400);
+          out.shownWhenOff = vis();
+          Services.prefs.clearUserPref("extensions.mailcards.hideCollectedAddresses"); await wait(400);
+          out.hiddenAgain = !vis();
+          tm.closeTab(tm.currentTabInfo); await wait(400);
+          return out;""")
+        ok = res["uid"] and res["hidden"] and res["pab"] and res["shownWhenOff"] and res["hiddenAgain"]
+        return ok, f"{res}"
+    check("Adressbuch: „Collected Addresses“ nicht in der Seitenleiste (abschaltbar)", collected_hidden, results)
+
     def contact_edit():
         # Kontakt bearbeiten wie Apple Kontakte: eine Schrift, Überschriften über den Feldern,
         # volle Breite; zuerst nur Vor-/Nachname, E-Mail, Telefon, Adressen und Ausgefülltes

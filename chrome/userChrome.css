@@ -11104,4 +11104,10 @@ notification-message toolbarbutton.notification-button > .toolbarbutton-menubutt
   min-height: 38px !important;
   -moz-window-dragging: drag;
 }
+
+/* Adressbuch: „Collected Addresses“ nicht in der Seitenleiste (Erweiterung
+   markiert die Zeile, abschaltbar) */
+:root[mc-hide-collected] #books > li[data-mc-collected] {
+  display: none !important;
+}
 /* ==== Ende Bereiche ==== */

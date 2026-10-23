@@ -28,6 +28,8 @@ const SECTIONS = () => [
       hint: t("like Apple Mail; messages with their own font keep it – off: Thunderbird’s fonts") },
     { key: "hideDuplicateContacts", label: t("Merge duplicate contacts"),
       hint: t("display only") },
+    { key: "hideCollectedAddresses", label: t("Hide “Collected Addresses”"),
+      hint: t("in the address book sidebar, like Apple Contacts – completion while writing keeps working") },
   ]],
   [t("Calendar"), [
     { key: "calendarEmoji", label: t("Emojis before event titles"),
