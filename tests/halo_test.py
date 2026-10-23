@@ -2599,7 +2599,8 @@ def calendar_checks(m, results):
         res = m.js(CAL_CHECK_JS + r"""
           for (const x of [...Services.wm.getEnumerator(null)]) if (!x.location.href.includes("messenger.xhtml")) x.close();
           const c = testCalendar(); const e = new CalEvent(); e.title = "Halo Dialogtermin"; e.calendar = c;
-          const s = cal.dtz.now(); s.minute = 0; s.second = 0; const en = s.clone(); en.hour += 1; e.startDate = s; e.endDate = en;
+          // feste Tageszeit: abends läge das Ende sonst nach Mitternacht und die Dauer (nur über die Uhrzeit) würde negativ
+          const s = cal.dtz.now(); s.hour = 10; s.minute = 0; s.second = 0; const en = s.clone(); en.hour += 1; e.startDate = s; e.endDate = en;
           e.setProperty("DESCRIPTION", "Erfundene Beschreibung zum Test."); const saved = await c.addItem(e);
           const out = {};
           let dw = null;
