@@ -4275,7 +4275,7 @@ def run_checks(m, version, profile, results):
           const out = { button: vis(btn), sidebarList: vis(d.getElementById("task-filtertree-pane")) || vis(d.getElementById("task-tree-filter-header")),
                         leftOfSearch: btn && Math.round(d.querySelector('#unifiedToolbarContent > li[item-id="search-bar"]').getBoundingClientRect().left - btn.getBoundingClientRect().right) };
           btn?.click(); await until(() => popup?.state == "open", 2000); await wait(300);
-          const entries = [...(popup?.children || [])];
+          const entries = [...(popup?.children || [])].filter(i => i.getAttribute("name") == "mctaskfilter");
           out.items = entries.length; out.checked = entries.filter(i => i.getAttribute("checked") == "true").length;
           const today = entries.find(i => /today/i.test(i.getAttribute("label")));
           popup?.activateItem?.(today) ?? today?.doCommand(); await wait(500); popup?.hidePopup(); await wait(200);
@@ -5225,6 +5225,86 @@ def run_checks(m, version, profile, results):
               and res["button"][0] == "999px" and h.get("readOnly") and h.get("dy") is not None and abs(h["dy"]) <= 3 and 0 <= h["dx"] <= 20)
         return ok, f"{res}"
     check("Aufgaben: Leeranzeige, iCloud-Platzhalter ausgeblendet, Hinweis neben dem Plus, Kapseln", tasks_view, results)
+
+    def task_view_choice():
+        # Aufgaben wie die Mailliste: „Listenansicht“ (Details rechts, nur Erledigt/Titel/Fälligkeit) oder „Tabellenansicht“
+        # (alle Spalten, Details unten) im Filtermenü; im schmalen Fenster Details auch in der Liste unten
+        res = m.js(r"""
+          w.resizeTo(1500, 900); await wait(400);
+          const c = testCalendar();
+          const todo = new CalTodo(); todo.title = "Halo Ansichtsaufgabe"; todo.calendar = c; const saved = await c.addItem(todo);
+          tm.openTab("tasks", {}); await wait(1500);
+          const tree = d.getElementById("calendar-task-tree"), det = d.getElementById("calendar-task-details-container");
+          await until(() => tree.mTreeView.rowCount > 0, 4000); tree.mTreeView.selection?.select(0); await wait(600);
+          const btn = d.querySelector("#mcTaskFilter > button"), popup = d.getElementById("mcTaskFilterPopup");
+          const pick = async view => { btn.click(); await until(() => popup.state == "open", 2000); await wait(200);
+            const it = popup.querySelector(`menuitem[data-view="${view}"]`); popup.activateItem?.(it) ?? it.doCommand(); await wait(600); popup.hidePopup(); await wait(200); };
+          const cols = () => [...tree.querySelectorAll("treecol[itemproperty]")].filter(c => !c.hidden).map(c => c.getAttribute("itemproperty"));
+          const geo = () => { const t = tree.getBoundingClientRect(), r = det.getBoundingClientRect();
+            return { right: r.left >= t.right - 1 && Math.abs(r.top - t.top) < 40, below: r.top >= t.bottom - 1, detW: Math.round(r.width) }; };
+          const out = { start: Services.prefs.getCharPref("extensions.mailcards.taskView", "list") };
+          btn.click(); await until(() => popup.state == "open", 2000); await wait(200);
+          out.menu = [...popup.children].slice(0, 3).map(i => i.localName == "menuseparator" ? "-" : i.dataset.view || i.getAttribute("label"));
+          popup.hidePopup(); await wait(200);
+          await pick("table"); out.table = { cols: cols(), ...geo(), side: d.documentElement.hasAttribute("mc-task-side") };
+          await pick("list"); out.list = { cols: cols(), ...geo(), side: d.documentElement.hasAttribute("mc-task-side") };
+          w.resizeTo(820, 900); await wait(900);
+          const boxW = Math.round(tree.parentElement.getBoundingClientRect().width);
+          out.narrow = { boxW, side: d.documentElement.hasAttribute("mc-task-side"), ...geo() };
+          w.resizeTo(1500, 900); await wait(900); out.wideAgain = d.documentElement.hasAttribute("mc-task-side");
+          await pick("table"); out.tableAgain = cols();
+          await pick(out.start);
+          try { await c.deleteItem(saved); } catch {}
+          for (const t of [...tm.tabInfo].slice(1)) tm.closeTab(t);
+          return out;""")
+        t, l, n = res["table"], res["list"], res["narrow"]
+        ok = (res["menu"] == ["list", "table", "-"]
+              and not t["side"] and t["below"] and "priority" in t["cols"]
+              and l["side"] and l["right"] and l["cols"] == ["completed", "title", "dueDate"] and l["detW"] >= 300
+              and (n["side"] == (n["boxW"] >= 760)) and (n["side"] or n["below"]) and res["wideAgain"]
+              and res["tableAgain"] == t["cols"])
+        return ok, f"{res}"
+    check("Aufgaben: Listenansicht mit Details rechts und wenigen Spalten, Tabellenansicht wie bisher, Wahl im Filtermenü, schmal Details unten", task_view_choice, results)
+
+    def alarm_dialog():
+        # Erinnerung wie in Apple Kalender: Kalendersymbol mit Monat und Tag, keine graue Kachel, „Alle“-Knöpfe nur bei mehreren
+        res = m.js(r"""
+          const { CalEvent } = ChromeUtils.importESModule("resource:///modules/CalEvent.sys.mjs");
+          const { CalAlarm } = ChromeUtils.importESModule("resource:///modules/CalAlarm.sys.mjs");
+          const c = testCalendar();
+          const mk = async (title, day) => { const e = new CalEvent(); e.title = title; e.calendar = c;
+            e.startDate = cal.createDateTime(`2026121${day}T140000`); e.endDate = cal.createDateTime(`2026121${day}T150000`);
+            const a = new CalAlarm(); a.related = Ci.calIAlarm.ALARM_RELATED_START; a.offset = cal.createDuration("-PT15M"); a.action = "DISPLAY"; e.addAlarm(a);
+            return c.addItem(e); };
+          const e1 = await mk("Halo Erinnerung", 5), e2 = await mk("Halo Erinnerung 2", 6);
+          const arg = { window_onLoad() {} }; arg.wrappedJSObject = arg;
+          const dlg = w.openDialog("chrome://calendar/content/calendar-alarm-dialog.xhtml", "_blank", "chrome,dialog=no,all,resizable", arg);
+          await until(() => dlg.document?.readyState == "complete" && typeof dlg.addWidgetFor == "function", 5000); await wait(400);
+          const doc = dlg.document, cs = el => dlg.getComputedStyle(el);
+          const out = {};
+          try {
+            dlg.addWidgetFor(e1, e1.getAlarms()[0]); await wait(700);
+            const item = doc.querySelector("#alarm-richlist > richlistitem");
+            const box = item?.querySelector(".mc-alarm-date");
+            out.one = { month: box?.firstChild?.textContent, day: box?.lastChild?.textContent, img: item ? cs(item.querySelector(".alarm-calendar-image")).display : null,
+                        bg: item ? cs(item).backgroundColor : null, allBar: cs(doc.getElementById("alarm-actionbar")).display,
+                        card: doc.documentElement.hasAttribute("mc-alarm-card"), monthColor: box ? cs(box.firstChild).color : null,
+                        fits: item ? item.getBoundingClientRect().bottom <= dlg.innerHeight + 1 : false };
+            dlg.addWidgetFor(e2, e2.getAlarms()[0]); await wait(700);
+            out.two = { allBar: cs(doc.getElementById("alarm-actionbar")).display, days: [...doc.querySelectorAll(".mc-alarm-day")].map(e => e.textContent).sort() };
+          } finally {
+            dlg.close(); await wait(300);
+            for (const e of [e1, e2]) { try { await c.deleteItem(e); } catch {} }
+          }
+          out.mac = Services.appinfo.OS == "Darwin";
+          return out;""")
+        o, t = res.get("one", {}), res.get("two", {})
+        ok = (o.get("day") == "15" and (o.get("month") or "").lower().startswith("dec") and o.get("img") == "none"
+              and rgba_alpha(o.get("bg") or "rgb(0,0,0)") <= 0.06 and o.get("allBar") == "none"
+              and o.get("card") == res["mac"] and o.get("fits") and same_color(o.get("monthColor"), "rgb(255, 59, 48)")
+              and t.get("allBar") != "none" and t.get("days") == ["15", "16"])
+        return ok, f"{res}"
+    check("Kalender: Erinnerung wie in Apple Kalender (Symbol mit Monat und Tag, ohne graue Kachel, „Alle“-Knöpfe nur bei mehreren)", alarm_dialog, results)
 
     def tasks_details():
         # Aufgaben: Beschreibung im Detailbereich in Systemschrift 13 px ohne Body-Rand, dunkel hell lesbar (früher schwarz

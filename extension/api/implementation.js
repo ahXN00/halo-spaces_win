@@ -204,6 +204,8 @@ const DE = {
   "Filter Tasks": "Aufgaben filtern",
   "Choose…": "Auswählen …",
   "Zoom": "Zoomen",
+  "List View": "Listenansicht",
+  "Table View": "Tabellenansicht",
 };
 const FR = {
   "Install version {v}": "Installer la version {v}",
@@ -379,6 +381,8 @@ const FR = {
   "Filter Tasks": "Filtrer les tâches",
   "Choose…": "Choisir…",
   "Zoom": "Zoom",
+  "List View": "Vue liste",
+  "Table View": "Vue tableau",
 };
 const ES = {
   "Install version {v}": "Instalar la versión {v}",
@@ -554,6 +558,8 @@ const ES = {
   "Filter Tasks": "Filtrar tareas",
   "Choose…": "Elegir…",
   "Zoom": "Zoom",
+  "List View": "Vista de lista",
+  "Table View": "Vista de tabla",
 };
 const IT = {
   "Install version {v}": "Installa la versione {v}",
@@ -729,6 +735,8 @@ const IT = {
   "Filter Tasks": "Filtra attività",
   "Choose…": "Scegli…",
   "Zoom": "Zoom",
+  "List View": "Vista elenco",
+  "Table View": "Vista tabella",
 };
 const TRANSLATIONS = { de: DE, fr: FR, es: ES, it: IT };
 // tr("+{n} more", { n: 3 }) – Platzhalter in geschweiften Klammern
@@ -1522,6 +1530,126 @@ function unsubscribeKey(data, hdr) {
 // nur ein kleines Popover mit dem Uhrzeitfeld (Stunden/Minuten, Pfeiltasten,
 // Mausrad) statt Thunderbirds Stundenraster. Werte gehen in die vorhandenen
 // Felder zurück – Dauer, Zeitzone und „Ganztägig“ regelt weiter Thunderbird
+// Aufgaben-Ansicht wie die Mailliste wählbar: „Liste“ (Standard) mit den
+// Details rechts neben der Liste und nur Erledigt/Titel/Fälligkeit, „Tabelle“
+// wie bisher mit allen Spalten und den Details darunter. In schmalen Fenstern
+// rutschen die Details auch in der Liste wieder unter die Liste.
+const TASK_VIEW_PREF = "extensions.mailcards.taskView";
+const TASK_COLUMNS_PREF = "extensions.mailcards.taskTableColumns";
+const TASK_DETAILS_WIDTH_PREF = "extensions.mailcards.taskDetailsWidth";
+const TASK_LIST_COLUMNS = ["completed", "title", "dueDate"];
+const TASK_SIDE_MIN = 760; // Liste 360 + Details 360 + Teiler/Luft
+
+function taskView() {
+  return Services.prefs.getCharPref(TASK_VIEW_PREF, "list") == "table" ? "table" : "list";
+}
+
+function applyTaskView(win, mode = taskView()) {
+  const doc = win.document;
+  const tree = doc.getElementById("calendar-task-tree");
+  const splitter = doc.getElementById("calendar-task-view-splitter");
+  const details = doc.getElementById("calendar-task-details-container");
+  const box = tree?.parentElement;
+  if (!tree || !splitter || !details || !box) {
+    return;
+  }
+  const root = doc.documentElement;
+  const list = mode == "list";
+  // Spalten: in der Liste nur Erledigt, Titel, Fälligkeit; die Auswahl der
+  // Tabelle wird gemerkt und beim Zurückschalten wiederhergestellt
+  const cols = [...tree.querySelectorAll("treecol[itemproperty]")];
+  const key = c => c.getAttribute("itemproperty");
+  if (cols.length) {
+    const state = tree.dataset.mcCols || "table";
+    if (list && state != "list") {
+      const shown = cols.filter(c => !c.hidden).map(key);
+      // nach einem Neustart zeigt die Liste schon die Listenspalten (Thunderbird
+      // merkt sich die sichtbaren Spalten) – dann die gemerkte Tabelle behalten
+      if (!shown.every(k => TASK_LIST_COLUMNS.includes(k)) || !Services.prefs.prefHasUserValue(TASK_COLUMNS_PREF)) {
+        Services.prefs.setCharPref(TASK_COLUMNS_PREF, JSON.stringify(shown));
+      }
+      for (const c of cols) {
+        c.hidden = !TASK_LIST_COLUMNS.includes(key(c));
+      }
+    } else if (!list && state == "list") {
+      let shown = null;
+      try {
+        shown = JSON.parse(Services.prefs.getCharPref(TASK_COLUMNS_PREF, "null"));
+      } catch {}
+      if (Array.isArray(shown) && shown.length) {
+        for (const c of cols) {
+          c.hidden = !shown.includes(key(c));
+        }
+      }
+    }
+    tree.dataset.mcCols = list ? "list" : "table";
+  }
+  root.toggleAttribute("mc-task-list", list);
+  const side = list && box.getBoundingClientRect().width >= TASK_SIDE_MIN;
+  if (side == root.hasAttribute("mc-task-side")) {
+    return;
+  }
+  root.toggleAttribute("mc-task-side", side);
+  if (side) {
+    details.dataset.mcHeight = details.style.height || "";
+    details.style.removeProperty("height");
+    details.style.width = Services.prefs.getIntPref(TASK_DETAILS_WIDTH_PREF, 380) + "px";
+    splitter.setAttribute("orient", "horizontal");
+  } else {
+    details.style.removeProperty("width");
+    if (details.dataset.mcHeight != null) {
+      details.style.height = details.dataset.mcHeight || "50%";
+      delete details.dataset.mcHeight;
+    }
+    splitter.setAttribute("orient", "vertical");
+  }
+}
+
+function setTaskView(win, key) {
+  Services.prefs.setCharPref(TASK_VIEW_PREF, key);
+  applyTaskView(win);
+}
+
+function hookTaskView(win, restorers) {
+  const doc = win.document;
+  const details = doc.getElementById("calendar-task-details-container");
+  const splitter = doc.getElementById("calendar-task-view-splitter");
+  if (!details || !splitter || splitter.__mcTaskView) {
+    return;
+  }
+  splitter.__mcTaskView = true;
+  const apply = () => {
+    try {
+      applyTaskView(win);
+    } catch (e) {
+      log("task view error", e);
+    }
+  };
+  // Breite der Details merken, wenn der Teiler in der Listenansicht gezogen wurde
+  const onUp = () => win.setTimeout(() => {
+    if (doc.documentElement.hasAttribute("mc-task-side")) {
+      const wd = Math.round(details.getBoundingClientRect().width);
+      if (wd >= 300) {
+        Services.prefs.setIntPref(TASK_DETAILS_WIDTH_PREF, wd);
+      }
+    }
+  }, 0);
+  splitter.addEventListener("mouseup", onUp);
+  const ro = new win.ResizeObserver(() => apply());
+  ro.observe(details.parentElement);
+  const prefObs = () => apply();
+  Services.prefs.addObserver(TASK_VIEW_PREF, prefObs);
+  apply();
+  restorers?.push(() => {
+    ro.disconnect();
+    splitter.removeEventListener("mouseup", onUp);
+    Services.prefs.removeObserver(TASK_VIEW_PREF, prefObs);
+    delete splitter.__mcTaskView;
+    // Tabelle wiederherstellen (Spalten, Details unten), die Wahl bleibt gemerkt
+    applyTaskView(win, "table");
+  });
+}
+
 // Aufgabenliste: Thunderbird löst die Liste von den Kalendern, sobald sie kurz
 // nicht angezeigt wird (z. B. beim Ein-/Ausblenden der Today-Pane), verbindet
 // sie beim erneuten Anzeigen aber nur beim allerersten Mal wieder – danach
@@ -6278,7 +6406,19 @@ class CardEnhancer {
         if (event.target != popup) {
           return;
         }
-        popup.replaceChildren(...[...group.querySelectorAll("radio")].map(radio => {
+        const views = [["list", "List View"], ["table", "Table View"]].map(([key, label]) => {
+          const item = d.createXULElement("menuitem");
+          item.setAttribute("type", "radio");
+          item.setAttribute("name", "mctaskview");
+          item.setAttribute("label", tr(label));
+          item.dataset.view = key;
+          if (taskView() == key) {
+            item.setAttribute("checked", "true");
+          }
+          item.addEventListener("command", () => setTaskView(w, key));
+          return item;
+        });
+        popup.replaceChildren(...views, d.createXULElement("menuseparator"), ...[...group.querySelectorAll("radio")].map(radio => {
           const item = d.createXULElement("menuitem");
           item.setAttribute("type", "radio");
           item.setAttribute("name", "mctaskfilter");
@@ -6382,6 +6522,7 @@ class CardEnhancer {
       try {
         hookTaskFilter();
         relinkTaskTree(w, this.restorers);
+        hookTaskView(w, this.restorers);
       } catch (e) {
         log("task filter error", e);
       }
@@ -9461,6 +9602,45 @@ class CardEnhancer {
     }
   }
 
+  // Kalendersymbol wie das App-Symbol von Apple Kalender: Monat klein in Rot,
+  // darunter groß der Tag des Termins (bzw. der Aufgabe oder Erinnerung)
+  alarmDateIcon(dlg, item) {
+    try {
+      const doc = dlg.document;
+      const ev = item.item, alarm = item.alarm;
+      if (!ev) {
+        return;
+      }
+      let date = ev.startDate || ev.entryDate || ev.dueDate || alarm?.alarmDate;
+      if (!date) {
+        return;
+      }
+      date = date.getInTimezone(dlg.cal?.dtz?.defaultTimezone || date.timezone);
+      const key = `${date.year}-${date.month}-${date.day}`;
+      let box = item.querySelector(".mc-alarm-date");
+      if (box?.dataset.key == key) {
+        return;
+      }
+      if (!box) {
+        const X = "http://www.w3.org/1999/xhtml";
+        box = doc.createElementNS(X, "div");
+        box.className = "mc-alarm-date";
+        box.append(doc.createElementNS(X, "span"), doc.createElementNS(X, "span"));
+        box.firstChild.className = "mc-alarm-month";
+        box.lastChild.className = "mc-alarm-day";
+        const img = item.querySelector(".alarm-calendar-image");
+        (img?.parentNode || item).insertBefore(box, img || item.firstChild);
+      }
+      const js = new Date(date.year, date.month, date.day);
+      const locale = Services.locale.appLocaleAsBCP47;
+      box.dataset.key = key;
+      box.firstChild.textContent = new Intl.DateTimeFormat(locale, { month: "short" }).format(js).replace(/\.$/, "");
+      box.lastChild.textContent = String(date.day);
+    } catch (e) {
+      log("alarm icon error", String(e).slice(0, 120));
+    }
+  }
+
   fitAlarmDialog(dlg) {
     try {
       const doc = dlg.document;
@@ -9473,6 +9653,12 @@ class CardEnhancer {
           return;
         }
         const items = [...list.children].filter(i => i.getBoundingClientRect().height);
+        // wie Apple Kalender: „Alle …“-Knöpfe nur bei mehreren Erinnerungen,
+        // Datumssymbol (Monat/Tag) des Termins statt des Liniensymbols
+        doc.documentElement.toggleAttribute("mc-alarm-multi", list.children.length > 1);
+        for (const item of list.children) {
+          this.alarmDateIcon(dlg, item);
+        }
         if (!items.length) {
           return;
         }
@@ -9484,15 +9670,27 @@ class CardEnhancer {
           const ics = dlg.getComputedStyle(item);
           content += item.getBoundingClientRect().height + (parseFloat(ics.marginTop) || 0) + (parseFloat(ics.marginBottom) || 0);
         }
-        const rest = dlg.innerHeight - list.getBoundingClientRect().height;
+        // Fensterinhalt (Körper) statt Fensterhöhe: ohne Titelleiste ragt er sonst unten hinaus
+        const rest = Math.max(doc.body.getBoundingClientRect().height, dlg.innerHeight) - list.getBoundingClientRect().height;
         const inner = Math.ceil(rest + content);
         if (Math.abs(inner - dlg.innerHeight) >= 2) {
           dlg.resizeTo(dlg.outerWidth, dlg.outerHeight - dlg.innerHeight + inner);
         }
       };
+      // ohne sichtbare Titelleiste wie eine Mitteilung (macOS zeichnet die
+      // Fensterknöpfe weiter; die Fläche oben bleibt zum Verschieben)
+      if (Services.appinfo.OS == "Darwin") {
+        doc.documentElement.setAttribute("customtitlebar", "true");
+        doc.documentElement.setAttribute("chromemargin", "0,-1,-1,-1");
+        doc.documentElement.setAttribute("mc-alarm-card", "");
+      }
       fit();
       // Einträge kommen hinzu oder werden erledigt
       new dlg.MutationObserver(() => dlg.setTimeout(fit, 50)).observe(list, { childList: true });
+      // Texte eines Eintrags kommen erst nach dem Einfügen (Höhe wächst) – nachmessen
+      const ro = new dlg.ResizeObserver(() => dlg.setTimeout(fit, 0));
+      new dlg.MutationObserver(() => [...list.children].forEach(i => ro.observe(i))).observe(list, { childList: true });
+      [...list.children].forEach(i => ro.observe(i));
     } catch (e) {
       log("alarm size error", String(e).slice(0, 120));
     }

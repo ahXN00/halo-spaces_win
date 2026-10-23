@@ -1409,6 +1409,39 @@ calendar-event-box :is(.alarm-icons-box, .item-classification-icon, .item-recurr
   min-height: 0 !important;
 }
 
+/* Listenansicht (Erweiterung: mc-task-side): Details rechts neben der Liste
+   wie bei der Mail, Teiler senkrecht als Haarlinie */
+:root[mc-task-side] #calendar-task-box > vbox:has(> #calendar-task-tree) {
+  flex-direction: row !important;
+}
+
+:root[mc-task-side] #calendar-task-tree {
+  flex: 1 1 0 !important;
+  min-height: 0 !important;
+}
+
+:root[mc-task-side] #calendar-task-view-splitter {
+  border-top: none !important;
+  border-inline-start: var(--mt-hairline) solid var(--mt-pane-line) !important;
+  min-width: 0 !important;
+  width: 5px !important;
+  margin-inline-end: -4px !important;
+  position: relative;
+  z-index: 1;
+  cursor: ew-resize !important;
+}
+
+:root[mc-task-side] #calendar-task-details-container {
+  flex: none !important;
+  height: auto !important;
+  max-width: 60% !important;
+  overflow-y: auto !important;
+}
+
+:root[mc-task-side] #calendar-task-details {
+  flex-wrap: wrap !important;
+}
+
 #calendar-task-details-container,
 #calendar-task-details {
   background: var(--mt-window) !important;
@@ -6049,14 +6082,15 @@ body:has(> #accountTreeBox.mc-side-hidden) {
   padding: 12px 14px !important;
   border: none !important;
   border-radius: 12px !important;
-  background: var(--mt-control) !important;
+  background: transparent !important;
   color: var(--mt-text) !important;
   box-shadow: none !important;
   outline: none !important;
 }
 
-#alarm-richlist > richlistitem[selected] {
-  background: var(--mt-control-hover) !important;
+/* Auswahl nur sichtbar, wenn es mehrere Erinnerungen gibt */
+:root[mc-alarm-multi] #alarm-richlist > richlistitem[selected] {
+  background: color-mix(in srgb, var(--mt-text) 5%, transparent) !important;
   color: var(--mt-text) !important;
 }
 
@@ -6064,15 +6098,63 @@ body:has(> #accountTreeBox.mc-side-hidden) {
   color: inherit !important;
 }
 
+/* Erinnerung wie in Apple Kalender: eine ruhige Karte ohne graue Kachel,
+   links das Kalendersymbol mit Monat und Tag, rechts Titel, Datum, Ort;
+   Schlummern/Schließen erscheinen beim Darüberfahren (Tastatur: Auswahl) */
+:root[mc-alarm-card] {
+  background: var(--mt-sheet) !important;
+}
+
+:root[mc-alarm-card] > body {
+  padding-top: 22px !important;
+  -moz-window-dragging: drag;
+}
+
+:root[mc-alarm-card] :is(#alarm-richlist, button, label, description, menupopup) {
+  -moz-window-dragging: no-drag;
+}
+
 #alarm-richlist .alarm-calendar-image {
-  content: url("resource://mailcards/icons/calendar-24.svg") !important;
-  -moz-context-properties: fill, fill-opacity, stroke !important;
-  stroke: #FF3B30 !important;
-  fill: #FF3B30 !important;
-  fill-opacity: 0.12 !important;
-  width: 28px !important;
-  height: 28px !important;
-  margin: 2px 12px 0 0 !important;
+  display: none !important;
+}
+
+#alarm-richlist .mc-alarm-date {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  flex: none;
+  width: 42px;
+  height: 42px;
+  margin: 0 14px 0 0;
+  border-radius: 10px;
+  background: #FFFFFF;
+  box-shadow: 0 0 0 0.5px rgba(0, 0, 0, 0.12), 0 1px 3px rgba(0, 0, 0, 0.12);
+  overflow: hidden;
+  font-family: var(--mt-font);
+}
+
+#alarm-richlist .mc-alarm-month {
+  margin-top: 4px;
+  font-size: 9px;
+  font-weight: 600;
+  line-height: 10px;
+  color: #FF3B30;
+  text-transform: uppercase;
+}
+
+#alarm-richlist .mc-alarm-day {
+  font-size: 22px;
+  font-weight: 400;
+  line-height: 26px;
+  color: #1D1D1F;
+}
+
+#alarm-richlist > richlistitem:not(:hover, [selected], :focus-within) .alarm-action-buttons {
+  opacity: 0 !important;
+}
+
+:root:not([mc-alarm-multi]) #alarm-actionbar {
+  display: none !important;
 }
 
 #alarm-richlist .alarm-title-label {
