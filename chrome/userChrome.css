@@ -10660,4 +10660,173 @@ notification-message toolbarbutton.notification-button > .toolbarbutton-menubutt
     --mt-tooltip-border: rgba(255, 255, 255, 0.45);
   }
 }
+
+/* ---------- Termin-Fenster wie Apple Kalender (mc-apple-event) ----------
+   Die Erweiterung (appleEventLayout) stellt Thunderbirds Zeilen zu Karten um:
+   Titel · Ganztägig/Beginn/Ende/Wiederholung/Erinnerung · Ort · Teilnehmer ·
+   Kalender · Kategorie; darunter die Notiz. Nur die Zeitkarte trägt
+   Beschriftungen (rechtsbündig), sonst Platzhalter. Links ein Streifen in der
+   Kalenderfarbe neben Titel und Zeitkarte. */
+:root[mc-apple-event] #event-grid {
+  /* Zeilen hängen direkt an der Tabelle (XHTML ohne tbody): Flex-Spalte mit order */
+  display: flex !important;
+  flex-direction: column !important;
+  position: relative !important;
+  padding: 2px 12px 0 22px !important;
+  border-spacing: 0 !important;
+}
+
+:root[mc-apple-event] #event-grid > tbody {
+  display: flex !important;
+  flex-direction: column !important;
+}
+
+/* nur die direkten Zeilen der Termintabelle (der Minimonat hat eigene Tabellenzeilen) */
+:root[mc-apple-event] #event-grid > tr.separator,
+:root[mc-apple-event] #event-grid > tr:not([data-mc-card]):not(.separator):not(#event-grid-todo-status-row) {
+  display: none !important;
+}
+
+:root[mc-apple-event] #event-grid tr[data-mc-card] {
+  display: flex !important;
+  align-items: center !important;
+  min-height: 34px !important;
+  padding: 0 12px !important;
+  background: var(--mt-control) !important;
+  border: none !important;
+}
+
+:root[mc-apple-event] #event-grid tr[data-mc-card][hidden] {
+  display: none !important;
+}
+
+:root[mc-apple-event] #event-grid tr[data-mc-first] {
+  margin-top: 10px !important;
+  padding-top: 6px !important;
+  border-start-start-radius: 12px !important;
+  border-start-end-radius: 12px !important;
+}
+
+:root[mc-apple-event] #event-grid tr[data-mc-last] {
+  padding-bottom: 6px !important;
+  border-end-start-radius: 12px !important;
+  border-end-end-radius: 12px !important;
+}
+
+:root[mc-apple-event] #event-grid tr[data-mc-card] > th,
+:root[mc-apple-event] #event-grid tr[data-mc-card] > td {
+  display: block !important;
+  padding: 0 !important;
+  border: none !important;
+  background: none !important;
+}
+
+:root[mc-apple-event] #event-grid tr[data-mc-card] > td {
+  flex: 1 !important;
+  min-width: 0 !important;
+}
+
+/* Beschriftungen nur in der Zeitkarte, rechtsbündig wie „Starts:“ */
+:root[mc-apple-event] #event-grid tr[data-mc-card]:not([data-mc-card="time"]):not([data-mc-card="category"]) > th {
+  display: none !important;
+}
+
+:root[mc-apple-event] #event-grid tr:is([data-mc-card="time"], [data-mc-card="category"]) > th {
+  flex: 0 0 96px !important;
+  padding-inline-end: 12px !important;
+  text-align: end !important;
+}
+
+:root[mc-apple-event] #event-grid tr:is([data-mc-card="time"], [data-mc-card="category"]) > th > hbox {
+  justify-content: flex-end !important;
+}
+
+:root[mc-apple-event] #event-grid tr:is([data-mc-card="time"], [data-mc-card="category"]) > th label {
+  margin: 0 !important;
+  color: var(--mt-text-secondary) !important;
+}
+
+/* Felder ohne eigene Fläche – die Karte ist die Fläche */
+:root[mc-apple-event] #event-grid tr[data-mc-card] :is(input:not([type="checkbox"]), menulist:not(datepicker menulist, timepicker menulist)) {
+  background: transparent !important;
+  box-shadow: none !important;
+  border: none !important;
+  padding-inline: 0 !important;
+}
+
+/* Titel groß und halbfett */
+:root[mc-apple-event] #item-title {
+  font-size: 17px !important;
+  font-weight: 600 !important;
+  min-height: 40px !important;
+}
+
+:root[mc-apple-event] #event-grid tr[data-mc-card="title"] {
+  padding-block: 4px !important;
+}
+
+/* Teilnehmer: Text wie ein Platzhalter, mit Namen in Textfarbe */
+:root[mc-apple-event] .mc-invitees {
+  appearance: none !important;
+  width: 100% !important;
+  min-height: 28px !important;
+  padding: 0 !important;
+  border: none !important;
+  background: none !important;
+  text-align: start !important;
+  font: inherit !important;
+  color: var(--mt-text-tertiary) !important;
+  cursor: default !important;
+}
+
+:root[mc-apple-event] .mc-invitees.mc-has {
+  color: var(--mt-text) !important;
+}
+
+/* Kalenderfarbe als Streifen links */
+:root[mc-apple-event] #mc-calendar-stripe {
+  position: absolute;
+  inset-inline-start: 10px;
+  width: 4px;
+  border-radius: 2px;
+}
+
+/* Notiz: eigene Karte ohne Formatleiste und – ohne Anhänge/Teilnehmer – ohne Reiter */
+:root[mc-apple-event] #FormatToolbox {
+  display: none !important;
+}
+
+:root[mc-apple-event]:not([mc-event-tabs]) #event-grid-tabs {
+  display: none !important;
+}
+
+:root[mc-apple-event] #event-grid-tab-vbox {
+  margin: 10px 12px 12px 22px !important;
+  padding: 0 !important;
+}
+
+:root[mc-apple-event] :is(#event-grid-tab-box-row, #event-grid-tabbox) {
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
+:root[mc-apple-event] #event-grid-tabpanels {
+  padding: 0 !important;
+  border: none !important;
+  border-radius: 12px !important;
+  background: var(--mt-control) !important;
+}
+
+:root[mc-apple-event] #item-description {
+  margin: 0 !important;
+  padding: 6px 4px !important;
+  min-height: 110px !important;
+  border: none !important;
+  background: transparent !important;
+}
+
+/* „Notify attendees …“ nur, wenn es Teilnehmer gibt */
+:root[mc-apple-event]:not([mc-event-tabs]) #notify-options {
+  display: none !important;
+}
 /* ==== Ende Bereiche ==== */

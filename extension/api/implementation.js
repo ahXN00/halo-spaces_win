@@ -198,6 +198,9 @@ const DE = {
   "Search Chat": "Chat durchsuchen",
   "Search Settings": "Einstellungen durchsuchen",
   "Search {name}": "„{name}“ durchsuchen",
+  "Title": "Titel",
+  "Add Location or Video Call": "Ort oder Videoanruf hinzufügen",
+  "Add Invitees": "Teilnehmer hinzufügen",
 };
 const FR = {
   "Install version {v}": "Installer la version {v}",
@@ -367,6 +370,9 @@ const FR = {
   "Search Chat": "Rechercher dans le chat",
   "Search Settings": "Rechercher dans les réglages",
   "Search {name}": "Rechercher dans « {name} »",
+  "Title": "Titre",
+  "Add Location or Video Call": "Ajouter un lieu ou un appel vidéo",
+  "Add Invitees": "Ajouter des invités",
 };
 const ES = {
   "Install version {v}": "Instalar la versión {v}",
@@ -536,6 +542,9 @@ const ES = {
   "Search Chat": "Buscar en el chat",
   "Search Settings": "Buscar en Ajustes",
   "Search {name}": "Buscar en «{name}»",
+  "Title": "Título",
+  "Add Location or Video Call": "Añadir ubicación o videollamada",
+  "Add Invitees": "Añadir invitados",
 };
 const IT = {
   "Install version {v}": "Installa la versione {v}",
@@ -705,6 +714,9 @@ const IT = {
   "Search Chat": "Cerca nella chat",
   "Search Settings": "Cerca nelle impostazioni",
   "Search {name}": "Cerca in «{name}»",
+  "Title": "Titolo",
+  "Add Location or Video Call": "Aggiungi luogo o videochiamata",
+  "Add Invitees": "Aggiungi invitati",
 };
 const TRANSLATIONS = { de: DE, fr: FR, es: ES, it: IT };
 // tr("+{n} more", { n: 3 }) – Platzhalter in geschweiften Klammern
@@ -1477,6 +1489,117 @@ function unsubscribeKey(data, hdr) {
 // nur ein kleines Popover mit dem Uhrzeitfeld (Stunden/Minuten, Pfeiltasten,
 // Mausrad) statt Thunderbirds Stundenraster. Werte gehen in die vorhandenen
 // Felder zurück – Dauer, Zeitzone und „Ganztägig“ regelt weiter Thunderbird
+// Termin-Fenster wie Apple Kalender: Karten untereinander – Titel; Ganztägig,
+// Beginn, Ende, Wiederholung, Erinnerung (mit Beschriftung rechtsbündig); Ort;
+// Teilnehmer; Kalender; Kategorie; ganz unten die Notiz („Add Notes or URL“).
+// Links ein Streifen in der Farbe des gewählten Kalenders. Thunderbirds Zeilen
+// werden nur umgestellt – Felder, IDs und Logik bleiben (nur für Termine, nicht Aufgaben)
+function appleEventLayout(win) {
+  const doc = win.document;
+  const grid = doc.getElementById("event-grid");
+  if (!grid || grid.__mcApple || !win.calendarItem?.isEvent?.()) {
+    return;
+  }
+  grid.__mcApple = true;
+  const X = "http://www.w3.org/1999/xhtml";
+  const body = grid.tBodies?.[0] || grid;
+  const row = id => doc.getElementById(id);
+  const calendarRow = doc.getElementById("item-calendar")?.closest("tr");
+  // Teilnehmer: eigene Karte „Add Invitees“ (öffnet „Teilnehmer einladen“)
+  const invRow = doc.createElementNS(X, "tr");
+  invRow.id = "mc-invitees-row";
+  const invTh = doc.createElementNS(X, "th");
+  const invTd = doc.createElementNS(X, "td");
+  const invBtn = doc.createElementNS(X, "button");
+  invBtn.type = "button";
+  invBtn.className = "mc-invitees";
+  invBtn.addEventListener("click", () => win.editAttendees?.());
+  invTd.append(invBtn);
+  invRow.append(invTh, invTd);
+  const cards = [
+    ["title", ["event-grid-title-row"]],
+    ["time", ["event-grid-allday-row", "event-grid-startdate-row", "event-grid-enddate-row", "event-grid-recurrence-row", "event-grid-alarm-row"]],
+    ["location", ["event-grid-location-row"]],
+    ["invitees", [invRow]],
+    ["calendar", [calendarRow]],
+    ["category", ["event-grid-category-row"]],
+    ["link", ["event-grid-link-row"]],
+  ];
+  // Reihenfolge nur per CSS (order in einer Flex-Spalte): beim Umhängen im Dokument
+  // bauten sich Thunderbirds Datum/Uhrzeit-Felder ein zweites Mal auf
+  body.append(invRow);
+  let order = 0;
+  for (const [name, rows] of cards) {
+    const els = rows.map(r => (typeof r == "string" ? row(r) : r)).filter(Boolean);
+    els.forEach((el, i) => {
+      el.dataset.mcCard = name;
+      el.toggleAttribute("data-mc-first", i == 0);
+      el.toggleAttribute("data-mc-last", i == els.length - 1);
+      el.style.order = String(++order);
+    });
+  }
+  // Platzhalter wie Apple Kalender (Felder ohne Beschriftung)
+  row("item-title")?.setAttribute("placeholder", tr("Title"));
+  row("item-location")?.setAttribute("placeholder", tr("Add Location or Video Call"));
+  // Teilnehmer-Karte: „Add Invitees“ bzw. die Namen der Eingeladenen
+  const syncInvitees = () => {
+    const list = (win.window.attendees || []).filter(a => !a.isOrganizer);
+    invBtn.textContent = list.length ? list.map(a => a.commonName || a.toString().replace(/^mailto:/i, "")).join(", ") : tr("Add Invitees");
+    invBtn.classList.toggle("mc-has", !!list.length);
+    // Reiter unten nur, wenn es Anhänge oder Teilnehmer gibt (sonst wie Apple nur die Notiz)
+    const attachments = doc.getElementById("attachment-link")?.itemCount || 0;
+    doc.documentElement.toggleAttribute("mc-event-tabs", !!(attachments || list.length));
+  };
+  syncInvitees();
+  const mo = new win.MutationObserver(syncInvitees);
+  for (const el of [doc.getElementById("attachment-link"), doc.querySelector(".item-attendees-list-container"), doc.getElementById("event-grid-tab-attendees")]) {
+    if (el) {
+      mo.observe(el, { childList: true, subtree: true, attributes: true });
+    }
+  }
+  // Streifen in der Kalenderfarbe links neben Titel und Zeitkarte
+  const stripe = doc.createElementNS(X, "div");
+  stripe.id = "mc-calendar-stripe";
+  grid.append(stripe);
+  const place = () => {
+    const first = row("event-grid-title-row"), last = row("event-grid-alarm-row");
+    const g = grid.getBoundingClientRect();
+    if (!first || !last) {
+      return;
+    }
+    stripe.style.top = `${first.getBoundingClientRect().top - g.top + 6}px`;
+    stripe.style.height = `${Math.max(0, last.getBoundingClientRect().bottom - first.getBoundingClientRect().top - 12)}px`;
+    let color = "";
+    try {
+      color = win.getCurrentCalendar?.()?.getProperty("color") || "";
+    } catch {}
+    stripe.style.backgroundColor = color || "var(--mt-accent)";
+  };
+  new win.ResizeObserver(place).observe(grid);
+  row("item-calendar")?.addEventListener("command", () => win.setTimeout(place, 0));
+  place();
+  // Notiz: Platzhalter im leeren Beschreibungsfeld
+  const desc = doc.getElementById("item-description");
+  const setNotesPlaceholder = () => {
+    const b = desc?.contentDocument?.body;
+    if (!b) {
+      return;
+    }
+    b.setAttribute("data-mc-placeholder", tr("Add Notes or URL"));
+    const update = () => b.classList.toggle("mc-empty", !b.textContent.trim() && !b.querySelector("img"));
+    update();
+    if (!b.__mcPlaceholder) {
+      b.__mcPlaceholder = true;
+      b.addEventListener("input", update);
+      new desc.contentWindow.MutationObserver(update).observe(b, { childList: true, subtree: true, characterData: true });
+    }
+  };
+  setNotesPlaceholder();
+  desc?.addEventListener("load", () => win.setTimeout(setNotesPlaceholder, 0), true);
+  win.setTimeout(setNotesPlaceholder, 500);
+  doc.documentElement.setAttribute("mc-apple-event", "");
+}
+
 // Termin/Aufgabe: Dauer beim Ändern immer beibehalten (wie Apple Kalender, wo
 // das Ende mit dem Beginn wandert) – Thunderbirds Kopplungs-Knopf (Kettensymbol
 // zwischen Beginn und Ende) dauerhaft an; ausgeblendet per CSS
@@ -3999,6 +4122,7 @@ class CardEnhancer {
               this.styleItemDescription(iw);
               hookDateTimePickers(iw);
               keepDurationAlways(iw);
+              appleEventLayout(iw);
             }, 0), { once: true });
           }
           // „Teilnehmer einladen“: Beginn/Ende ebenso

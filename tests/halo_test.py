@@ -2663,7 +2663,8 @@ def calendar_checks(m, results):
             return False, "Termin-Dialog nicht offen"
         rows, mini, tp = res.get("rows") or [], res.get("mini") or {}, res.get("time") or {}
         desc = res.get("desc") or {}
-        ok = (len(rows) >= 4 and all(r["font"] == "13px" and r["gap"] >= 8 for r in rows) and res["title"] == "13px"
+        # Titel wie in Apple Kalender groß (17 px), Beschriftungen 13 px
+        ok = (len(rows) >= 4 and all(r["font"] == "13px" and r["gap"] >= 8 for r in rows) and res["title"] == "17px"
               and desc.get("font") == "13px" and ("system-ui" in desc.get("family", "") or "-apple-system" in desc.get("family", ""))
               and res["overflow"]["doc"][0] <= res["overflow"]["doc"][1] + 1
               and bool(mini) and rgba_alpha(mini["bg"]) == 0 and (mini["today"] is None or rgba_alpha(mini["today"]) == 0)
@@ -2698,6 +2699,45 @@ def calendar_checks(m, results):
                  for v in res.values())
         return ok, f"{res}"
     check("Termin-Dialog: Pfeil in „Change Privacy“ und „Add Attachments“ ganz sichtbar neben dem Symbol", event_menu_buttons, results)
+
+    def event_apple_layout():
+        # Termin-Fenster wie Apple Kalender: Karten in der Reihenfolge Titel · Zeit · Ort · Teilnehmer · Kalender ·
+        # Kategorie, darunter die Notiz; Streifen in der Kalenderfarbe; Platzhalter statt Beschriftungen; ohne Reiter
+        # und Formatleiste, solange es keine Anhänge/Teilnehmer gibt
+        res = m.js(CAL_CHECK_JS + r"""
+          for (const x of [...Services.wm.getEnumerator(null)]) if (!x.location.href.includes("messenger.xhtml")) x.close();
+          let dw = null; const out = {};
+          try {
+            testCalendar().setProperty("color", "#FF9500");
+            await toCalendar(); w.createEventWithDialog(testCalendar(), null, null, "Halo Apple");
+            dw = await winUrl("calendar-event-dialog.xhtml"); if (!dw) return { dialog: false };
+            const iw = await till(() => { const f = dw.document.getElementById("calendar-item-panel-iframe")?.contentWindow;
+              return f?.document.documentElement.hasAttribute("mc-apple-event") && f; }, 8000);
+            if (!iw) return { apple: false };
+            await pause(800); const id = iw.document, R = e => e.getBoundingClientRect();
+            const rows = [...id.querySelectorAll("#event-grid > tr[data-mc-card]")].filter(r => R(r).height).sort((a, b) => R(a).top - R(b).top);
+            out.cards = [...new Set(rows.map(r => r.dataset.mcCard))];
+            const st = id.getElementById("mc-calendar-stripe");
+            out.stripe = st ? csOf(st).backgroundColor : null;
+            out.stripeSpan = st ? [Math.round(R(st).top - R(id.getElementById("event-grid-title-row")).top), Math.round(R(id.getElementById("event-grid-alarm-row")).bottom - R(st).bottom)] : null;
+            out.placeholders = [id.getElementById("item-location")?.placeholder, id.querySelector(".mc-invitees")?.textContent,
+                                id.getElementById("item-description")?.contentDocument?.body?.getAttribute("data-mc-placeholder")];
+            out.labels = ["item-title-label", "item-location-label", "item-calendar-label"].map(x => vis(id.getElementById(x)));
+            out.timeLabel = vis(id.querySelector("#event-grid-startdate-label-box label"));
+            out.tabs = vis(id.getElementById("event-grid-tabs")); out.format = vis(id.getElementById("FormatToolbox"));
+            out.notesBelow = R(id.getElementById("event-grid-tab-vbox")).top >= R(rows.at(-1)).bottom;
+            out.title = csOf(id.getElementById("item-title")).fontSize;
+          } finally { if (dw && !dw.closed) { dw.close(); await till(() => dw.closed, 4000); } }
+          return out;""")
+        if res.get("dialog") is False or res.get("apple") is False:
+            return False, f"Termin-Dialog nicht wie erwartet {res}"
+        ok = (res["cards"] == ["title", "time", "location", "invitees", "calendar", "category"]
+              and same_color(res["stripe"] or "", "rgb(255, 149, 0)") and res["stripeSpan"] and all(0 <= v <= 10 for v in res["stripeSpan"])
+              and res["placeholders"] == ["Add Location or Video Call", "Add Invitees", "Add Notes or URL"]
+              and res["labels"] == [False, False, False] and res["timeLabel"] and not res["tabs"] and not res["format"]
+              and res["notesBelow"] and res["title"] == "17px")
+        return ok, f"{res}"
+    check("Termin-Dialog wie Apple Kalender: Karten Titel · Zeit · Ort · Teilnehmer · Kalender · Kategorie, Notiz unten, Streifen in der Kalenderfarbe, Platzhalter", event_apple_layout, results)
 
     def attendees_dialog():
         # „Teilnehmer einladen“: Liste und Raster ohne harten Rahmen, Linien als Haarlinie, einfarbige Symbole,
@@ -2781,12 +2821,13 @@ def calendar_checks(m, results):
         seps, desc = res.get("seps") or [], res.get("desc") or {}
         ok_desc = bool(desc) and (rgba_alpha(desc["body"]) == 0 or not res["dark"]) and (
             contrast(desc["color"], desc["field"]) >= 4.5 if res["dark"] else luminance(desc["color"]) < 0.2)
-        ok = (len(seps) >= 2 and all(rgba_alpha(c) <= 0.12 and float(wd[:-2]) <= 1 for c, wd in seps)
+        # Termin wie Apple Kalender: Karten statt Trennlinien – sichtbare Trenner dürfen nur Haarlinien sein
+        ok = (all(rgba_alpha(c) <= 0.12 and float(wd[:-2]) <= 1 for c, wd in seps)
               and res.get("status") is not None and res["status"] >= 3 and ok_desc
               and res.get("shadows") == ["none"] and (res.get("catDot") or "").startswith("radial-gradient")
               and res.get("catChip") not in (None, "none"))
         return ok, f"{res}"
-    check("Termin-Dialog: Trennlinien als Haarlinie, „Time as: Busy“ mit Abstand ohne Prägeschatten, Beschreibung lesbar (dunkel ≥ 4,5:1), Kategorie-Farbpunkte mit Ring", event_dialog_lines, results)
+    check("Termin-Dialog: Trenner höchstens als Haarlinie, „Time as: Busy“ mit Abstand ohne Prägeschatten, Beschreibung lesbar (dunkel ≥ 4,5:1), Kategorie-Farbpunkte mit Ring", event_dialog_lines, results)
 
     def reminder_dialog():
         # Erinnerungen anpassen: Liste ohne native Rahmenzeichnung, mit Haarlinie; Trenner neben den Überschriften fein

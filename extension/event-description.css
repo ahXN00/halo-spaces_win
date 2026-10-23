@@ -20,3 +20,12 @@ body {
     background-color: transparent !important;
   }
 }
+
+/* Termin wie Apple Kalender: leere Notiz zeigt „Add Notes or URL“ (Klasse und
+   Text setzt die Erweiterung, appleEventLayout) */
+body.mc-empty::before {
+  content: attr(data-mc-placeholder);
+  position: absolute;
+  pointer-events: none;
+  color: #8E8E93;
+}
