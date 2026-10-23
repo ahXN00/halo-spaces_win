@@ -20,7 +20,7 @@
 body {
   margin: 0 !important;
   background: transparent !important;
-  font: 13px/1.45 -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif !important;
+  font: 13px/1.45 -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI Variable Text", system-ui, sans-serif !important;
   color: var(--mt-text) !important;
 }
 

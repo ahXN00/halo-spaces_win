@@ -48,7 +48,7 @@
   --mt-status-away: #FF9500;
   /* Fläche der Unterdialoge im Tab (Einstellungen, Adressbuch) */
   --mt-sheet: #FFFFFF;
-  --mt-font: -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif;
+  --mt-font: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI Variable Text", system-ui, sans-serif;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -1340,8 +1340,11 @@ findbar .findbar-textbox:focus {
   color: var(--mt-text-secondary) !important;
 }
 
-/* Linke Spalte oben: „Neue Nachricht“ als schlichtes Verfassen-Symbol */
+/* Linke Spalte oben: „Neue Nachricht“ als schlichtes Verfassen-Symbol
+   (Thunderbird ordnet die Leiste row-reverse an – mit flex-end und den
+   Reihenfolgen unten rückten die Knöpfe sonst gespiegelt nach links) */
 #folderPaneHeaderBar {
+  flex-direction: row !important;
   justify-content: flex-end !important;
   gap: 2px !important;
   padding: 8px 10px 0 !important;
@@ -1488,8 +1491,9 @@ findbar .findbar-textbox:focus {
    der Menüleiste, der Toolbar und den Einstellungen. Nur wenn Thunderbird
    etwas meldet (Neustart für Update, Add-on-Hinweis), erscheint er wieder.
    Zurückholen: diese Regel löschen. */
-@media (-moz-platform: macos) {
-  /* (nur auf dem Mac – unter Windows/Linux fehlt meist die Menüleiste) */
+@media (-moz-platform: macos), (-moz-platform: windows) {
+  /* (Mac: Menüleiste oben; Windows: die Menüleiste erscheint mit Alt –
+     unter Linux fehlt sie oft, dort bleibt ≡) */
   #button-appmenu:not([badge-status]) {
     display: none !important;
   }
@@ -2094,8 +2098,10 @@ menupopup > .folderMenuItem:is([_moz-menuactive]:not([disabled]), [disabled]) {
   width: 18px !important;
   height: 18px !important;
   background-color: var(--c) !important;
-  mask: var(--mi-chevron) center / contain no-repeat !important;
-  transform: rotate(-90deg) !important;
+  /* Chevron gleich nach rechts gezeichnet statt --mi-chevron gedreht: Maske
+     plus Drehung ließ bei Bruchteil-Zoom (Windows 125/150 %) oben einen
+     hellen Strich der gefüllten Fläche durchscheinen */
+  mask: url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22%23000%22 stroke-width=%221.7%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22%3E%3Cpath d=%22m9.5 6.5 5.5 5.5-5.5 5.5%22/%3E%3C/svg%3E") center / contain no-repeat !important;
   pointer-events: none !important;
 }
 
@@ -7012,7 +7018,7 @@ addon-card .addon-inline-options {
   background: linear-gradient(180deg, #B4CAE4, #8A97C5) !important;
   color: #fff !important;
   box-shadow: none !important;
-  font: 600 19px -apple-system, BlinkMacSystemFont, system-ui, sans-serif !important;
+  font: 600 19px -apple-system, BlinkMacSystemFont, "Segoe UI Variable Text", system-ui, sans-serif !important;
   letter-spacing: 0 !important;
 }
 
@@ -9740,8 +9746,9 @@ body:has(> #accountTreeBox.mc-side-hidden) {
   /* Titel mittig in der Fläche, links und rechts Platz für den Knopf */
   justify-content: center;
   padding-inline: min(62px, var(--mc-tp-w, 0px));
-  /* rechts nie unter den Fensterknöpfen von Windows/Linux */
-  padding-inline-end: max(min(62px, var(--mc-tp-w, 0px)), calc(var(--mc-caption-w, 0px) + 8px));
+  /* rechts Platz für „+“ und davor ≡/Fensterknöpfe von Windows/Linux –
+     der Titel rückt nie darunter */
+  padding-inline-end: calc(min(62px, var(--mc-tp-w, 0px)) + max(var(--mc-caption-w, 0px), var(--mc-row-tail, 0px)));
   overflow: hidden;
 }
 
@@ -11115,6 +11122,13 @@ notification-message toolbarbutton.notification-button > .toolbarbutton-menubutt
 
 :root[mc-apple-event] #event-grid tr[data-mc-card="title"] {
   padding-block: 4px !important;
+}
+
+/* Ort über die ganze Karte – sonst bleibt das Feld bei 20 Zeichen
+   (flex wirkt in der Tabellenzelle nicht) und „Add Location or Video Call“
+   wird mit der breiteren Windows-Schrift abgeschnitten */
+:root[mc-apple-event] #item-location {
+  width: 100% !important;
 }
 
 /* Teilnehmer: Text wie ein Platzhalter, mit Namen in Textfarbe */

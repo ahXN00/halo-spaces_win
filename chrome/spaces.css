@@ -4063,7 +4063,7 @@ addon-card .addon-inline-options {
   background: linear-gradient(180deg, #B4CAE4, #8A97C5) !important;
   color: #fff !important;
   box-shadow: none !important;
-  font: 600 19px -apple-system, BlinkMacSystemFont, system-ui, sans-serif !important;
+  font: 600 19px -apple-system, BlinkMacSystemFont, "Segoe UI Variable Text", system-ui, sans-serif !important;
   letter-spacing: 0 !important;
 }
 
@@ -6791,8 +6791,9 @@ body:has(> #accountTreeBox.mc-side-hidden) {
   /* Titel mittig in der Fläche, links und rechts Platz für den Knopf */
   justify-content: center;
   padding-inline: min(62px, var(--mc-tp-w, 0px));
-  /* rechts nie unter den Fensterknöpfen von Windows/Linux */
-  padding-inline-end: max(min(62px, var(--mc-tp-w, 0px)), calc(var(--mc-caption-w, 0px) + 8px));
+  /* rechts Platz für „+“ und davor ≡/Fensterknöpfe von Windows/Linux –
+     der Titel rückt nie darunter */
+  padding-inline-end: calc(min(62px, var(--mc-tp-w, 0px)) + max(var(--mc-caption-w, 0px), var(--mc-row-tail, 0px)));
   overflow: hidden;
 }
 
@@ -8166,6 +8167,13 @@ notification-message toolbarbutton.notification-button > .toolbarbutton-menubutt
 
 :root[mc-apple-event] #event-grid tr[data-mc-card="title"] {
   padding-block: 4px !important;
+}
+
+/* Ort über die ganze Karte – sonst bleibt das Feld bei 20 Zeichen
+   (flex wirkt in der Tabellenzelle nicht) und „Add Location or Video Call“
+   wird mit der breiteren Windows-Schrift abgeschnitten */
+:root[mc-apple-event] #item-location {
+  width: 100% !important;
 }
 
 /* Teilnehmer: Text wie ein Platzhalter, mit Namen in Textfarbe */

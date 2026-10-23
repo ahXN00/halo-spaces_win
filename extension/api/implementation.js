@@ -40,7 +40,6 @@ const DE = {
   "{n} contacts": "{n} Kontakte",
   "{name}’s Birthday": "{name} hat Geburtstag",
   "Born {year}": "Geboren {year}",
-  "Hi,": "Hallo,",
   "1 day before": "1 Tag vorher",
   "1 hour before": "1 Stunde vorher",
   "15 minutes before": "15 Minuten vorher",
@@ -59,6 +58,7 @@ const DE = {
   "Archive": "Archivieren",
   "At time of event": "Zum Termin",
   "Automatic (like macOS)": "Automatisch (wie macOS)",
+  "Automatic (like Windows)": "Automatisch (wie Windows)",
   "Birthdays": "Geburtstage",
   "Busy": "Beschäftigt",
   "Cancel": "Abbrechen",
@@ -84,6 +84,7 @@ const DE = {
   "Installing …": "Wird installiert …",
   "Light": "Hell",
   "Light, dark or follow macOS": "Hell, dunkel oder wie macOS",
+  "Light, dark or follow Windows": "Hell, dunkel oder wie Windows",
   "Merge Duplicate Contacts": "Doppelte Kontakte zusammenführen",
   "Message List Display Options": "Darstellung der Liste",
   "More Options…": "Mehr Optionen …",
@@ -142,8 +143,6 @@ const DE = {
   "Default": "Standard",
   "Check for Updates": "Nach Updates suchen",
   "Settings…": "Einstellungen …",
-  "Send Feedback": "Feedback senden",
-  "Say Thanks": "Danke sagen",
   "halo.spaces is made for macOS – on Windows and Linux it is still being tested. If something looks odd, we'd love a quick note!": "halo.spaces ist für macOS gemacht – unter Windows und Linux wird es gerade erst erprobt. Wenn etwas komisch aussieht, freuen wir uns über eine kurze Rückmeldung!",
   "This message is from a mailing list.": "Diese Nachricht stammt von einem Verteiler.",
   "Unsubscribe": "Abmelden",
@@ -225,7 +224,6 @@ const FR = {
   "{n} contacts": "{n} contacts",
   "{name}’s Birthday": "Anniversaire de {name}",
   "Born {year}": "Né(e) en {year}",
-  "Hi,": "Bonjour,",
   "1 day before": "1 jour avant",
   "1 hour before": "1 heure avant",
   "15 minutes before": "15 minutes avant",
@@ -244,6 +242,7 @@ const FR = {
   "Archive": "Archiver",
   "At time of event": "À l’heure de l’événement",
   "Automatic (like macOS)": "Automatique (comme macOS)",
+  "Automatic (like Windows)": "Automatique (comme Windows)",
   "Birthdays": "Anniversaires",
   "Busy": "Occupé",
   "Cancel": "Annuler",
@@ -268,6 +267,7 @@ const FR = {
   "Installing …": "Installation …",
   "Light": "Clair",
   "Light, dark or follow macOS": "Clair, sombre ou comme macOS",
+  "Light, dark or follow Windows": "Clair, sombre ou comme Windows",
   "Merge Duplicate Contacts": "Fusionner les contacts en double",
   "Message List Display Options": "Options d’affichage de la liste",
   "More Options…": "Plus d’options…",
@@ -326,8 +326,6 @@ const FR = {
   "Default": "Par défaut",
   "Check for Updates": "Rechercher des mises à jour",
   "Settings…": "Réglages…",
-  "Send Feedback": "Envoyer un avis",
-  "Say Thanks": "Dire merci",
   "halo.spaces is made for macOS – on Windows and Linux it is still being tested. If something looks odd, we'd love a quick note!": "halo.spaces est conçu pour macOS – sous Windows et Linux, il est encore en test. Si quelque chose semble bizarre, un petit mot nous ferait plaisir !",
   "Mail": "Mail",
   "This message is from a mailing list.": "Ce message provient d’une liste de diffusion.",
@@ -411,7 +409,6 @@ const ES = {
   "{n} contacts": "{n} contactos",
   "{name}’s Birthday": "Cumpleaños de {name}",
   "Born {year}": "Nació en {year}",
-  "Hi,": "Hola:",
   "1 day before": "1 día antes",
   "1 hour before": "1 hora antes",
   "15 minutes before": "15 minutos antes",
@@ -430,6 +427,7 @@ const ES = {
   "Archive": "Archivar",
   "At time of event": "A la hora del evento",
   "Automatic (like macOS)": "Automático (como macOS)",
+  "Automatic (like Windows)": "Automático (como Windows)",
   "Birthdays": "Cumpleaños",
   "Busy": "Ocupado",
   "Cancel": "Cancelar",
@@ -454,6 +452,7 @@ const ES = {
   "Installing …": "Instalando …",
   "Light": "Claro",
   "Light, dark or follow macOS": "Claro, oscuro o como macOS",
+  "Light, dark or follow Windows": "Claro, oscuro o como Windows",
   "Merge Duplicate Contacts": "Combinar contactos duplicados",
   "Message List Display Options": "Opciones de vista de la lista",
   "More Options…": "Más opciones…",
@@ -512,8 +511,6 @@ const ES = {
   "Default": "Predeterminado",
   "Check for Updates": "Buscar actualizaciones",
   "Settings…": "Ajustes…",
-  "Send Feedback": "Enviar comentarios",
-  "Say Thanks": "Dar las gracias",
   "halo.spaces is made for macOS – on Windows and Linux it is still being tested. If something looks odd, we'd love a quick note!": "halo.spaces está hecho para macOS – en Windows y Linux aún se está probando. Si algo se ve raro, ¡nos encantaría que nos avisaras!",
   "Mail": "Correo",
   "This message is from a mailing list.": "Este mensaje procede de una lista de correo.",
@@ -597,7 +594,6 @@ const IT = {
   "{n} contacts": "{n} contatti",
   "{name}’s Birthday": "Compleanno di {name}",
   "Born {year}": "Nato/a nel {year}",
-  "Hi,": "Ciao,",
   "1 day before": "1 giorno prima",
   "1 hour before": "1 ora prima",
   "15 minutes before": "15 minuti prima",
@@ -616,6 +612,7 @@ const IT = {
   "Archive": "Archivia",
   "At time of event": "All’ora dell’evento",
   "Automatic (like macOS)": "Automatico (come macOS)",
+  "Automatic (like Windows)": "Automatico (come Windows)",
   "Birthdays": "Compleanni",
   "Busy": "Occupato",
   "Cancel": "Annulla",
@@ -640,6 +637,7 @@ const IT = {
   "Installing …": "Installazione …",
   "Light": "Chiaro",
   "Light, dark or follow macOS": "Chiaro, scuro o come macOS",
+  "Light, dark or follow Windows": "Chiaro, scuro o come Windows",
   "Merge Duplicate Contacts": "Unisci contatti duplicati",
   "Message List Display Options": "Opzioni di visualizzazione dell’elenco",
   "More Options…": "Altre opzioni…",
@@ -698,8 +696,6 @@ const IT = {
   "Default": "Predefinito",
   "Check for Updates": "Cerca aggiornamenti",
   "Settings…": "Impostazioni…",
-  "Send Feedback": "Invia feedback",
-  "Say Thanks": "Dì grazie",
   "halo.spaces is made for macOS – on Windows and Linux it is still being tested. If something looks odd, we'd love a quick note!": "halo.spaces è fatto per macOS – su Windows e Linux è ancora in prova. Se qualcosa sembra strano, ci farebbe piacere un messaggio!",
   "Mail": "Posta",
   "This message is from a mailing list.": "Questo messaggio proviene da una mailing list.",
@@ -816,12 +812,6 @@ const SPACE_TOOLBARS = {
   settings: ["spacer", "spacer", "search-bar"],
 };
 const SPACE_TOOLBAR_PREF = "extensions.mailcards.spaceToolbarsApplied";
-// Feedback aus dem Hilfe-Menü geht an diese Adresse
-const FEEDBACK_ADDRESS = "halo.cat@icloud.com";
-// „Danke sagen“ im Info-Fenster; UTM-Parameter zeigen in Google Analytics
-// der Spendenseite, dass der Aufruf aus halo.spaces kam
-const DONATE_URL = "https://buymeacoffee.com/diversion"
-  + "?utm_source=halo.spaces&utm_medium=thunderbird-addon&utm_campaign=donate&utm_content=about-window";
 const CACHE_FILE = "mail-cards-logos.json";
 const DAY = 24 * 60 * 60 * 1000;
 const HIT_TTL = 30 * DAY;
@@ -1010,12 +1000,14 @@ function hookAppearanceChoice(cw, restorers = null) {
   const row = doc.createXULElement("hbox");
   row.setAttribute("align", "center");
   const label = doc.createXULElement("label");
-  label.setAttribute("value", tr("Light, dark or follow macOS"));
+  // „wie macOS“ bzw. „wie Windows“ – je nachdem, wessen Hell/Dunkel gilt
+  const win = Services.appinfo.OS == "WINNT";
+  label.setAttribute("value", tr(win ? "Light, dark or follow Windows" : "Light, dark or follow macOS"));
   label.setAttribute("flex", "1");
   const list = doc.createXULElement("menulist");
   list.id = "mcAppearance";
   const popup = doc.createXULElement("menupopup");
-  for (const [value, text] of [["auto", tr("Automatic (like macOS)")], ["light", tr("Light")], ["dark", tr("Dark")]]) {
+  for (const [value, text] of [["auto", tr(win ? "Automatic (like Windows)" : "Automatic (like macOS)")], ["light", tr("Light")], ["dark", tr("Dark")]]) {
     const item = doc.createXULElement("menuitem");
     item.setAttribute("value", value);
     item.setAttribute("label", text);
@@ -1703,6 +1695,22 @@ function appleForwardHeader(win) {
   } catch (e) {
     log("forward header error", String(e).slice(0, 120));
     return true;
+  }
+}
+
+// Windows: Menüleiste in Verfassen- und Termin-Fenster wie im Hauptfenster
+// erst mit Alt (auf dem Mac steht sie oben am Bildschirm, nicht im Fenster).
+// Hat der Nutzer sie eingeblendet, merkt sich Thunderbird autohide="false" –
+// dann bleibt sie.
+const MENUBAR_WINDOWS = [
+  "chrome://messenger/content/messengercompose/messengercompose.xhtml",
+  "chrome://calendar/content/calendar-event-dialog.xhtml",
+];
+
+function autohideMenubar(win) {
+  for (const bar of win.document.querySelectorAll("toolbar[type=menubar]:not([autohide])")) {
+    bar.setAttribute("autohide", "true");
+    bar.setAttribute("inactive", "true");
   }
 }
 
@@ -2727,7 +2735,7 @@ const CSS = `
   /* wie Apple Mail: Verlauf Blaugrau → Lavendel, Initialen ~54 % des Kreises */
   background: linear-gradient(180deg, #B4CAE4, #8A97C5);
   color: #fff;
-  font: 600 19px -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+  font: 600 19px -apple-system, BlinkMacSystemFont, "Segoe UI Variable Text", system-ui, sans-serif;
   letter-spacing: 0;
   user-select: none;
   pointer-events: none;
@@ -3337,10 +3345,12 @@ function appleLabels() {
   if (!lang.startsWith("de") && !lang.startsWith("en")) {
     return { native: true };
   }
+  // lokale Ordner: „On My Mac“ wie Apple Mail, unter Windows wie „Dieser PC“ im Explorer
+  const win = Services.appinfo.OS == "WINNT";
   return lang.startsWith("de")
-    ? { favourites: "Favoriten", allInboxes: "Alle Eingänge", allSent: "Alle gesendeten", onMyMac: "Auf meinem Mac",
+    ? { favourites: "Favoriten", allInboxes: "Alle Eingänge", allSent: "Alle gesendeten", onMyMac: win ? "Auf diesem PC" : "Auf meinem Mac",
         Inbox: "Posteingang", Drafts: "Entwürfe", SentMail: "Gesendet", Junk: "Werbung", Trash: "Papierkorb", Archive: "Archiv", Templates: "Vorlagen" }
-    : { favourites: "Favourites", allInboxes: "All Inboxes", allSent: "All Sent", onMyMac: "On My Mac",
+    : { favourites: "Favourites", allInboxes: "All Inboxes", allSent: "All Sent", onMyMac: win ? "On This PC" : "On My Mac",
         Inbox: "Inbox", Drafts: "Drafts", SentMail: "Sent", Junk: "Junk", Trash: "Bin", Archive: "Archive", Templates: "Templates" };
 }
 // Posteingang immer zuerst (order 0), Gmails „Wichtig“ direkt danach (1)
@@ -4777,10 +4787,10 @@ class CardEnhancer {
       Services.prefs.setBoolPref("extensions.mailcards.searchApplied", true);
     }
     // Einmal nach der Erstinstallation begrüßen: was halo.spaces ändert und wo
-    // die Einstellungen liegen. Windows/Linux: im selben Fenster der Hinweis,
-    // dass halo.spaces für macOS gemacht ist (früher ein eigenes Fenster)
+    // die Einstellungen liegen. Linux: im selben Fenster der Hinweis zur
+    // Plattform (macOS und Windows sind abgestimmt, Linux nicht)
     const NOTE_PREF = "extensions.mailcards.platformNoteShown";
-    const platformNote = Services.appinfo.OS != "Darwin" && !Services.prefs.getBoolPref(NOTE_PREF, false);
+    const platformNote = !["Darwin", "WINNT"].includes(Services.appinfo.OS) && !Services.prefs.getBoolPref(NOTE_PREF, false);
     if (!Services.prefs.getBoolPref(WELCOME_PREF, false) || platformNote) {
       const welcome = !Services.prefs.getBoolPref(WELCOME_PREF, false);
       const noteTimer = setTimeout(async () => {
@@ -4839,6 +4849,12 @@ class CardEnhancer {
           if (url.startsWith("chrome://calendar/content/calendar-event-dialog-attendees.xhtml") && doc.defaultView) {
             const aw = doc.defaultView;
             aw.addEventListener("load", () => aw.setTimeout(() => hookDateTimePickers(aw), 0), { once: true });
+          }
+          // Windows: Menüleiste erst mit Alt (nach dem Laden, wenn Thunderbird
+          // gemerkte Einstellungen schon gesetzt hat)
+          if (Services.appinfo.OS == "WINNT" && MENUBAR_WINDOWS.some(u => url.startsWith(u)) && doc.defaultView) {
+            const mw = doc.defaultView;
+            mw.addEventListener("load", () => autohideMenubar(mw), { once: true });
           }
           // Dialogfenster als ruhige Karte ohne sichtbare Titelleiste (macOS)
           if (CARD_WINDOWS.some(u => url.startsWith(u)) && doc.defaultView) {
@@ -5580,7 +5596,7 @@ class CardEnhancer {
     // Thunderbirds Umriss-Figur)
     const initialsImage = text => {
       const esc = String(text).replace(/[<>&"']/g, ch => `&#${ch.charCodeAt(0)};`);
-      const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><linearGradient id="g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#B4CAE4"/><stop offset="1" stop-color="#8A97C5"/></linearGradient></defs><rect width="100" height="100" fill="url(#g)"/><text x="50" y="50" dy="0.35em" text-anchor="middle" fill="#fff" font-family="-apple-system, BlinkMacSystemFont, system-ui, sans-serif" font-weight="600" font-size="44">${esc}</text></svg>`;
+      const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><linearGradient id="g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#B4CAE4"/><stop offset="1" stop-color="#8A97C5"/></linearGradient></defs><rect width="100" height="100" fill="url(#g)"/><text x="50" y="50" dy="0.35em" text-anchor="middle" fill="#fff" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI Variable Text', system-ui, sans-serif" font-weight="600" font-size="44">${esc}</text></svg>`;
       return "data:image/svg+xml;charset=utf-8," + encodeURIComponent(svg);
     };
     // Kontaktfotos, die sich nicht laden lassen (z. B. verwaiste Foto-Datei),
@@ -7285,6 +7301,7 @@ class CardEnhancer {
         }
         const width = panel && w.TodayPane?.isVisible ? Math.round(panel.getBoundingClientRect().width) : 0;
         const caption = captionWidth(d);
+        const tail = rowTail(d);
         setVar(row, "--mc-tp-w", `${width}px`);
         setVar(row, "--mc-tp-room", `${width}px`);
         row.toggleAttribute("data-mc-tp-open", width > 0);
@@ -7292,10 +7309,10 @@ class CardEnhancer {
         // sonst rechts neben dem Knopf einen grauen Streifen stehen)
         row.toggleAttribute("data-mc-tp-none", width <= 0);
         setVar(row, "--mc-caption-w", `${caption}px`);
-        setVar(row, "--mc-row-tail", `${rowTail(d)}px`);
+        setVar(row, "--mc-row-tail", `${tail}px`);
         // neben Knopf und Fensterknöpfen zu wenig Platz: nur die Sonne
-        // links Today-Knopf (12 + 40 + 8), rechts „+“ (8 + 40 + 12) und ggf. Fensterknöpfe
-        title.toggleAttribute("data-narrow", width - 60 - (60 + caption) < 110);
+        // links Today-Knopf (12 + 40 + 8), rechts „+“ (8 + 40 + 12) und ggf. ≡/Fensterknöpfe
+        title.toggleAttribute("data-narrow", width - 60 - (60 + Math.max(caption, tail)) < 110);
       };
       w.__mcTodayTopSync = sync;
       const ro = panel ? new w.ResizeObserver(sync) : null;
@@ -10177,30 +10194,6 @@ class CardEnhancer {
     }
   }
 
-  // Feedback: neue Mail an die Feedback-Adresse, mit Versionen zum Nachvollziehen
-  async sendFeedback() {
-    let version = extensionVersion;
-    try {
-      const { AddonManager } = ChromeUtils.importESModule("resource://gre/modules/AddonManager.sys.mjs");
-      version = (await AddonManager.getAddonByID("mail-cards@sebastian.local"))?.version || version;
-    } catch {}
-    const osVersion = Services.sysinfo.getProperty("version");
-    const os = Services.appinfo.OS == "Darwin" ? `macOS (Darwin ${osVersion})`
-      : Services.appinfo.OS == "WINNT" ? `Windows (${osVersion})` : `${Services.appinfo.OS} (${osVersion})`;
-    const subject = `halo.spaces ${version} – Feedback`;
-    const body = `${tr("Hi,")}\n\n\n\n—\n` +
-      `halo.spaces ${version} · Thunderbird ${Services.appinfo.version} · ${os}`;
-    const params = Cc["@mozilla.org/messengercompose/composeparams;1"].createInstance(Ci.nsIMsgComposeParams);
-    const fields = Cc["@mozilla.org/messengercompose/composefields;1"].createInstance(Ci.nsIMsgCompFields);
-    fields.to = FEEDBACK_ADDRESS;
-    fields.subject = subject;
-    fields.body = body;
-    params.type = Ci.nsIMsgCompType.New;
-    params.format = Ci.nsIMsgCompFormat.PlainText;
-    params.composeFields = fields;
-    MailServices.compose.OpenComposeWindowWithParams(null, params);
-  }
-
   // Beim Start nach einem Update suchen und es gleich installieren – höchstens
   // alle 6 Stunden, und nur wenn automatische Updates erlaubt sind (eigener
   // Schalter, Thunderbirds Einstellung und die des Add-ons im Add-ons-Manager)
@@ -10255,7 +10248,7 @@ class CardEnhancer {
     });
   }
 
-  // Info-Fenster „Halo Spaces“ (Help-Menü): Version, Updates, Feedback, Spenden
+  // Info-Fenster „Halo Spaces“ (Help-Menü): Version, Updates, Einstellungen
   async openHaloWindow(w, { platformNote = false, welcome = false, themeSwitched = false } = {}) {
     const open = [...Services.wm.getEnumerator(null)].find(win => win.location?.href.startsWith("resource://mailcards/about/halo.html"));
     if (open) {
@@ -10271,27 +10264,13 @@ class CardEnhancer {
       german: Services.locale.appLocaleAsBCP47.startsWith("de"),
       version,
       checkUpdate: () => this.findUpdate(),
-      mac: Services.appinfo.OS == "Darwin",
       platformNote,
       welcome,
       themeSwitched,
       openSettings: () => openHaloSettings(w),
-      sendFeedback: () => this.sendFeedback(),
-      // im Standardbrowser öffnen (loadURI braucht seit Thunderbird 140 einen
-      // Principal und tat ohne ihn nichts)
-      donate: () => {
-        const main = Services.wm.getMostRecentWindow("mail:3pane") || w;
-        if (typeof main.openLinkExternally == "function") {
-          main.openLinkExternally(DONATE_URL);
-        } else {
-          Cc["@mozilla.org/uriloader/external-protocol-service;1"]
-            .getService(Ci.nsIExternalProtocolService)
-            .loadURI(Services.io.newURI(DONATE_URL), Services.scriptSecurityManager.getSystemPrincipal());
-        }
-      },
     };
     const hw = w.openDialog("resource://mailcards/about/halo.html", "halo-spaces",
-      `chrome,dialog=yes,centerscreen,resizable=no,width=360,height=${349 + (platformNote ? 64 : 0)}`);
+      `chrome,dialog=yes,centerscreen,resizable=no,width=360,height=${257 + (platformNote ? 64 : 0)}`);
     // erst lädt das Fenster about:blank, dann unsere Seite – darauf warten
     let tries = 0;
     const wire = () => {
@@ -10317,7 +10296,7 @@ class CardEnhancer {
       el.textContent = tr(el.dataset.l10nEn);
     }
     $("version").textContent = `Version ${api.version}`;
-    // einmalig nach der Erstinstallation: Begrüßung; Windows/Linux: Hinweis zur Plattform
+    // einmalig nach der Erstinstallation: Begrüßung; Linux: Hinweis zur Plattform
     const note = $("platform-note");
     const lines = [];
     if (api.welcome) {
@@ -10383,35 +10362,28 @@ class CardEnhancer {
         status.textContent = "✓";
       }
     });
-    const feedback = event => {
-      event.preventDefault();
-      api.sendFeedback();
-      hw.close();
-    };
     $("settings")?.addEventListener("click", () => {
       api.openSettings();
       hw.close();
     });
-    $("feedback").addEventListener("click", feedback);
-    $("donate").addEventListener("click", () => api.donate());
     // Logo mit Versionsnummer laden (sonst zeigt Thunderbird nach einem
     // Update noch das zwischengespeicherte alte)
     const icon = doc.querySelector(".icon");
     if (icon) {
       icon.src = `icon.svg?v=${api.version}`;
     }
-    // Windows/Linux: die feste Höhe passt zu den Schriftmaßen von macOS –
-    // mit anderen Systemschriften wäre das Fenster sonst scrollbar.
-    // Begrüßung: Höhe genau nach dem Inhalt (Text je nach Sprache)
-    if (!api.mac || api.welcome) {
-      const body = doc.body, style = hw.getComputedStyle(body);
-      const need = api.welcome
-        ? Math.ceil([...body.children].filter(e => !e.hidden).reduce((h, e) => Math.max(h, e.getBoundingClientRect().bottom), 0) + parseFloat(style.paddingBottom))
-        : doc.documentElement.scrollHeight;
-      const extra = need - hw.innerHeight;
-      if (extra > 0 || api.welcome) {
-        hw.resizeBy(0, extra);
-      }
+    // Höhe genau nach dem Inhalt: die feste Höhe passt nur zu den Schriftmaßen
+    // von macOS, mit Segoe UI wäre das Fenster sonst scrollbar oder zu hoch;
+    // die Begrüßung hat je nach Sprache mehr oder weniger Zeilen
+    const body = doc.body, style = hw.getComputedStyle(body);
+    const need = Math.ceil([...body.children].filter(e => !e.hidden).reduce((h, e) => Math.max(h, e.getBoundingClientRect().bottom), 0) + parseFloat(style.paddingBottom));
+    if (need != hw.innerHeight) {
+      hw.resizeBy(0, need - hw.innerHeight);
+    }
+    // Windows mit 125/150 % Zoom: das Fenster landet auf ganzen Gerätepixeln
+    // und kann um Bruchteile zu niedrig sein – dann wäre es scrollbar
+    for (let i = 0; i < 3 && doc.documentElement.scrollHeight > hw.innerHeight; i++) {
+      hw.resizeBy(0, 1);
     }
   }
 

@@ -5,7 +5,7 @@
 /* reine Textmails: statt Schreibmaschinenschrift */
 :is(.moz-text-plain, .moz-text-flowed) :is(pre, div),
 div:is(.moz-text-plain, .moz-text-flowed) {
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif !important;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI Variable Text", "Segoe UI", system-ui, sans-serif !important;
   font-size: 14px !important;
   line-height: 1.45 !important;
 }
@@ -16,7 +16,7 @@ div:is(.moz-text-plain, .moz-text-flowed) {
 @-moz-document url-prefix("imap:"), url-prefix("mailbox:"), url-prefix("news:"),
                url-prefix("nntp:"), url-prefix("ews:"), url-prefix("owl:") {
   body {
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI Variable Text", "Segoe UI", system-ui, sans-serif;
   }
 }
 

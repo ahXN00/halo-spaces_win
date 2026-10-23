@@ -3,6 +3,27 @@
 Hinweise für KI-Agenten (Claude Code, Codex, …), die an halo.spaces arbeiten.
 Für Nutzer siehe `README.md`, für den Store `store/README.md`.
 
+## Dieser Fork: halo.spaces für Windows
+
+Dieses Repo (`ahXN00/halo-spaces_win`) ist ein Fork von `sruf79/halo-spaces` mit
+einem Ziel: unter Windows 11 genauso aussehen und sich verhalten wie unter macOS,
+ohne macOS zu verändern. Was unten über Mac mini, Parallels-VM, die Aufgabenliste
+(`sruf79`), `release.sh`/`publish.sh` und den Store steht, gilt hier **nicht** – die
+Aufgabenliste des Originals nie anfassen.
+
+```bash
+python build.py                                   # Windows-Build (wie build.sh, ohne zsh/zip)
+python tests/halo_test.py --port 2851             # Test hell, frisches Profil
+python tests/halo_test.py --port 2851 --dark --xpi dist/halo-spaces-<version>.xpi
+```
+
+- Nur Windows betreffende Regeln: CSS `@media (-moz-platform: windows)`, JS
+  `Services.appinfo.OS == "WINNT"`.
+- `update_url` zeigt auf die eigene `updates.json` dieses Forks – nie zurück auf das
+  Original (sonst ersetzt das automatische Update die Windows-Fassung).
+- Bildschirmzoom 125/150 % rundet Rahmen auf Gerätepixel (1px → 0.8px): Prüfungen
+  vergleichen Breiten mit `px_is()`/`css_px()`.
+
 ## Worum es geht
 
 halo.spaces gibt Thunderbird (128+) unter macOS einen ruhigen Look im Stil von

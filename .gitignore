@@ -13,3 +13,9 @@ vorschau-bereiche-farben.png
 logo-ideen.png
 # Screenshots aus release.sh (nur Testprofil, bleiben lokal)
 tests/shots/
+# lokale Agenten-Anleitung (nicht veröffentlichen)
+CLAUDE.md
+# Python-Zwischendateien (tests/ui_tour.py importiert halo_test)
+__pycache__/
+# Notizen und Gesprächsverläufe der KI-Sitzungen (lokal, privat)
+.claude-notes/

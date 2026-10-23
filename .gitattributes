@@ -1,0 +1,3 @@
+# Windows-Skripte immer mit CRLF (auch im ZIP-Download von GitHub)
+*.cmd text eol=crlf
+*.ps1 text eol=crlf

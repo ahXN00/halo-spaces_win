@@ -25,7 +25,11 @@ import sys
 import tempfile
 import time
 
-ADDON_ID = "mail-cards@sebastian.local"
+# Windows: Dateien und Ausgaben sind UTF-8 (Python vor 3.15 nimmt sonst cp1252) – im UTF-8-Modus neu starten
+if sys.platform == "win32" and not sys.flags.utf8_mode and __name__ == "__main__":
+    sys.exit(subprocess.run([sys.executable, "-X", "utf8", *sys.argv]).returncode)
+
+ADDON_ID ="mail-cards@sebastian.local"
 PORT = 2839
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DEFAULT_TB = {
@@ -261,7 +265,11 @@ def create_profile(xpi, port, dark=False, prefix="halo-test-"):
             "dom.min_background_timeout_value": 4,
             # das macOS-Adressbuch (echte Kontakte) nicht einbinden
             "ldap_2.servers.osx.position": 0,
-            **({"ui.systemUsesDarkTheme": 1} if dark else {}),
+            # hell/dunkel fest vorgeben – sonst folgt der „helle“ Lauf einem dunklen System (Windows: Apps im Dunkelmodus)
+            "ui.systemUsesDarkTheme": 1 if dark else 0,
+            # Windows: Akzentfarbe fest (Blau wie macOS) – „automatisch aus dem Hintergrundbild“
+            # wechselt sie sonst mitten im Lauf, und Prüfungen vergleichen Farben verschiedener Zeitpunkte
+            **({"ui.accentcolor": "#007AFF", "ui.accentcolortext": "#FFFFFF"} if sys.platform == "win32" else {}),
         }.items():
             f.write(f"user_pref({json.dumps(pref)}, {json.dumps(value)});\n")
     return profile
@@ -451,9 +459,11 @@ def main():
 
     if not args.xpi:
         # ohne Angabe immer den aktuellen Stand bauen (sonst testet man ein altes Paket)
-        built = subprocess.run([os.path.join(ROOT, "build.sh")], capture_output=True, text=True, cwd=ROOT)
+        # Windows hat kein zsh/zip: dort baut build.py dasselbe Paket
+        build = [sys.executable, os.path.join(ROOT, "build.py")] if sys.platform == "win32" else [os.path.join(ROOT, "build.sh")]
+        built = subprocess.run(build, capture_output=True, text=True, cwd=ROOT)
         if built.returncode != 0:
-            sys.exit("build.sh fehlgeschlagen:\n" + built.stderr)
+            sys.exit(os.path.basename(build[-1]) + " fehlgeschlagen:\n" + built.stderr)
     xpi = args.xpi or max((x for x in glob.glob(os.path.join(ROOT, "dist", "halo-spaces-*.xpi")) if not x.endswith("-atn.xpi")),
                            key=os.path.getmtime, default=None)  # nicht die Store-Variante (ohne update_url)
     if not xpi or not os.path.exists(xpi):
@@ -2021,7 +2031,7 @@ def compose_checks(m, results):
         ok = (abs(res["center"]) <= 30 and res["send"][:3] == [30, 30, "50%"] and res["send"][3] <= 20 and res["texts"] == ["Aa"]
               and res["fmtHidden"] and res["fmtShown"] and res["pref"] and res["label"][0] <= 30 and res["label"][1] == '":"' and not res["desc"]
               and fw["begin"] and fw["first"].startswith("From") and fw["date"] and "+0000" not in fw["date"] and fw["border"] == "none"
-              and fw["bar"] == "2px" and not fw["modified"] and at["w"] == 96 and at["icon"] == 32 and at["src"])
+              and px_is(fw["bar"], 2) and not fw["modified"] and at["w"] == 96 and at["icon"] == 32 and at["src"])
         return ok, f"{res}"
     check("Verfassen wie Apple Mail: Symbole mittig, Senden rund rechts, „Aa“ für die Formatleiste, Bezeichnungen links; Weiterleitung mit Apple-Kopf; Anhänge als Kacheln", apple_compose, results)
 
@@ -3402,12 +3412,30 @@ def same_color(a, b, tol=2):
 
 
 SCREEN_W = 99999
+DPR = 1.0
+
+
+def css_px(want):
+    """Linien- und Rahmenbreite in CSS-Pixeln, wie Gecko sie bei diesem Bildschirmzoom zeichnet: auf ganze
+    Gerätepixel abgerundet, mindestens einer (Windows 125 %: 1px → 0.8px, 2px → 1.6px)."""
+    return max(1, int(want * DPR + 1e-6)) / DPR
+
+
+def px_is(value, *wants):
+    """True, wenn eine berechnete Breite („0.8px“) einer der gewünschten entspricht – nach dem Abrunden auf Gerätepixel."""
+    try:
+        v = float(str(value).removesuffix("px"))
+    except ValueError:
+        return False
+    return any(abs(v - css_px(x)) <= 0.01 for x in wants)
 
 
 def run_checks(m, version, profile, results):
-    global SCREEN_W
+    global SCREEN_W, DPR
     # verfügbare Bildschirmbreite (Windows-VM: 1024 px) – einige Breitenprüfungen hängen davon ab
     SCREEN_W = m.js("return w.screen.availWidth;") or 99999
+    # Bildschirmzoom (Windows oft 125/150 %): Rahmenbreiten werden auf Gerätepixel gerundet
+    DPR = m.js("return w.devicePixelRatio;") or 1.0
 
     def welcome():
         # Erstinstallation (frisches Profil): einmal die Begrüßung im Info-Fenster – was halo.spaces ändert, wo die
@@ -3420,20 +3448,21 @@ def run_checks(m, version, profile, results):
           if (!hw) return { window: false, theme, shown: Services.prefs.getBoolPref("extensions.mailcards.welcomeShown", false) };
           await wait(400); const hd = hw.document, vis = id => { const e = hd.getElementById(id); return !!e && e.getBoundingClientRect().height > 0; };
           const out = { window: true, theme, title: hd.querySelector("h1").textContent, lines: hd.querySelectorAll("#platform-note .line").length,
-                        text: hd.getElementById("platform-note").textContent, buttons: ["settings", "close", "update", "feedback", "donate"].filter(vis),
+                        text: hd.getElementById("platform-note").textContent, buttons: ["settings", "close", "update"].filter(vis),
                         overflow: hd.documentElement.scrollHeight - hw.innerHeight, shown: Services.prefs.getBoolPref("extensions.mailcards.welcomeShown", false),
                         note: Services.prefs.getBoolPref("extensions.mailcards.platformNoteShown", false),
                         windows: [...Services.wm.getEnumerator(null)].filter(x => x.location?.href.startsWith("resource://mailcards/about/halo.html")).length };
           hd.getElementById("close").click(); await wait(400);
           out.closed = ![...Services.wm.getEnumerator(null)].some(x => x.location?.href.startsWith("resource://mailcards/about/halo.html"));
           return out;""")
-        mac = sys.platform == "darwin"
+        # Plattform-Hinweis nur unter Linux (macOS und Windows sind abgestimmt)
+        note = sys.platform not in ("darwin", "win32")
         ok = (res["window"] and res["title"] == "Welcome to halo.spaces" and "Settings → halo.spaces" in res["text"]
               and res["buttons"] == ["settings", "close"] and res["overflow"] <= 0 and res["shown"] and res["windows"] == 1
-              and res["lines"] == (2 if mac else 3) and ("made for macOS" in res["text"]) != mac and res["note"] != mac
+              and res["lines"] == (3 if note else 2) and ("made for macOS" in res["text"]) == note and res["note"] == note
               and res["theme"] == "default-theme@mozilla.org" and "appearance was set" not in res["text"] and res["closed"])
         return ok, f"{res}"
-    check("Begrüßung: einmal nach der Erstinstallation (Optionen unter Einstellungen → halo.spaces, Win/Linux mit Plattform-Hinweis), Theme bleibt System", welcome, results)
+    check("Begrüßung: einmal nach der Erstinstallation (Optionen unter Einstellungen → halo.spaces, Linux mit Plattform-Hinweis), Theme bleibt System", welcome, results)
 
     # Vorbereitung: Fenstergröße, Testkalender, Fenster ohne Dialoge
     m.js("""
@@ -4415,7 +4444,7 @@ def run_checks(m, version, profile, results):
         e, f, st, wd = res["empty"], res["focus"], res["status"], res["widths"]
         empty_ok = (e["inner"] == "1" and not e["dim"] and e["descSize"] == "13px" and e["descOk"] and e["btnOk"]
                     and e["icon"] and e["stroke"])
-        focus_ok = f["active"] and not f["fv"] and f["outline"] == "none" and f["kbOutline"] != "none" and f["kbWidth"] >= 2
+        focus_ok = f["active"] and not f["fv"] and f["outline"] == "none" and f["kbOutline"] != "none" and f["kbWidth"] >= css_px(2) - 0.01
         status_ok = (st["size"] == "13px" == st["addSize"] and st["img"] == "none" and abs(st["w"] - 10) <= 0.5
                      and abs(st["h"] - 10) <= 0.5 and st["mid"] <= 1 and st["online"] and st["away"]
                      and abs(st["padL"] - st["padR"]) <= 3 and abs(st["padL"] - st["addL"]) <= 3
@@ -4463,7 +4492,7 @@ def run_checks(m, version, profile, results):
           return out;""")
         def same(a, b):
             return all(abs(x - y) <= 6 for x, y in zip(a, b))
-        ok = all(v["border"] == "1px" and abs(v["off"]) <= 0.5 and v["layers"] == 2
+        ok = all(px_is(v["border"], 1) and abs(v["off"]) <= 0.5 and v["layers"] == 2
                  and all(same(c["up"], c["down"]) for c in v["cols"]) for v in res.values())
         return ok, f"{res}"
     check("Bereiche: Trennlinie der Seitenleiste läuft in der Toolbar-Zeile ohne Versatz und Farbsprung weiter (Chat, Kalender)", side_line, results)
@@ -4600,7 +4629,9 @@ def run_checks(m, version, profile, results):
         res = m.js('''
           await toMail(); const sx = w.screenX, sy = w.screenY, sw = w.outerWidth, sh = w.outerHeight;
           const right = w.screen.availLeft + w.screen.availWidth;
-          w.moveTo(right - 1300, w.screen.availTop); w.resizeTo(1300, 900); await wait(1200);
+          // erst verkleinern, dann an der tatsächlichen Breite ausrichten: unter Windows bleibt das Fenster
+          // wegen der Fensterknöpfe breiter als 1300 px und ragte sonst über den Rand (auf einen zweiten Bildschirm)
+          w.resizeTo(1300, 900); await wait(800); w.moveTo(right - w.outerWidth, w.screen.availTop); await wait(1200);
           if (!w.TodayPane.isVisible) { d.getElementById("mcTodayToggle").click(); await wait(800); }
           const out = { visibility: d.visibilityState, screenRight: right };
           for (const id of ["mcNewEvent", "mcNewTask"]) {
@@ -5205,7 +5236,7 @@ def run_checks(m, version, profile, results):
                      win: colorOf(sd, "var(--mt-window)", "backgroundColor"), line: colorOf(sd, "var(--mt-pane-line)", "borderTopColor") };
           } finally { await shut(sw); }""")
         ok = (all(same_color(x[0], res["win"]) and x[1] == "8px" and same_color(x[2], res["line"]) for x in (res["tree"], res["terms"]))
-              and res["tree"][0] != "rgb(0, 0, 0)" and res["split"][1] == "0px" and res["split"][0] in ("1px", "0.5px"))
+              and res["tree"][0] != "rgb(0, 0, 0)" and res["split"][1] == "0px" and px_is(res["split"][0], 1, 0.5))
         return ok, f"{res}"
     check("Adressen suchen: Bedingungen und Ergebnisse als Flächen mit Haarlinie, keine schwarze Liste, Teiler als eine Linie", ab_search_dialog, results)
 
@@ -5376,19 +5407,17 @@ def run_checks(m, version, profile, results):
         return ok, f"{res}"
     check("Adressbuch: Zusammenführen von Dubletten lässt die Auswahl beim gewählten Kontakt, Details zeigen den verbliebenen Eintrag", ab_dedupe_selection, results)
 
-    def donate():
-        # „Say Thanks“ im Info-Fenster öffnet die Spendenseite (Aufruf abgefangen, kein echter Browser)
+    def help_window():
+        # Info-Fenster: nur „Check for Updates“ und „Settings…“ (ohne Feedback und Spenden)
         res = m.js('''
           await toMail();
-          const orig = w.openLinkExternally; let opened = null;
-          w.openLinkExternally = url => { opened = String(url); };
           d.getElementById("mcHaloSpaces").doCommand();
           const hw = await until(() => [...Services.wm.getEnumerator(null)].find(x => x.location?.href.startsWith("resource://mailcards/about/halo.html") && x.document.getElementById("version")?.textContent));
           await wait(500);
-          hw?.document.getElementById("donate")?.click(); await wait(300);
-          // keine Mailadresse unten – dafür gibt es „Send Feedback“
+          const buttons = hw ? [...hw.document.querySelectorAll("main button")].filter(b => b.getBoundingClientRect().height > 0).map(b => b.id) : null;
+          // keine Mailadresse im Fenster
           const address = /@/.test(hw?.document.body.textContent || "");
-          const last = hw?.document.querySelector("main")?.lastElementChild?.getBoundingClientRect();
+          const last = [...(hw?.document.querySelectorAll("main > button") || [])].filter(b => b.getBoundingClientRect().height > 0).pop()?.getBoundingClientRect();
           const room = last ? Math.round(hw.innerHeight - last.bottom) : null;
           // Kopf: Logo oben mittig, darunter Name, darunter kleinere Version
           const box = sel => hw?.document.querySelector(sel)?.getBoundingClientRect();
@@ -5407,10 +5436,9 @@ def run_checks(m, version, profile, results):
           hw?.document.getElementById("settings")?.click();
           const pw = await until(() => tm.currentTabInfo.mode.name == "preferencesTab" && tm.currentTabInfo.browser?.contentWindow?.document.getElementById("categories")?.selectedItem?.value == "paneMcHalo" && tm.currentTabInfo.browser.contentWindow, 8000);
           const settings = !!pw; if (pw) tm.closeTab(tm.currentTabInfo);
-          w.openLinkExternally = orig; try { if (hw && !hw.closed) hw.close(); } catch {}
-          return { window: !!hw, opened, address, room, head, overflow, status, toggles, settings };''')
-        url = res.get("opened") or ""
-        ok = url.startswith("https://buymeacoffee.com/diversion?") and "utm_content=about-window" in url
+          try { if (hw && !hw.closed) hw.close(); } catch {}
+          return { window: !!hw, buttons, address, room, head, overflow, status, toggles, settings };''')
+        ok = res.get("buttons") == ["update", "settings"]
         head = res.get("head") or {}
         centered = head and all(o is not None and abs(o) <= 2 for o in head["offsets"]) and head["stacked"] and head["sizes"][1] < 12
         # Einstellungsseite (eingebettet, nicht per Marionette erreichbar): Sekundärfarbe ohne Alpha in der Datei
@@ -5419,8 +5447,8 @@ def run_checks(m, version, profile, results):
         opaque = not re.search(r"--text-secondary:\s*rgba", opts) and (res.get("status") or "").startswith("rgb(")
         return (ok and centered and not res["address"] and res["room"] is not None and 16 <= res["room"] <= 22
                 and res.get("overflow") is not None and res["overflow"] <= 0 and opaque and res["toggles"] == [] and res["settings"]), f"{res}"
-    check("Info-Fenster: Logo, Name und Version mittig untereinander; „Say Thanks“ öffnet die Spendenseite, keine Mailadresse unten; "
-          "nicht scrollbar, unten 18 px; Emojis in Status und Hinweisen in voller Farbe; ohne Fotos/Emojis, „Settings…“ öffnet Einstellungen → halo.spaces", donate, results)
+    check("Info-Fenster: Logo, Name und Version mittig untereinander; nur Updates und Einstellungen (kein Feedback, keine Spenden), keine Mailadresse; "
+          "nicht scrollbar, unten 18 px; Emojis in Status und Hinweisen in voller Farbe; ohne Fotos/Emojis, „Settings…“ öffnet Einstellungen → halo.spaces", help_window, results)
 
     def addons_manager():
         # Add-ons-Verwaltung (Thunderbird 140+, Bausteine im Schatten-DOM): Seitenleiste 34 px/13 px, Seite und Kopf in
@@ -5752,7 +5780,9 @@ def run_checks(m, version, profile, results):
             out.focused = Services.focus.activeWindow == w && (d.activeElement == tree || tree.contains(d.activeElement));
             out.rule = /treechildren::-moz-tree-row\(current, focus\)\s*\{\s*outline: none !important/.test(await (await fetch(`resource://mailcards/theme.css`)).text());
             const px1 = await pixels({ left: tr.left, top, width: 12, height: rh });
-            out.edge = [px1(0, rh / 2), px1(4, rh / 2), px1(6, 0), px1(6, 3)];
+            // oberste Zeile: bei Bruchteil-Zoom (Windows 125 %) mischt der Bildpunkt 0 die Linie darüber mit ein – einen tiefer
+            const y0 = w.devicePixelRatio % 1 ? 1 : 0;
+            out.edge = [px1(0, rh / 2), px1(4, rh / 2), px1(6, y0), px1(6, 3)];
             // ohne Auswahl: Text der überfälligen Zeile rot
             tree.mTreeView.selection.clearSelection(); await pause(600);
             const px2 = await pixels({ left: tr.left, top, width: Math.min(tr.width, 700), height: rh });
@@ -6424,8 +6454,10 @@ def run_checks(m, version, profile, results):
           const days = [0, 1, 2, 3, 4, 5, 6].map(i => cd.getElementById("dayoff" + i)).filter(Boolean);
           days[1].scrollIntoView({ block: "center" }); await wait(300);
           const labs = days.map(b => b.querySelector(".checkbox-label").getBoundingClientRect());
+          // Abstände in der Reihenfolge auf dem Bildschirm (die Woche beginnt je nach Region am Sonntag oder Montag)
+          const row = [...labs].sort((a, b) => a.left - b.left);
           out.days = [days.length, Math.max(...days.map((b, i) => Math.abs(mid(b.querySelector(".checkbox-check").getBoundingClientRect()) - mid(labs[i])))),
-            Math.min(...labs.slice(1).map((l, i) => l.left - labs[i].right))];
+            Math.min(...row.slice(1).map((l, i) => l.left - row[i].right))];
           // kleinste Fensterbreite: keine Seite breiter als der Inhaltsbereich
           w.resizeTo(800, 900); await wait(800);
           out.narrow = {};
@@ -7039,7 +7071,7 @@ def run_checks(m, version, profile, results):
     def keyboard():
         res = m.js('''
           await toMail(); await wait(300);
-          const ring = el => { el.focus({ focusVisible: true }); const cs = getComputedStyle(el); const r = cs.outlineStyle != "none" && parseFloat(cs.outlineWidth) >= 2; el.blur(); return r; };
+          const ring = el => { el.focus({ focusVisible: true }); const cs = getComputedStyle(el); const r = cs.outlineStyle != "none" && parseFloat(cs.outlineWidth) >= Math.floor(2 * w.devicePixelRatio) / w.devicePixelRatio - 0.01; el.blur(); return r; };
           const own = ["mcSpacesToggle", "mcTodayToggle"].map(id => d.getElementById(id)).filter(Boolean);
           const unlabeled = own.filter(b => !b.getAttribute("aria-label")).map(b => b.id);
           const rings = own.filter(b => !ring(b)).map(b => b.id);

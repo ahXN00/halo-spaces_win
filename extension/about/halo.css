@@ -8,7 +8,6 @@
   --control: rgba(0, 0, 0, 0.05);
   --control-hover: rgba(0, 0, 0, 0.09);
   --accent: AccentColor;
-  --donate: #FF8A00;
   color-scheme: light dark;
 }
 
@@ -35,7 +34,7 @@ body {
   margin: 0;
   background: var(--window);
   color: var(--text);
-  font: 13px/1.4 -apple-system, "SF Pro Text", system-ui, "Helvetica Neue", sans-serif;
+  font: 13px/1.4 -apple-system, "SF Pro Text", "Segoe UI Variable Text", system-ui, "Helvetica Neue", sans-serif;
   -moz-user-select: none;
   user-select: none;
 }
@@ -132,16 +131,6 @@ main {
   opacity: 0.85;
 }
 
-/* Spenden: zarte Fläche in der Farbe des Kalender-Bereichs */
-.capsule.donate {
-  background: color-mix(in srgb, var(--donate) 14%, transparent);
-  color: color-mix(in srgb, var(--donate) 70%, var(--text));
-}
-
-.capsule.donate:hover {
-  background: color-mix(in srgb, var(--donate) 22%, transparent);
-}
-
 .note {
   margin: -6px 0 0;
   padding: 10px 12px;
@@ -149,11 +138,6 @@ main {
   background: var(--control);
   font-size: 12px;
   color: var(--text-secondary);
-}
-
-.capsule .coffee {
-  width: 20px;
-  height: 20px;
 }
 
 /* mehrere Absätze im Hinweis (Begrüßung, Plattform) */
@@ -167,9 +151,7 @@ main {
 
 /* Begrüßung nach der Erstinstallation: nur „Einstellungen öffnen“ (in
    Akzentfarbe) und „Weiter“ */
-.welcome #update,
-.welcome #feedback,
-.welcome #donate {
+.welcome #update {
   display: none;
 }
 
