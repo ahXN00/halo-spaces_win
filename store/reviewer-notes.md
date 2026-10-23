@@ -2,7 +2,7 @@ Notes for the reviewer
 
 This version supersedes the pending 3.3.0 – please review this one instead.
 
-New in 3.4.0, for the review:
+New in 3.5.0 (3.4.0 was never submitted), for the review:
 - Settings category "halo.spaces" in about:preferences (richlistitem in #categories, registered with register_module): its content is the add-on's own options_ui page (options/options.html), embedded in an extension-process <browser> exactly like Thunderbird's add-on manager does it (toolkit inline-options-browser.mjs: messagemanagergroup webext-browsers, remoteType extension, ExtensionParent.apiManager "extension-browser-inserted", ext-browser-content.js). options_ui stays as the second way in. Account Settings and Add-ons and Themes become categories there as well: about:accountsettings and about:addons load in a <browser type="content"> placed over the settings content area of the main window (those pages use `top`, so they can't live inside the settings document). Everything is removed on disable.
 - Optional, off by default: "Design without flicker at start" on the options page. When the user turns it on, the add-on writes its own stylesheet (extension/theme.css, with a header line marking it as written by halo.spaces) to <profile>/chrome/userChrome.css and sets toolkit.legacyUserProfileCustomizations.stylesheets = true, because only a profile userChrome.css applies before the first window is drawn. It is rewritten after updates. Turning the option off, disabling or uninstalling deletes that file again and resets the pref (only if halo.spaces had set it). A userChrome.css the user created (without our header) is never overwritten or deleted.
 - First install only (existing users are recognised by the add-on's one-time prefs): a welcome window (the add-on's own help window, resource://mailcards/about/halo.html) explains where the options are; the Thunderbird theme is switched to "System theme – auto" (AddonManager, default-theme@mozilla.org) unless one of Thunderbird's built-in themes is already active.
@@ -10,6 +10,10 @@ New in 3.4.0, for the review:
 - Mailing lists: after a successful one-click unsubscribe the List-ID (or sender address) is remembered locally in extensions.mailcards.unsubscribedLists (max. 500 entries) so the button is not offered again.
 - Message list: view and layout combined; the add-on keeps mail.threadpane.listview and mail.pane_config.dynamic in a valid combination (cards only with the vertical layout).
 - Increased contrast: CSS for prefers-contrast: more only.
+- Event/task dialog (calendar-item-iframe.xhtml): rows are regrouped with CSS order and data attributes only (no DOM moves); the time field gets its own small <panel> with an <input type=time>; the mouse wheel over it changes the value; Thunderbird's keep-duration toggle (#keepduration-button) is set to on and hidden.
+- Tasks: the filter radio list of the Tasks space is hidden and offered as a menu button left of the search field; choosing an item clicks the original radio.
+- Context menus: the "Open in New Tab/Window" items are hidden with CSS, doubled separators are hidden on popupshowing.
+- Contact photo dialog (about:addressbook photoDialog): a "Choose…" button that clicks Thunderbird's own file input, a range input that resizes photoDialog._cropRect around its centre, and _redrawCropRect is wrapped to draw a round mask. Saving is Thunderbird's own code; the original function is restored on disable.
 
 halo.spaces is a design add-on (theme + icons + behaviour). It uses one Experiment API, "mailCards" (extension/api/implementation.js), because most of what it does is not possible with WebExtension APIs:
 

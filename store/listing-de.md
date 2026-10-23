@@ -21,7 +21,8 @@ Ein ruhiges, aufgeräumtes Design im Stil von macOS für Thunderbird: farbige Be
 <ul>
 <li>Umschalter für Tag, Woche, Mehrere Wochen und Monat in der Titelleiste, Monatsansicht ohne Scrollbalken</li>
 <li>Schnellfenster für Termine: einfach schreiben – „morgen 12:30 für 90 min“, „Fr 9–11“. Auch ein Doppelklick im Kalender öffnet es</li>
-<li>Datum und Uhrzeit in einem Popover wie in Apple Kalender</li>
+<li>Terminfenster wie in Apple Kalender: Titel oben, Karten für Zeit, Ort, Teilnehmer und Kalender, Notizen unten, ein Streifen in der Kalenderfarbe; getrennte Popover für Datum und Uhrzeit, Stunden und Minuten mit dem Mausrad, die Dauer bleibt erhalten</li>
+<li>Aufgabenfilter in einem Menü neben dem Suchfeld, wie der Schnellfilter der Mail</li>
 <li>Passende Emojis vor Termintiteln (Geburtstag, Zahnarzt, Training …), mit eigenen Stichwörtern</li>
 <li>Geburtstage aus den Adressbüchern als eigener, schreibgeschützter Kalender</li>
 </ul>
@@ -36,7 +37,7 @@ Ein ruhiges, aufgeräumtes Design im Stil von macOS für Thunderbird: farbige Be
 <li>Farbige Bereiche für Mail, Kontakte, Kalender, Aufgaben und Chat, alle mit denselben Kanten bei Toolbar und Seitenleiste</li>
 <li>Hell und dunkel folgen dem System, die Akzentfarbe folgt macOS</li>
 <li>Keine Scrollbalken – Scrollen geht weiterhin mit Mausrad, Trackpad und Tastatur</li>
-<li>Gemeinsames Adressbuch: Doppelte zusammengeführt, Kontobezeichnungen in den Kontofarben, Karten nur mit Name oder Firma</li>
+<li>Gemeinsames Adressbuch: Doppelte zusammengeführt, Kontobezeichnungen in den Kontofarben, Karten nur mit Name oder Firma; Kontaktfotos mit rundem Ausschnitt und Zoom-Regler wie in Apple Kontakte</li>
 <li>Berücksichtigt „Kontrast erhöhen“ aus den Bedienungshilfen von macOS</li>
 <li>Einstellungen → halo.spaces: alle Optionen in Thunderbirds Einstellungen, neben Kontoeinstellungen und Add-ons, die sich jetzt ebenfalls dort öffnen; eine kurze Begrüßung nach der Installation zeigt den Weg</li>
 <li>Optional: das Design schon vor dem ersten Fenster laden, damit beim Start nichts Altes aufblitzt (schreibt eine userChrome.css ins Profil, die beim Ausschalten wieder entfernt wird)</li>

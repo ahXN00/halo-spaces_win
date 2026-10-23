@@ -21,7 +21,8 @@ A calm, tidy macOS-style design for Thunderbird: colourful spaces, message cards
 <ul>
 <li>Day, week, multiweek and month switcher in the title bar, a month view without scrollbars</li>
 <li>Quick event window: type naturally – “tomorrow 12:30 for 90 min”, “Fri 9–11”. A double-click in the calendar opens it too</li>
-<li>Date and time in one popover like Apple Calendar</li>
+<li>Event window like Apple Calendar: title on top, cards for time, location, invitees and calendar, notes at the bottom, a stripe in the calendar colour; separate date and time popovers, hours and minutes change with the mouse wheel, the duration is kept</li>
+<li>Task filters in a menu next to the search field, like the mail Quick Filter</li>
 <li>Matching emoji before event titles (birthday, dentist, training …), with your own keywords</li>
 <li>Birthdays from your address books as their own read-only calendar</li>
 </ul>
@@ -36,7 +37,7 @@ A calm, tidy macOS-style design for Thunderbird: colourful spaces, message cards
 <li>Coloured spaces for Mail, Contacts, Calendar, Tasks and Chat, all with the same toolbar and sidebar edges</li>
 <li>Light and dark follow the system, the accent colour follows macOS</li>
 <li>No scrollbars – scrolling still works with wheel, trackpad and keyboard</li>
-<li>Unified address book: duplicates merged, account labels in the account colours, cards with name or company only</li>
+<li>Unified address book: duplicates merged, account labels in the account colours, cards with name or company only; contact photos with a round crop and zoom slider like Apple Contacts</li>
 <li>Respects “Increase contrast” in the macOS accessibility settings</li>
 <li>Settings → halo.spaces: all options in Thunderbird's settings, next to Account Settings and Add-ons, which now open there too; a short welcome after installing points the way</li>
 <li>Optional: load the design before the first window appears, so the old look never flashes at start (writes a userChrome.css into your profile, removed again when turned off)</li>
