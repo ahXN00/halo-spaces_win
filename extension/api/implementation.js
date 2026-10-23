@@ -1181,17 +1181,40 @@ function hookPrefCategories(cw, restorers = null) {
   }
   ro.observe(doc.documentElement);
   // gewählte Kategorie: Inhalt ohne Thunderbirds 800-px-Spalte, passende Seite zeigen
-  function mark() {
+  // (Unterpunkte nur bei gewählter Kategorie und nicht von Hand zugeklappt)
+  let folded = false;
+  function mark(event) {
     const value = categories.selectedItem?.value || "";
+    if (event) {
+      folded = false; // neue Kategorie: Unterpunkte wieder offen
+    }
     doc.documentElement.toggleAttribute("mc-embed", PREF_PANES.some(p => p.value == value));
     for (const [key, browser] of overlays) {
       browser.hidden = key != value;
     }
     for (const subs of categories.querySelectorAll(".mc-subcats")) {
-      subs.hidden = subs.id != "mcSub-" + value;
+      subs.hidden = folded || subs.id != "mcSub-" + value;
     }
+    categories.selectedItem?.toggleAttribute("mc-folded", folded);
     place();
   }
+  // erneuter Klick auf die schon gewählte Kategorie klappt ihre Unterpunkte
+  // auf bzw. zu (Kontoeinstellungen, Add-ons) – wie Ordner im Finder
+  let wasSelected = null;
+  const onDown = e => {
+    wasSelected = e.button == 0 ? categories.selectedItem : null;
+  };
+  const onClick = e => {
+    const item = e.target.closest?.("richlistitem.mc-embed-cat");
+    if (e.button != 0 || !item || item != wasSelected || item != categories.selectedItem ||
+      !doc.getElementById("mcSub-" + item.value)) {
+      return;
+    }
+    folded = !folded;
+    mark();
+  };
+  categories.addEventListener("mousedown", onDown, true);
+  categories.addEventListener("click", onClick);
   doc.addEventListener("paneSelected", mark);
   mark();
   // Thunderbird wählt beim Öffnen die zuletzt gezeigte Kategorie – war das eine
@@ -1205,6 +1228,8 @@ function hookPrefCategories(cw, restorers = null) {
   }
   restorers?.push(() => {
     doc.removeEventListener("paneSelected", mark);
+    categories.removeEventListener("mousedown", onDown, true);
+    categories.removeEventListener("click", onClick);
     ro.disconnect();
     detach.forEach(f => f());
     const was = categories.selectedItem?.classList.contains("mc-embed-cat");

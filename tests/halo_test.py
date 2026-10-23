@@ -6207,7 +6207,7 @@ def run_checks(m, version, profile, results):
     check("Suche: im gewählten Ordner nur dort, in Sammelordnern global, keine Mails ohne den Begriff, Platzhalter je Ordner, Ordnerwechsel sucht weiter", search_scope, results)
 
     def settings_style():
-        # Einstellungen: Inhalt mittig (max. 800 px), Kästchen/Optionsfelder im macOS-Stil,
+        # Einstellungen: Inhalt linksbündig 28 px neben der Seitenleiste (max. 800 px), Kästchen/Optionsfelder im macOS-Stil,
         # Zahlenfeld ohne Systempfeile, Ansichtskacheln ohne Optionsfeld, Kontoeinstellungen als Karten
         res = m.js(r'''
           w.resizeTo(1500, 950); w.openPreferencesTab("paneAppearance"); await wait(2500);
@@ -6221,7 +6221,7 @@ def run_checks(m, version, profile, results):
           const legends = [...new Set([...cd.querySelectorAll("#paneDeck legend")].map(l => cs(l).fontSize))];
           cw.gotoPref("paneChat"); await wait(1200);
           const num = cd.querySelector("#paneDeck input[type=number]");
-          const out = { width: Math.round(deck.width), offset: Math.round((deck.left - box.left) - (box.right - deck.right)),
+          const out = { width: Math.round(deck.width), offset: Math.round(deck.left - box.left),
             checkbox: checked ? [cs(checked).appearance, cs(checked).borderTopLeftRadius] : null,
             radio: radio ? [cs(radio).appearance, cs(radio).borderTopLeftRadius] : null,
             tileCheck: tileCheck ? cs(tileCheck).display : null, number: num ? cs(num).appearance : null, legends };
@@ -6237,11 +6237,11 @@ def run_checks(m, version, profile, results):
           out.accountList = el ? [el.localName, el.ownerDocument.defaultView.getComputedStyle(el).borderTopLeftRadius] : null;
           tm.closeTab(tm.currentTabInfo);
           return out;''')
-        ok = (res["width"] <= 800 and abs(res["offset"]) <= 4 and res["checkbox"] == ["none", "4px"] and res["legends"] == ["13px"]
+        ok = (res["width"] <= 800 and res["offset"] == 28 and res["checkbox"] == ["none", "4px"] and res["legends"] == ["13px"]
               and res["radio"] and res["radio"][0] == "none" and res["tileCheck"] == "none" and res["number"] == "none" and res["numberLook"] == [True, True]
               and res["accountList"] in (["richlistbox", "12px"], ["input", "7px"]))
         return ok, f"{res}"
-    check("Einstellungen: Inhalt mittig, Kästchen und Optionsfelder wie macOS, Kacheln, Kontoeinstellungen", settings_style, results)
+    check("Einstellungen: Inhalt linksbündig neben der Seitenleiste, Kästchen und Optionsfelder wie macOS, Kacheln, Kontoeinstellungen", settings_style, results)
 
     def settings_cards():
         # Einstellungen: Grundschrift 13 px, Seitenleiste bündig, Listen mit Haarlinie, sicheres DNS als Karte,
@@ -6610,7 +6610,7 @@ def run_checks(m, version, profile, results):
 
     def pref_embedded_pages():
         # Kontoeinstellungen und Add-ons als Kategorien: Seitenleiste bleibt stehen (gleiche Breite), Inhalt rechts daneben,
-        # Kontoseite mittig wie die übrigen Einstellungen; Seitenleiste ausblenden zieht die Seite nach links
+        # Kontoseite 28 px neben der Seitenleiste wie die übrigen Einstellungen; Seitenleiste ausblenden zieht die Seite nach links
         res = m.js(PREFS_OPEN_JS + r"""
           const out = { general: { cat: R(pd.getElementById("pref-category-box")), content: R(pd.querySelector(".paneDeckContainer")) } };
           await pick("paneMcAccounts", 3500);
@@ -6635,12 +6635,12 @@ def run_checks(m, version, profile, results):
         right = g["cat"]["l"] + g["cat"]["w"]
         ok = (a["cat"] == g["cat"] and ad["cat"] == g["cat"] and res["back"]["cat"] == g["cat"]
               and a["hidden"] is False and a["page"]["l"] - res["general"]["cat"]["l"] >= 0 and a["inner"] and a["inner"].startswith("am-")
-              and a["gaps"] and abs(a["gaps"][0] - a["gaps"][1]) <= 2 and a["footer"] == "none"
+              and a["gaps"] and a["gaps"][0] == 28 and a["footer"] == "none"
               and ad["hidden"] is False and ad["accHidden"] is True and ad["view"] == "addons://list/extension" and ad["card"]
               and res["sideHidden"]["w"] > ad["page"]["w"] + 150 and res["sideShown"] == ad["page"]
               and res["back"]["acc"] is True and res["back"]["ad"] is True)
         return ok, f"Seitenleiste rechts bei {right} {res}"
-    check("Einstellungen: Kontoeinstellungen und Add-ons als Kategorien, Seitenleiste bleibt gleich breit, Kontoseite mittig, Ausblenden zieht mit", pref_embedded_pages, results)
+    check("Einstellungen: Kontoeinstellungen und Add-ons als Kategorien, Seitenleiste bleibt gleich breit, Kontoseite linksbündig, Ausblenden zieht mit", pref_embedded_pages, results)
 
     def pref_embedded_subnav():
         # keine zweite graue Leiste: Konten (mit Seiten des gewählten Kontos) bzw. Extensions/Themes … als eingerückte
@@ -6674,6 +6674,13 @@ def run_checks(m, version, profile, results):
           out.view = aw.gViewController?.currentViewId; out.add2 = list("paneMcAddons").filter(e => e[2]).map(e => e[1]);
           const main = ad.contentDocument.getElementById("main"), cat = pd.getElementById("pref-category-box").getBoundingClientRect();
           out.gaps = [Math.round(main.getBoundingClientRect().left), Math.round(ad.getBoundingClientRect().width - main.getBoundingClientRect().right)];
+          // erneuter Klick auf die gewählte Kategorie klappt die Unterpunkte zu und wieder auf; Wechsel öffnet sie
+          const tap = v => { const e = pd.getElementById("mcCat-" + v); e.dispatchEvent(new pw.MouseEvent("mousedown", { bubbles: true, button: 0 })); e.click(); };
+          const fold = [vis("paneMcAddons")];
+          tap("paneMcAddons"); await wait(300); fold.push(vis("paneMcAddons"));
+          tap("paneMcAddons"); await wait(300); fold.push(vis("paneMcAddons"));
+          tap("paneMcAddons"); await wait(300); await pick("paneMcAccounts", 1500); fold.push(vis("paneMcAccounts"));
+          out.fold = fold;
           aw.gViewController.loadView("addons://list/extension"); await wait(800);
           await pick("paneGeneral", 800); out.back = [vis("paneMcAccounts"), vis("paneMcAddons")];
           tm.closeTab(tm.currentTabInfo); await wait(400);
@@ -6686,9 +6693,10 @@ def run_checks(m, version, profile, results):
               and [e for e in acc2 if e[2]] == [[2, acc2[[i for i, e in enumerate(acc2) if e[0] == 2][1]][1], True]] and (res["inner"] or "").startswith("am-")
               and acc[-1][1].endswith("…") and res["popup"] == "open"
               and len(add) >= 3 and [e[1] for e in add if e[2]] and res["side"] == 0
-              and res["view"] == "addons://list/theme" and len(res["add2"]) == 1 and abs(res["gaps"][0] - res["gaps"][1]) <= 2)
+              and res["view"] == "addons://list/theme" and len(res["add2"]) == 1 and res["gaps"][0] == 28
+              and res["fold"] == [True, False, True, True])
         return ok, f"{res}"
-    check("Einstellungen: Konten und Add-on-Bereiche als Unterpunkte in der Seitenleiste statt zweiter grauer Leiste, Klick wählt, Konto hinzufügen öffnet das Menü", pref_embedded_subnav, results)
+    check("Einstellungen: Konten und Add-on-Bereiche als Unterpunkte in der Seitenleiste statt zweiter grauer Leiste, Klick wählt, erneuter Klick auf die Kategorie klappt sie zu und auf, Konto hinzufügen öffnet das Menü", pref_embedded_subnav, results)
 
     def account_wizards():
         # Konto-Assistenten (Feed, Newsgruppen, Chat): Knöpfe flach ohne Rahmen, 13 px, 28 px hoch und lesbar

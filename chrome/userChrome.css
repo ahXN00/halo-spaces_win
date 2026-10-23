@@ -5407,13 +5407,13 @@ search-bar {
   grid-template-columns: 1fr !important;
 }
 
-/* Add-ons: eine Spalte und mittig wie die Einstellungen daneben */
+/* Add-ons: eine Spalte, links mit demselben Abstand wie die Einstellungen daneben */
 :root[mc-embedded] #full:has(> #sidebar > categories-box) {
   grid-template-columns: minmax(0, 1fr) !important;
 }
 
 :root[mc-embedded]:has(#sidebar > categories-box) {
-  --main-margin-start: auto !important;
+  --main-margin-start: 28px !important;
   --main-margin-end: auto !important;
   --page-main-content-width: 748px !important;
 }
@@ -5777,11 +5777,13 @@ search-bar {
   box-shadow: none !important;
 }
 
-/* Inhalt höchstens 800 px breit und mittig – lesbare Zeilen, keine
-   halbe Fensterbreite links */
+/* Inhalt höchstens 800 px breit und linksbündig wie in den
+   macOS-Systemeinstellungen: fester Abstand zur Seitenleiste (28 px Rand von
+   #preferencesContainer), keine leere Fläche dazwischen. Kontoeinstellungen,
+   Add-ons und die Seite halo.spaces beginnen an derselben Kante */
 #preferencesContainer .paneDeckContainer,
 #preferencesContainer .sticky-container {
-  margin-inline: auto !important;
+  margin-inline: 0 auto !important;
   inline-size: min(100%, 800px) !important;
 }
 
@@ -6107,10 +6109,10 @@ input[type="number"]:is(.size2, .size3, .size4, .size5)::-moz-number-spin-box {
   margin-block-end: 12px !important;
 }
 
-/* Inhalt der Kontoseiten mittig wie in den übrigen Einstellungen (dort höchstens
-   800 px in der Mitte) – sonst klebte er links an der Kontoliste */
+/* Inhalt der Kontoseiten linksbündig mit demselben Abstand zur Seitenleiste
+   wie die übrigen Einstellungen (28 px) */
 #containerBox {
-  margin-inline: auto !important;
+  margin-inline: 28px auto !important;
 }
 
 #containerBox > .dialogheader + separator.thin {
