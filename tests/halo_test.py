@@ -1411,13 +1411,15 @@ def reading_checks(m, results):
           const hdr = a3.gDBView.hdrForFirstSelectedMessage;
           const row = await until(() => [...a3.document.querySelectorAll('#threadTree tr[is="thread-card"]')].find(r => (r.querySelector(".subject")?.textContent || "").includes("Halo Jetzt") && r.querySelector(".date")?.textContent), 6000);
           const norm = s => (s || "").replace(/\s+/g, " ").trim();
-          // ältere Mail (vor zwei Tagen): ganzes Datum im Muster des Systems
+          // ältere Mail (vor zwei Tagen): ganzes Datum mit Uhrzeit im Muster des Systems
           const oldHdr = [...f.messages].find(h => h.messageId == "halo-kopf-anhang@example.invalid");
           const oldRow = [...a3.document.querySelectorAll('#threadTree tr[is="thread-card"]')].find(r => (r.querySelector(".subject")?.textContent || "").includes("Halo Anhänge"));
           return { list: norm(row?.querySelector(".date")?.textContent), header: norm(doc.querySelector("#mcHdrMeta #dateLabel")?.textContent),
                    want: norm(new Services.intl.DateTimeFormat(undefined, { timeStyle: "short" }).format(new Date(hdr.date / 1000))),
-                   old: norm(oldRow?.querySelector(".date")?.textContent), oldWant: oldHdr && norm(new Services.intl.DateTimeFormat(undefined, { dateStyle: "medium" }).format(new Date(oldHdr.date / 1000))) };""")
-        ok = bool(res["list"]) and res["list"] == res["want"] and res["list"] in res["header"] and bool(res["old"]) and res["old"] == res["oldWant"]
+                   old: norm(oldRow?.querySelector(".date")?.textContent), oldWant: oldHdr && norm(new Services.intl.DateTimeFormat(undefined, { dateStyle: "medium", timeStyle: "short" }).format(new Date(oldHdr.date / 1000))) };""")
+        # Karten zeigen immer die Uhrzeit: heute „Today, 16:31“ (Uhrzeit wie im Kopf), älter Datum und Uhrzeit
+        ok = (bool(res["list"]) and res["list"].endswith(res["want"]) and res["want"] in res["header"]
+              and bool(res["old"]) and res["old"] == res["oldWant"])
         return ok, f"{res}"
     check("Mailliste und Mailkopf: Uhrzeit und Datum im Format der Regionaleinstellungen", list_date, results)
 
