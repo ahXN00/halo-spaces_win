@@ -39,6 +39,7 @@ A calm, tidy macOS-style design for Thunderbird: colourful spaces, message cards
 <li>Light and dark follow the system, the accent colour follows macOS</li>
 <li>No scrollbars – scrolling still works with wheel, trackpad and keyboard</li>
 <li>Unified address book: duplicates merged, account labels in the account colours, cards with name or company only; contact photos with a round crop and zoom slider like Apple Contacts</li>
+<li>Questions appear as a sheet at the top of the window like on macOS, dialogs without title bar (can be turned off)</li>
 <li>Respects “Increase contrast” in the macOS accessibility settings</li>
 <li>Settings → halo.spaces: all options in Thunderbird's settings, next to Account Settings and Add-ons, which now open there too; a short welcome after installing points the way</li>
 <li>Optional: load the design before the first window appears, so the old look never flashes at start (writes a userChrome.css into your profile, removed again when turned off)</li>
