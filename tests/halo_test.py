@@ -1690,7 +1690,9 @@ def compose_checks(m, results):
     def format_toolbox():
         # Reintext: Thunderbird blendet nur die Formatleiste aus – die leere Box darf keine zweite Linie unter den Betreff legen;
         # Farbfelder: dezenter Rand statt Thunderbirds rgba(255, 255, 255, 0.7), Ring in Fensterfarbe trennt Text- und Hintergrundfeld
+        # (Formatleiste ist wie bei Apple Mail erst über „Aa“ sichtbar – für die Messung einblenden)
         res = m.js(COMPOSE_CHECK_JS + r"""
+          Services.prefs.setBoolPref("extensions.mailcards.composeFormatBar", true);
           const html = await withCompose({}, async (cw, cd) => {
             const box = cd.getElementById("FormatToolbox"), t = cd.getElementById("TextColorButton"), b = cd.getElementById("BackgroundColorButton");
             return { line: parseFloat(csOf(box).borderBottomWidth), style: csOf(box).borderBottomStyle,
@@ -1699,6 +1701,7 @@ def compose_checks(m, results):
           const plain = await withCompose({ plain: true, body: "Hallo Anna,\n\ndas ist ein Testentwurf." }, async (cw, cd) => {
             const box = cd.getElementById("FormatToolbox");
             return { barHidden: cd.getElementById("FormatToolbar").hidden, line: parseFloat(csOf(box).borderBottomWidth), style: csOf(box).borderBottomStyle }; });
+          Services.prefs.clearUserPref("extensions.mailcards.composeFormatBar");
           return { html, plain };""")
         h, p = res["html"], res["plain"]
         ok = (h["line"] > 0 and h["style"] != "none" and p["barHidden"] and (p["line"] == 0 or p["style"] == "none")
@@ -1774,6 +1777,7 @@ def compose_checks(m, results):
         # Symbolleiste wie Apple Mail immer nur mit Symbolen (außer „Aa“), auch schmal ohne Überlauf; Formatleiste
         # (eingeblendet) bleibt im Fenster; im Modus „nur Text“ bleiben die Beschriftungen
         res = m.js(COMPOSE_CHECK_JS + r"""
+          Services.prefs.setBoolPref("extensions.mailcards.composeFormatBar", true);
           return await withCompose({}, async (cw, cd) => {
             const bar = cd.getElementById("composeToolbar2"), fmt = cd.getElementById("FormatToolbar"), box = cd.getElementById("compose-toolbox");
             const state = () => { const texts = [...bar.querySelectorAll(":scope > toolbarbutton .toolbarbutton-text")].filter(vis);
@@ -1787,6 +1791,7 @@ def compose_checks(m, results):
             // Modus „nur Text“: Beschriftungen bleiben auch schmal (sonst leere Knöpfe)
             box.setAttribute("mode", "text"); out.text = await size(640);
             box.setAttribute("mode", out.mode || "full"); await pause(300);
+            Services.prefs.clearUserPref("extensions.mailcards.composeFormatBar");
             return out; });""")
         n, t, wd, tx = res["narrow"], res["tiny"], res["wide"], res["text"]
         fits = lambda s: not s["cut"] and s["overflow"] <= 1 and s["fmt"][0] <= s["fmt"][1] + 1 and not s["outside"]
@@ -1910,9 +1915,7 @@ def dialog_checks(m, results):
           const out = {};
           const f = await testFolder(); w.MsgFilters(null, f);
           const lw = await winUrl("FilterListDialog"); if (!lw) throw new Error("Filterliste nicht offen");
-        # (Formatleiste ist wie bei Apple Mail erst über „Aa“ sichtbar – für die Messung einblenden)
           try {
-          Services.prefs.setBoolPref("extensions.mailcards.composeFormatBar", true);
             await pause(1000); const ld = lw.document;
             out.list = look(ld.getElementById("filterList")); out.search = look(ld.getElementById("searchBox"));
             out.listHead = headOf(ld, "#filterList");
@@ -1921,7 +1924,6 @@ def dialog_checks(m, results):
             try {
               const lv = vw.document.getElementById("logView");
               await till(() => lv.currentURI?.spec?.endsWith("filterlog.html"), 6000); await pause(1200);
-          Services.prefs.clearUserPref("extensions.mailcards.composeFormatBar");
               out.log = look(lv);
               const snap = await lv.browsingContext.currentWindowGlobal.drawSnapshot(new DOMRect(20, 20, 4, 4), 1, "rgb(255,0,255)");
               const cv = vw.document.createElementNS("http://www.w3.org/1999/xhtml", "canvas"); cv.width = snap.width; cv.height = snap.height;
@@ -1996,7 +1998,6 @@ def dialog_checks(m, results):
           for (const [k, open] of [["imp", () => w.toImport()], ["exp", () => w.toExport()]]) {
             open(); await pause(2000);
             const t = tm.tabInfo.find(x => x.browser?.currentURI?.spec?.startsWith("about:import")); if (!t) throw new Error("Tab fehlt");
-          Services.prefs.setBoolPref("extensions.mailcards.composeFormatBar", true);
             try { const dd = t.browser.contentDocument; await till(() => dd.getElementById("stepNav") && dd.defaultView.__mcTheme, 5000); await pause(400);
               out[k] = { theme: !!dd.defaultView.__mcTheme, root: csOf(dd.documentElement).backgroundColor, body: csOf(dd.body).backgroundColor,
                          color: csOf(dd.documentElement).color, hash: dd.location.hash,
@@ -2010,7 +2011,6 @@ def dialog_checks(m, results):
         return ok1(res["imp"]) and ok1(res["exp"]), f"{res}"
     check("Import und Export: Fläche in Fensterfarbe wie die übrigen Tabs, dunkel kein Blauschwarz", import_export, results)
 
-            Services.prefs.clearUserPref("extensions.mailcards.composeFormatBar");
     def print_preview():
         # Druckvorschau einer Mail: Knopf „Print/Save“ in der Systemakzentfarbe statt Proton-Blau bzw. -Türkis, Panel neutral; nie drucken
         res = m.js(DIALOG_READING_JS + r"""
@@ -5970,6 +5970,7 @@ def run_checks(m, version, profile, results):
         a = res.get("inA") or []
         # Treffer über die Empfängeradresse (a4) sind gewollt – Apple Mail sucht auch in Adressen; nur im HTML-Link (a3) nicht
         ok = ("suche-a1" in a and "suche-a2" not in a and "suche-a3" not in a and "suche-b1" not in a
+              and res.get("cacheApi") and "suche-a2" not in (res.get("afterStale") or []) and "suche-a2" not in (res.get("staleLeft") or [])
               and res.get("phA") == "Search SucheA" and res.get("phB") == "Search SucheB"
               and res.get("inB") == ["suche-b1"] and (res.get("header") or "").startswith("SucheA")
               and (res.get("phSmart") is None or (res["phSmart"] == "Search All Mailboxes" and {"suche-a1", "suche-b1"} <= set(res.get("inSmart") or [])
@@ -6133,7 +6134,6 @@ def run_checks(m, version, profile, results):
               and res["hr"] and res["hr"][:2] == [True, True] and res["hr"][2] == "none"
               and res["first"] == ["0px", "12px"] and res["link"] in (True, "kein Link"))
         return ok, f"{res}"
-              and res.get("cacheApi") and "suche-a2" not in (res.get("afterStale") or []) and "suche-a2" not in (res.get("staleLeft") or [])
     check("Einstellungen: Karte „Advanced settings“ ohne leere Fläche; Ende-zu-Ende-Texte 12 px grau mit Haarlinie", settings_e2ee_cards, results)
 
     def settings_details():
