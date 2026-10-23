@@ -1522,6 +1522,41 @@ function unsubscribeKey(data, hdr) {
 // nur ein kleines Popover mit dem Uhrzeitfeld (Stunden/Minuten, Pfeiltasten,
 // Mausrad) statt Thunderbirds Stundenraster. Werte gehen in die vorhandenen
 // Felder zurück – Dauer, Zeitzone und „Ganztägig“ regelt weiter Thunderbird
+// Aufgabenliste: Thunderbird löst die Liste von den Kalendern, sobald sie kurz
+// nicht angezeigt wird (z. B. beim Ein-/Ausblenden der Today-Pane), verbindet
+// sie beim erneuten Anzeigen aber nur beim allerersten Mal wieder – danach
+// erschienen neue Aufgaben erst nach einem Bereichswechsel. Beim Wiederanzeigen
+// daher neu verbinden (refresh() fügt den Beobachter hinzu und lädt die Liste).
+function relinkTaskTree(win, restorers) {
+  const tree = win.document.getElementById("calendar-task-tree");
+  const proto = tree?.mTreeView && Object.getPrototypeOf(tree.mTreeView);
+  if (!proto?.setTree || proto.__mcRelink) {
+    return;
+  }
+  const orig = proto.setTree;
+  proto.__mcRelink = true;
+  proto.setTree = function (newTree) {
+    const relink = !this.tree && newTree?.isInitialized;
+    const result = orig.call(this, newTree);
+    if (relink) {
+      win.setTimeout(() => {
+        try {
+          if (this.tree == newTree) {
+            newTree.refresh();
+          }
+        } catch (e) {
+          log("task tree relink error", e);
+        }
+      }, 0);
+    }
+    return result;
+  };
+  restorers?.push(() => {
+    proto.setTree = orig;
+    delete proto.__mcRelink;
+  });
+}
+
 // Kontaktfoto wie Apple Kontakte: im Fotodialog jederzeit ein anderes Bild wählen
 // („Choose…“, öffnet Thunderbirds Dateifeld), Ausschnitt rund mit Zoom-Regler
 // darunter (vergrößert/verkleinert um die Mitte; verschieben per Ziehen wie bisher)
@@ -6252,7 +6287,14 @@ class CardEnhancer {
             item.setAttribute("checked", "true");
           }
           item.addEventListener("command", () => {
-            radio.click(); // wie ein Klick in Thunderbirds Liste
+            // Thunderbirds eigene Umschaltung: setzt Liste und Auswahl gemeinsam
+            // (ein Klick auf das ausgeblendete Optionsfeld erreicht die Liste
+            // nicht immer – sie zeigte dann weiter den alten Filter)
+            if (typeof w.taskViewUpdate == "function") {
+              w.taskViewUpdate(radio.value);
+            } else {
+              radio.click();
+            }
             w.setTimeout(sync, 0);
           });
           return item;
@@ -6339,6 +6381,7 @@ class CardEnhancer {
       hookNewTabMenus(w.document, this.restorers);
       try {
         hookTaskFilter();
+        relinkTaskTree(w, this.restorers);
       } catch (e) {
         log("task filter error", e);
       }

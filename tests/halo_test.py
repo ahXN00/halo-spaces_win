@@ -4268,14 +4268,20 @@ def run_checks(m, version, profile, results):
           out.items = entries.length; out.checked = entries.filter(i => i.getAttribute("checked") == "true").length;
           const today = entries.find(i => /today/i.test(i.getAttribute("label")));
           popup?.activateItem?.(today) ?? today?.doCommand(); await wait(500); popup?.hidePopup(); await wait(200);
-          out.value = group.value; out.active = btn?.hasAttribute("active");
-          const cur = group.querySelector('radio[value="throughcurrent"]'); cur?.click(); await wait(400); out.activeCurrent = btn?.hasAttribute("active");
-          group.querySelector(`radio[value="${before}"]`)?.click(); await wait(300);
+          const tree = d.getElementById("calendar-task-tree");
+          out.value = group.value; out.tree = tree.getAttribute("filterValue"); out.active = btn?.hasAttribute("active");
+          // zurück über das Menü – die Liste muss dem Filter folgen
+          btn?.click(); await until(() => popup?.state == "open", 2000); await wait(200);
+          const curItem = [...popup.children].find(i => /current/i.test(i.getAttribute("label")));
+          popup?.activateItem?.(curItem) ?? curItem?.doCommand(); await wait(500); popup?.hidePopup(); await wait(200);
+          out.back = [group.value, tree.getAttribute("filterValue")]; out.activeCurrent = btn?.hasAttribute("active");
+          if (before && before != "throughcurrent") w.taskViewUpdate(before);
           for (const t of [...tm.tabInfo].slice(1)) tm.closeTab(t);
           await toMail(); out.inMail = vis(btn);
           return out;""")
         ok = (res["button"] and not res["sidebarList"] and res["leftOfSearch"] is not None and 0 <= res["leftOfSearch"] <= 16
-              and res["items"] == 8 and res["checked"] == 1 and res["value"] == "throughtoday" and res["active"] and not res["activeCurrent"]
+              and res["items"] == 8 and res["checked"] == 1 and res["value"] == "throughtoday" and res["tree"] == "throughtoday" and res["active"]
+              and res["back"] == ["throughcurrent", "throughcurrent"] and not res["activeCurrent"]
               and not res["inMail"])
         return ok, f"{res}"
     check("Aufgaben: Filter als Menü hinter einem Knopf wie „Quick Filter“ statt Liste in der Seitenleiste", task_filter_menu, results)
@@ -5181,6 +5187,11 @@ def run_checks(m, version, profile, results):
           ph.setProperty("DESCRIPTION", "Weitere Infos: https://support.apple.com/HT210220"); const phSaved = await c.addItem(ph);
           await wait(1200);
           out.placeholderRows = tree.mTreeView.rowCount; out.emptyWithPlaceholder = shown();
+          // Today-Pane einmal aus- und einblenden: Thunderbird löst die Liste dabei von den Kalendern –
+          // neue Aufgaben müssen trotzdem sofort erscheinen
+          await toMail(); const tpBtn = d.getElementById("mcTodayToggle");
+          if (tpBtn) { tpBtn.click(); await wait(700); tpBtn.click(); await wait(700); }
+          tm.openTab("tasks", {}); await wait(1000);
           const todo = new CalTodo(); todo.title = "Halo Testaufgabe"; todo.calendar = c; const todoSaved = await c.addItem(todo);
           await until(() => tree.mTreeView.rowCount > 0); await wait(300);
           out.rows = tree.mTreeView.rowCount; out.emptyWithTask = shown();
