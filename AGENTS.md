@@ -89,13 +89,13 @@ nur über Tailscale (keine Portfreigabe), Claude Code per SSH aus der Desktop-Ap
   Python, Bildschirm, Rechte, Anmeldung, Tailscale, SSH, Runner, Windows-VM) und ändert
   nichts; ohne `--check` richtet es ein, was ohne Passwort geht, und macht einen
   Probelauf.
-- Marionette-Ports: 2839 Standard, 2845 CI-Job `mac`, ab 2850 für Läufe von Hand
+- Marionette-Ports: 2839 Standard, 2845 CI-Jobs `mac` und `windows`, ab 2850 für Läufe von Hand
   und parallele Sitzungen (`--port`).
 - Job `mac` in `.github/workflows/test.yml` (self-hosted, Label `halo-mac`) läuft
   nur bei Push auf `main` und von Hand – nie bei `pull_request`, weil das Repo
   öffentlich ist. Die `if:`-Bedingung nicht lockern; auf dem Mac weist zusätzlich
   `tests/mac-runner-hook.sh` alles andere ab.
-- Jeder Push auf `main` belegt neon mit dem Job `mac` rund 40 Minuten. Solange er
+- Jeder Push auf `main` belegt neon mit den Jobs `mac` und `windows` rund 60 Minuten. Solange er
   läuft (Prozess `Runner.Worker`), keine eigenen Testläufe starten – zwei
   Testfenster nehmen sich gegenseitig den Fokus.
 - **Gesammelt pushen:** je Eintrag committen, aber erst am Ende eines
@@ -129,7 +129,9 @@ nur über Tailscale (keine Portfreigabe), Claude Code per SSH aus der Desktop-Ap
     Beim Probelauf blieb der Mac bei 6 GB VM über 40 % freiem Speicher ohne
     zusätzliche Auslagerung. Kein Passwort, kein Microsoft-Konto, keine
     echten Mails in der VM.
-  - CI: noch nicht angebunden (Job `mac` unverändert).
+  - CI: Job `windows` in `test.yml` läuft nach `mac` (gleiche Bedingung, gleicher
+    Runner und Wächter, `concurrency: halo-mac`), vorerst nur hell, Port 2845,
+    Screenshots als Artefakt `test-windows`.
 - Zwischendurch nur betroffene Prüfungen: `python3 tests/halo_test.py --port 2851
   --only "<Teil des Prüfungsnamens>"` (1–2 Minuten). Neue Prüfungen müssen auch
   unter Linux (CI, xvfb) und mit der Beta grün sein.

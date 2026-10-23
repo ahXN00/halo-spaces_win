@@ -1,6 +1,7 @@
 # Automatischer Test bei jedem Push: aktuelles Thunderbird unter Linux,
 # frisches Testprofil, virtueller Bildschirm (xvfb). Screenshots als Artefakt.
-# Dazu macOS auf dem eigenen Mac mini (Job mac, nur bei Push auf main oder von Hand).
+# Dazu macOS auf dem eigenen Mac mini (Job mac, nur bei Push auf main oder von Hand)
+# und danach Windows 11 in der Parallels-VM auf demselben Mac (Job windows, ebenso).
 name: Test
 
 # Reine Doku- und Store-Änderungen lösen keinen Lauf aus (spart vor allem den Mac mini)
@@ -85,5 +86,35 @@ jobs:
         uses: actions/upload-artifact@v6
         with:
           name: test-mac
+          path: shots/
+          if-no-files-found: ignore
+
+  windows:
+    # Windows 11 in der Parallels-VM auf dem Mac mini (tests/MAC-MINI.md, Abschnitt 11).
+    # Gleiche Bedingung wie mac – hier nur zusätzlich !cancelled(), damit der Job auch nach
+    # einem roten mac-Lauf startet; Pull-Requests bleiben ausgeschlossen, der Wächter
+    # (tests/mac-runner-hook.sh) prüft auch diesen Job.
+    needs: mac
+    if: ${{ !cancelled() && ((github.event_name == 'push' && github.ref == 'refs/heads/main') || github.event_name == 'workflow_dispatch') }}
+    runs-on: [self-hosted, macOS, halo-mac]
+    # ein Lauf gut 15 Minuten, dazu Fortsetzen der VM
+    timeout-minutes: 40
+    concurrency: halo-mac
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Paket
+        run: echo "XPI=$(./build.sh | tail -n 1)" >> "$GITHUB_ENV"
+
+      # vorerst nur hell; setzt die VM fort und pausiert sie danach (gibt den Speicher frei)
+      - name: Test Windows hell
+        timeout-minutes: 30
+        run: mkdir -p shots/windows && python3 -u tests/halo_test.py --xpi "$XPI" --vm --port 2845 --shots shots/windows --tb-log shots/windows/thunderbird.log
+
+      - name: Screenshots
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: test-windows
           path: shots/
           if-no-files-found: ignore

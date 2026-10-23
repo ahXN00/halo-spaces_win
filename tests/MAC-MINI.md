@@ -385,6 +385,10 @@ python3 tests/halo_test.py --vm --beta --port 2851                          # Th
   `~/halo-vm/lauf.lock` (höchstens eine Stunde).
 - `prlctl exec` reicht keine Anführungszeichen weiter; deshalb gehen die
   Optionen als `args.json` über die Freigabe in die VM.
+- CI: Job `windows` in `.github/workflows/test.yml` läuft nach `mac` mit
+  derselben Bedingung (nur Push auf `main` und von Hand) auf demselben Runner
+  und Wächter, vorerst nur hell (`--vm --port 2845`), Screenshots als Artefakt
+  `test-windows`.
 - Windows-Abweichungen werden wie die Linux-Abweichungen behandelt: in der VM
   ist `sys.platform` `win32`, Prüfungen mit `sys.platform != "darwin"` gelten
   dort genauso.
