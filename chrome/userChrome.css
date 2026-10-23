@@ -10333,7 +10333,10 @@ notification-message toolbarbutton.notification-button > .toolbarbutton-menubutt
 /* ---------- Mindestbreiten in allen Spaces: kein Bereich wird so schmal,
    dass Texte überlappen. Die Erweiterung setzt passend dazu die kleinste
    Fensterbreite (Summe der Mindestbreiten des offenen Space). ---------- */
-#booksPane { min-width: 160px !important; }
+/* (Bücherliste nicht während der Ein-/Ausblend-Animation – als User-Sheet schlägt
+   die Regel sonst die Zwischenbreiten: sie blieb bei 160 px stehen und ragte als
+   grauer Balken über die Kontaktliste) */
+#booksPane:not(.mc-side-anim) { min-width: 160px !important; }
 #cardsPane { min-width: 280px !important; }
 #detailsPane { min-width: 560px !important; }
 #calendarDisplayBox { min-width: 560px !important; }

@@ -4268,13 +4268,23 @@ def run_checks(m, version, profile, results):
           w.openPreferencesTab("paneGeneral"); await wait(2000);
           const pd = tm.currentTabInfo.browser.contentDocument;
           await measure("settings", () => pd.getElementById("pref-category-box"));
+          // Adressbuch: Bücherliste nie breiter als ihre Rasterspalte (sonst ragt sie als grauer Balken über die Kontakte)
+          tm.openTab("addressBookTab", {}); await wait(2500);
+          const abd = tm.currentTabInfo.browser.contentDocument, bp = abd.getElementById("booksPane");
+          let over = 0; const watch = () => { const col = parseFloat(abd.defaultView.getComputedStyle(abd.body).gridTemplateColumns) || 0;
+            if (bp.classList.contains("mc-side-anim")) over = Math.max(over, Math.round(bp.getBoundingClientRect().width - col)); };
+          const ro = new abd.defaultView.ResizeObserver(watch); ro.observe(bp); ro.observe(abd.body);
+          await measure("addressbook", () => bp);
+          ro.disconnect(); out.addressbook.overflow = over;
           for (const t of [...tm.tabInfo].slice(1)) tm.closeTab(t);
           await toMail();
           return out;''')
         if res.get("visibility") == "hidden":
             return True, f"Testfenster verdeckt – übersprungen {res}"
         bad = []
-        for area in ("mail", "chat", "settings"):
+        if (res.get("addressbook") or {}).get("overflow", 99) > 2:
+            bad.append(f"Adressbuch: Bücherliste ragt {res['addressbook']['overflow']} px über ihre Spalte")
+        for area in ("mail", "chat", "settings", "addressbook"):
             r = res.get(area) or {}
             for phase in ("aus", "ein"):
                 p = r.get(phase) or {}
@@ -4286,7 +4296,7 @@ def run_checks(m, version, profile, results):
         if any(v is None or v > 2 for v in lr):
             bad.append(f"Mailliste ändert Breite {lr}")
         return not bad, f"{bad} {res}"
-    check("Seitenleiste: Ein-/Ausblenden in Mail, Chat und Einstellungen gleich flüssig, Knopf bleibt stehen, Mailliste behält ihre Breite", sidebar_animation, results)
+    check("Seitenleiste: Ein-/Ausblenden in Mail, Chat, Einstellungen und Adressbuch gleich flüssig, Knopf bleibt stehen, Mailliste behält ihre Breite, kein grauer Balken", sidebar_animation, results)
 
 
     def address_book():

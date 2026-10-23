@@ -7512,12 +7512,17 @@ class CardEnhancer {
     const DURATION = 250;
     const curve = cubicBezier(0.25, 0.1, 0.25, 1);
     const collapsing = !splitter.isCollapsed;
+    // Leseansicht vor jeder Änderung messen (beim Einblenden klappt Thunderbird
+    // die Ordnerliste gleich auf und nimmt ihr die Breite)
+    const msgBefore = ab.document.getElementById("messagePane")?.getBoundingClientRect().width || 0;
     let full;
     if (collapsing) {
       full = pane.getBoundingClientRect().width;
     } else {
       splitter.isCollapsed = false;
-      full = pane.getBoundingClientRect().width;
+      // Zielbreite: die gespeicherte des Teilers – gemessen wäre sie hier noch zu
+      // schmal (die Leseansicht hält im Raster noch ihre volle Breite)
+      full = Math.max(splitter.width || 0, pane.getBoundingClientRect().width);
     }
     if (!full) {
       return;
@@ -7529,10 +7534,15 @@ class CardEnhancer {
     const msgSplitter = ab.paneLayout?.messagePaneSplitter;
     const msgPane = ab.document.getElementById("messagePane");
     const vertical = Services.prefs.getIntPref("mail.pane_config.dynamic", 0) == 2 && msgSplitter && msgPane &&
-      !msgSplitter.isCollapsed && msgPane.getBoundingClientRect().width > 0;
-    const msgStart = vertical ? msgPane.getBoundingClientRect().width : 0;
+      !msgSplitter.isCollapsed && msgBefore > 0;
+    // Ausgangsbreite der Leseansicht vor dem Aufklappen – sonst schrumpfte sie beim
+    // Einblenden währenddessen weiter und spränge am Ende zurück
+    const msgStart = vertical ? msgBefore : 0;
     const msgProp = "--messagePaneSplitter-width";
     const msgSaved = vertical ? grid.style.getPropertyValue(msgProp) : "";
+    // die Leseansicht ist etwas breiter als ihre Rastervariable (Rand/Teiler) – abziehen
+    const msgVar = vertical ? parseFloat(ab.getComputedStyle(grid).getPropertyValue(msgProp)) : NaN;
+    const msgExtra = Number.isFinite(msgVar) && Math.abs(msgBefore - msgVar) < 10 ? msgBefore - msgVar : 0;
     const inner = [...pane.children];
     // Inhalt der Ordnerliste behält seine volle Breite und bleibt stehen –
     // er wird nur von rechts her zugedeckt
@@ -7567,7 +7577,7 @@ class CardEnhancer {
       if (vertical) {
         // eingeblendet war die Ordnerliste „full“ breit: was ihr fehlt, bekommt die Leseansicht
         const msg = collapsing ? msgStart + (full - width) : msgStart - width;
-        grid.style.setProperty(msgProp, `${Math.max(0, msg)}px`);
+        grid.style.setProperty(msgProp, `${Math.max(0, msg - msgExtra)}px`);
       }
       this.offsetUpdaters?.forEach(fn => fn());
       if (k < 1) {
@@ -7583,14 +7593,15 @@ class CardEnhancer {
       }
       if (vertical) {
         // Endbreite der Leseansicht wie beim Ziehen am Teiler übernehmen (Thunderbird speichert sie)
-        const msg = Math.round(collapsing ? msgStart + full : msgStart - full);
-        if (msgSaved) {
+        // Endbreite direkt als Rastervariable (wie Thunderbirds Teiler es tut) – über
+        // msgSplitter.width rechnet Thunderbird selbst um, die Liste sprang dann ein Bild lang
+        const msg = Math.round((collapsing ? msgStart + full : msgStart - full) - msgExtra);
+        if (msg > 0) {
+          grid.style.setProperty(msgProp, `${msg}px`);
+        } else if (msgSaved) {
           grid.style.setProperty(msgProp, msgSaved);
         } else {
           grid.style.removeProperty(msgProp);
-        }
-        if (msg > 0) {
-          msgSplitter.width = msg;
         }
       }
       if (collapsing) {
@@ -7607,6 +7618,9 @@ class CardEnhancer {
     // erstes Bild sofort setzen, damit nichts aufblitzt
     if (!collapsing) {
       grid.style.setProperty(prop, "0px");
+      if (vertical) {
+        grid.style.setProperty(msgProp, `${msgStart - msgExtra}px`);
+      }
       pane.getBoundingClientRect(); // Aufbau der Ordnerliste jetzt erzwingen, nicht im ersten Bild
     }
     ab.requestAnimationFrame(() => ab.requestAnimationFrame(step));
