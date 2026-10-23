@@ -14,7 +14,8 @@ A calm, tidy macOS-style design for Thunderbird: colourful spaces, message cards
 <li>Message header like Apple Mail: sender picture, folder and time, a mailing-list note with Unsubscribe that disappears once you have unsubscribed</li>
 <li>Messages in the system font like Apple Mail (Mac: SF Pro, Windows: Segoe UI, Linux: your desktop font)</li>
 <li>Unified inboxes, Inbox always first, the search field top right – it searches the selected folder, or all mailboxes from a unified folder</li>
-<li>Card view or table (classic or wide) in one menu; optionally a light accent tint behind unread mail</li>
+<li>Card view or table (classic or wide) in one menu; optionally a light accent tint behind unread mail; replied and forwarded mail marked with a small arrow like Apple Mail</li>
+<li>Writing like Apple Mail: symbols-only toolbar, round send button, format bar on demand, attachments as tiles, forwarded mail with a clean header</li>
 </ul>
 
 <b>Calendar and tasks</b>

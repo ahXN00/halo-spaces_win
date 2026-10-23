@@ -14,7 +14,8 @@ Ein ruhiges, aufgeräumtes Design im Stil von macOS für Thunderbird: farbige Be
 <li>Mailkopf wie in Apple Mail: Absenderbild, Ordner und Uhrzeit, Verteiler-Hinweis mit Abmelden, der Knopf verschwindet nach der Abmeldung</li>
 <li>Mails in der Systemschrift wie bei Apple Mail (Mac: SF Pro, Windows: Segoe UI, Linux: Schrift der Oberfläche)</li>
 <li>Gemeinsame Posteingänge, der Posteingang immer zuerst, das Suchfeld oben rechts – es sucht im gewählten Ordner, aus einem Sammelordner in allen Postfächern</li>
-<li>Kartenansicht oder Tabelle (klassisch oder breit) in einem Menü; auf Wunsch ungelesene Mails zart in der Akzentfarbe hinterlegt</li>
+<li>Kartenansicht oder Tabelle (klassisch oder breit) in einem Menü; auf Wunsch ungelesene Mails zart in der Akzentfarbe hinterlegt; beantwortete und weitergeleitete Mails mit kleinem Pfeil wie in Apple Mail</li>
+<li>Schreiben wie in Apple Mail: Symbolleiste nur mit Symbolen, runder Sendeknopf, Formatleiste bei Bedarf, Anhänge als Kacheln, Weiterleitung mit ruhigem Kopf</li>
 </ul>
 
 <b>Kalender und Aufgaben</b>
