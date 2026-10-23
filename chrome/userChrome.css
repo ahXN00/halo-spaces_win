@@ -2761,6 +2761,12 @@ message-pane {
   position: relative;
 }
 
+/* während halo.spaces die Konversation abfragt: Thunderbirds Einzelansicht bzw.
+   Zusammenfassung unsichtbar (Fläche bleibt), höchstens 400 ms */
+message-pane.mc-conv-pending > :is(#messageBrowser, #multiMessageBrowser) {
+  visibility: hidden !important;
+}
+
 #mcConversation {
   position: absolute;
   inset: 0;

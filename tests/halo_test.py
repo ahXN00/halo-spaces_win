@@ -1329,7 +1329,18 @@ def reading_checks(m, results):
                      note: !!box.querySelector(".mc-conv-note") };
           };
           const out = {};
-          select("halo-konv-1@example.invalid"); out.single = await read();
+          // kein Aufblitzen: direkt nach dem Auswählen ist Thunderbirds Ansicht verdeckt, bis die Karten da sind
+          const pane = a3.document.getElementById("messagePane");
+          const tbVisible = () => [a3.document.getElementById("messageBrowser"), a3.document.getElementById("multiMessageBrowser")]
+            .some(b => b && !b.hidden && a3.getComputedStyle(b).visibility == "visible");
+          select("halo-konv-1@example.invalid"); await new Promise(r => a3.requestAnimationFrame(r));
+          out.flash = { early: tbVisible() && !a3.document.getElementById("mcConversation") };
+          out.single = await read();
+          // Einzelmail ohne Konversation: Thunderbirds Ansicht spätestens nach 400 ms frei
+          a3.displayFolder(gesendet.URI); await wait(900);
+          const t0 = Date.now(); a3.threadTree.selectedIndex = 0; await until(() => !pane.classList.contains("mc-conv-pending") && tbVisible(), 2000);
+          out.flash.single = Date.now() - t0;
+          a3.displayFolder(eingang.URI); await wait(900);
           // zugeklappter Faden: Konversation statt Zusammenfassung
           a3.threadTree.selectedIndex = -1; await wait(300); a3.goDoCommand?.("cmd_collapseAllThreads"); await wait(600);
           select("halo-konv-3@example.invalid"); out.thread = await read();
@@ -1342,7 +1353,8 @@ def reading_checks(m, results):
         s1, th = res.get("single") or {}, res.get("thread") or {}
         ok = (s1.get("ids") == ["halo-konv-2", "halo-konv-1"] and s1.get("own") == [True, False] and all(h > 100 for h in s1.get("heights", [0]))
               and s1.get("count") == "2 messages" and (s1.get("text") or [None])[0] == "Text von Hal" and not s1.get("note")
-              and th.get("ids") == ["halo-konv-4", "halo-konv-3"] and res.get("off") is False)
+              and th.get("ids") == ["halo-konv-4", "halo-konv-3"] and res.get("off") is False
+              and res.get("flash", {}).get("early") is False and res["flash"].get("single", 9999) <= 600)
         return ok, f"{res}"
     check("Leseansicht: ganze Konversation (auch eigene Antwort aus „Gesendet“) als Karten, neueste oben, auch für zugeklappte Fäden; abschaltbar", conversation, results)
 

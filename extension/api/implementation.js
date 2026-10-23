@@ -1318,6 +1318,7 @@ class ConversationCards {
 
   hide() {
     this.seq++;
+    this.reveal();
     if (this.box) {
       this.observer?.disconnect();
       this.box.remove();
@@ -1325,17 +1326,37 @@ class ConversationCards {
     }
   }
 
-  // nach Thunderbirds Anzeige: Konversation zeigen, wenn sie mehr als eine Mail hat
+  // nach Thunderbirds Anzeige: Konversation zeigen, wenn sie mehr als eine Mail hat.
+  // Bis die Antwort da ist, bleibt Thunderbirds Ansicht verdeckt (mc-conv-pending) –
+  // sonst blitzte kurz die Einzelmail bzw. die Zusammenfassung auf
   async show(hdr, { thread = false } = {}) {
     const token = ++this.seq;
     if (!hdr || !this.enabled()) {
+      this.reveal();
       return;
     }
-    const { messages, indexed } = await this.collect(hdr);
-    if (token != this.seq || messages.length < 2) {
-      return;
+    this.pane.classList.add("mc-conv-pending");
+    clearTimeout(this.pendingTimer);
+    // Sicherheitsnetz: nie länger als 400 ms leer
+    this.pendingTimer = setTimeout(() => this.reveal(), 400);
+    try {
+      const { messages, indexed } = await this.collect(hdr);
+      if (token != this.seq) {
+        return;
+      }
+      if (messages.length >= 2) {
+        this.render(messages, hdr, { indexed, thread });
+      }
+    } finally {
+      if (token == this.seq) {
+        this.reveal();
+      }
     }
-    this.render(messages, hdr, { indexed, thread });
+  }
+
+  reveal() {
+    clearTimeout(this.pendingTimer);
+    this.pane.classList.remove("mc-conv-pending");
   }
 
   render(messages, selected, { indexed }) {
@@ -9520,6 +9541,9 @@ class CardEnhancer {
     const one = pane.displayMessage, many = pane.displayMessages;
     pane.displayMessage = function (uri) {
       conv.hide();
+      if (uri && conv.enabled()) {
+        pane.classList.add("mc-conv-pending");
+      }
       const result = one.call(this, uri);
       if (uri) {
         conv.show(conv.hdrFromURI(uri));
@@ -9528,6 +9552,9 @@ class CardEnhancer {
     };
     pane.displayMessages = function (messages = []) {
       conv.hide();
+      if (messages.length && win.gDBView?.selection?.count == 1 && conv.enabled()) {
+        pane.classList.add("mc-conv-pending");
+      }
       const result = many.call(this, messages);
       // ein zugeklappter Faden (eine Zeile ausgewählt): Konversation statt Zusammenfassung
       if (messages.length && win.gDBView?.selection?.count == 1) {
