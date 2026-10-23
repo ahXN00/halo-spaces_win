@@ -10762,6 +10762,7 @@ class CardEnhancer {
       this.addWinRestorer(win, () => win.threadTree?.removeEventListener("scroll", onScroll, { capture: true }));
     });
     safely("account rows", () => colorAccountRows(doc, this.restorers));
+    safely("search pause", () => this.hookSearchPause(win));
     const mb = win.messageBrowser?.contentDocument;
     if (mb?.readyState == "complete") {
       safely("message context", () => this.hookMailContext(mb));
@@ -11605,6 +11606,57 @@ class CardEnhancer {
   // Posteingänge“, Kopien in mehreren Ordnern oder in Suchergebnissen: wie
   // Apple Mail nur die erste Karte zeigen, weitere Kopien in derselben
   // Konversation bzw. direkt dahinter blendet das CSS aus (data-mc-dup)
+  // Eine laufende Suche (Suchfeld, Sammelordner) arbeitet Thunderbird in
+  // Zeitscheiben auf dem Hauptthread ab – über viele Postfächer mit Tausenden
+  // Treffern kam dabei jedes zweite Bild der Liste 50–70 ms zu spät, das
+  // Scrollen ruckelte, bis die Suche fertig war. Darum die Suche anhalten,
+  // solange gescrollt wird, und 300 ms nach der letzten Bewegung weiterlaufen
+  // lassen (die Treffer kommen dann wie gewohnt nach)
+  hookSearchPause(win) {
+    const tree = win.threadTree;
+    let paused = null;
+    let timer = null;
+    const resume = () => {
+      win.clearTimeout(timer);
+      timer = null;
+      const session = paused;
+      paused = null;
+      try {
+        session?.resumeSearch();
+      } catch (e) {
+        log("search resume error", e);
+      }
+    };
+    const onScroll = () => {
+      if (!paused) {
+        // (durch die Xray-Hülle des Fensters wären die Getter „searching“
+        // und „session“ unsichtbar – darum das Objekt der Seite selbst)
+        const wrapper = (win.wrappedJSObject || win).gViewWrapper;
+        const session = wrapper?.searching ? wrapper.search?.session : null;
+        if (!session) {
+          return;
+        }
+        try {
+          session.pauseSearch();
+        } catch {
+          return;
+        }
+        paused = session;
+      }
+      win.clearTimeout(timer);
+      timer = win.setTimeout(resume, 300);
+    };
+    tree.addEventListener("scroll", onScroll, { passive: true, capture: true });
+    tree.addEventListener("wheel", onScroll, { passive: true });
+    this.addWinRestorer(win, () => {
+      tree.removeEventListener("scroll", onScroll, { capture: true });
+      tree.removeEventListener("wheel", onScroll);
+      if (paused) {
+        resume();
+      }
+    });
+  }
+
   isDuplicateRow(row) {
     const view = row.view;
     const index = row._index;

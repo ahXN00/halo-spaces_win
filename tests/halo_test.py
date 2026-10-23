@@ -6302,6 +6302,70 @@ def run_checks(m, version, profile, results):
         return ok, f"{res}"
     check("Suche: im gewählten Ordner nur dort, in Sammelordnern global, keine Mails ohne den Begriff, Platzhalter je Ordner, Ordnerwechsel sucht weiter", search_scope, results)
 
+    def search_scroll():
+        # laufende Suche über viele Postfächer: beim Scrollen hält halo.spaces sie an (sonst kam jedes zweite Bild
+        # 50–70 ms zu spät), danach läuft sie weiter und findet alle Treffer
+        NF, NM = 24, 400
+        for start in range(0, NF, 4):
+            m.js(r"""
+              const { MailServices } = ChromeUtils.importESModule("resource:///modules/MailServices.sys.mjs");
+              try { MailServices.accounts.localFoldersServer; } catch { MailServices.accounts.createLocalMailAccount(); await wait(500); }
+              const root = MailServices.accounts.localFoldersServer.rootFolder;
+              const filler = "Lorem ipsum dolor sit amet, consectetur adipiscing elit. ".repeat(150);
+              for (let f = %d; f < %d; f++) {
+                if (!root.containsChildNamed("Viel" + f)) { root.createSubfolder("Viel" + f, null); await wait(300); }
+                const folder = root.getChildNamed("Viel" + f); if (folder.getTotalMessages(false) >= %d) continue;
+                const msgs = [];
+                for (let i = 0; i < %d; i++) { const k = f * %d + i;
+                  msgs.push(`From - Sat Oct 17 10:00:00 2026\r\nFrom: Shop <shop${k %% 30}@example.invalid>\r\nSubject: ${i %% 2 ? "Bestellung Quokka " + k : "Betreff " + k}\r\nDate: ${1 + k %% 28} Sep 2026 ${String(k %% 24).padStart(2, "0")}:${String(k %% 60).padStart(2, "0")}:00 +0200\r\nMessage-ID: <viel-${k}@example.invalid>\r\nContent-Type: text/plain; charset=UTF-8\r\n\r\n${filler}\r\n`); }
+                folder.QueryInterface(Ci.nsIMsgLocalMailFolder).addMessageBatch(msgs); await wait(200);
+              }
+              return 1;""" % (start, min(start + 4, NF), NM, NM, NM))
+        res = m.js(r"""
+          const { MailServices } = ChromeUtils.importESModule("resource:///modules/MailServices.sys.mjs");
+          const root = MailServices.accounts.localFoldersServer.rootFolder;
+          await wait(1500);
+          Services.prefs.setIntPref("mail.threadpane.listview", 0);
+          w.resizeTo(1500, 950); await wait(400);
+          const a3 = await toMail(); const tree = a3.threadTree; a3.displayFolder(root.URI); await wait(800);
+          const bar = d.querySelector("#unifiedToolbarContent global-search-bar");
+          const frame = () => new Promise(r => a3.requestAnimationFrame(r));
+          bar.dispatchEvent(new w.CustomEvent("search", { detail: "quokka", bubbles: true, composed: true }));
+          await until(() => a3.gViewWrapper?.searching && a3.gDBView?.rowCount > 0, 8000);
+          const out = { visibility: d.visibilityState, startRows: a3.gDBView?.rowCount, searching: !!a3.gViewWrapper?.searching };
+          // 1,5 s mit dem Mausrad scrollen: Trefferzahl steht still, Bilder im normalen Takt (Thunderbird meldet
+          // der Liste die Treffer erst am Ende der Suche – bis dahin bewegt sie sich nur im bekannten Bereich, das
+          // Mausrad kommt aber immer an)
+          const sc = tree.scrollable || tree;
+          const wheel = () => { sc.dispatchEvent(new a3.WheelEvent("wheel", { deltaY: 30, deltaMode: 0, bubbles: true, cancelable: true })); sc.scrollTop += 30; };
+          wheel(); await frame(); await frame();
+          const dts = []; let prev = performance.now(); const t0 = prev; const r0 = a3.gDBView.rowCount;
+          while (performance.now() - t0 < 1500) { wheel(); await frame(); const now = performance.now(); dts.push(now - prev); prev = now; }
+          dts.sort((x, y) => x - y);
+          out.duringScroll = [r0, a3.gDBView.rowCount]; out.frameMedian = Math.round(dts[dts.length >> 1]); out.slow = dts.filter(x => x > 40).length; out.frames = dts.length;
+          // losgelassen: die Suche läuft weiter bis zum Ende
+          await until(() => !a3.gViewWrapper?.searching, 25000); await wait(500);
+          out.end = a3.gDBView.rowCount; out.done = !a3.gViewWrapper?.searching;
+          return out;""")
+        # aufräumen: Suche beenden, die großen Ordner wieder löschen (sonst bremsen sie spätere Prüfungen)
+        m.js(r"""
+          const { MailServices } = ChromeUtils.importESModule("resource:///modules/MailServices.sys.mjs");
+          const root = MailServices.accounts.localFoldersServer.rootFolder;
+          const bar = d.querySelector("#unifiedToolbarContent global-search-bar");
+          bar.dispatchEvent(new w.CustomEvent("search", { detail: "", bubbles: true, composed: true })); await wait(1200);
+          const a3 = await toMail(); const inbox = root.getChildNamed("Inbox"); if (inbox) { a3.displayFolder(inbox.URI); await wait(600); }
+          for (const f of [...root.subFolders].filter(f => /^Viel\d+$/.test(f.name))) { try { root.propagateDelete(f, true); } catch {} }
+          await wait(1000); return 1;""")
+        if not res.get("searching"):
+            return True, f"Suche schon vor dem Scrollen fertig – übersprungen {res}"
+        if res.get("visibility") == "hidden":
+            return True, f"Testfenster verdeckt – übersprungen {res}"
+        # (Treffer mindestens die Hälfte: bei so erzeugten lokalen Mails liest die Textsuche teils in die nächste Mail hinein)
+        ok = (res["duringScroll"][0] == res["duringScroll"][1] and res["done"] and res["end"] >= NF * NM // 2
+              and res["frameMedian"] <= 25 and res["slow"] <= res["frames"] // 10)
+        return ok, f"{res}"
+    check("Suche: Scrollen während einer laufenden Suche flüssig (Suche wartet), danach alle Treffer", search_scroll, results)
+
     def settings_style():
         # Einstellungen: Inhalt linksbündig 28 px neben der Seitenleiste (max. 800 px), Kästchen/Optionsfelder im macOS-Stil,
         # Zahlenfeld ohne Systempfeile, Ansichtskacheln ohne Optionsfeld, Kontoeinstellungen als Karten
