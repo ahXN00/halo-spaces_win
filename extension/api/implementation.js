@@ -1477,6 +1477,23 @@ function unsubscribeKey(data, hdr) {
 // nur ein kleines Popover mit dem Uhrzeitfeld (Stunden/Minuten, Pfeiltasten,
 // Mausrad) statt Thunderbirds Stundenraster. Werte gehen in die vorhandenen
 // Felder zurück – Dauer, Zeitzone und „Ganztägig“ regelt weiter Thunderbird
+// Termin/Aufgabe: Dauer beim Ändern immer beibehalten (wie Apple Kalender, wo
+// das Ende mit dem Beginn wandert) – Thunderbirds Kopplungs-Knopf (Kettensymbol
+// zwischen Beginn und Ende) dauerhaft an; ausgeblendet per CSS
+function keepDurationAlways(win) {
+  const doc = win.document;
+  const kdb = doc.getElementById("keepduration-button");
+  if (!kdb) {
+    return;
+  }
+  if (kdb.getAttribute("keep") != "true") {
+    kdb.setAttribute("keep", "true");
+    kdb.setAttribute("aria-pressed", "true");
+  }
+  doc.getElementById("link-image-top")?.setAttribute("keep", "true");
+  doc.documentElement.setAttribute("mc-keep-duration", "");
+}
+
 function hookDateTimePickers(win) {
   const doc = win.document;
   for (const dtp of doc.querySelectorAll("datetimepicker")) {
@@ -3981,6 +3998,7 @@ class CardEnhancer {
             iw.addEventListener("load", () => iw.setTimeout(() => {
               this.styleItemDescription(iw);
               hookDateTimePickers(iw);
+              keepDurationAlways(iw);
             }, 0), { once: true });
           }
           // „Teilnehmer einladen“: Beginn/Ende ebenso

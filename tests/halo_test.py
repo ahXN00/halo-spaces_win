@@ -5300,8 +5300,8 @@ def run_checks(m, version, profile, results):
           const link = id => { const kb = id.getElementById("keepduration-button"), lb = id.getElementById("link-image-bottom");
             const st = kb ? csOf(kb, "::before") : null;
             const kr = kb?.getBoundingClientRect(), sr = id.getElementById("event-grid-startdate-row")?.getBoundingClientRect();
-            return { bottom: lb ? csOf(lb).display : null, bg: st ? st.backgroundImage.slice(0, 45) : null, mask: st?.maskImage, w: st?.width,
-                     mid: kr && sr ? Math.round(((kr.top + kr.bottom) / 2 - sr.bottom) * 10) / 10 : null }; };
+            // Dauer bleibt immer gekoppelt (wie Apple Kalender): Knopf an und unsichtbar
+            return { bottom: lb ? csOf(lb).display : null, keep: kb?.getAttribute("keep"), vis: kb ? csOf(kb).visibility : null }; };
           // Beschreibung ganz im Fenster (früher im Aufgaben-Fenster unten abgeschnitten); Zahlenfeld ohne Pfeile
           const fits = id => { const e = id.getElementById("item-description"); const r = e?.getBoundingClientRect();
             return r ? [Math.round(r.bottom), Math.round(id.body.getBoundingClientRect().bottom), Math.round(r.height)] : null; };
@@ -5333,8 +5333,7 @@ def run_checks(m, version, profile, results):
         if res.get("dialog") is False:
             return False, "Aufgaben-Dialog nicht offen"
         t, p, bg = res.get("title") or {}, res.get("percent") or {}, res.get("bg") or ["", "x"]
-        lk = lambda x: (bool(x) and x["bottom"] == "none" and (x["bg"] or "").startswith('url("chrome://global/skin/icons/link.svg') and x["mask"] == "none"
-                        and x["w"] == "16px" and x["mid"] is not None and abs(x["mid"]) <= 2)
+        lk = lambda x: bool(x) and x["bottom"] == "none" and x["keep"] == "true" and x["vis"] == "hidden"
         fit = lambda x: bool(x) and x[0] <= x[1] - 4 and x[2] >= 40
         seps = res.get("seps") or []
         ok = (res.get("id") == "calendar-task-dialog-inner" and t.get("border") == "none" and t.get("h") == "32px" and same_color(t.get("bg", ""), t.get("cat") or "x")
@@ -5345,7 +5344,7 @@ def run_checks(m, version, profile, results):
               and res.get("spin") == "textfield"
               and len(seps) >= 2 and all(rgba_alpha(c) <= 0.12 and float(wd[:-2]) <= 1 for c, wd in seps))
         return ok, f"{res}"
-    check("Aufgaben-Dialog: Felder und Fläche wie im Termin-Dialog, Haken sichtbar, Kettensymbol ohne alte Klammer (auch Termin-Dialog), Trennlinien als Haarlinie", task_dialog, results)
+    check("Aufgaben-Dialog: Felder und Fläche wie im Termin-Dialog, Haken sichtbar, Dauer immer gekoppelt ohne sichtbaren Knopf (auch Termin-Dialog), Trennlinien als Haarlinie", task_dialog, results)
 
     def month_spans():
         # mehrtägige ganztägige Termine als durchgehender Balken; Titel läuft über alle Stücke weiter (früher nach
