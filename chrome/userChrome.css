@@ -10896,4 +10896,34 @@ notification-message toolbarbutton.notification-button > .toolbarbutton-menubutt
 :root[mc-tab="tasks"] :is(#task-tree-filter-header, #task-filtertree-pane) {
   display: none !important;
 }
+
+/* ---------- Kontaktfoto wie Apple Kontakte ----------
+   „Choose…“ links in der Knopfleiste, runder Ausschnitt mit Zoom-Regler unter
+   dem Bild (setzt die Erweiterung, hookPhotoDialog); Eckgriffe entfallen */
+#photoDialog .dialog-menu-container > #mcPhotoChoose:has(+ .extra1[hidden]) {
+  margin-inline-end: auto !important;
+}
+
+#photoDialog svg rect.corner {
+  display: none !important;
+}
+
+#photoDialog svg rect:not(.corner) {
+  stroke: #fff !important;
+  stroke-width: 2px !important;
+  fill: transparent !important;
+}
+
+#mcPhotoZoom {
+  display: block;
+  width: min(320px, 80%);
+  margin: 10px auto 4px;
+  align-self: center;
+  justify-self: center;
+  accent-color: var(--mt-accent);
+}
+
+#mcPhotoZoom[hidden] {
+  display: none !important;
+}
 /* ==== Ende Bereiche ==== */

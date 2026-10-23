@@ -4489,6 +4489,37 @@ def run_checks(m, version, profile, results):
         return ok, f"{res}"
     check("Adressbuch: Karten nur mit Name bzw. Firma (keine E-Mail-Adresse), Liste so breit und Bilder so groß wie bei den Mailkarten", ab_cards_like_mail, results)
 
+    def photo_dialog():
+        # Kontaktfoto wie Apple Kontakte: „Choose…“ öffnet jederzeit die Dateiauswahl, runder Ausschnitt ohne Eckgriffe,
+        # Zoom-Regler unter dem Bild verkleinert den Ausschnitt um seine Mitte
+        res = m.js(r"""
+          tm.openTab("addressBookTab", {}); await wait(2500);
+          const ab = tm.currentTabInfo.browser.contentWindow, ad = ab.document, pd = ab.photoDialog;
+          const c = ad.createElement("canvas"); c.width = 400; c.height = 300;
+          const g = c.getContext("2d"); g.fillStyle = "#4a90d9"; g.fillRect(0, 0, 400, 300);
+          pd.showWithURL(c.toDataURL("image/png"), null);
+          await until(() => !ad.querySelector("#photoDialog svg").hasAttribute("hidden"), 4000); await wait(300);
+          const zoom = ad.getElementById("mcPhotoZoom"), choose = ad.getElementById("mcPhotoChoose");
+          const out = { choose: !!choose && choose.checkVisibility(), chooseText: choose?.textContent,
+                        zoom: !!zoom && zoom.checkVisibility(), value0: zoom?.value,
+                        round: /a\d/.test(pd._cropMask.getAttribute("d")),
+                        corners: [...pd._corners].filter(e => e.checkVisibility()).length,
+                        below: zoom ? zoom.getBoundingClientRect().top >= ad.querySelector("#photoDialog svg").getBoundingClientRect().bottom - 1 : false };
+          const before = { w: pd._cropRect.width, cx: pd._cropRect.x + pd._cropRect.width / 2, cy: pd._cropRect.y + pd._cropRect.height / 2 };
+          zoom.value = "50"; zoom.dispatchEvent(new ab.Event("input"));
+          const after = { w: pd._cropRect.width, cx: pd._cropRect.x + pd._cropRect.width / 2, cy: pd._cropRect.y + pd._cropRect.height / 2 };
+          out.zoomed = after.w < before.w * 0.5 && Math.abs(after.cx - before.cx) < 1 && Math.abs(after.cy - before.cy) < 1;
+          out.rect = Math.round(Number(pd._dragRect.getAttribute("width"))) == Math.round(after.w);
+          let picked = false; const inp = pd._inputTarget, orig = inp.click; inp.click = () => { picked = true; };
+          choose?.click(); inp.click = orig; out.picked = picked;
+          ad.getElementById("photoDialog").close(); await wait(300);
+          tm.closeTab(tm.currentTabInfo); await wait(400);
+          return out;""")
+        ok = (res["choose"] and res["zoom"] and res["value0"] == "0" and res["round"] and res["corners"] == 0
+              and res["below"] and res["zoomed"] and res["rect"] and res["picked"])
+        return ok, f"{res}"
+    check("Adressbuch: Kontaktfoto mit „Choose…“, rundem Ausschnitt ohne Eckgriffe und Zoom-Regler darunter", photo_dialog, results)
+
     def contact_edit():
         # Kontakt bearbeiten wie Apple Kontakte: eine Schrift, Überschriften über den Feldern,
         # volle Breite; zuerst nur Vor-/Nachname, E-Mail, Telefon, Adressen und Ausgefülltes

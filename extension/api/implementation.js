@@ -202,6 +202,8 @@ const DE = {
   "Add Location or Video Call": "Ort oder Videoanruf hinzufügen",
   "Add Invitees": "Teilnehmer hinzufügen",
   "Filter Tasks": "Aufgaben filtern",
+  "Choose…": "Auswählen …",
+  "Zoom": "Zoomen",
 };
 const FR = {
   "Install version {v}": "Installer la version {v}",
@@ -375,6 +377,8 @@ const FR = {
   "Add Location or Video Call": "Ajouter un lieu ou un appel vidéo",
   "Add Invitees": "Ajouter des invités",
   "Filter Tasks": "Filtrer les tâches",
+  "Choose…": "Choisir…",
+  "Zoom": "Zoom",
 };
 const ES = {
   "Install version {v}": "Instalar la versión {v}",
@@ -548,6 +552,8 @@ const ES = {
   "Add Location or Video Call": "Añadir ubicación o videollamada",
   "Add Invitees": "Añadir invitados",
   "Filter Tasks": "Filtrar tareas",
+  "Choose…": "Elegir…",
+  "Zoom": "Zoom",
 };
 const IT = {
   "Install version {v}": "Installa la versione {v}",
@@ -721,6 +727,8 @@ const IT = {
   "Add Location or Video Call": "Aggiungi luogo o videochiamata",
   "Add Invitees": "Aggiungi invitati",
   "Filter Tasks": "Filtra attività",
+  "Choose…": "Scegli…",
+  "Zoom": "Zoom",
 };
 const TRANSLATIONS = { de: DE, fr: FR, es: ES, it: IT };
 // tr("+{n} more", { n: 3 }) – Platzhalter in geschweiften Klammern
@@ -1514,6 +1522,85 @@ function unsubscribeKey(data, hdr) {
 // nur ein kleines Popover mit dem Uhrzeitfeld (Stunden/Minuten, Pfeiltasten,
 // Mausrad) statt Thunderbirds Stundenraster. Werte gehen in die vorhandenen
 // Felder zurück – Dauer, Zeitzone und „Ganztägig“ regelt weiter Thunderbird
+// Kontaktfoto wie Apple Kontakte: im Fotodialog jederzeit ein anderes Bild wählen
+// („Choose…“, öffnet Thunderbirds Dateifeld), Ausschnitt rund mit Zoom-Regler
+// darunter (vergrößert/verkleinert um die Mitte; verschieben per Ziehen wie bisher)
+function hookPhotoDialog(cw, restorers = null) {
+  const pd = cw.photoDialog;
+  const doc = cw.document;
+  const dialog = doc.getElementById("photoDialog");
+  if (!pd || !dialog || ownedElement(doc, "mcPhotoChoose")) {
+    return;
+  }
+  pd.init?.();
+  const X = "http://www.w3.org/1999/xhtml";
+  const choose = doc.createElementNS(X, "button");
+  choose.id = "mcPhotoChoose";
+  choose.__mcOwner = HOOK_OWNER;
+  choose.className = "button";
+  choose.type = "button";
+  choose.textContent = tr("Choose…");
+  choose.addEventListener("click", () => pd._inputTarget?.click());
+  const menu = dialog.querySelector(".dialog-menu-container");
+  menu?.prepend(choose);
+  const zoom = doc.createElementNS(X, "input");
+  zoom.id = "mcPhotoZoom";
+  zoom.type = "range";
+  zoom.min = "0";
+  zoom.max = "100";
+  zoom.value = "0";
+  zoom.setAttribute("aria-label", tr("Zoom"));
+  const svg = dialog.querySelector("svg");
+  svg?.after(zoom);
+  const smallSide = () => Math.min(pd._previewRect?.width || 0, pd._previewRect?.height || 0);
+  // Regler 0 = größter Ausschnitt (ganzes Bild), 100 = 4-fach vergrößert
+  const sizeFor = v => smallSide() / (1 + 3 * (v / 100));
+  const valueFor = size => Math.round(Math.max(0, Math.min(100, ((smallSide() / size) - 1) / 3 * 100)));
+  zoom.addEventListener("input", () => {
+    const r = pd._cropRect;
+    if (!r || !pd._previewRect) {
+      return;
+    }
+    const size = sizeFor(Number(zoom.value));
+    const cx = r.x + r.width / 2, cy = r.y + r.height / 2;
+    r.width = r.height = size;
+    r.x = Math.max(0, Math.min(pd._previewRect.width - size, cx - size / 2));
+    r.y = Math.max(0, Math.min(pd._previewRect.height - size, cy - size / 2));
+    pd._redrawCropRect();
+  });
+  // runder Ausschnitt statt Quadrat, Regler folgt der Größe
+  const origRedraw = pd._redrawCropRect;
+  pd._redrawCropRect = function (...args) {
+    const result = origRedraw.apply(this, args);
+    try {
+      const { x, y, width } = this._cropRect;
+      const rad = width / 2, cx = x + rad, cy = y + rad;
+      this._cropMask.setAttribute("fill-rule", "evenodd");
+      this._cropMask.setAttribute("d",
+        `M0 0H${this._previewRect.width}V${this._previewRect.height}H0Z M${cx - rad} ${cy}a${rad} ${rad} 0 1 0 ${2 * rad} 0a${rad} ${rad} 0 1 0 ${-2 * rad} 0Z`);
+      this._dragRect.setAttribute("rx", rad);
+      this._dragRect.setAttribute("ry", rad);
+      if (doc.activeElement != zoom) {
+        zoom.value = String(valueFor(width));
+      }
+    } catch {}
+    return result;
+  };
+  // Regler nur, wenn ein Bild zum Zuschneiden da ist
+  const sync = () => (zoom.hidden = !!svg?.hasAttribute("hidden"));
+  const mo = new cw.MutationObserver(sync);
+  if (svg) {
+    mo.observe(svg, { attributes: true, attributeFilter: ["hidden"] });
+  }
+  sync();
+  restorers?.push(() => {
+    mo.disconnect();
+    choose.remove();
+    zoom.remove();
+    pd._redrawCropRect = origRedraw;
+  });
+}
+
 // Kontextmenüs ohne „In neuem Tab/Fenster öffnen“ (alle Bereiche; Punkte per CSS
 // ausgeblendet). Danach stünden Trennlinien doppelt oder am Rand – beim Öffnen
 // aufräumen; ein Menü ohne sichtbare Einträge öffnet sich gar nicht erst
@@ -5618,6 +5705,11 @@ class CardEnhancer {
             hookSplitterReset(cw.document);
           } catch (e) {
             log("avatar fix error", e);
+          }
+          try {
+            hookPhotoDialog(cw, winRestorers);
+          } catch (e) {
+            log("photo dialog error", e);
           }
           try {
             hookDedupe(cw);
