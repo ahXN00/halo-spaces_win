@@ -1,0 +1,6 @@
+/* Nachfrage als Kachel im Fenster (SubDialog, siehe installDialogBox):
+   Inhalt ohne eigene Fläche, die Kachel des Fensters trägt die Farbe */
+:root,
+body {
+  background: transparent !important;
+}

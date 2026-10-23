@@ -99,6 +99,77 @@ unified-toolbar,
   font-family: var(--mt-font) !important;
 }
 
+/* Nachfragen als Kachel im Fenster (Erweiterung: #mcDialogBox mit Thunderbirds
+   SubDialog) – oben am Fenster wie ein macOS-Sheet, ohne Titelzeile, das
+   Fenster dahinter leicht abgedunkelt */
+#mcDialogBox {
+  position: fixed !important;
+  inset: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+  max-width: none !important;
+  max-height: none !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  border: none !important;
+  background: transparent !important;
+  overflow: visible !important;
+  display: none !important;
+  color: var(--mt-text) !important;
+  font-family: var(--mt-font) !important;
+}
+
+/* alle Kacheln (auch die vorbereitete nächste) übereinander in einer Zelle */
+#mcDialogBox[open] {
+  display: grid !important;
+}
+
+#mcDialogBox::backdrop {
+  background: rgba(0, 0, 0, 0.18);
+}
+
+#mcDialogBox > .dialogOverlay {
+  grid-area: 1 / 1 !important;
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  justify-content: flex-start !important;
+  padding-top: 56px !important;
+  background: transparent !important;
+  /* SubDialog macht eine Kachel erst sichtbar, wenn ihr Inhalt bereit ist */
+  visibility: hidden;
+}
+
+#mcDialogBox > .dialogOverlay[hidden] {
+  display: none !important;
+}
+
+#mcDialogBox .dialogBox {
+  appearance: none !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  border: none !important;
+  border-radius: 14px !important;
+  background: var(--mt-sheet) !important;
+  box-shadow: 0 0 0 0.5px rgba(0, 0, 0, 0.18), 0 12px 40px rgba(0, 0, 0, 0.22) !important;
+  overflow: hidden !important;
+}
+
+@media (prefers-color-scheme: dark) {
+  #mcDialogBox .dialogBox {
+    box-shadow: 0 0 0 0.5px rgba(255, 255, 255, 0.16), 0 12px 40px rgba(0, 0, 0, 0.5) !important;
+  }
+}
+
+#mcDialogBox .dialogTitleBar {
+  display: none !important;
+}
+
+#mcDialogBox .dialogFrame {
+  margin: 0 !important;
+  min-inline-size: 32ch !important;
+}
+
 /* übrige Bereiche wie die Mail: Inhalt der Statusleiste beginnt rechts der
    Seitenleiste des Bereichs (--mc-status-side), darunter läuft ihr Grau weiter */
 :root:not([mc-mail]) #status-bar.statusbar {
@@ -11007,5 +11078,30 @@ notification-message toolbarbutton.notification-button > .toolbarbutton-menubutt
 
 #mcPhotoZoom[hidden] {
   display: none !important;
+}
+
+/* ---------- Dialogfenster als Karte (Erweiterung: mc-card-window) ----------
+   ohne sichtbare Titelleiste: oben ein freier Streifen für die Fensterknöpfe,
+   über den sich das Fenster verschieben lässt; eine durchgehende Fläche */
+:root[mc-card-window] > body {
+  box-sizing: border-box !important;
+  padding-top: 28px !important;
+  -moz-window-dragging: drag;
+}
+
+:root[mc-card-window] :is(input, textarea, button, menulist, select, toolbarbutton, richlistbox, tree, label.text-link, iframe, browser, editor) {
+  -moz-window-dragging: no-drag;
+}
+
+/* Termin/Aufgabe: Symbolleiste in der Zeile der Fensterknöpfe (wie die
+   vereinheitlichte Symbolleiste der macOS-Apps) statt eines leeren Streifens */
+:root[mc-card-window][windowtype="Calendar:EventDialog"] > body {
+  padding-top: 0 !important;
+}
+
+:root[mc-card-window][windowtype="Calendar:EventDialog"] #event-toolbar {
+  padding-inline-start: 78px !important;
+  min-height: 38px !important;
+  -moz-window-dragging: drag;
 }
 /* ==== Ende Bereiche ==== */

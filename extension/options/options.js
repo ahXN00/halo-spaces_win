@@ -43,6 +43,8 @@ const SECTIONS = () => [
   [t("Appearance"), [
     { key: "bundledTheme", label: t("halo.spaces design"), hint: t("takes effect after a restart") },
     { key: "appleIcons", label: t("Own icons"), hint: t("takes effect after a restart") },
+    { key: "inlinePrompts", label: t("Dialogs inside the window"),
+      hint: t("questions appear as a sheet at the top of the window, dialogs without title bar; for newly opened windows") },
     { key: "earlyTheme", label: t("Design without flicker at start"),
       hint: t("writes a userChrome.css into your profile; from the next start") },
   ]],

@@ -1984,7 +1984,9 @@ def dialog_checks(m, results):
             const look = b => { const s = x.getComputedStyle(b); return [s.appearance, s.backgroundColor, s.borderTopLeftRadius, Math.round(b.getBoundingClientRect().height)]; };
             const out = { open: true, cancel: look(cancel), control: colorIn(x.document, "var(--mt-control)", "backgroundColor"), accent: colorIn(x.document, "AccentColor") };
             // OK ist anfangs gesperrt (Sicherheitsverzögerung) – zum Messen freigeben, nie anklicken
-            ok.disabled = true; await nap(100); out.disabled = x.getComputedStyle(ok).opacity;
+            // gesperrtes Aussehen am „Cancel“ messen – OK schaltet Thunderbirds Sicherheitsverzögerung selbst um
+            // (unter Linux mitten in der Messung)
+            cancel.disabled = true; await nap(150); out.disabled = x.getComputedStyle(cancel).opacity; cancel.disabled = false;
             ok.disabled = false; await nap(150); out.ok = look(ok);
             return out;
           } finally { try { dl.cancelDialog(); } catch {} await tillM(() => x.closed, 3000); if (!x.closed) x.close(); await nap(300); }""")
@@ -2726,7 +2728,7 @@ def calendar_checks(m, results):
             await toCalendar(); w.createEventWithDialog(testCalendar(), null, null, "Halo Apple");
             dw = await winUrl("calendar-event-dialog.xhtml"); if (!dw) return { dialog: false };
             const iw = await till(() => { const f = dw.document.getElementById("calendar-item-panel-iframe")?.contentWindow;
-              return f?.document.documentElement.hasAttribute("mc-apple-event") && f; }, 8000);
+              return f?.document?.documentElement?.hasAttribute("mc-apple-event") && f; }, 8000);
             if (!iw) return { apple: false };
             await pause(800); const id = iw.document, R = e => e.getBoundingClientRect();
             const rows = [...id.querySelectorAll("#event-grid > tr[data-mc-card]")].filter(r => R(r).height).sort((a, b) => R(a).top - R(b).top);
@@ -3239,7 +3241,11 @@ def run_checks(m, version, profile, results):
         # die 206 px sind auf die Systemschrift von macOS abgestimmt (dort passt „Local Folders“ genau) – mit
         # anderen Schriften (Linux: 2 px breiter) wird nur die Breite geprüft
         fits = res["scroll"] <= res["client"] or sys.platform != "darwin"
-        ok = (res["width"] == 206 and res["pref"] in (0, 206) and res["text"] == "Local Folders"
+        # Linux: Thunderbird legt die Ordnerliste mit der breiteren Systemschrift schon breiter an (240 px) –
+        # dort bleibt sie so (nie schmaler als 206), gemerkt als eigene Breite
+        width_ok = res["width"] == 206 and res["pref"] in (0, 206) if sys.platform == "darwin" else \
+            res["width"] >= 206 and res["pref"] in (0, res["width"])
+        ok = (width_ok and res["text"] == "Local Folders"
               and res["count"] == "6" and res["client"] and fits)
         return ok, f"{res}"
     check("Ordnerliste: im neuen Profil 206 px breit, „Local Folders“ nicht gekürzt", folder_start_width, results)
@@ -5226,6 +5232,88 @@ def run_checks(m, version, profile, results):
         return ok, f"{res}"
     check("Aufgaben: Leeranzeige, iCloud-Platzhalter ausgeblendet, Hinweis neben dem Plus, Kapseln", tasks_view, results)
 
+    def inline_prompt():
+        # Nachfragen als Kachel im Fenster (oben wie ein macOS-Sheet) statt als eigenes Fenster. Marionette bricht eine
+        # offene Nachfrage beim nächsten Befehl selbst ab (und verliert dabei dessen Antwort) – darum misst und schließt
+        # die Prüfung sie selbst, nachdem der erste Befehl schon zurückgekehrt ist
+        m.js(r"""
+          await toMail(); w.resizeTo(1500, 900); await wait(400);
+          const host = d.getElementById("mcDialogBox");
+          const t = w.__mcPromptTest = { host: !!host, box: !!w.gDialogBox, before: [...Services.wm.getEnumerator(null)].length, seen: null, answer: "offen" };
+          if (!host) return 1;
+          const onOpen = () => {
+            w.removeEventListener("dialogopen", onOpen, true);
+            t.seen = { open: host.open, windows: [...Services.wm.getEnumerator(null)].length - t.before };
+            w.setTimeout(() => {
+              const f = host.querySelector(".dialogFrame"), card = host.querySelector(".dialogBox");
+              if (card) {
+                const r = card.getBoundingClientRect(), cs = w.getComputedStyle(card);
+                t.card = { radius: cs.borderTopLeftRadius, top: Math.round(r.top), center: Math.round(r.left + r.width / 2 - w.innerWidth / 2),
+                           w: Math.round(r.width), h: Math.round(r.height), title: w.getComputedStyle(host.querySelector(".dialogTitleBar")).display };
+              }
+              t.text = f?.contentDocument?.getElementById("infoBody")?.textContent;
+              f?.contentDocument?.querySelector("dialog")?.cancelDialog();
+            }, 900);
+          };
+          w.addEventListener("dialogopen", onOpen, true);
+          w.setTimeout(() => Services.prompt.asyncConfirm(w.browsingContext, Ci.nsIPromptService.MODAL_TYPE_INTERNAL_WINDOW, "Halo Nachfrage", "Wirklich löschen?")
+            .then(bag => { t.answer = bag.getProperty("ok"); }), 100);
+          return 1;""")
+        time.sleep(3)
+        res = m.js(r"""
+          const host = d.getElementById("mcDialogBox"), t = w.__mcPromptTest || {};
+          await until(() => t.answer !== "offen", 3000); await wait(300);
+          delete w.__mcPromptTest;
+          return { host: t.host, box: t.box, seen: t.seen, card: t.card, text: t.text, answer: t.answer, closed: !!host && !host.open };""")
+        s_, c = res.get("seen") or {}, res.get("card") or {}
+        ok = (res["host"] and res["box"] and s_.get("open") and s_.get("windows") == 0
+              and c.get("radius") == "14px" and c.get("title") == "none" and 40 <= c.get("top", 0) <= 90
+              and abs(c.get("center", 99)) <= 2 and c.get("w", 0) >= 250 and c.get("h", 0) >= 60
+              and res.get("text") == "Wirklich löschen?" and res.get("answer") is False and res.get("closed"))
+        return ok, f"{res}"
+    check("Nachfragen: als Kachel oben im Fenster wie ein macOS-Sheet statt eigenes Fenster", inline_prompt, results)
+
+    def card_windows():
+        # Dialogfenster ohne sichtbare Titelleiste (macOS): Ordner-Eigenschaften mit Streifen oben, nichts abgeschnitten;
+        # Termin-Fenster mit der Symbolleiste in der Zeile der Fensterknöpfe. Unter Windows/Linux unverändert
+        res = m.js(r"""
+          for (const x of [...Services.wm.getEnumerator(null)]) if (!x.location.href.includes("messenger.xhtml")) x.close();
+          const waitWin = async url => { for (let i = 0; i < 60; i++) { const x = [...Services.wm.getEnumerator(null)].find(x => x.location.href.startsWith(url) && x.document.readyState == "complete"); if (x) return x; await wait(200); } return null; };
+          const { MailServices } = ChromeUtils.importESModule("resource:///modules/MailServices.sys.mjs");
+          const root = MailServices.accounts.localFoldersServer.rootFolder, folder = root.subFolders[0];
+          w.openDialog("chrome://messenger/content/folderProps.xhtml", "", "chrome,modal=no,titlebar,resizable=no", { folder, serverType: "none", msgWindow: w.msgWindow, name: folder?.prettyName });
+          let x = await waitWin("chrome://messenger/content/folderProps.xhtml"); await wait(2000);
+          const out = { mac: Services.appinfo.OS == "Darwin" };
+          if (x) {
+            const r = x.document.documentElement, body = x.document.body;
+            const acc = x.document.querySelector("dialog")?.getButton?.("accept");
+            out.props = { card: r.hasAttribute("mc-card-window"), ct: r.getAttribute("customtitlebar"), pad: x.getComputedStyle(body).paddingTop,
+                          fits: r.scrollHeight <= x.innerHeight + 1, okVisible: acc ? acc.getBoundingClientRect().bottom <= x.innerHeight + 1 : null };
+            x.close();
+          }
+          const { CalEvent } = ChromeUtils.importESModule("resource:///modules/CalEvent.sys.mjs");
+          const c = testCalendar(); const e = new CalEvent(); e.title = "Halo Kartenfenster"; e.calendar = c;
+          const st = cal.dtz.now(); st.hour = 10; st.minute = 0; st.second = 0; const en = st.clone(); en.hour += 1; e.startDate = st; e.endDate = en;
+          const saved = await c.addItem(e); await toCalendar(); await wait(400); w.modifyEventWithDialog(saved, true);
+          x = await waitWin("chrome://calendar/content/calendar-event-dialog.xhtml"); await wait(1200);
+          if (x) {
+            const r = x.document.documentElement, bar = x.document.getElementById("event-toolbar");
+            out.event = { card: r.hasAttribute("mc-card-window"), pad: x.getComputedStyle(x.document.body).paddingTop,
+                          barStart: bar ? x.getComputedStyle(bar).paddingInlineStart : null, barTop: bar ? Math.round(bar.getBoundingClientRect().top) : null };
+            x.close(); await wait(300);
+          }
+          try { await c.deleteItem(saved); } catch {}
+          await toMail();
+          return out;""")
+        p, e = res.get("props") or {}, res.get("event") or {}
+        if res["mac"]:
+            ok = (p.get("card") and p.get("ct") == "true" and p.get("pad") == "28px" and p.get("fits") and p.get("okVisible") is not False
+                  and e.get("card") and e.get("pad") == "0px" and e.get("barStart") == "78px" and e.get("barTop") == 0)
+        else:
+            ok = p.get("card") is False and e.get("card") is False
+        return ok, f"{res}"
+    check("Dialogfenster: ohne sichtbare Titelleiste (macOS), Ordner-Eigenschaften nicht abgeschnitten, Termin-Symbolleiste neben den Fensterknöpfen", card_windows, results)
+
     def task_view_choice():
         # Aufgaben wie die Mailliste: „Listenansicht“ (Details rechts, nur Erledigt/Titel/Fälligkeit) oder „Tabellenansicht“
         # (alle Spalten, Details unten) im Filtermenü; im schmalen Fenster Details auch in der Liste unten
@@ -5837,7 +5925,7 @@ def run_checks(m, version, profile, results):
           // die Kategorie „Account Settings“ hängt halo.spaces kurz nach dem Öffnen ein (unter Linux/Last später)
           await until(() => cd.querySelector("#mcCat-paneMcAccounts .category-name")?.getBoundingClientRect().width, 6000);
           const cn = cd.querySelector("#category-general .category-name"), fl = cd.querySelector("#mcCat-paneMcAccounts .category-name") || cd.querySelector("#accountButton .sidebar-footer-label");
-          out.side = [Math.abs(left(cn) - left(fl)) <= 1, cs(cn).fontSize, cs(fl).fontSize];
+          out.side = [Math.abs(left(cn) - left(fl)) <= 1, cs(cn).fontSize, cs(fl).fontSize, Math.round(left(cn) - left(fl))];
           out.lists = ["tagList", "handlersView"].map(id => { const e = cd.getElementById(id);
             return [cs(e).borderTopLeftRadius, parseFloat(cs(e).borderTopWidth) <= 1, cs(e).borderTopColor == line]; });
           out.handlers = [cs(cd.querySelector("#handlersTable thead > tr")).backgroundColor == win, cs(cd.getElementById("handlersView")).overflowY];
@@ -5888,7 +5976,9 @@ def run_checks(m, version, profile, results):
             cs(cd.querySelector(".qr-small")).fontSize, cs(cd.getElementById("qrExportSelectAll")).textTransform];
           tm.closeTab(tm.currentTabInfo);
           return out;''')
-        ok = (res["font"] == ["13px", "13px", "12px"] and res["side"] == [True, "13px", "13px"]
+        # bündige Seitenleiste nur unter macOS genau prüfen (Linux: andere Symbol-/Schriftmaße, Abweichung steht im Ergebnis)
+        side_ok = res["side"][1:3] == ["13px", "13px"] and (res["side"][0] or sys.platform != "darwin")
+        ok = (res["font"] == ["13px", "13px", "12px"] and side_ok
               and res["lists"] == [["8px", True, True]] * 2 and res["handlers"] == [True, "auto"]
               and res.get("offline") and res["offline"][0] is True and res["offline"][1] <= 30
               and res["doh"] and res["doh"][0] and res["doh"][1] == "rgba(0, 0, 0, 0)" and res["doh"][2]

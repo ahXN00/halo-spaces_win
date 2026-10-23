@@ -206,6 +206,8 @@ const DE = {
   "Zoom": "Zoomen",
   "List View": "Listenansicht",
   "Table View": "Tabellenansicht",
+  "Dialogs inside the window": "Dialoge im Fenster",
+  "questions appear as a sheet at the top of the window, dialogs without title bar; for newly opened windows": "Nachfragen erscheinen als Kachel oben im Fenster, Dialoge ohne Titelleiste; für neu geöffnete Fenster",
 };
 const FR = {
   "Install version {v}": "Installer la version {v}",
@@ -383,6 +385,8 @@ const FR = {
   "Zoom": "Zoom",
   "List View": "Vue liste",
   "Table View": "Vue tableau",
+  "Dialogs inside the window": "Dialogues dans la fenêtre",
+  "questions appear as a sheet at the top of the window, dialogs without title bar; for newly opened windows": "les questions s’affichent en haut de la fenêtre, dialogues sans barre de titre ; pour les fenêtres nouvellement ouvertes",
 };
 const ES = {
   "Install version {v}": "Instalar la versión {v}",
@@ -560,6 +564,8 @@ const ES = {
   "Zoom": "Zoom",
   "List View": "Vista de lista",
   "Table View": "Vista de tabla",
+  "Dialogs inside the window": "Diálogos dentro de la ventana",
+  "questions appear as a sheet at the top of the window, dialogs without title bar; for newly opened windows": "las preguntas aparecen arriba en la ventana, diálogos sin barra de título; para ventanas nuevas",
 };
 const IT = {
   "Install version {v}": "Installa la versione {v}",
@@ -737,6 +743,8 @@ const IT = {
   "Zoom": "Zoom",
   "List View": "Vista elenco",
   "Table View": "Vista tabella",
+  "Dialogs inside the window": "Finestre di dialogo nella finestra",
+  "questions appear as a sheet at the top of the window, dialogs without title bar; for newly opened windows": "le domande appaiono in alto nella finestra, finestre di dialogo senza barra del titolo; per le finestre aperte di nuovo",
 };
 const TRANSLATIONS = { de: DE, fr: FR, es: ES, it: IT };
 // tr("+{n} more", { n: 3 }) – Platzhalter in geschweiften Klammern
@@ -1530,6 +1538,164 @@ function unsubscribeKey(data, hdr) {
 // nur ein kleines Popover mit dem Uhrzeitfeld (Stunden/Minuten, Pfeiltasten,
 // Mausrad) statt Thunderbirds Stundenraster. Werte gehen in die vorhandenen
 // Felder zurück – Dauer, Zeitzone und „Ganztägig“ regelt weiter Thunderbird
+// Dialogfenster wie Karten: ohne sichtbare Titelleiste (Inhalt reicht bis
+// oben, macOS zeichnet nur die Fensterknöpfe), der freie Streifen oben bleibt
+// zum Verschieben. Nur macOS – unter Windows/Linux zeichnet das System die
+// Fensterknöpfe nicht in den Inhalt.
+const CARD_WINDOWS = [
+  "chrome://calendar/content/calendar-event-dialog.xhtml",
+  "chrome://calendar/content/calendar-summary-dialog.xhtml",
+  "chrome://messenger/content/folderProps.xhtml",
+  "chrome://messenger/content/FilterListDialog.xhtml",
+  "chrome://messenger/content/FilterEditor.xhtml",
+];
+
+function cardWindow(win) {
+  if (Services.appinfo.OS != "Darwin" || !Services.prefs.getBoolPref(INLINE_PROMPTS_PREF, true)) {
+    return;
+  }
+  const root = win.document.documentElement;
+  if (!root || root.hasAttribute("mc-card-window")) {
+    return;
+  }
+  root.setAttribute("customtitlebar", "true");
+  root.setAttribute("chromemargin", "0,-1,-1,-1");
+  root.setAttribute("mc-card-window", "");
+  // der Streifen oben braucht Platz: Fenster, die sich nach ihrem Inhalt
+  // richten, um das Fehlende verlängern statt unten abzuschneiden
+  let grown = 0;
+  const grow = () => {
+    if (win.closed) {
+      return;
+    }
+    const need = Math.ceil(root.scrollHeight - win.innerHeight);
+    // höchstens um den Streifen (Schutz gegen Inhalte, die mitwachsen)
+    if (need > 0 && grown + need <= 40) {
+      grown += need;
+      win.resizeBy(0, need);
+    }
+  };
+  // (Thunderbirds Dialoge passen ihre Größe nach dem Laden teils selbst an)
+  win.addEventListener("load", () => {
+    for (const ms of [50, 400, 1200]) {
+      win.setTimeout(grow, ms);
+    }
+  }, { once: true });
+}
+
+// Nachfragen im Fenster statt als eigenes Fenster (wie in Firefox): Thunderbirds
+// Prompter zeigt Nachfragen eines Fensters als Kachel darin, sobald das Fenster
+// ein gDialogBox anbietet (Prompter.sys.mjs: MODAL_TYPE_INTERNAL_WINDOW). Wir
+// bieten es im Haupt- und im Verfassen-Fenster an – mit Thunderbirds eigenem
+// SubDialog (wie die Unterdialoge der Einstellungen). Ausschaltbar über
+// extensions.mailcards.inlinePrompts.
+const INLINE_PROMPTS_PREF = "extensions.mailcards.inlinePrompts";
+
+function installDialogBox(win, restorers) {
+  if (!Services.prefs.getBoolPref(INLINE_PROMPTS_PREF, true) || win.gDialogBox || !win.document?.documentElement) {
+    return;
+  }
+  const doc = win.document;
+  const { SubDialogManager } = ChromeUtils.importESModule("resource://gre/modules/SubDialog.sys.mjs");
+  const X = "http://www.w3.org/1999/xhtml";
+  // Behälter: ein modales <dialog> (oberste Ebene, sperrt das Fenster dahinter)
+  const host = doc.createElementNS(X, "dialog");
+  host.id = "mcDialogBox";
+  host.__mcOwner = HOOK_OWNER;
+  (doc.body || doc.documentElement).append(host);
+  // Vorlage wie in den Einstellungen (preferences.xhtml #dialogTemplate)
+  const template = doc.createXULElement("vbox");
+  // ohne align/pack: die Lage bestimmt userChrome.css (oben mittig wie ein Sheet)
+  template.className = "dialogOverlay";
+  template.setAttribute("topmost", "true");
+  template.hidden = true;
+  const box = doc.createXULElement("vbox");
+  box.className = "dialogBox";
+  box.setAttribute("role", "dialog");
+  const bar = doc.createXULElement("hbox");
+  bar.className = "dialogTitleBar";
+  bar.setAttribute("align", "center");
+  const title = doc.createXULElement("label");
+  title.className = "dialogTitle";
+  title.setAttribute("flex", "1");
+  const close = doc.createXULElement("button");
+  close.className = "dialogClose close-icon";
+  bar.append(title, close);
+  const frame = doc.createXULElement("browser");
+  frame.className = "dialogFrame";
+  frame.setAttribute("autoscroll", "false");
+  frame.setAttribute("disablehistory", "true");
+  box.append(bar, frame);
+  template.append(box);
+  const waiting = [];
+  let busy = false;
+  const dialogBox = {
+    get isOpen() {
+      return busy;
+    },
+    async open(uri, args) {
+      while (busy) {
+        await new Promise(resolve => waiting.push(resolve));
+      }
+      busy = true;
+      try {
+        host.textContent = "";
+        host.showModal();
+        const manager = new SubDialogManager({
+          dialogStack: host,
+          dialogTemplate: template,
+          orderType: SubDialogManager.ORDER_QUEUE,
+          allowDuplicateDialogs: true,
+          dialogOptions: {
+            consumeOutsideClicks: false,
+            styleSheets: [`resource://mailcards/dialog-box.css?v=${extensionVersion}`],
+          },
+        });
+        await new Promise(resolve => {
+          const opened = manager.open(uri, { features: "resizable=no", closedCallback: resolve }, args);
+          if (!opened) {
+            resolve();
+          }
+        });
+      } finally {
+        if (host.open) {
+          host.close();
+        }
+        host.textContent = "";
+        busy = false;
+        waiting.shift()?.();
+      }
+    },
+  };
+  win.gDialogBox = dialogBox;
+  restorers?.push(() => {
+    if (win.gDialogBox === dialogBox) {
+      delete win.gDialogBox;
+    }
+    host.remove();
+  });
+}
+
+// Seiten im Fenster (Mailansicht about:3pane/about:message) fragen über ihr
+// eigenes Fenster nach – dort auf die Kachel des äußeren Fensters verweisen
+function shareDialogBox(win, restorers) {
+  if (!Services.prefs.getBoolPref(INLINE_PROMPTS_PREF, true) || Object.getOwnPropertyDescriptor(win, "gDialogBox")) {
+    return;
+  }
+  Object.defineProperty(win, "gDialogBox", {
+    configurable: true,
+    get: () => {
+      const top = win.browsingContext?.topChromeWindow;
+      return top && top !== win ? top.gDialogBox : undefined;
+    },
+  });
+  restorers?.push(() => {
+    try {
+      delete win.gDialogBox;
+    } catch {}
+  });
+}
+
 // Aufgaben-Ansicht wie die Mailliste wählbar: „Liste“ (Standard) mit den
 // Details rechts neben der Liste und nur Erledigt/Titel/Fälligkeit, „Tabelle“
 // wie bisher mit allen Spalten und den Details darunter. In schmalen Fenstern
@@ -4462,6 +4628,11 @@ class CardEnhancer {
             const aw = doc.defaultView;
             aw.addEventListener("load", () => aw.setTimeout(() => hookDateTimePickers(aw), 0), { once: true });
           }
+          // Dialogfenster als ruhige Karte ohne sichtbare Titelleiste (macOS)
+          if (CARD_WINDOWS.some(u => url.startsWith(u)) && doc.defaultView) {
+            const cw = doc.defaultView;
+            cw.addEventListener("DOMContentLoaded", () => cardWindow(cw), { once: true });
+          }
           // Erinnerungen: Fenster so hoch wie die Einträge (Thunderbird merkt
           // sich sonst eine feste Größe – bei einem Eintrag viel Leerraum)
           if (url.startsWith("chrome://calendar/content/calendar-alarm-dialog.xhtml") && doc.defaultView) {
@@ -4542,7 +4713,14 @@ class CardEnhancer {
     const composeCleanups = new Set();
     ExtensionSupport.registerWindowListener("mail-cards-compose", {
       chromeURLs: ["chrome://messenger/content/messengercompose/messengercompose.xhtml"],
-      onLoadWindow: w => this.watchComposeToolbar(w, composeCleanups),
+      onLoadWindow: w => {
+        this.watchComposeToolbar(w, composeCleanups);
+        try {
+          installDialogBox(w, { push: fn => composeCleanups.add(fn) });
+        } catch (e) {
+          log("dialog box error", e);
+        }
+      },
     });
     this.restorers.push(() => {
       ExtensionSupport.unregisterWindowListener("mail-cards-compose");
@@ -4831,6 +5009,11 @@ class CardEnhancer {
       return;
     }
     this.mainWindows.add(w);
+    try {
+      installDialogBox(w, { push: fn => this.addWinRestorer(w, fn) });
+    } catch (e) {
+      log("dialog box error", e);
+    }
     // je Fenster (nicht am gemeinsamen Enhancer, sonst wirkt der Knopf im zuletzt
     // geöffneten Fenster): Tooltip des Seitenleisten-Knopfs und Popover „Neu“
     let sidebarTip = null;
@@ -10130,6 +10313,7 @@ class CardEnhancer {
       }
     };
     safely("mail context", () => this.hookMailContext(doc));
+    safely("dialog box", () => shareDialogBox(win, { push: fn => this.addWinRestorer(win, fn) }));
     safely("view choice", () => this.hookViewChoice(doc));
     safely("conversation", () => this.hookConversation(win));
     safely("scroll watch", () => {
@@ -11528,6 +11712,7 @@ const SETTINGS = {
   hoverActions: [HOVER_ACTIONS_PREF, "bool", false],
   unreadTint: [UNREAD_TINT_PREF, "bool", false],
   earlyTheme: [EARLY_THEME_PREF, "bool", false],
+  inlinePrompts: [INLINE_PROMPTS_PREF, "bool", true],
   fullConversation: [CONVERSATION_PREF, "bool", true],
   calendarEmoji: [EMOJI_PREF, "bool", true],
   emojiCustom: [EMOJI_CUSTOM_PREF, "string", ""],
