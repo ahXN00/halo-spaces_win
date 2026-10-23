@@ -11115,7 +11115,13 @@ class CardEnhancer {
       if (a3.gFolder && !this.isSearchFolder(a3.gFolder)) {
         this.searchPrevURI = a3.gFolder.URI;
       }
-      wrapper.searchFolders = this.searchScope(this.searchBase(a3));
+      const scope = this.searchScope(this.searchBase(a3));
+      // Thunderbird zeigt beim Start einer Suche zuerst die gemerkten Treffer
+      // der letzten Suche (je Postfach zwischengespeichert) und räumt erst am
+      // Ende auf – über viele IMAP-Postfächer dauert das, und bis dahin standen
+      // Mails ohne den Begriff in der Liste. Darum vor jeder Suche leeren.
+      this.clearSearchCache(folder, [...new Set([...wrapper.searchFolders, ...scope])]);
+      wrapper.searchFolders = scope;
       wrapper.searchTerms = this.searchTerms(wrapper.searchTermsSession, term);
       wrapper.onlineSearch = false;
       MailServices.accounts.saveVirtualFolders();
@@ -11139,6 +11145,14 @@ class CardEnhancer {
       log("mail search error", e);
     }
     this.updateListHeader(top);
+  }
+
+  clearSearchCache(searchFolder, folders) {
+    for (const f of folders) {
+      try {
+        f.msgDatabase?.refreshCache(searchFolder.URI, []);
+      } catch {}
+    }
   }
 
   // Geburtstage aus dem Adressbuch als eigener Kalender wie bei Apple:

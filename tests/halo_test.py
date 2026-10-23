@@ -5938,7 +5938,12 @@ def run_checks(m, version, profile, results):
             return [...Array(a3.gDBView?.rowCount || 0).keys()].map(i => a3.gDBView.getMsgHdrAt(i)?.messageId?.split("@")[0]).filter(Boolean).sort(); };
           const out = {};
           a3.displayFolder(A.URI); await wait(900); out.phA = ph();
-          await search("zebrafink"); out.inA = hits(); out.header = d.getElementById("mcListHeader")?.querySelector(".mc-lh-count")?.textContent;
+          await search("zebrafink"); out.inA = hits();
+          // gemerkte Treffer einer früheren Suche (die Mail ohne Begriff) – müssen bei der nächsten Suche verschwinden
+          const sf = a3.gFolder, a2 = [...A.messages].find(h => h.messageId == "suche-a2@example.invalid");
+          out.cacheApi = typeof A.msgDatabase.refreshCache == "function";
+          if (out.cacheApi && a2) { A.msgDatabase.refreshCache(sf.URI, [a2.messageKey]); }
+          await search("zebrafin"); out.afterStale = hits(); out.staleLeft = [...A.msgDatabase.getCachedHits(sf.URI)].map(h => h.messageId.split("@")[0]); out.header = d.getElementById("mcListHeader")?.querySelector(".mc-lh-count")?.textContent;
           // Ordnerwechsel während der Suche: sucht im neuen Ordner weiter
           a3.displayFolder(B.URI); await wait(2500); out.inB = hits(); out.phB = ph();
           await search(""); await wait(600);
@@ -5947,7 +5952,12 @@ def run_checks(m, version, profile, results):
           const { SmartMailboxUtils } = ChromeUtils.importESModule("resource:///modules/SmartMailboxUtils.sys.mjs");
           const smart = [...MailServices.accounts.allFolders].find(f => /smart%20mailboxes/i.test(f.URI) && f.getFlag(Ci.nsMsgFolderFlags.Inbox))
             || SmartMailboxUtils.getSmartMailbox().rootFolder.getFolderWithFlags(Ci.nsMsgFolderFlags.Inbox);
-          if (smart) { a3.displayFolder(smart.URI); await wait(900); out.phSmart = ph();
+          if (smart) {
+            // Ordnerliste muss „Alle Eingänge“ zeigen (Ansicht „Unified Folders“), sonst wählt displayFolder nichts aus
+            if (!a3.folderPane.getRowForFolder(smart.URI) && !a3.folderPane.activeModes.includes("smart")) {
+              a3.folderPane.activeModes = [...a3.folderPane.activeModes, "smart"]; await wait(800); }
+            for (let i = 0; i < 10 && a3.gFolder?.URI != smart.URI; i++) { a3.displayFolder(smart.URI); await wait(300); }
+            await wait(600); out.phSmart = ph();
             // Sammelordner zeigen Fäden gruppiert (wie oft im Alltag) – die Treffer trotzdem nur einzeln
             a3.gViewWrapper.showThreaded = true; await wait(400);
             await search("zebrafink"); out.inSmart = hits(); out.threaded = a3.gViewWrapper?.showThreaded; await search("");
@@ -6123,6 +6133,7 @@ def run_checks(m, version, profile, results):
               and res["hr"] and res["hr"][:2] == [True, True] and res["hr"][2] == "none"
               and res["first"] == ["0px", "12px"] and res["link"] in (True, "kein Link"))
         return ok, f"{res}"
+              and res.get("cacheApi") and "suche-a2" not in (res.get("afterStale") or []) and "suche-a2" not in (res.get("staleLeft") or [])
     check("Einstellungen: Karte „Advanced settings“ ohne leere Fläche; Ende-zu-Ende-Texte 12 px grau mit Haarlinie", settings_e2ee_cards, results)
 
     def settings_details():
