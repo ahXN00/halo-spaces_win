@@ -3800,6 +3800,36 @@ def run_checks(m, version, profile, results):
         return ok, f"Fenster {res['state']} (gezeigt {res['shown']}×, zu nach {res['hiddenAfter']} ms), {res['line']}, große Dialoge {res['dialogs']}"
     check("Doppelklick im Kalender öffnet das Schnellfenster", double_click, results)
 
+    def duplicate_cards():
+        # dieselbe Mail (gleiche Message-ID) mehrfach (Gmail-Labels, Kopien): in der Konversation und als eigene Zeile
+        # direkt dahinter nur eine Karte, die Antwort darunter bleibt sichtbar
+        res = m.js(r"""
+          const { MailServices } = ChromeUtils.importESModule("resource:///modules/MailServices.sys.mjs");
+          try { MailServices.accounts.localFoldersServer; } catch { MailServices.accounts.createLocalMailAccount(); await wait(500); }
+          const root = MailServices.accounts.localFoldersServer.rootFolder;
+          if (!root.containsChildNamed("Doppelt")) { root.createSubfolder("Doppelt", null); await wait(800); }
+          const f = root.getChildNamed("Doppelt"); const lf = f.QueryInterface(Ci.nsIMsgLocalMailFolder);
+          if (!f.getTotalMessages(false)) {
+            const msg = (id, extra, min, subj) => `From - Sat Oct 17 10:00:00 2026\r\nFrom: Max Muster <max@example.invalid>\r\nSubject: ${subj}\r\nDate: Sat, 17 Oct 2026 10:${min}:00 +0200\r\nMessage-ID: <${id}@example.invalid>\r\n${extra}\r\nText\r\n`;
+            const re = "In-Reply-To: <halo-dup-1@example.invalid>\r\nReferences: <halo-dup-1@example.invalid>\r\n";
+            lf.addMessage(msg("halo-dup-1", "", "01", "Glasfaser"));
+            lf.addMessage(msg("halo-dup-1", "", "01", "Glasfaser"));
+            lf.addMessage(msg("halo-dup-2", re, "05", "Re: Glasfaser"));
+            lf.addMessage(msg("halo-dup-2", re, "05", "Re: Glasfaser"));
+            await wait(800);
+          }
+          Services.prefs.setIntPref("mail.threadpane.listview", 0);
+          const a3 = await toMail(); a3.displayFolder(f.URI); await wait(1200);
+          a3.gViewWrapper.showThreaded = true; await wait(600);
+          a3.gDBView.doCommand(Ci.nsMsgViewCommandType.expandAll); await wait(1200);
+          const rows = [...a3.document.querySelectorAll('#threadTree tr[is="thread-card"]')];
+          const shown = rows.filter(r => r.getBoundingClientRect().height > 0);
+          return { viewRows: a3.gDBView.rowCount, rows: rows.length, shown: shown.map(r => a3.gDBView.getMsgHdrAt(r._index)?.messageId),
+                   dup: rows.filter(r => r.hasAttribute("data-mc-dup")).length };""")
+        ok = res["viewRows"] == 4 and res["dup"] == 2 and sorted(res["shown"]) == ["halo-dup-1@example.invalid", "halo-dup-2@example.invalid"]
+        return ok, f"{res}"
+    check("Mailliste: dieselbe Mail mehrfach (in der Konversation oder direkt dahinter) nur einmal als Karte, Antwort bleibt", duplicate_cards, results)
+
     def hover_actions():
         res = m.js('''
           const { MailServices } = ChromeUtils.importESModule("resource:///modules/MailServices.sys.mjs");

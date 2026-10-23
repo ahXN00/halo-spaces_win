@@ -2742,6 +2742,10 @@ const SECOND_LEVEL = new Set([
 ]);
 
 const CSS = `
+/* weitere Kopie derselben Mail (isDuplicateRow) */
+#threadTree tr[is="thread-card"][data-mc-dup] {
+  display: none !important;
+}
 #threadTree tr[is="thread-card"] .card-container {
   grid-template-columns: 16px 46px minmax(0, 1fr) !important;
   /* Inhalt senkrecht mittig: Thunderbird stapelt ihn sonst oben, und der
@@ -11094,6 +11098,7 @@ class CardEnhancer {
   decorate(win, row) {
     const doc = win.document;
     const container = row.querySelector(".card-container");
+    row.removeAttribute("data-mc-dup"); // Zeilen werden wiederverwendet
     if (!container) {
       return;
     }
@@ -11119,6 +11124,10 @@ class CardEnhancer {
 
     const hdr = this.hdrForRow(row);
     if (!hdr) {
+      return;
+    }
+    if (this.isDuplicateRow(row)) {
+      row.setAttribute("data-mc-dup", "");
       return;
     }
 
@@ -11592,6 +11601,42 @@ class CardEnhancer {
 
   // Wie Apple Mail: Eine zugeklappte Konversation zeigt Vorschau und Bild der
   // neuesten Nachricht, nicht der ersten. Aufgeklappt hat jede Zeile ihre eigene.
+  // Dieselbe Mail (gleiche Message-ID) mehrfach – etwa Gmail-Labels in „Alle
+  // Posteingänge“, Kopien in mehreren Ordnern oder in Suchergebnissen: wie
+  // Apple Mail nur die erste Karte zeigen, weitere Kopien in derselben
+  // Konversation bzw. direkt dahinter blendet das CSS aus (data-mc-dup)
+  isDuplicateRow(row) {
+    const view = row.view;
+    const index = row._index;
+    let hdr, top;
+    try {
+      top = !view?.getLevel(index);
+      hdr = view.getMsgHdrAt(index);
+    } catch {
+      return false;
+    }
+    if (!hdr?.messageId || index < 1) {
+      return false;
+    }
+    // in der Konversation rückwärts bis zu ihrem Anfang (Ebene 0); eine
+    // eigenständige Kopie (Ebene 0) mit dem Anfang der vorigen Konversation
+    // vergleichen (gleiches Datum, steht direkt davor) – höchstens 500 Zeilen
+    for (let i = index - 1; i >= 0 && index - i <= 500; i--) {
+      try {
+        const root = !view.getLevel(i);
+        if ((!top || root) && view.getMsgHdrAt(i)?.messageId == hdr.messageId) {
+          return true;
+        }
+        if (root) {
+          return false;
+        }
+      } catch {
+        return false;
+      }
+    }
+    return false;
+  }
+
   hdrForRow(row) {
     let hdr;
     try {
