@@ -83,6 +83,13 @@ async function render() {
   document.title = t("halo.spaces – Settings");
   const main = document.getElementById("settings");
   main.replaceChildren();
+  // eingebettet als Kategorie in Thunderbirds Einstellungen: wie die übrigen
+  // Kategorien – große Überschrift, Abschnittstitel in der Karte, 800 px mittig
+  const inPrefs = new URLSearchParams(location.search).get("in") == "prefs";
+  document.documentElement.classList.toggle("in-prefs", inPrefs);
+  if (inPrefs) {
+    main.append(el("h1", { textContent: "halo.spaces" }));
+  }
   for (const [title, rows] of SECTIONS()) {
     const section = el("section");
     for (const row of rows) {
@@ -128,7 +135,13 @@ async function render() {
       }
       section.append(el("div", { class: "row" }, text, control));
     }
-    main.append(el("h2", { textContent: title }), section);
+    const heading = el("h2", { textContent: title });
+    if (inPrefs) {
+      section.prepend(heading);
+      main.append(section);
+    } else {
+      main.append(heading, section);
+    }
   }
 }
 

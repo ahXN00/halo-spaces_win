@@ -982,19 +982,25 @@ function hookAppearanceChoice(cw, restorers = null) {
 const PREF_PANES = [
   { value: "paneMcAccounts", footer: "accountButton", src: "about:accountsettings" },
   { value: "paneMcAddons", footer: "addonsButton", src: "about:addons" },
-  { value: "paneMcHalo", label: "halo.spaces", icon: "resource://mailcards/about/icon.svg", options: true },
+  // Symbol ohne seine weiße Kachel, auf den Ring zugeschnitten – so groß wie die farbigen Kacheln der übrigen
+  { value: "paneMcHalo", label: "halo.spaces", icon: "resource://mailcards/about/icon.svg", crop: "8 8 48 48", options: true },
 ];
 const HALO_PANE = "paneMcHalo";
 const dataURIs = new Map();
-function dataURI(url) {
-  if (!dataURIs.has(url)) {
+// crop: neuer viewBox („x y b h“) – dann ohne das erste <rect> (Kachel des Symbols)
+function dataURI(url, crop = null) {
+  const key = url + (crop || "");
+  if (!dataURIs.has(key)) {
     const channel = NetUtil.newChannel({ uri: url, loadUsingSystemPrincipal: true });
     const stream = channel.open();
-    const text = NetUtil.readInputStreamToString(stream, stream.available(), { charset: "UTF-8" });
+    let text = NetUtil.readInputStreamToString(stream, stream.available(), { charset: "UTF-8" });
     stream.close();
-    dataURIs.set(url, "data:image/svg+xml;charset=utf-8," + encodeURIComponent(text));
+    if (crop) {
+      text = text.replace(/viewBox="[^"]*"/, `viewBox="${crop}"`).replace(/<rect\b[^>]*\/>/, "");
+    }
+    dataURIs.set(key, "data:image/svg+xml;charset=utf-8," + encodeURIComponent(text));
   }
-  return dataURIs.get(url);
+  return dataURIs.get(key);
 }
 function hookPrefCategories(cw, restorers = null) {
   const doc = cw.document;
@@ -1037,7 +1043,7 @@ function hookPrefCategories(cw, restorers = null) {
     img.className = "category-icon";
     img.setAttribute("alt", "");
     // about:preferences lässt Bilder nur aus chrome:, data: … zu (CSP) – eigenes Symbol als data:
-    img.src = pane.icon ? dataURI(pane.icon) : link?.querySelector("img")?.src || "";
+    img.src = pane.icon ? dataURI(pane.icon, pane.crop) : link?.querySelector("img")?.src || "";
     const name = doc.createXULElement("label");
     name.className = "category-name";
     name.setAttribute("flex", "1");
@@ -1732,7 +1738,8 @@ function loadOptionsPane(cw, box) {
   }
   const { ExtensionParent } = ChromeUtils.importESModule("resource://gre/modules/ExtensionParent.sys.mjs");
   const { E10SUtils } = ChromeUtils.importESModule("resource://gre/modules/E10SUtils.sys.mjs");
-  const url = extensionBaseURL + "options/options.html";
+  // ?in=prefs: Seite gestaltet sich wie die übrigen Kategorien der Einstellungen
+  const url = extensionBaseURL + "options/options.html?in=prefs";
   const browser = doc.createXULElement("browser");
   browser.className = "mc-embed-frame";
   for (const [k, v] of [["type", "content"], ["disableglobalhistory", "true"], ["messagemanagergroup", "webext-browsers"],

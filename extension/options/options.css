@@ -181,3 +181,54 @@ textarea {
 .saved.show {
   opacity: 1;
 }
+
+/* Als Kategorie in Thunderbirds Einstellungen (options.html?in=prefs): Maße
+   wie die übrigen Kategorien – Inhalt 800 px mittig, Überschrift 22 px fett,
+   Abschnittstitel 13 px halbfett in der Karte, Karten mit 12 px Radius und
+   12 px Abstand (gemessen an „General“) */
+:root.in-prefs {
+  --card: #F9F9F9;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root.in-prefs {
+    --card: rgba(255, 255, 255, 0.05);
+  }
+}
+
+.in-prefs main {
+  max-width: 800px;
+  padding: 18px 0 32px;
+}
+
+.in-prefs h1 {
+  margin: 0 0 8px;
+  font-size: 22px;
+  line-height: 29px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.in-prefs section {
+  margin-bottom: 12px;
+  padding: 12px 0 4px;
+}
+
+.in-prefs section > h2 {
+  margin: 0 0 2px;
+  padding: 0 16px;
+  font-size: 13px;
+  line-height: 24px;
+  font-weight: 600;
+  color: var(--text);
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.in-prefs .row {
+  padding-inline: 16px;
+}
+
+.in-prefs .row .hint {
+  font-size: 12px;
+}

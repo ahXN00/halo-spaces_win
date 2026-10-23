@@ -5820,6 +5820,9 @@ def run_checks(m, version, profile, results):
         res = m.js(PREFS_OPEN_JS + r"""
           const item = pd.getElementById("mcCat-paneMcHalo"), img = item?.querySelector("img");
           const out = { label: item?.querySelector(".category-name")?.textContent, icon: img ? [img.src.slice(0, 5), img.naturalWidth > 0] : null,
+                        // Symbol ohne eigene weiße Kachel auf den Ring zugeschnitten – so groß wie die übrigen Kacheln
+                        crop: !!img?.src.includes(encodeURIComponent('viewBox="8 8 48 48"')), size: img ? Math.round(img.getBoundingClientRect().width) : null,
+                        other: Math.round(pd.querySelector("#category-general .category-icon").getBoundingClientRect().width),
                         footerHidden: !!pd.querySelector("#pref-category-box .sidebar-footer-list")?.hidden,
                         tile: w.getComputedStyle ? pw.getComputedStyle(img).backgroundColor : null,
                         qrTile: pw.getComputedStyle(pd.querySelector("#category-qrexport .category-icon") || pd.body).backgroundColor };
@@ -5833,7 +5836,8 @@ def run_checks(m, version, profile, results):
         manifest = json.load(open(os.path.join(ROOT, "extension", "manifest.json")))
         p = res.get("pane", {})
         ok = (res["label"] == "halo.spaces" and res["icon"] == ["data:", True] and res["footerHidden"] and rgba_alpha(res["tile"]) == 0
-              and p.get("embed") and p.get("remote") and p.get("url") == "/options/options.html" and p["rect"]["h"] > 500
+              and res["crop"] and res["size"] == res["other"]
+              and p.get("embed") and p.get("remote") and p.get("url") == "/options/options.html?in=prefs" and p["rect"]["h"] > 500
               and p["rect"]["l"] == p["cat"]["l"] + p["cat"]["w"] and p.get("hash") == "#mcHalo" and res["back"]
               and manifest.get("options_ui", {}).get("page") == "options/options.html")
         return ok, f"{res}"
