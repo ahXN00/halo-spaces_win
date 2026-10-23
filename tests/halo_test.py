@@ -2114,7 +2114,9 @@ def folder_checks(m, results):
             if (!wasHidden) w.gSpacesToolbar.toggleToolbar(false);
             await wait(600);
           }""")
-        ok = (res["btnW"] > 0 and res["btnLeft"] >= res["paneLeft"] and res["pad"] >= 46
+        # paneLeft: Fensterinhalt beginnt ganz links (früher rückte eine verirrte Statusleisten-Regel Fenster und
+        # Seitenkörper je 12 px ein – weißer Streifen links, rechts abgeschnitten)
+        ok = (res["btnW"] > 0 and res["btnLeft"] >= res["paneLeft"] and res["paneLeft"] <= 1 and res["pad"] >= 46
               and res["paneBottom"] - res["pad"] <= res["btnTop"] - 4 and res["win"] - res["pad"] <= res["btnTop"]
               and res["scrolls"] and res["lastGap"] is not None and res["lastGap"] >= res["pad"] - 1)
         return ok, f"{res}"
@@ -2820,8 +2822,17 @@ def calendar_checks(m, results):
             out.catDot = mt ? csOf(mt).backgroundImage.slice(0, 20) : null;
             const chip = cats?.shadowRoot?.querySelector('[part~="color"]');
             out.catChip = chip ? csOf(chip).boxShadow : null;
-            let bg = null;
-            for (let el = ed; el && el.nodeType == 1; el = el.parentElement) { const b = csOf(el).backgroundColor; if (!/rgba\(.*, 0\)$/.test(b) && b != "transparent") { bg = b; break; } }
+            // Fläche hinter dem Text: durchscheinende Kartenflächen auf den ersten deckenden Hintergrund darunter mischen
+            const rgba = c => { const v = (c.match(/-?[\d.]+(?:e-?\d+)?/g) || []).map(Number); const k = c.startsWith("color(") ? 255 : 1;
+                                 return [v[0] * k, v[1] * k, v[2] * k, v.length > 3 ? v[3] : 1]; };
+            const layers = [];
+            for (let el = ed; el && el.nodeType == 1; el = el.parentElement) {
+              const b = csOf(el).backgroundColor; if (b == "transparent") continue;
+              const v = rgba(b); if (v[3] == 0) continue; layers.push(v); if (v[3] >= 1) break;
+            }
+            let mix = layers.length && layers.at(-1)[3] >= 1 ? layers.pop() : (out.dark ? [0, 0, 0, 1] : [255, 255, 255, 1]);
+            for (const l of layers.reverse()) mix = mix.map((m, i) => i < 3 ? l[i] * l[3] + m * (1 - l[3]) : 1);
+            const bg = layers.length || mix ? `rgb(${mix.slice(0, 3).map(Math.round).join(", ")})` : null;
             out.desc = body ? { color: csOf(body).color, body: csOf(body).backgroundColor, field: bg } : null;
           } finally {
             if (dw && !dw.closed) { dw.close(); await till(() => dw.closed, 4000); }
