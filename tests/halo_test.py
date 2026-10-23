@@ -4228,6 +4228,32 @@ def run_checks(m, version, profile, results):
         return not bad, f"{bad} {res}"
     check("Statusleiste: Online-Symbol in jedem Bereich rechts der Seitenleiste, nie unter dem Knopf zum Einblenden der Bereiche", statusbar_edges, results)
 
+    def no_new_tab_items():
+        # Kontextmenüs ohne „In neuem Tab/Fenster öffnen“ in allen Bereichen; keine doppelten oder Rand-Trennlinien
+        res = m.js(r"""
+          const a3 = await toMail(); await wait(600); const ad = a3.document;
+          const vis = el => !!el && el.getBoundingClientRect().height > 0;
+          const look = p => { const kids = [...p.children].filter(vis); const ids = kids.map(k => k.localName == "menuseparator" ? "|" : (k.id || k.label || k.localName));
+            return { bad: kids.filter(k => /new(tab|window)|openinwindow/i.test(k.id)).map(k => k.id),
+                     seps: ids[0] == "|" || ids.at(-1) == "|" || ids.some((x, i) => x == "|" && ids[i + 1] == "|"), count: kids.length, ids: ids.join(" ") }; };
+          const openAt = async (p, el) => { const r = el.getBoundingClientRect(), v = el.ownerDocument.defaultView;
+            el.dispatchEvent(new v.MouseEvent("contextmenu", { bubbles: true, cancelable: true, button: 2, clientX: r.left + 10, clientY: r.top + r.height / 2,
+              screenX: v.mozInnerScreenX + r.left + 10, screenY: v.mozInnerScreenY + r.top + r.height / 2 }));
+            await until(() => p.state == "open", 2000); await wait(300); const out = look(p); p.hidePopup(); await wait(300); return out; };
+          const out = {};
+          const folderRow = [...ad.querySelectorAll('#folderTree li[is="folder-tree-row"]')].find(li => li.querySelector(".name")?.getBoundingClientRect().width && !li.dataset.serverType);
+          if (folderRow) out.folder = await openAt(ad.getElementById("folderPaneContext"), folderRow.querySelector(".container"));
+          const tab = d.getElementById("tabmail").tabContainer.allTabs[0];
+          out.tab = await openAt(d.getElementById("tabContextMenu"), tab);
+          const space = d.getElementById("calendarButton");
+          const sp = d.getElementById("spacesContextMenu");
+          if (space && sp) { space.dispatchEvent(new w.MouseEvent("contextmenu", { bubbles: true, cancelable: true, button: 2 })); await wait(500);
+            out.spaces = { state: sp.state, ...look(sp) }; sp.hidePopup(); await wait(300); }
+          return out;""")
+        bad = [k for k, v in res.items() if v and (v.get("bad") or v.get("seps"))]
+        return not bad and "folder" in res and "tab" in res, f"{bad} {res}"
+    check("Kontextmenüs: ohne „In neuem Tab/Fenster öffnen“, ohne doppelte Trennlinien", no_new_tab_items, results)
+
     def today_plus_event():
         # „+“ ganz rechts → „New Event“: Schnellfenster ganz auf dem Bildschirm
         # (früher mittig unter dem „+“ geöffnet und von Thunderbird am Rand auf

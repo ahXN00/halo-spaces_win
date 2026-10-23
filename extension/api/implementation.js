@@ -1510,6 +1510,63 @@ function unsubscribeKey(data, hdr) {
 // nur ein kleines Popover mit dem Uhrzeitfeld (Stunden/Minuten, Pfeiltasten,
 // Mausrad) statt Thunderbirds Stundenraster. Werte gehen in die vorhandenen
 // Felder zurück – Dauer, Zeitzone und „Ganztägig“ regelt weiter Thunderbird
+// Kontextmenüs ohne „In neuem Tab/Fenster öffnen“ (alle Bereiche; Punkte per CSS
+// ausgeblendet). Danach stünden Trennlinien doppelt oder am Rand – beim Öffnen
+// aufräumen; ein Menü ohne sichtbare Einträge öffnet sich gar nicht erst
+const NEW_TAB_POPUPS = ["folderPaneContext", "mailContext", "otherActionsPopup", "spacesContextMenu", "tabContextMenu"];
+function tidyMenuSeparators(popup) {
+  const shown = el => !el.hidden && el.getAttribute("collapsed") != "true" && el.ownerDocument.defaultView.getComputedStyle(el).display != "none";
+  let last = null, any = false;
+  for (const el of popup.children) {
+    if (el.localName == "menuseparator") {
+      el.toggleAttribute("mc-tidy-hidden", !last || last.localName == "menuseparator");
+      if (!el.hasAttribute("mc-tidy-hidden")) {
+        last = el;
+      }
+    } else if (shown(el)) {
+      last = el;
+      any = true;
+    }
+  }
+  // Trennlinie am Ende
+  if (last?.localName == "menuseparator") {
+    last.setAttribute("mc-tidy-hidden", "");
+  }
+  return any;
+}
+function hookNewTabMenus(doc, restorers = null) {
+  for (const id of NEW_TAB_POPUPS) {
+    const popup = doc.getElementById(id);
+    if (!popup || popup.__mcTidy === HOOK_OWNER) {
+      continue;
+    }
+    popup.__mcTidy = HOOK_OWNER;
+    const onShowing = event => {
+      if (event.target != popup) {
+        return;
+      }
+      // nach Thunderbirds eigenem onpopupshowing (Attribut, läuft zuerst)
+      if (!tidyMenuSeparators(popup)) {
+        event.preventDefault();
+      }
+    };
+    // Thunderbird blendet manche Einträge erst danach aus (Ordnermenü) – nochmals aufräumen
+    const onShown = event => {
+      if (event.target == popup) {
+        tidyMenuSeparators(popup);
+      }
+    };
+    popup.addEventListener("popupshowing", onShowing);
+    popup.addEventListener("popupshown", onShown);
+    restorers?.push(() => {
+      popup.removeEventListener("popupshowing", onShowing);
+      popup.removeEventListener("popupshown", onShown);
+      delete popup.__mcTidy;
+      popup.querySelectorAll("[mc-tidy-hidden]").forEach(el => el.removeAttribute("mc-tidy-hidden"));
+    });
+  }
+}
+
 // Termin-Fenster wie Apple Kalender: Karten untereinander – Titel; Ganztägig,
 // Beginn, Ende, Wiederholung, Erinnerung (mit Beschriftung rechtsbündig); Ort;
 // Teilnehmer; Kalender; Kategorie; ganz unten die Notiz („Add Notes or URL“).
@@ -6110,6 +6167,7 @@ class CardEnhancer {
     const markTab = () => {
       hookSearchForwarding();
       hookHelpMenu();
+      hookNewTabMenus(w.document, this.restorers);
       try {
         hookLayoutMenus();
       } catch (e) {
@@ -9065,6 +9123,7 @@ class CardEnhancer {
   // statt einer Symbolleiste ganz oben. Antworten und Gelesen/Ungelesen gibt
   // es dort schon als eigene Einträge bzw. im Untermenü „Markieren“.
   hookMailContext(doc) {
+    hookNewTabMenus(doc, { push: fn => this.addWinRestorer(doc.defaultView, fn) });
     const popup = doc.getElementById("mailContext");
     const group = doc.getElementById("mailContext-navigation");
     if (!popup || !group || popup.__mcList) {

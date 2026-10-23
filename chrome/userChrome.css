@@ -2832,6 +2832,17 @@ message-pane.mc-conv-pending > :is(#messageBrowser, #multiMessageBrowser) {
   border: none;
 }
 
+/* Kontextmenüs ohne „In neuem Tab/Fenster öffnen“ (Ordner, Mail, Mailkopf,
+   Bereiche-Leiste, Tab); überzählige Trennlinien blendet die Erweiterung aus */
+:is(#folderPaneContext-openNewTab, #folderPaneContext-openNewWindow,
+    #mailContext-openNewTab, #mailContext-openNewWindow,
+    #otherActionsOpenInNewTab, #otherActionsOpenInNewWindow,
+    #spacesContextNewTabItem, #spacesContextNewWindowItem,
+    #tabContextMenuOpenInWindow),
+menuseparator[mc-tidy-hidden] {
+  display: none !important;
+}
+
 /* ==== Bereiche: Kalender, Aufgaben, Adressbuch, Chat, Einstellungen ==== */
 
 /* Toolbar-Zeile über der Seitenleiste im Seitenleisten-Grau wie in Apples

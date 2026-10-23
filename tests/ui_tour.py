@@ -968,8 +968,6 @@ SURFACES = [
       'await toCalendar(); const t = tm.tabContainer.allTabs[0]; return await ctxPop("tabContextMenu", t);', cap="popup"),
     S("kontext-toolbar", "menues", "popup", "Kontextmenü: Toolbar",
       'await toMail(); const el = d.getElementById("unifiedToolbarContent"); return await ctxPop("unifiedToolbarMenu", el, { ox: el.getBoundingClientRect().width - 400 });', cap="popup"),
-    S("kontext-bereich", "menues", "popup", "Kontextmenü: Bereiche-Leiste (Bereich)",
-      'await toMail(); return await ctxPop("spacesContextMenu", d.getElementById("calendarButton"));', cap="popup"),
     S("kontext-einstellungen-knopf", "menues", "popup", "Kontextmenü: Einstellungen-Knopf der Bereiche-Leiste",
       'await toMail(); return await ctxPop("settingsContextMenu", d.getElementById("settingsButton"));', cap="popup"),
     S("kontext-schnellfilter", "menues", "popup", "Kontextmenü: Schnellfilter-Leiste",
