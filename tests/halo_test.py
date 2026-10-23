@@ -4254,6 +4254,32 @@ def run_checks(m, version, profile, results):
         return not bad and "folder" in res and "tab" in res, f"{bad} {res}"
     check("Kontextmenüs: ohne „In neuem Tab/Fenster öffnen“, ohne doppelte Trennlinien", no_new_tab_items, results)
 
+    def task_filter_menu():
+        # Aufgaben: Filter als Menü hinter einem Knopf wie „Quick Filter“ (links vom Suchfeld) statt Liste in der Seitenleiste
+        res = m.js(r"""
+          tm.openTab("tasks", {}); await wait(1500);
+          const group = d.getElementById("task-tree-filtergroup"), before = group.value;
+          const btn = d.querySelector("#mcTaskFilter > button"), popup = d.getElementById("mcTaskFilterPopup");
+          const vis = el => !!el && el.getBoundingClientRect().width > 0;
+          const out = { button: vis(btn), sidebarList: vis(d.getElementById("task-filtertree-pane")) || vis(d.getElementById("task-tree-filter-header")),
+                        leftOfSearch: btn && Math.round(d.querySelector('#unifiedToolbarContent > li[item-id="search-bar"]').getBoundingClientRect().left - btn.getBoundingClientRect().right) };
+          btn?.click(); await until(() => popup?.state == "open", 2000); await wait(300);
+          const entries = [...(popup?.children || [])];
+          out.items = entries.length; out.checked = entries.filter(i => i.getAttribute("checked") == "true").length;
+          const today = entries.find(i => /today/i.test(i.getAttribute("label")));
+          popup?.activateItem?.(today) ?? today?.doCommand(); await wait(500); popup?.hidePopup(); await wait(200);
+          out.value = group.value; out.active = btn?.hasAttribute("active");
+          const cur = group.querySelector('radio[value="throughcurrent"]'); cur?.click(); await wait(400); out.activeCurrent = btn?.hasAttribute("active");
+          group.querySelector(`radio[value="${before}"]`)?.click(); await wait(300);
+          for (const t of [...tm.tabInfo].slice(1)) tm.closeTab(t);
+          await toMail(); out.inMail = vis(btn);
+          return out;""")
+        ok = (res["button"] and not res["sidebarList"] and res["leftOfSearch"] is not None and 0 <= res["leftOfSearch"] <= 16
+              and res["items"] == 8 and res["checked"] == 1 and res["value"] == "throughtoday" and res["active"] and not res["activeCurrent"]
+              and not res["inMail"])
+        return ok, f"{res}"
+    check("Aufgaben: Filter als Menü hinter einem Knopf wie „Quick Filter“ statt Liste in der Seitenleiste", task_filter_menu, results)
+
     def today_plus_event():
         # „+“ ganz rechts → „New Event“: Schnellfenster ganz auf dem Bildschirm
         # (früher mittig unter dem „+“ geöffnet und von Thunderbird am Rand auf

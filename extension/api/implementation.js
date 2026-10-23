@@ -201,6 +201,7 @@ const DE = {
   "Title": "Titel",
   "Add Location or Video Call": "Ort oder Videoanruf hinzufügen",
   "Add Invitees": "Teilnehmer hinzufügen",
+  "Filter Tasks": "Aufgaben filtern",
 };
 const FR = {
   "Install version {v}": "Installer la version {v}",
@@ -373,6 +374,7 @@ const FR = {
   "Title": "Titre",
   "Add Location or Video Call": "Ajouter un lieu ou un appel vidéo",
   "Add Invitees": "Ajouter des invités",
+  "Filter Tasks": "Filtrer les tâches",
 };
 const ES = {
   "Install version {v}": "Instalar la versión {v}",
@@ -545,6 +547,7 @@ const ES = {
   "Title": "Título",
   "Add Location or Video Call": "Añadir ubicación o videollamada",
   "Add Invitees": "Añadir invitados",
+  "Filter Tasks": "Filtrar tareas",
 };
 const IT = {
   "Install version {v}": "Installa la versione {v}",
@@ -717,6 +720,7 @@ const IT = {
   "Title": "Titolo",
   "Add Location or Video Call": "Aggiungi luogo o videochiamata",
   "Add Invitees": "Aggiungi invitati",
+  "Filter Tasks": "Filtra attività",
 };
 const TRANSLATIONS = { de: DE, fr: FR, es: ES, it: IT };
 // tr("+{n} more", { n: 3 }) – Platzhalter in geschweiften Klammern
@@ -6104,6 +6108,79 @@ class CardEnhancer {
       });
     };
 
+    // Aufgaben: die Filter („Current Tasks“, „Today“ …) als Menü hinter einem
+    // Knopf wie „Quick Filter“ in der Mail statt als Liste in der Seitenleiste.
+    // Die Auswahl klickt Thunderbirds eigene Liste (Filterlogik und Speicherung
+    // bleiben); der Knopf ist in Akzentfarbe, solange ein anderer Filter als
+    // „Current Tasks“ gilt
+    const hookTaskFilter = () => {
+      const d = w.document;
+      const group = d.getElementById("task-tree-filtergroup");
+      const content = d.getElementById("unifiedToolbarContent");
+      const search = content?.querySelector(':scope > li[item-id="search-bar"]');
+      if (!group || !search) {
+        return;
+      }
+      let li = d.getElementById("mcTaskFilter");
+      if (li && li.__mcOwner !== HOOK_OWNER) {
+        li.remove();
+        li = null;
+      }
+      if (li) {
+        if (li.nextElementSibling != search) {
+          search.before(li); // Leiste neu aufgebaut (Anpassen)
+        }
+        return;
+      }
+      const X = "http://www.w3.org/1999/xhtml";
+      li = d.createElementNS(X, "li");
+      li.id = "mcTaskFilter";
+      li.__mcOwner = HOOK_OWNER;
+      const btn = d.createElementNS(X, "button");
+      btn.className = "mc-task-filter-button";
+      btn.title = tr("Filter Tasks");
+      li.append(btn);
+      search.before(li);
+      let popup = d.getElementById("mcTaskFilterPopup");
+      popup?.remove();
+      popup = d.createXULElement("menupopup");
+      popup.id = "mcTaskFilterPopup";
+      (d.getElementById("mainPopupSet") || d.querySelector("popupset") || d.documentElement).append(popup);
+      const sync = () => btn.toggleAttribute("active", (group.value || "throughcurrent") != "throughcurrent");
+      popup.addEventListener("popupshowing", event => {
+        if (event.target != popup) {
+          return;
+        }
+        popup.replaceChildren(...[...group.querySelectorAll("radio")].map(radio => {
+          const item = d.createXULElement("menuitem");
+          item.setAttribute("type", "radio");
+          item.setAttribute("name", "mctaskfilter");
+          item.setAttribute("label", radio.label || radio.getAttribute("label") || radio.value);
+          if (radio.selected || group.value == radio.value) {
+            item.setAttribute("checked", "true");
+          }
+          item.addEventListener("command", () => {
+            radio.click(); // wie ein Klick in Thunderbirds Liste
+            w.setTimeout(sync, 0);
+          });
+          return item;
+        }));
+      });
+      btn.addEventListener("click", () => {
+        const r = btn.getBoundingClientRect();
+        popup.openPopupAtScreen(w.mozInnerScreenX + r.left, w.mozInnerScreenY + r.bottom + 4, false);
+      });
+      group.addEventListener("command", sync);
+      group.addEventListener("select", sync);
+      sync();
+      this.restorers.push(() => {
+        li.remove();
+        popup.remove();
+        group.removeEventListener("command", sync);
+        group.removeEventListener("select", sync);
+      });
+    };
+
     // Ansicht → Layout (Menüleiste, App-Menü): nur noch die drei gültigen
     // Kombinationen – Kartenansicht (immer vertikal), Tabelle klassisch, Tabelle
     // breit. Thunderbirds Punkte bleiben (Häkchen über mail.pane_config.dynamic,
@@ -6168,6 +6245,11 @@ class CardEnhancer {
       hookSearchForwarding();
       hookHelpMenu();
       hookNewTabMenus(w.document, this.restorers);
+      try {
+        hookTaskFilter();
+      } catch (e) {
+        log("task filter error", e);
+      }
       try {
         hookLayoutMenus();
       } catch (e) {
