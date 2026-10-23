@@ -210,6 +210,9 @@ const DE = {
   "questions appear as a sheet at the top of the window, dialogs without title bar; for newly opened windows": "Nachfragen erscheinen als Kachel oben im Fenster, Dialoge ohne Titelleiste; für neu geöffnete Fenster",
   "Hide “Collected Addresses”": "„Collected Addresses“ ausblenden",
   "in the address book sidebar, like Apple Contacts – completion while writing keeps working": "in der Seitenleiste des Adressbuchs, wie in Apple Kontakte – die Ergänzung beim Schreiben bleibt",
+  "Show Format Bar": "Formatleiste einblenden",
+  "Hide Format Bar": "Formatleiste ausblenden",
+  "Begin forwarded message:": "Beginn der weitergeleiteten Nachricht:",
 };
 const FR = {
   "Install version {v}": "Installer la version {v}",
@@ -391,6 +394,9 @@ const FR = {
   "questions appear as a sheet at the top of the window, dialogs without title bar; for newly opened windows": "les questions s’affichent en haut de la fenêtre, dialogues sans barre de titre ; pour les fenêtres nouvellement ouvertes",
   "Hide “Collected Addresses”": "Masquer « Collected Addresses »",
   "in the address book sidebar, like Apple Contacts – completion while writing keeps working": "dans la barre latérale du carnet d’adresses, comme Contacts d’Apple – la saisie automatique reste active",
+  "Show Format Bar": "Afficher la barre de mise en forme",
+  "Hide Format Bar": "Masquer la barre de mise en forme",
+  "Begin forwarded message:": "Début du message réexpédié :",
 };
 const ES = {
   "Install version {v}": "Instalar la versión {v}",
@@ -572,6 +578,9 @@ const ES = {
   "questions appear as a sheet at the top of the window, dialogs without title bar; for newly opened windows": "las preguntas aparecen arriba en la ventana, diálogos sin barra de título; para ventanas nuevas",
   "Hide “Collected Addresses”": "Ocultar “Collected Addresses”",
   "in the address book sidebar, like Apple Contacts – completion while writing keeps working": "en la barra lateral de la libreta de direcciones, como Contactos de Apple – el autocompletado sigue funcionando",
+  "Show Format Bar": "Mostrar barra de formato",
+  "Hide Format Bar": "Ocultar barra de formato",
+  "Begin forwarded message:": "Inicio del mensaje reenviado:",
 };
 const IT = {
   "Install version {v}": "Installa la versione {v}",
@@ -753,6 +762,9 @@ const IT = {
   "questions appear as a sheet at the top of the window, dialogs without title bar; for newly opened windows": "le domande appaiono in alto nella finestra, finestre di dialogo senza barra del titolo; per le finestre aperte di nuovo",
   "Hide “Collected Addresses”": "Nascondi “Collected Addresses”",
   "in the address book sidebar, like Apple Contacts – completion while writing keeps working": "nella barra laterale della rubrica, come Contatti di Apple – il completamento automatico continua a funzionare",
+  "Show Format Bar": "Mostra barra di formattazione",
+  "Hide Format Bar": "Nascondi barra di formattazione",
+  "Begin forwarded message:": "Inizio messaggio inoltrato:",
 };
 const TRANSLATIONS = { de: DE, fr: FR, es: ES, it: IT };
 // tr("+{n} more", { n: 3 }) – Platzhalter in geschweiften Klammern
@@ -1546,6 +1558,146 @@ function unsubscribeKey(data, hdr) {
 // nur ein kleines Popover mit dem Uhrzeitfeld (Stunden/Minuten, Pfeiltasten,
 // Mausrad) statt Thunderbirds Stundenraster. Werte gehen in die vorhandenen
 // Felder zurück – Dauer, Zeitzone und „Ganztägig“ regelt weiter Thunderbird
+// Verfassen wie Apple Mail: Formatleiste nur bei Bedarf über „Aa“ (gemerkt),
+// Weiterleitungskopf wie bei Apple – „Begin forwarded message:“, Absender
+// zuerst, Datum in Ortszeit statt „+0000“ (Rahmen und Balken: compose-body.css)
+const COMPOSE_FORMAT_PREF = "extensions.mailcards.composeFormatBar";
+
+function hookComposeApple(win, cleanups) {
+  const doc = win.document;
+  const bar = doc.getElementById("composeToolbar2");
+  if (!bar || bar.__mcApple) {
+    return;
+  }
+  bar.__mcApple = true;
+  const root = doc.documentElement;
+  // „Aa“: Formatleiste ein/aus
+  const toggle = doc.createXULElement("toolbarbutton");
+  toggle.id = "mcFormatToggle";
+  toggle.className = "toolbarbutton-1";
+  toggle.setAttribute("label", "Aa");
+  toggle.setAttribute("tooltiptext", tr("Show Format Bar"));
+  const apply = () => {
+    const shown = Services.prefs.getBoolPref(COMPOSE_FORMAT_PREF, false);
+    root.toggleAttribute("mc-format-hidden", !shown);
+    toggle.toggleAttribute("checked", shown);
+    toggle.setAttribute("tooltiptext", tr(shown ? "Hide Format Bar" : "Show Format Bar"));
+  };
+  toggle.addEventListener("command", () => {
+    Services.prefs.setBoolPref(COMPOSE_FORMAT_PREF, !Services.prefs.getBoolPref(COMPOSE_FORMAT_PREF, false));
+  });
+  const send = doc.getElementById("button-send");
+  (send?.nextElementSibling ? bar.insertBefore(toggle, send.nextElementSibling) : bar.append(toggle));
+  const prefObs = () => apply();
+  Services.prefs.addObserver(COMPOSE_FORMAT_PREF, prefObs);
+  apply();
+  // Anhänge als Kacheln: Dateisymbol in 32 px statt 16 (scharf statt vergrößert)
+  const bucket = doc.getElementById("attachmentBucket");
+  const bigIcons = () => {
+    for (const img of bucket?.querySelectorAll(".attachmentItem > img.attachmentcell-icon[srcset*='size=16']") || []) {
+      img.setAttribute("srcset", img.getAttribute("srcset").replace(/size=16/g, "size=32"));
+    }
+  };
+  const iconObserver = bucket ? new win.MutationObserver(bigIcons) : null;
+  iconObserver?.observe(bucket, { childList: true, subtree: true, attributes: true, attributeFilter: ["srcset"] });
+  bigIcons();
+  // Mailtext fertig (Antworten/Weiterleiten): Weiterleitungskopf umbauen
+  let listener = null;
+  const register = () => {
+    if (listener || !win.gMsgCompose) {
+      return;
+    }
+    listener = {
+      NotifyComposeFieldsReady() {},
+      ComposeProcessDone() {},
+      SaveInFolderDone() {},
+      NotifyComposeBodyReady() {
+        win.setTimeout(() => appleForwardHeader(win), 0);
+      },
+      QueryInterface: ChromeUtils.generateQI(["nsIMsgComposeStateListener"]),
+    };
+    win.gMsgCompose.RegisterStateListener(listener);
+  };
+  // der Mailtext kommt oft schon, bevor das Fenster hier eingerichtet ist –
+  // darum zusätzlich einige Sekunden lang nachsehen
+  let tries = 0;
+  const poll = win.setInterval(() => {
+    if (win.closed || ++tries > 40 || appleForwardHeader(win) !== false) {
+      win.clearInterval(poll);
+    }
+  }, 250);
+  win.addEventListener("compose-window-init", register, { once: true });
+  register();
+  cleanups?.add(() => {
+    iconObserver?.disconnect();
+    Services.prefs.removeObserver(COMPOSE_FORMAT_PREF, prefObs);
+    toggle.remove();
+    root.removeAttribute("mc-format-hidden");
+    try {
+      if (listener) {
+        win.gMsgCompose?.UnregisterStateListener(listener);
+      }
+    } catch {}
+    delete bar.__mcApple;
+  });
+}
+
+// false: noch kein Weiterleitungstext da (später erneut versuchen)
+const appleForwardDone = new WeakSet();
+
+function appleForwardHeader(win) {
+  try {
+    const body = win.GetCurrentEditorElement?.()?.contentDocument?.body;
+    const box = body?.querySelector(".moz-forward-container");
+    if (!box) {
+      return false;
+    }
+    if (appleForwardDone.has(box)) {
+      return true;
+    }
+    appleForwardDone.add(box);
+    const compose = win.gMsgCompose;
+    const wasModified = compose?.bodyModified;
+    // Zeile „-------- Forwarded Message --------“
+    for (const node of box.childNodes) {
+      if (node.nodeType == 3 && /^\s*-{3,}.*-{3,}\s*$/.test(node.data)) {
+        node.data = tr("Begin forwarded message:");
+        break;
+      }
+    }
+    const table = box.querySelector(":scope > table.moz-email-headers-table");
+    if (table) {
+      const rows = [...table.querySelectorAll("tr")];
+      const label = row => row.querySelector("th")?.textContent.replace(/[:\s]+$/, "").trim();
+      // Datum in Ortszeit, lang wie Apple („23. October 2026 at 13:21:33 CEST“);
+      // die Zeile erkennt man am Inhalt (RFC-Datum), die Beschriftung ist übersetzt
+      for (const row of rows) {
+        const td = row.querySelector("td");
+        if (td && /\b\d{1,2} \w{3} \d{4} \d{1,2}:\d{2}(:\d{2})? [+-]\d{4}\b/.test(td.textContent)) {
+          const date = new Date(td.textContent.trim());
+          if (!isNaN(date)) {
+            td.textContent = new Intl.DateTimeFormat(Services.locale.appLocaleAsBCP47, { dateStyle: "long", timeStyle: "long" }).format(date);
+          }
+        }
+      }
+      // Absender zuerst wie bei Apple (From, Subject, Date, To)
+      const FROM_LABELS = ["From", "Von", "De", "Da"];
+      const from = rows.find(r => FROM_LABELS.includes(label(r)));
+      if (from && from != rows[0]) {
+        rows[0].before(from);
+      }
+    }
+    if (compose && !wasModified) {
+      compose.bodyModified = false;
+    }
+    win.GetCurrentEditor?.()?.resetModificationCount?.();
+    return true;
+  } catch (e) {
+    log("forward header error", String(e).slice(0, 120));
+    return true;
+  }
+}
+
 // Dialogfenster wie Karten: ohne sichtbare Titelleiste (Inhalt reicht bis
 // oben, macOS zeichnet nur die Fensterknöpfe), der freie Streifen oben bleibt
 // zum Verschieben. Nur macOS – unter Windows/Linux zeichnet das System die
@@ -4765,6 +4917,11 @@ class CardEnhancer {
       chromeURLs: ["chrome://messenger/content/messengercompose/messengercompose.xhtml"],
       onLoadWindow: w => {
         this.watchComposeToolbar(w, composeCleanups);
+        try {
+          hookComposeApple(w, composeCleanups);
+        } catch (e) {
+          log("compose apple error", e);
+        }
         try {
           installDialogBox(w, { push: fn => composeCleanups.add(fn) });
         } catch (e) {
@@ -11768,6 +11925,7 @@ const SETTINGS = {
   unreadTint: [UNREAD_TINT_PREF, "bool", false],
   earlyTheme: [EARLY_THEME_PREF, "bool", false],
   inlinePrompts: [INLINE_PROMPTS_PREF, "bool", true],
+  composeFormatBar: [COMPOSE_FORMAT_PREF, "bool", false],
   fullConversation: [CONVERSATION_PREF, "bool", true],
   calendarEmoji: [EMOJI_PREF, "bool", true],
   emojiCustom: [EMOJI_CUSTOM_PREF, "string", ""],

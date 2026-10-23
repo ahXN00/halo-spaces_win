@@ -125,3 +125,9 @@ addon-card .more-options-button::part(button):hover {
   border-color: var(--mt-tooltip-border, transparent) !important;
   border-radius: 12px !important;
 }
+
+/* Verfassen: Absender wie Apple Mail nur „Name <Adresse>“, ohne das Konto
+   daneben (::part greift nur aus einem Autoren-Stylesheet) */
+#msgIdentity::part(description) {
+  display: none;
+}

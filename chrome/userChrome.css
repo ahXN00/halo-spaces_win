@@ -6599,6 +6599,144 @@ addon-card .addon-inline-options {
   padding-inline: 4px !important;
 }
 
+/* Symbolleiste wie Apple Mail: nur Symbole in kleinen Kapseln, mittig
+   gruppiert; Senden als runder Pfeil-nach-oben-Knopf ganz rechts; „Aa“
+   (Erweiterung) blendet die Formatleiste ein */
+#composeToolbar2 {
+  justify-content: center !important;
+  position: relative !important;
+}
+
+#composeToolbar2 > :is(toolbarspring, toolbarspacer) {
+  display: none !important;
+}
+
+/* (im Modus „nur Text“ bleiben die Beschriftungen – sonst leere Knöpfe) */
+#compose-toolbox:not([mode="text"]) #composeToolbar2 > toolbarbutton:not(#mcFormatToggle) .toolbarbutton-text {
+  display: none !important;
+}
+
+#composeToolbar2 > toolbarbutton:not([type="menu-button"]),
+#composeToolbar2 > toolbarbutton > .toolbarbutton-menubutton-button {
+  min-height: 30px !important;
+  padding-inline: 9px !important;
+}
+
+#composeToolbar2 > #button-send {
+  position: absolute !important;
+  inset-inline-end: 14px !important;
+  width: 30px !important;
+  min-width: 30px !important;
+  height: 30px !important;
+  min-height: 30px !important;
+  padding: 0 !important;
+  border-radius: 50% !important;
+  justify-content: center !important;
+  list-style-image: url("resource://mailcards/icons/send-up.svg") !important;
+}
+
+#composeToolbar2 > #button-send > .toolbarbutton-icon {
+  width: 16px !important;
+  height: 16px !important;
+  margin: 0 !important;
+}
+
+#mcFormatToggle > .toolbarbutton-icon {
+  display: none !important;
+}
+
+#mcFormatToggle > .toolbarbutton-text {
+  display: inline !important;
+  font-size: 14px !important;
+  font-weight: 500 !important;
+  margin: 0 !important;
+}
+
+#composeToolbar2 > #mcFormatToggle[checked] {
+  background: var(--mt-control-hover) !important;
+}
+
+:root[mc-format-hidden] #FormatToolbar {
+  display: none !important;
+}
+
+/* Kopfzeilen wie Apple Mail: Bezeichnung grau links mit Doppelpunkt, das
+   Konto (z. B. „Google“) nicht neben dem Absender */
+#MsgHeadersToolbar :is(#identityLabel-box, #subjectLabel-box, .address-label-container) {
+  justify-content: flex-start !important;
+  padding-inline-start: 0 !important;
+  width: 86px !important;
+  min-width: 86px !important;
+  max-width: 86px !important;
+}
+
+/* (Thunderbird schiebt die Beschriftung per pack="end" nach rechts – ein
+   automatischer Rand rechts holt sie nach links) */
+#MsgHeadersToolbar :is(#identityLabel, #subjectLabel, .address-label-container > label) {
+  margin-inline: 0 auto !important;
+  text-align: start !important;
+}
+
+#MsgHeadersToolbar :is(#identityLabel, #subjectLabel, .address-label-container > label)::after {
+  content: ":";
+}
+
+/* Anhänge wie Apple Mail als Kacheln: großes Dateisymbol, darunter der Name
+   (gekürzt) und die Größe in Grau */
+#attachmentBucket {
+  gap: 4px 6px !important;
+  padding: 8px 12px !important;
+}
+
+#attachmentBucket > .attachmentItem {
+  display: grid !important;
+  grid-template-columns: auto auto !important;
+  justify-content: center !important;
+  align-content: start !important;
+  justify-items: center !important;
+  width: 96px !important;
+  min-width: 96px !important;
+  max-width: 96px !important;
+  padding: 6px 4px !important;
+  text-align: center !important;
+  row-gap: 3px !important;
+}
+
+#attachmentBucket > .attachmentItem > :is(.attachmentcell-icon, .attachmentcell-size, .attach-drop-indicator) {
+  grid-column: 1 / -1 !important;
+}
+
+#attachmentBucket > .attachmentItem > .attachmentcell-icon {
+  width: 32px !important;
+  height: 32px !important;
+  object-fit: contain !important;
+  margin: 0 0 2px !important;
+}
+
+#attachmentBucket > .attachmentItem > .attachmentcell-name {
+  max-width: 60px !important;
+  justify-self: end !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
+  font-size: 11px !important;
+}
+
+#attachmentBucket > .attachmentItem > .attachmentcell-extension {
+  justify-self: start !important;
+  font-size: 11px !important;
+}
+
+#attachmentBucket > .attachmentItem > .attachmentcell-size {
+  margin: 0 !important;
+  font-size: 10px !important;
+  color: var(--mt-text-tertiary) !important;
+}
+
+#attachmentBucket:focus > .attachmentItem[selected] > .attachmentcell-size {
+  color: inherit !important;
+}
+
 /* Hinweisleiste unten („Anhang vergessen?“) ohne violettgrauen Rand und
    rund wie die übrigen Hinweise: die gelbe Fläche im Schatten-DOM hat fest
    4 px Radius und einen eigenen Schatten – der Rand der Leiste schneidet sie

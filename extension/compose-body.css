@@ -6,6 +6,25 @@
    editorContent.css als Override-Stylesheet sonst Vorrang hätte.
    Eine Hintergrundfarbe, die die Mail selbst setzt (bgcolor/style), bleibt. */
 @-moz-document url("about:blank?compose") {
+  /* Weiterleitung wie Apple Mail: senkrechter Balken in Akzentfarbe links,
+     Kopf ohne Thunderbirds rot gepunktete Tabellenränder (die zeigt der
+     Editor für randlose Tabellen), Bezeichnungen fett linksbündig */
+  .moz-forward-container {
+    border-inline-start: 2px solid AccentColor !important;
+    padding-inline-start: 10px !important;
+    margin-inline-start: 2px !important;
+  }
+
+  .moz-email-headers-table,
+  .moz-email-headers-table :is(th, td) {
+    border: none !important;
+  }
+
+  .moz-email-headers-table th {
+    text-align: start !important;
+    padding-inline-end: 4px !important;
+  }
+
   @media (prefers-color-scheme: dark) {
     body:not([bgcolor], [style*="background"]) {
       background-color: #1E1E1E !important;

@@ -1771,7 +1771,8 @@ def compose_checks(m, results):
     check("Verfassen: Empfänger-Pillen dunkel heller als die Fläche; Auswahl und Warnfarbe ungültiger Adressen bleiben", pill_color, results)
 
     def narrow_toolbar():
-        # schmales Fenster: nur Symbole statt gekürzter Beschriftungen, Formatleiste innerhalb des Fensters; breit wieder mit Beschriftung
+        # Symbolleiste wie Apple Mail immer nur mit Symbolen (außer „Aa“), auch schmal ohne Überlauf; Formatleiste
+        # (eingeblendet) bleibt im Fenster; im Modus „nur Text“ bleiben die Beschriftungen
         res = m.js(COMPOSE_CHECK_JS + r"""
           return await withCompose({}, async (cw, cd) => {
             const bar = cd.getElementById("composeToolbar2"), fmt = cd.getElementById("FormatToolbar"), box = cd.getElementById("compose-toolbox");
@@ -1789,11 +1790,68 @@ def compose_checks(m, results):
             return out; });""")
         n, t, wd, tx = res["narrow"], res["tiny"], res["wide"], res["text"]
         fits = lambda s: not s["cut"] and s["overflow"] <= 1 and s["fmt"][0] <= s["fmt"][1] + 1 and not s["outside"]
-        ok = (n["icons"] and n["labels"] == 0 and fits(n) and t["icons"] and fits(t)
-              and not wd["icons"] and wd["labels"] >= 3 and fits(wd)
-              and not tx["icons"] and tx["labels"] >= 3)
+        ok = (n["labels"] <= 1 and fits(n) and t["labels"] <= 1 and fits(t)
+              and wd["labels"] <= 1 and fits(wd) and tx["labels"] >= 3)
         return ok, f"{res}"
-    check("Verfassen: schmales Fenster zeigt nur Symbole statt gekürzter Beschriftungen, Formatleiste bleibt im Fenster; breit wieder mit Beschriftung", narrow_toolbar, results)
+    check("Verfassen: Symbolleiste nur mit Symbolen (außer „Aa“), auch schmal ohne Überlauf, Formatleiste bleibt im Fenster; Modus „nur Text“ mit Beschriftung", narrow_toolbar, results)
+
+    def apple_compose():
+        # Verfassen wie Apple Mail: Symbole mittig, Senden rund rechts, „Aa“ blendet die Formatleiste ein (aus: versteckt),
+        # Bezeichnungen links mit Doppelpunkt, kein Konto neben dem Absender; Weiterleitung mit „Begin forwarded message:“,
+        # Absender zuerst, Datum in Ortszeit, Kopf ohne Tabellenränder, Balken links; Anhänge als Kacheln (32-px-Symbol)
+        res = m.js(COMPOSE_CHECK_JS + r"""
+          const root = MailServices.accounts.localFoldersServer.rootFolder;
+          if (!root.containsChildNamed("Weiterleiten")) root.createSubfolder("Weiterleiten", null);
+          const f = root.getChildNamed("Weiterleiten");
+          if (!f.getTotalMessages(false)) {
+            const raw = ["From - Fri Oct 23 11:21:33 2026", "From: Office Beispiel <office@kanzlei.example.invalid>", "To: Halo Test <halo@example.invalid>",
+              "Subject: Halo Unterlagen", "Date: Fri, 23 Oct 2026 11:21:33 +0000", "Message-ID: <halo-fwd-1@example.invalid>", "MIME-Version: 1.0",
+              'Content-Type: multipart/mixed; boundary="xx"', "", "--xx", "Content-Type: text/html; charset=UTF-8", "", "<p>Sehr geehrter Herr Test,</p><p>anbei.</p>",
+              "--xx", 'Content-Type: application/pdf; name="Brief - Ladung.pdf"', 'Content-Disposition: attachment; filename="Brief - Ladung.pdf"', "Content-Transfer-Encoding: base64", "", btoa("%PDF-1.4 test ".repeat(50)),
+              "--xx--", ""].join("\r\n");
+            f.QueryInterface(Ci.nsIMsgLocalMailFolder).addMessage(raw); await pause(1000);
+          }
+          const hdr = [...f.messages].find(h => h.messageId == "halo-fwd-1@example.invalid");
+          const before = new Set(Services.wm.getEnumerator("msgcompose"));
+          MailServices.compose.OpenComposeWindow(null, hdr, f.getUriForMsg(hdr), Ci.nsIMsgCompType.ForwardInline, Ci.nsIMsgCompFormat.HTML, acc.identities[0], null, w.msgWindow);
+          const cw = await till(() => [...Services.wm.getEnumerator("msgcompose")].find(x => !before.has(x) && x.document.readyState == "complete" && x.gMsgCompose), 12000);
+          if (!cw) return { open: false };
+          try {
+            cw.resizeTo(1000, 760);
+            await till(() => cw.GetCurrentEditorElement?.()?.contentDocument?.querySelector(".moz-forward-container") && cw.document.querySelector("#attachmentBucket > .attachmentItem"), 10000);
+            await pause(1800);
+            const cd = cw.document, bar = cd.getElementById("composeToolbar2"), send = cd.getElementById("button-send"), aa = cd.getElementById("mcFormatToggle");
+            const btns = [...bar.querySelectorAll(":scope > toolbarbutton")].filter(b => vis(b) && b != send);
+            const lefts = btns.map(b => b.getBoundingClientRect().left), rights = btns.map(b => b.getBoundingClientRect().right);
+            const sr = send.getBoundingClientRect();
+            const out = { open: true, center: Math.round((Math.min(...lefts) + Math.max(...rights)) / 2 - cw.innerWidth / 2),
+              send: [Math.round(sr.width), Math.round(sr.height), csOf(send).borderTopLeftRadius, Math.round(cw.innerWidth - sr.right)],
+              texts: [...bar.querySelectorAll(":scope > toolbarbutton .toolbarbutton-text")].filter(vis).map(t => t.value || t.textContent),
+              fmtHidden: !vis(cd.getElementById("FormatToolbar")) };
+            aa.doCommand(); await pause(400); out.fmtShown = vis(cd.getElementById("FormatToolbar")); out.pref = Services.prefs.getBoolPref("extensions.mailcards.composeFormatBar", false);
+            aa.doCommand(); await pause(300);
+            const lab = cd.getElementById("subjectLabel");
+            // ab der Kante des Kopfbereichs (eine offene Kontakte-Seitenleiste schiebt ihn nach rechts)
+            out.label = [Math.round(lab.getBoundingClientRect().left - cd.getElementById("MsgHeadersToolbar").getBoundingClientRect().left), cw.getComputedStyle(lab, "::after").content];
+            const desc = cd.getElementById("msgIdentity").shadowRoot?.querySelector('[part~="description"]');
+            out.desc = desc ? vis(desc) : false;
+            const ed = cw.GetCurrentEditorElement().contentDocument, box = ed.querySelector(".moz-forward-container"), table = box.querySelector("table");
+            out.fwd = { begin: [...box.childNodes].some(n => n.nodeType == 3 && /Begin forwarded message:/.test(n.data)), first: table.querySelector("tr th")?.textContent.trim(),
+                        date: [...table.querySelectorAll("td")].map(td => td.textContent).find(t => /2026/.test(t)), border: ed.defaultView.getComputedStyle(table.querySelector("td")).borderTopStyle,
+                        bar: ed.defaultView.getComputedStyle(box).borderInlineStartWidth, modified: cw.gMsgCompose.bodyModified };
+            const item = cd.querySelector("#attachmentBucket > .attachmentItem"), icon = item.querySelector(".attachmentcell-icon");
+            out.att = { w: Math.round(item.getBoundingClientRect().width), icon: Math.round(icon.getBoundingClientRect().width), src: /size=32/.test(icon.getAttribute("srcset") || "") };
+            return out;
+          } finally { await closeCompose(cw); }""")
+        if not res.get("open"):
+            return False, f"{res}"
+        fw, at = res["fwd"], res["att"]
+        ok = (abs(res["center"]) <= 30 and res["send"][:3] == [30, 30, "50%"] and res["send"][3] <= 20 and res["texts"] == ["Aa"]
+              and res["fmtHidden"] and res["fmtShown"] and res["pref"] and res["label"][0] <= 30 and res["label"][1] == '":"' and not res["desc"]
+              and fw["begin"] and fw["first"].startswith("From") and fw["date"] and "+0000" not in fw["date"] and fw["border"] == "none"
+              and fw["bar"] == "2px" and not fw["modified"] and at["w"] == 96 and at["icon"] == 32 and at["src"])
+        return ok, f"{res}"
+    check("Verfassen wie Apple Mail: Symbole mittig, Senden rund rechts, „Aa“ für die Formatleiste, Bezeichnungen links; Weiterleitung mit Apple-Kopf; Anhänge als Kacheln", apple_compose, results)
 
 
 DIALOG_READING_JS = READING_JS + r"""
@@ -1852,7 +1910,9 @@ def dialog_checks(m, results):
           const out = {};
           const f = await testFolder(); w.MsgFilters(null, f);
           const lw = await winUrl("FilterListDialog"); if (!lw) throw new Error("Filterliste nicht offen");
+        # (Formatleiste ist wie bei Apple Mail erst über „Aa“ sichtbar – für die Messung einblenden)
           try {
+          Services.prefs.setBoolPref("extensions.mailcards.composeFormatBar", true);
             await pause(1000); const ld = lw.document;
             out.list = look(ld.getElementById("filterList")); out.search = look(ld.getElementById("searchBox"));
             out.listHead = headOf(ld, "#filterList");
@@ -1861,6 +1921,7 @@ def dialog_checks(m, results):
             try {
               const lv = vw.document.getElementById("logView");
               await till(() => lv.currentURI?.spec?.endsWith("filterlog.html"), 6000); await pause(1200);
+          Services.prefs.clearUserPref("extensions.mailcards.composeFormatBar");
               out.log = look(lv);
               const snap = await lv.browsingContext.currentWindowGlobal.drawSnapshot(new DOMRect(20, 20, 4, 4), 1, "rgb(255,0,255)");
               const cv = vw.document.createElementNS("http://www.w3.org/1999/xhtml", "canvas"); cv.width = snap.width; cv.height = snap.height;
@@ -1935,6 +1996,7 @@ def dialog_checks(m, results):
           for (const [k, open] of [["imp", () => w.toImport()], ["exp", () => w.toExport()]]) {
             open(); await pause(2000);
             const t = tm.tabInfo.find(x => x.browser?.currentURI?.spec?.startsWith("about:import")); if (!t) throw new Error("Tab fehlt");
+          Services.prefs.setBoolPref("extensions.mailcards.composeFormatBar", true);
             try { const dd = t.browser.contentDocument; await till(() => dd.getElementById("stepNav") && dd.defaultView.__mcTheme, 5000); await pause(400);
               out[k] = { theme: !!dd.defaultView.__mcTheme, root: csOf(dd.documentElement).backgroundColor, body: csOf(dd.body).backgroundColor,
                          color: csOf(dd.documentElement).color, hash: dd.location.hash,
@@ -1948,6 +2010,7 @@ def dialog_checks(m, results):
         return ok1(res["imp"]) and ok1(res["exp"]), f"{res}"
     check("Import und Export: Fläche in Fensterfarbe wie die übrigen Tabs, dunkel kein Blauschwarz", import_export, results)
 
+            Services.prefs.clearUserPref("extensions.mailcards.composeFormatBar");
     def print_preview():
         # Druckvorschau einer Mail: Knopf „Print/Save“ in der Systemakzentfarbe statt Proton-Blau bzw. -Türkis, Panel neutral; nie drucken
         res = m.js(DIALOG_READING_JS + r"""
