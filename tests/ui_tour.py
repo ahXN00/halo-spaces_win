@@ -1044,9 +1044,10 @@ SURFACES = [
     S("kal-termin-datum", "kalender", "popup", "Termin-Dialog: Datumsauswahl (Minimonat im Datumsfeld)",
       'const { iw } = await eventDialog(); const ml = iw.document.querySelector("#event-starttime datepicker menulist"); if (!ml) throw new Error("Datumsfeld fehlt");'
       ' return await openBtnPop(ml.menupopup, ml);', cap="popup"),
-    S("kal-termin-uhrzeit", "kalender", "popup", "Termin-Dialog: Uhrzeit-Raster (Stunden und Minuten)",
+    S("kal-termin-uhrzeit", "kalender", "popup", "Termin-Dialog: Uhrzeit-Popover (nur Uhrzeit, wie Apple Kalender)",
       'const { iw } = await eventDialog(); const ml = iw.document.querySelector("#event-starttime timepicker menulist"); if (!ml) throw new Error("Uhrzeitfeld fehlt");'
-      ' return await openBtnPop(ml.menupopup, ml);', cap="popup"),
+      ' const p = await until(() => iw.document.querySelector(".mc-time-panel"), 3000); if (!p) throw new Error("Uhrzeit-Popover fehlt");'
+      ' return await pop(p, () => { ml.open = true; });', cap="popup"),
     S("kal-termin-kategorien", "kalender", "popup", "Termin-Dialog: Kategorien (Auswahl mit Häkchen)",
       'const { iw } = await eventDialog(); const ml = iw.document.getElementById("item-categories"); if (!ml) throw new Error("Kategorien fehlen");'
       ' return await openBtnPop(iw.document.getElementById("item-categories-popup"), ml);', cap="popup"),

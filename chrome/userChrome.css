@@ -10540,14 +10540,42 @@ notification-message toolbarbutton.notification-button > .toolbarbutton-menubutt
   box-shadow: none !important;
 }
 
-/* ---------- Termin/Aufgabe: Datum und Uhrzeit in einem Popover ----------
-   Unter dem Minimonat der Datumsauswahl eine Zeile „Uhrzeit“ (setzt die
-   Erweiterung), wie in Apple Kalender; ganztägig ausgeblendet */
+/* ---------- Termin/Aufgabe: Uhrzeit-Popover wie Apple Kalender ----------
+   Klick auf die Uhrzeit öffnet nur dieses kleine Popover mit dem Uhrzeitfeld
+   (setzt die Erweiterung) statt Thunderbirds Stundenraster */
+.mc-time-panel {
+  --arrowpanel-padding: 0 !important;
+  --arrowpanel-background: var(--mt-popover-bg) !important;
+  --arrowpanel-border-color: var(--mt-tooltip-border) !important;
+  --arrowpanel-border-radius: 12px !important;
+  --panel-background: var(--mt-popover-bg) !important;
+  --panel-border-color: var(--mt-tooltip-border) !important;
+  --panel-border-radius: 12px !important;
+  font-family: var(--mt-font) !important;
+}
+
+.mc-time-pill {
+  display: inline-flex;
+  overflow: hidden;
+  border-radius: 6px;
+  background: var(--mt-control);
+}
+
+.mc-time-pill > input[type="time"] {
+  flex: none !important;
+  /* so breit wie Stunden, Minuten (und AM/PM) samt Uhr-Knopf, der dann abgeschnitten wird */
+  field-sizing: content !important;
+  width: auto !important;
+  min-width: max-content !important;
+  background: transparent !important;
+  /* Uhr-Knopf des Felds (Thunderbird 158+) rechts abgeschnitten */
+  margin-inline-end: -28px !important;
+}
+
 .mc-dtp-time {
   display: flex;
-  padding: 8px 10px 4px;
-  margin-top: 6px;
-  border-top: var(--mt-hairline) solid var(--mt-separator);
+  padding: 10px 12px;
+  min-width: 180px;
 }
 
 .mc-dtp-time[hidden] {
@@ -10570,7 +10598,6 @@ notification-message toolbarbutton.notification-button > .toolbarbutton-menubutt
   padding: 0 8px;
   border: none !important;
   border-radius: 6px;
-  background: var(--mt-control) !important;
   color: var(--mt-text);
   font: inherit;
   font-variant-numeric: tabular-nums;

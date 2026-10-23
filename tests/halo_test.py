@@ -2629,18 +2629,19 @@ def calendar_checks(m, results):
               out.mini = { bg: csOf(mm).backgroundColor, today: td ? csOf(td).borderTopColor : null, week: wk ? [csOf(wk).fontWeight, csOf(wk).color] : null };
               await shutPop(dml.menupopup);
             }
-            // Uhrzeit: öffnet dasselbe Popover wie das Datum (Minimonat, darunter „Uhrzeit“) statt des Stundenrasters
-            // (unter Linux/xvfb schließt sich ein Popup evtl. gleich wieder – gemessen wird dann am aufgebauten Popup)
+            // Uhrzeit wie Apple Kalender: Klick öffnet nur ein Uhrzeit-Popover – kein Stundenraster, keine Datumsauswahl;
+            // die Datumsauswahl hat keine Uhrzeitzeile (unter Linux/xvfb schließt sich ein Popup evtl. gleich wieder)
             const tp = id.querySelector("#event-starttime timepicker"), tml = tp.querySelector("menulist"), endTp = id.querySelector("#event-endtime timepicker");
             const durBefore = (endTp.value[0] * 60 + endTp.value[1]) - (tp.value[0] * 60 + tp.value[1]);
-            tml.open = true;
-            await till(() => dml.menupopup.state == "open" || dml.menupopup.state == "showing" || dml.menupopup.querySelector(".mc-dtp-time input"), 3000); await pause(500);
-            const row = dml.menupopup.querySelector(".mc-dtp-time"), inp = row?.querySelector("input");
-            out.time = { grid: tml.menupopup.state, combined: dml.menupopup.state, row: !!row && !row.hidden, focus: id.activeElement == inp || inp?.matches(":focus"),
-                         label: row?.textContent.trim(), value: inp?.value };
+            const panels = () => [...id.querySelectorAll(".mc-time-panel")];
+            const openTime = async () => { tml.open = true; await till(() => panels().some(p => p.state == "open" || p.state == "showing"), 3000); await pause(400);
+              return panels().find(p => p.state != "closed") || panels()[0]; };
+            const panel = await openTime(), inp = panel?.querySelector(".mc-dtp-time input");
+            out.time = { grid: tml.menupopup.state, date: dml.menupopup.state, dateRow: !!dml.menupopup.querySelector(".mc-dtp-time"), panel: panel?.state,
+                         focus: id.activeElement == inp || !!inp?.matches(":focus"), label: panel?.querySelector(".mc-dtp-time")?.textContent.trim(), value: inp?.value };
             if (inp) { inp.value = "14:35"; inp.dispatchEvent(new iw.Event("input", { bubbles: true })); await pause(400);
               out.time.after = tp.value; out.time.dur = (endTp.value[0] * 60 + endTp.value[1]) - (tp.value[0] * 60 + tp.value[1]); out.time.durBefore = durBefore; }
-            await shutPop(dml.menupopup);
+            await shutPop(panel);
             // Pfeiltasten im Uhrzeitfeld: Stunde weiter (Schreibmarke vorn)
             const fld = tp._inputField; fld.focus(); fld.setSelectionRange(0, 0);
             fld.dispatchEvent(new iw.KeyboardEvent("keydown", { key: "ArrowUp", bubbles: true, cancelable: true })); await pause(300);
@@ -2650,10 +2651,9 @@ def calendar_checks(m, results):
               el.dispatchEvent(new iw.WheelEvent("wheel", { deltaY: dy, deltaMode: 1, clientX: side == "h" ? r.left + 4 : r.right - 4, clientY: r.top + r.height / 2, bubbles: true, cancelable: true })); };
             wheel(fld, "h", -1); await pause(200); out.time.wheelHour = tp.value;
             wheel(fld, "m", 1); await pause(200); out.time.wheelMinute = tp.value;
-            dml.open = true; await till(() => dml.menupopup.state == "open" || dml.menupopup.state == "showing", 3000); await pause(400);
-            const pin = dml.menupopup.querySelector(".mc-dtp-time input");
+            const panel2 = await openTime(), pin = panel2?.querySelector(".mc-dtp-time input");
             if (pin) { wheel(pin, "m", -1); wheel(pin, "m", -1); await pause(200); out.time.popoverWheel = [tp.value, pin.value]; }
-            await shutPop(dml.menupopup);
+            await shutPop(panel2);
           } finally {
             if (dw && !dw.closed) { dw.close(); await till(() => dw.closed, 4000); }
             try { await c.deleteItem(saved); } catch {}
@@ -2668,11 +2668,11 @@ def calendar_checks(m, results):
               and res["overflow"]["doc"][0] <= res["overflow"]["doc"][1] + 1
               and bool(mini) and rgba_alpha(mini["bg"]) == 0 and (mini["today"] is None or rgba_alpha(mini["today"]) == 0)
               and mini["week"] and mini["week"][0] == "400" and not same_color(mini["week"][1], "rgb(155, 158, 194)")
-              and bool(tp) and tp["grid"] == "closed" and tp["row"] and tp["label"] == "Time"
+              and bool(tp) and tp["grid"] == "closed" and tp["date"] == "closed" and not tp["dateRow"] and tp["label"] == "Time"
               and tp.get("after") == [14, 35] and tp.get("dur") == tp.get("durBefore") and tp.get("arrow") == [15, 35]
               and tp.get("wheelHour") == [16, 35] and tp.get("wheelMinute") == [16, 34] and tp.get("popoverWheel") == [[16, 36], "16:36"])
         return ok, f"{res}"
-    check("Termin-Dialog: Schrift 13 px auch in der Beschreibung, Abstand Beschriftung–Feld; Minimonat ruhig; Datum und Uhrzeit in einem Popover, Ende rückt mit, Pfeiltasten, Mausrad", event_dialog, results)
+    check("Termin-Dialog: Schrift 13 px auch in der Beschreibung, Abstand Beschriftung–Feld; Minimonat ruhig; Uhrzeit-Popover nur für die Uhrzeit, Ende rückt mit, Pfeiltasten, Mausrad", event_dialog, results)
 
     def event_menu_buttons():
         # Termin-Dialog: Menüknöpfe (Change Privacy, Add Attachments) zeigen den Pfeil ganz – rechts vom Symbol, nicht
@@ -2721,7 +2721,7 @@ def calendar_checks(m, results):
             out.bar = { border: csOf(bar).borderTopColor, accent: colorOf(ad, "var(--mt-accent)") };
             out.legend = { border: csOf(legend).borderTopWidth, radius: csOf(legend).borderTopLeftRadius };
             out.icon = role ? (csOf(role).content || "").slice(0, 60) : null;
-            out.combined = !!ad.querySelector("#event-starttime datepicker menupopup .mc-dtp-time");
+            out.combined = !!ad.querySelector(".mc-time-panel .mc-dtp-time") && !ad.querySelector("#event-starttime datepicker menupopup .mc-dtp-time");
           } finally {
             if (aw && !aw.closed) { aw.close(); await till(() => aw.closed, 4000); }
             if (dw && !dw.closed) { dw.close(); await till(() => dw.closed, 4000); }

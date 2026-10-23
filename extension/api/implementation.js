@@ -1472,12 +1472,11 @@ function unsubscribeKey(data, hdr) {
   }
 }
 
-// Termin/Aufgabe: Datum und Uhrzeit in einer Auswahl wie in Apple Kalender.
-// Thunderbird hat zwei getrennte Menülisten (Minimonat bzw. Stundenraster).
-// Der Minimonat bekommt darunter eine Zeile „Uhrzeit“; ein Klick auf die
-// Uhrzeit öffnet dasselbe Popover statt des Rasters. Werte gehen in die
-// vorhandenen Felder zurück – Dauer, Zeitzone und „Ganztägig“ regelt weiter
-// Thunderbird (Ende rückt mit, ganztägig ist die Uhrzeit gesperrt)
+// Termin/Aufgabe: Datum und Uhrzeit wie in Apple Kalender – Klick aufs Datum
+// öffnet nur die Datumsauswahl (Thunderbirds Minimonat), Klick auf die Uhrzeit
+// nur ein kleines Popover mit dem Uhrzeitfeld (Stunden/Minuten, Pfeiltasten,
+// Mausrad) statt Thunderbirds Stundenraster. Werte gehen in die vorhandenen
+// Felder zurück – Dauer, Zeitzone und „Ganztägig“ regelt weiter Thunderbird
 function hookDateTimePickers(win) {
   const doc = win.document;
   for (const dtp of doc.querySelectorAll("datetimepicker")) {
@@ -1488,27 +1487,29 @@ function hookDateTimePickers(win) {
     }
     dtp.__mcCombined = true;
     const X = "http://www.w3.org/1999/xhtml";
+    // eigenes Popover nur für die Uhrzeit
+    const panel = doc.createXULElement("panel");
+    panel.className = "mc-time-panel";
+    panel.setAttribute("type", "arrow");
+    panel.setAttribute("noautofocus", "true");
     const row = doc.createElementNS(X, "div");
     row.className = "mc-dtp-time";
     const label = doc.createElementNS(X, "label");
     label.textContent = tr("Time");
     const input = doc.createElementNS(X, "input");
     input.type = "time";
-    input.step = "300";
-    label.append(input);
+    input.step = "60";
+    // Kapsel um das Feld: schneidet Thunderbirds Uhr-Knopf rechts ab (Apple zeigt keinen)
+    const pill = doc.createElementNS(X, "span");
+    pill.className = "mc-time-pill";
+    pill.append(input);
+    label.append(pill);
     row.append(label);
-    popup.append(row);
+    panel.append(row);
+    (doc.querySelector("popupset") || doc.documentElement).append(panel);
     const pad = n => String(n).padStart(2, "0");
     const timeOff = () => tp.hasAttribute("disabled") || tp._menulist?.hasAttribute("disabled") || tp.hidden ||
       win.getComputedStyle(tp).visibility == "hidden" || win.getComputedStyle(tp).display == "none";
-    popup.addEventListener("popupshowing", event => {
-      if (event.target != popup) {
-        return;
-      }
-      row.hidden = timeOff();
-      const [h, m] = tp.value || [];
-      input.value = Number.isInteger(h) ? `${pad(h)}:${pad(m)}` : "";
-    });
     const apply = () => {
       const [h, m] = (input.value || "").split(":").map(Number);
       if (Number.isInteger(h) && Number.isInteger(m)) {
@@ -1517,22 +1518,25 @@ function hookDateTimePickers(win) {
     };
     input.addEventListener("input", apply);
     input.addEventListener("keydown", event => {
-      if (event.key == "Enter") {
+      if (event.key == "Enter" || event.key == "Escape") {
         apply();
-        popup.hidePopup();
+        panel.hidePopup();
       }
     });
-    // Uhrzeit: dasselbe Popover (Zeitfeld fokussiert) statt des Stundenrasters
+    // Uhrzeit: nur das Uhrzeit-Popover statt Thunderbirds Stundenraster
     timePopup.addEventListener("popupshowing", event => {
       if (event.target != timePopup) {
         return;
       }
       event.preventDefault();
+      if (timeOff()) {
+        return;
+      }
+      const [h, m] = tp.value || [];
+      input.value = Number.isInteger(h) ? `${pad(h)}:${pad(m)}` : "";
       win.setTimeout(() => {
-        if (dp._menulist && !dp._menulist.hasAttribute("disabled")) {
-          dp._menulist.open = true;
-          popup.addEventListener("popupshown", () => input.focus(), { once: true });
-        }
+        panel.openPopup(tp._menulist || tp, "after_start");
+        panel.addEventListener("popupshown", () => input.focus(), { once: true });
       }, 0);
     });
     // Mausrad über Stunden bzw. Minuten (linke/rechte Hälfte des Felds): je

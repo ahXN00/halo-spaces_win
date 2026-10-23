@@ -117,3 +117,11 @@ addon-card .more-options-button::part(button):hover {
   color: var(--mt-accent-text) !important;
   outline: none !important;
 }
+
+/* Uhrzeit-Popover im Termin-/Aufgaben-Fenster (.mc-time-panel): Fläche und
+   Rand wie die übrigen halo-Popovers statt Thunderbirds bläulicher Panelfarbe */
+.mc-time-panel::part(content) {
+  background: var(--mt-popover-bg, Canvas) !important;
+  border-color: var(--mt-tooltip-border, transparent) !important;
+  border-radius: 12px !important;
+}
