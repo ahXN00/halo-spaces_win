@@ -41,14 +41,19 @@ Features
 
 Personal data in the screenshots is blurred.
 
-3.4.0 Release Notes
+3.5.0 Release Notes
 --------
 - **Whole conversations like Apple Mail**: selecting a message shows the entire conversation – received mails and your own replies from Sent, newest first, each one in full. Collapsed threads show the same instead of a text summary. Can be turned off in Settings → halo.spaces
 - **Settings → halo.spaces**: all options now live in Thunderbird's settings. Account Settings and Add-ons and Themes open there too, with the sidebar staying in place; the help window links to it. New installs get a short welcome and are switched to *System theme – auto*
 - **Search like Apple Mail**: the search field searches the selected folder, a unified folder searches all mailboxes; switching folders keeps searching there, and the placeholder says where ("Search Sent", "Search Calendar" …). Scrolling through results stays smooth while previews load
 - **Message list**: card view, classic table or wide table in one menu; optional light accent tint behind unread mail; the time no longer touches the edge of the selection; quick filter labels no longer overlap their icons; folders light up while you drag mail onto them; the Unsubscribe button disappears once you have unsubscribed
-- **Calendar and contacts**: date and time in one popover like Apple Calendar; the "Invite Attendees" window is restyled; contact cards show only name or company, sized like the mail cards
+- **Events like Apple Calendar**: the event window is laid out like Apple Calendar – title on top, then cards for all-day, start, end, repeat and alert, location, invitees and calendar, with "Add Notes or URL" at the bottom and a stripe in the calendar's colour. Clicking the date shows only a date picker, clicking the time only a small time popover; the mouse wheel changes hours and minutes; changing the start keeps the duration, as in Apple Calendar. The "Invite Attendees" window is restyled
+- **Tasks**: the filters (Current Tasks, Today, Next Seven Days …) moved into a menu next to the search field, like the mail Quick Filter; the button turns accent-coloured while another filter is active
+- **Contacts**: cards show only name or company, sized like the mail cards; the photo window works like Apple Contacts – choose a different picture any time, round crop, zoom slider
 - **Everywhere**: the sidebar slides in and out smoothly in every space; "Increase contrast" in the macOS accessibility settings is respected; optional design loading before the first window, so the old look never flashes at start
+- **Settings**: Account Settings and Add-ons appear as indented sub-entries in the settings sidebar instead of a second grey column
+- **Context menus**: "Open in New Tab" and "Open in New Window" are gone everywhere, so menus are shorter
+- The sidebar no longer jerks at the end of its animation in Mail; the online icon in the status bar sits in the same place in every space; opening a conversation no longer briefly flashes Thunderbird's own view
 - Account settings no longer go blank when the sidebar is hidden
 
 See [Releases](https://github.com/sruf79/halo-spaces/releases) for all versions.
