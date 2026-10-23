@@ -53,7 +53,10 @@ Personal data in the screenshots is blurred.
 - **Everywhere**: the sidebar slides in and out smoothly in every space; "Increase contrast" in the macOS accessibility settings is respected; optional design loading before the first window, so the old look never flashes at start
 - **Writing like Apple Mail**: a calm toolbar with symbols only and a round send button, the format bar on demand ("Aa"), header labels on the left; forwarded mail starts with "Begin forwarded message:" and the sender, the date in your time zone and a bar on the left; attachments as tiles
 - **Dialogs like macOS**: questions such as *Delete folder?* or *Send without subject?* slide in as a sheet at the top of the window instead of opening a separate window; the event, folder properties and filter windows have no visible title bar. Can be turned off in Settings → halo.spaces
-- **Settings**: Account Settings and Add-ons appear as indented sub-entries in the settings sidebar instead of a second grey column
+- **Settings**: Account Settings and Add-ons appear as indented sub-entries in the settings sidebar instead of a second grey column; clicking the category again folds them away. Every category now starts right next to the sidebar instead of floating in the middle, and the halo.spaces page has large section headings like General
+- **Event window**: date and time are compact text like Apple Calendar – no boxes, the field only lights up under the pointer; "Category" lines up with the other cards
+- **Sidebars**: dragging a sidebar's divider to the left hides it at once, in every space, without leftover blue bar in Mail. The Today pane has a fixed width; dragging its divider to the right hides it, and its "+" disappears right away. The Show/Hide Spaces button stays where it is and only flips its arrow
+- **Message list**: the same mail stored more than once (Gmail labels, copies in several folders) shows up only once in card view
 - **Context menus**: "Open in New Tab" and "Open in New Window" are gone everywhere, so menus are shorter
 - The sidebar no longer jerks at the end of its animation in Mail; the online icon in the status bar sits in the same place in every space; opening a conversation no longer briefly flashes Thunderbird's own view
 - Searching "All Inboxes" no longer lists mail without the search term while the search is still running
