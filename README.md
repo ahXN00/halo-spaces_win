@@ -41,7 +41,7 @@ Features
 
 Personal data in the screenshots is blurred.
 
-3.5.0 Release Notes
+3.5.1 Release Notes
 --------
 - **Whole conversations like Apple Mail**: selecting a message shows the entire conversation – received mails and your own replies from Sent, newest first, each one in full. Collapsed threads show the same instead of a text summary. Can be turned off in Settings → halo.spaces
 - **Settings → halo.spaces**: all options now live in Thunderbird's settings. Account Settings and Add-ons and Themes open there too, with the sidebar staying in place; the help window links to it. New installs get a short welcome and are switched to *System theme – auto*
