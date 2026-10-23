@@ -22,7 +22,8 @@ A calm, tidy macOS-style design for Thunderbird: colourful spaces, message cards
 <li>Day, week, multiweek and month switcher in the title bar, a month view without scrollbars</li>
 <li>Quick event window: type naturally – “tomorrow 12:30 for 90 min”, “Fri 9–11”. A double-click in the calendar opens it too</li>
 <li>Event window like Apple Calendar: title on top, cards for time, location, invitees and calendar, notes at the bottom, a stripe in the calendar colour; separate date and time popovers, hours and minutes change with the mouse wheel, the duration is kept</li>
-<li>Task filters in a menu next to the search field, like the mail Quick Filter</li>
+<li>Tasks as a list with details on the right, or as a table; filters in a menu next to the search field</li>
+<li>Reminders like Apple Calendar, with a calendar icon showing month and day</li>
 <li>Matching emoji before event titles (birthday, dentist, training …), with your own keywords</li>
 <li>Birthdays from your address books as their own read-only calendar</li>
 </ul>

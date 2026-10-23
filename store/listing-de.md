@@ -22,7 +22,8 @@ Ein ruhiges, aufgeräumtes Design im Stil von macOS für Thunderbird: farbige Be
 <li>Umschalter für Tag, Woche, Mehrere Wochen und Monat in der Titelleiste, Monatsansicht ohne Scrollbalken</li>
 <li>Schnellfenster für Termine: einfach schreiben – „morgen 12:30 für 90 min“, „Fr 9–11“. Auch ein Doppelklick im Kalender öffnet es</li>
 <li>Terminfenster wie in Apple Kalender: Titel oben, Karten für Zeit, Ort, Teilnehmer und Kalender, Notizen unten, ein Streifen in der Kalenderfarbe; getrennte Popover für Datum und Uhrzeit, Stunden und Minuten mit dem Mausrad, die Dauer bleibt erhalten</li>
-<li>Aufgabenfilter in einem Menü neben dem Suchfeld, wie der Schnellfilter der Mail</li>
+<li>Aufgaben als Liste mit Details rechts oder als Tabelle; Filter in einem Menü neben dem Suchfeld</li>
+<li>Erinnerungen wie in Apple Kalender, mit Kalendersymbol für Monat und Tag</li>
 <li>Passende Emojis vor Termintiteln (Geburtstag, Zahnarzt, Training …), mit eigenen Stichwörtern</li>
 <li>Geburtstage aus den Adressbüchern als eigener, schreibgeschützter Kalender</li>
 </ul>
