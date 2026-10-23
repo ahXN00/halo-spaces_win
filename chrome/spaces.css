@@ -8159,6 +8159,49 @@ notification-message toolbarbutton.notification-button > .toolbarbutton-menubutt
   padding-inline: 0 !important;
 }
 
+/* Datum und Uhrzeit wie Apple Kalender: schmaler Text so breit wie der Inhalt
+   (--mc-fit setzt die Erweiterung), ohne Kasten und Pfeil – Fläche und Pfeil
+   nur unter dem Mauszeiger, beim Bearbeiten und bei offenem Popover.
+   „menulist[editable] input“ weiter oben gibt dem Textfeld 10 px Rand links */
+:root[mc-apple-event] #event-grid :is(datepicker, timepicker) > menulist {
+  width: auto !important;
+  min-width: 0 !important;
+  flex: none !important;
+  margin-inline-end: 4px !important;
+  padding-inline: 6px 4px !important;
+  border-radius: 6px !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  transition: none !important;
+}
+
+:root[mc-apple-event] #event-grid :is(datepicker, timepicker) > menulist:is(:hover, :focus-within, [open="true"]):not([disabled]) {
+  background: var(--mt-hover) !important;
+}
+
+/* (Breite des Textfelds und Pfeil liegen im Schatten-DOM: extension/parts.css) */
+:root[mc-apple-event] :is(datepicker, timepicker, datetimepicker) {
+  flex: none !important;
+  width: auto !important;
+}
+
+/* Kategorie: Beschriftung direkt am linken Rand der Karte wie der Text der
+   übrigen Karten (Ort, Teilnehmer, Kalender), nicht in der Spalte der
+   Zeitkarte – das wirkte wie ein Einzug */
+:root[mc-apple-event] #event-grid tr[data-mc-card="category"] > th {
+  flex: none !important;
+  padding-inline-end: 10px !important;
+  text-align: start !important;
+}
+
+:root[mc-apple-event] #event-grid tr[data-mc-card="category"] > th > hbox {
+  justify-content: flex-start !important;
+}
+
+:root[mc-apple-event] #event-grid tr[data-mc-card="category"] > th label {
+  color: var(--mt-text-tertiary) !important;
+}
+
 /* Titel groß und halbfett */
 :root[mc-apple-event] #item-title {
   font-size: 17px !important;

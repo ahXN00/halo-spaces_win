@@ -2462,7 +2462,37 @@ function hookDateTimePickers(win) {
       tp.value = [Math.floor(total / 60), total % 60];
       field.setSelectionRange(caret, caret);
     }, true);
+    // Breite wie der Inhalt (Apple Kalender: „24.10.2026  09:00“ als schmaler
+    // Text): breitester Wert im Format des Systems, Ziffern als „0“ und
+    // zweistellig – so springt das Feld beim Ändern nicht
+    for (const picker of [dp, tp]) {
+      fitPickerWidth(win, picker);
+    }
   }
+}
+
+function fitPickerWidth(win, picker) {
+  const menulist = picker?._menulist || picker?.querySelector("menulist");
+  const input = picker?._inputField || menulist?.shadowRoot?.querySelector("input");
+  if (!menulist || !input) {
+    return;
+  }
+  const fit = () => {
+    const sample = (input.value || "").replace(/\d+/g, d => "0".repeat(Math.max(2, d.length)));
+    if (!sample) {
+      return;
+    }
+    const cs = win.getComputedStyle(input);
+    const ctx = (fitPickerWidth.canvas ||= win.document.createElementNS("http://www.w3.org/1999/xhtml", "canvas")).getContext("2d");
+    ctx.font = `${cs.fontStyle} ${cs.fontWeight} ${cs.fontSize} ${cs.fontFamily}`;
+    const width = Math.ceil(ctx.measureText(sample).width) + 2;
+    if (width > 8) {
+      menulist.style.setProperty("--mc-fit", `${width}px`);
+    }
+  };
+  fit();
+  win.setTimeout(fit, 300); // Wert steht beim Öffnen des Fensters evtl. erst danach
+  input.addEventListener("change", fit);
 }
 
 // Einstellungen → halo.spaces öffnen (Info-Fenster, Begrüßung): Thunderbird

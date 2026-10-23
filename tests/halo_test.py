@@ -2977,6 +2977,12 @@ def calendar_checks(m, results):
             out.tabs = vis(id.getElementById("event-grid-tabs")); out.format = vis(id.getElementById("FormatToolbox"));
             out.notesBelow = R(id.getElementById("event-grid-tab-vbox")).top >= R(rows.at(-1)).bottom;
             out.title = csOf(id.getElementById("item-title")).fontSize;
+            // Datum/Uhrzeit schmal wie ihr Text, ohne Fläche und Pfeil; Kategorie bündig mit dem Text der übrigen Karten
+            const dml = id.querySelector("#event-starttime datepicker > menulist"), tml = id.querySelector("#event-starttime timepicker > menulist");
+            out.pickers = [Math.round(R(dml).width), Math.round(R(tml).width), rgba(csOf(dml).backgroundColor)[3],
+                           iw.getComputedStyle(dml.shadowRoot.querySelector("dropmarker")).visibility];
+            out.catLeft = Math.round(R(id.getElementById("item-categories-label")).left - R(id.getElementById("event-grid-location-row")).left);
+            out.locLeft = Math.round(R(id.getElementById("item-location")).left - R(id.getElementById("event-grid-location-row")).left);
           } finally { if (dw && !dw.closed) { dw.close(); await till(() => dw.closed, 4000); } }
           return out;""")
         if res.get("dialog") is False or res.get("apple") is False:
@@ -2985,9 +2991,11 @@ def calendar_checks(m, results):
               and same_color(res["stripe"] or "", "rgb(255, 149, 0)") and res["stripeSpan"] and all(0 <= v <= 10 for v in res["stripeSpan"])
               and res["placeholders"] == ["Add Location or Video Call", "Add Invitees", "Add Notes or URL"]
               and res["labels"] == [False, False, False] and res["timeLabel"] and not res["tabs"] and not res["format"]
-              and res["notesBelow"] and res["title"] == "17px")
+              and res["notesBelow"] and res["title"] == "17px"
+              and res["pickers"][0] <= 120 and res["pickers"][1] <= 100 and res["pickers"][2] == 0 and res["pickers"][3] == "hidden"
+              and abs(res["catLeft"] - res["locLeft"]) <= 4)
         return ok, f"{res}"
-    check("Termin-Dialog wie Apple Kalender: Karten Titel · Zeit · Ort · Teilnehmer · Kalender · Kategorie, Notiz unten, Streifen in der Kalenderfarbe, Platzhalter", event_apple_layout, results)
+    check("Termin-Dialog wie Apple Kalender: Karten Titel · Zeit · Ort · Teilnehmer · Kalender · Kategorie, Notiz unten, Streifen in der Kalenderfarbe, Platzhalter, Datum/Uhrzeit schmal ohne Kasten, Kategorie bündig", event_apple_layout, results)
 
     def attendees_dialog():
         # „Teilnehmer einladen“: Liste und Raster ohne harten Rahmen, Linien als Haarlinie, einfarbige Symbole,
