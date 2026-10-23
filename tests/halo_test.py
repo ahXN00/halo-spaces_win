@@ -3401,7 +3401,14 @@ def same_color(a, b, tol=2):
     return len(x) == 4 and len(y) == 4 and all(abs(p - q) <= (0.02 if i == 3 else tol) for i, (p, q) in enumerate(zip(x, y)))
 
 
+SCREEN_W = 99999
+
+
 def run_checks(m, version, profile, results):
+    global SCREEN_W
+    # verfügbare Bildschirmbreite (Windows-VM: 1024 px) – einige Breitenprüfungen hängen davon ab
+    SCREEN_W = m.js("return w.screen.availWidth;") or 99999
+
     def welcome():
         # Erstinstallation (frisches Profil): einmal die Begrüßung im Info-Fenster – was halo.spaces ändert, wo die
         # Einstellungen liegen; Windows/Linux mit dem Plattform-Hinweis im selben Fenster. Theme bleibt „System“
@@ -4292,7 +4299,10 @@ def run_checks(m, version, profile, results):
           ab.detailsPane.isDirty = false; ad.getElementById("cancelEditButton").click(); await wait(300);
           tm.closeTab(tm.currentTabInfo); w.resizeTo(1500, 900); await wait(800); await toMail();
           return out;''')
-        ok = res["chat"]["window"] < 1400 and res["chat"]["inside"] and res["addressbook"]["inside"] and res["addressbook"]["min"] >= 560 and all(v["pane"] is not None and v["pane"] >= v["min"] - 1 and v["window"] > 600 for v in res.values())
+        # auf einem schmalen Bildschirm (Windows-VM: 1024 px) begrenzt halo.spaces die Mindestbreite auf den Bildschirm –
+        # passt das Adressbuch dann nicht ganz hinein, ist das kein Fehler
+        ab_ok = res["addressbook"]["inside"] or res["addressbook"]["window"] >= SCREEN_W - 2
+        ok = res["chat"]["window"] < 1400 and res["chat"]["inside"] and ab_ok and res["addressbook"]["min"] >= 560 and all(v["pane"] is not None and v["pane"] >= v["min"] - 1 and v["window"] > 600 for v in res.values())
         return ok, f"{res}"
     check("Mindestbreiten: Fenster wird nicht schmaler als die Bereiche", min_widths, results)
 
@@ -4324,7 +4334,7 @@ def run_checks(m, version, profile, results):
           }
           return out;""")
         ok = (res["hidden"] and res["narrow"] < 1450 and res["pane"] >= res["min"] - 1 and res["min"] >= 560
-              and res["inside"] and res["window"] > 600)
+              and (res["inside"] or res["window"] >= SCREEN_W - 2) and res["window"] > 600)
         return ok, f"{res}"
     check("Adressbuch ohne Auswahl: Fenster lässt sich verkleinern, Details danach mindestens so breit wie vorgegeben", ab_min_width_unselected, results)
 
