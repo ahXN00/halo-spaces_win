@@ -87,6 +87,18 @@
 
 #messengerWindow,
 #messengerWindow > body,
+#tabpanelcontainer,
+#messengerWindow #navigation-toolbox,
+#unifiedToolbarContainer,
+unified-toolbar,
+#tabs-toolbar,
+#status-bar {
+  background: var(--mt-window) !important;
+  color: var(--mt-text) !important;
+  border-color: transparent !important;
+  font-family: var(--mt-font) !important;
+}
+
 /* übrige Bereiche wie die Mail: Inhalt der Statusleiste beginnt rechts der
    Seitenleiste des Bereichs (--mc-status-side), darunter läuft ihr Grau weiter */
 :root:not([mc-mail]) #status-bar.statusbar {
@@ -100,18 +112,6 @@
       var(--mt-sidebar) 0 var(--mc-status-side, 0px),
       var(--mt-window) var(--mc-status-side, 0px)
     ) !important;
-}
-
-#tabpanelcontainer,
-#messengerWindow #navigation-toolbox,
-#unifiedToolbarContainer,
-unified-toolbar,
-#tabs-toolbar,
-#status-bar {
-  background: var(--mt-window) !important;
-  color: var(--mt-text) !important;
-  border-color: transparent !important;
-  font-family: var(--mt-font) !important;
 }
 
 #navigation-toolbox,
