@@ -87,6 +87,21 @@
 
 #messengerWindow,
 #messengerWindow > body,
+/* übrige Bereiche wie die Mail: Inhalt der Statusleiste beginnt rechts der
+   Seitenleiste des Bereichs (--mc-status-side), darunter läuft ihr Grau weiter */
+:root:not([mc-mail]) #status-bar.statusbar {
+  border-top: none !important;
+  padding-inline-start: max(calc(var(--mc-status-side, 0px) + 12px), var(--mc-status-min, 0px)) !important;
+  background:
+    linear-gradient(var(--mt-pane-line), var(--mt-pane-line))
+      right top / calc(100% - var(--mc-status-side, 0px)) var(--mt-hairline) no-repeat,
+    linear-gradient(
+      to right,
+      var(--mt-sidebar) 0 var(--mc-status-side, 0px),
+      var(--mt-window) var(--mc-status-side, 0px)
+    ) !important;
+}
+
 #tabpanelcontainer,
 #messengerWindow #navigation-toolbox,
 #unifiedToolbarContainer,
@@ -346,7 +361,8 @@ global-search-bar {
    Ordnerliste (--mc-sidebar-right setzt die Erweiterung) */
 :root[mc-mail] #status-bar.statusbar {
   border-top: none !important;
-  padding-inline-start: calc(var(--mc-sidebar-right, 0px) + 12px) !important;
+  /* nie unter dem Knopf zum Einblenden der Bereiche (--mc-status-min) */
+  padding-inline-start: max(calc(var(--mc-sidebar-right, 0px) + 12px), var(--mc-status-min, 0px)) !important;
   background:
     linear-gradient(var(--mt-pane-line), var(--mt-pane-line))
       right top / calc(100% - var(--mc-sidebar-right, 0px) - 1px) var(--mt-hairline) no-repeat,

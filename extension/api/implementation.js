@@ -4404,6 +4404,31 @@ class CardEnhancer {
           : null;
       },
     };
+    // Bereiche-Leiste ausgeblendet: Thunderbird zeigt unten links einen Knopf zum
+    // Einblenden – die Statusleiste beginnt dann rechts davon statt darunter
+    const updateStatusMin = () => {
+      const d = w.document;
+      const status = d.getElementById("status-bar");
+      const reveal = d.getElementById("spacesToolbarReveal");
+      if (!status) {
+        return;
+      }
+      const sr = status.getBoundingClientRect();
+      // Thunderbirds Knopf bzw. unser eigener (#mcSpacesToggle), wenn er über der Statusleiste liegt
+      const min = [reveal, d.getElementById("mcSpacesToggle")].reduce((m, b) => {
+        const rr = b && !b.hidden ? b.getBoundingClientRect() : null;
+        return rr?.width && rr.bottom > sr.top && rr.top < sr.bottom ? Math.max(m, Math.round(rr.right - sr.left + 8)) : m;
+      }, 0);
+      setVar(status, "--mc-status-min", `${Math.max(0, min)}px`);
+    };
+    this.statusMinUpdaters ??= new Set();
+    this.statusMinUpdaters.add(updateStatusMin);
+    this.restorers.push(() => {
+      this.statusMinUpdaters?.delete(updateStatusMin);
+      const status = w.document.getElementById("status-bar");
+      status?.style.removeProperty("--mc-status-min");
+      status?.style.removeProperty("--mc-status-side");
+    });
     const updateSideEdge = () => {
       // während die Bereiche-Leiste animiert, nichts ans Fenster schreiben –
       // jede Variable dort kostet ein komplettes Neuberechnen (25–40 ms);
@@ -4417,6 +4442,8 @@ class CardEnhancer {
       const row = d.getElementById("unifiedToolbarContainer");
       if (!el || !row) {
         barTarget(d).style.removeProperty("--mc-side-right");
+        d.getElementById("status-bar")?.style.removeProperty("--mc-status-side");
+        updateStatusMin();
         // Tabs ohne eigene Seitenleiste (globale Suche, sonstige Inhalts-Tabs):
         // Abstandhalter nicht auf dem Wert des zuletzt besuchten Bereichs
         // lassen – Knöpfe und Suchfeld beginnen rechts vom Seitenleisten-Knopf
@@ -4437,6 +4464,14 @@ class CardEnhancer {
       const rowLeft = row.getBoundingClientRect().left;
       const right = r.width ? shift + r.right - rowLeft : 0;
       setBarVar(d, "--mc-side-right", `${Math.max(0, Math.round(right))}px`);
+      // Statusleiste wie in der Mail: Inhalt (Online-Symbol …) beginnt rechts der
+      // Seitenleiste dieses Bereichs statt am Fensterrand
+      const status = d.getElementById("status-bar");
+      if (status && tab.mode.name != "mail3PaneTab") {
+        const sl = status.getBoundingClientRect().left;
+        setVar(status, "--mc-status-side", `${Math.max(0, Math.round(r.width ? shift + r.right - sl : 0))}px`);
+      }
+      updateStatusMin();
       // Wo die Knöpfe beginnen (erster Abstandhalter der Toolbar): im
       // Adressbuch über der Kontaktkarte rechts der Liste – wie in der Mail
       // über der geöffneten Nachricht –, sonst neben der Seitenleiste.

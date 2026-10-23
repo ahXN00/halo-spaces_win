@@ -4146,6 +4146,35 @@ def run_checks(m, version, profile, results):
         return ok, f"{res}"
     check("Statusleiste: ohne Today-Pane-Knopf, flach, Seitenleiste läuft durch", statusbar, results)
 
+    def statusbar_edges():
+        # Online-Symbol der Statusleiste in jedem Bereich rechts der Seitenleiste wie in der Mail; mit ausgeblendeter
+        # Bereiche-Leiste (und Seitenleiste) nie unter dem Knopf zum Einblenden
+        res = m.js(r"""
+          const R = e => { const r = e?.getBoundingClientRect(); return r?.width ? { l: Math.round(r.left), r: Math.round(r.right), t: Math.round(r.top), b: Math.round(r.bottom) } : null; };
+          const wlan = () => R(d.getElementById("offline-status"));
+          const a3 = await toMail(); await wait(800);
+          const out = { mail: { wlan: wlan(), side: R(a3.document.getElementById("folderPane")) } };
+          await toCalendar(); await wait(800); out.calendar = { wlan: wlan(), side: R(d.getElementById("calSidebar")) };
+          const spaces = w.gSpacesToolbar;
+          try {
+            spaces.toggleToolbar(true); await wait(1500);
+            out.hidden = { wlan: wlan(), side: R(d.getElementById("calSidebar")) };
+            d.getElementById("spacesPinnedButton").click(); await wait(1200);
+            out.hiddenNoSide = { wlan: wlan(), toggle: R(d.getElementById("mcSpacesToggle")) };
+            d.getElementById("spacesPinnedButton").click(); await wait(1200);
+          } finally { spaces.toggleToolbar(false); await wait(1200); await toMail(); }
+          return out;""")
+        bad = []
+        for area in ("mail", "calendar", "hidden"):
+            v = res.get(area) or {}
+            if not v.get("wlan") or not v.get("side") or v["wlan"]["l"] < v["side"]["r"] + 6:
+                bad.append(area)
+        h = res.get("hiddenNoSide") or {}
+        if not h.get("wlan") or (h.get("toggle") and h["toggle"]["b"] > h["wlan"]["t"] and h["wlan"]["l"] < h["toggle"]["r"] + 4):
+            bad.append("ohne Bereiche und Seitenleiste")
+        return not bad, f"{bad} {res}"
+    check("Statusleiste: Online-Symbol in jedem Bereich rechts der Seitenleiste, nie unter dem Knopf zum Einblenden der Bereiche", statusbar_edges, results)
+
     def today_plus_event():
         # „+“ ganz rechts → „New Event“: Schnellfenster ganz auf dem Bildschirm
         # (früher mittig unter dem „+“ geöffnet und von Thunderbird am Rand auf
