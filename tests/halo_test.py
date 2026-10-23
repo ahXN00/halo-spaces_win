@@ -16,6 +16,7 @@ import argparse
 import glob
 import json
 import os
+import platform
 import re
 import shutil
 import socket
@@ -31,6 +32,17 @@ DEFAULT_TB = {
     "darwin": "/Applications/Thunderbird.app/Contents/MacOS/thunderbird",
     "win32": r"C:\Program Files\Mozilla Thunderbird\thunderbird.exe",
 }.get(sys.platform, "thunderbird")
+# openssl für die lokalen HTTPS-Testserver; unter Windows aus Git für Windows (tests/win-vm-setup.ps1)
+OPENSSL = shutil.which("openssl") or next((p for p in [r"C:\Program Files\Git\usr\bin\openssl.exe"] if os.path.exists(p)), None)
+
+# Windows-VM auf dem Testrechner (Parallels, tests/MAC-MINI.md Abschnitt „Windows-VM“)
+VM_NAME = os.environ.get("HALO_VM", "Windows 11")
+VM_SHARE = os.path.expanduser("~/halo-vm")  # einzige Freigabe der VM, dort \\Mac\halo
+VM_UNC = r"\\Mac\halo"
+VM_PY = r"C:\Program Files\Python315-arm64\python.exe"
+VM_TB = {"release": r"C:\Program Files\Mozilla Thunderbird\thunderbird.exe",
+         "beta": r"C:\Program Files\Thunderbird Beta\thunderbird.exe"}
+VM_LOCK = os.path.join(VM_SHARE, "lauf.lock")  # Mac- und Windows-Läufe nie gleichzeitig
 
 
 class Marionette:
@@ -142,7 +154,7 @@ def local_https(host):
     import threading
     tmp = tempfile.mkdtemp(prefix="halo-netz-")
     key, crt = os.path.join(tmp, "key.pem"), os.path.join(tmp, "cert.pem")
-    subprocess.run(["openssl", "req", "-x509", "-newkey", "rsa:2048", "-nodes", "-keyout", key, "-out", crt, "-days", "2",
+    subprocess.run([OPENSSL, "req", "-x509", "-newkey", "rsa:2048", "-nodes", "-keyout", key, "-out", crt, "-days", "2",
                     "-subj", f"/CN={host}", "-addext", f"subjectAltName=DNS:{host}",
                     "-addext", "basicConstraints=critical,CA:FALSE"], check=True, capture_output=True)
     hits, posts, stop = [], [], threading.Event()
@@ -276,6 +288,141 @@ def stop_thunderbird(port, proc):
         proc.kill()
 
 
+def prl(*args, check=True, timeout=300):
+    return subprocess.run(["prlctl", *args], capture_output=True, text=True, check=check, timeout=timeout)
+
+
+def vm_exec(vm, *cmd, check=True, timeout=120):
+    """Befehl in der angemeldeten Windows-Sitzung (Argumente ohne Anführungszeichen – prlctl gibt sie nicht weiter)."""
+    return prl("exec", vm, "--current-user", *cmd, check=check, timeout=timeout)
+
+
+def vm_state(vm):
+    out = prl("status", vm, check=False).stdout.split()
+    return out[-1] if out else "unbekannt"
+
+
+def vm_ready(vm):
+    """Setzt die VM fort bzw. startet sie und wartet auf die angemeldete Sitzung. Liefert den Zustand vorher."""
+    before = vm_state(vm)
+    if before in ("suspended", "paused"):
+        print(f"VM „{vm}“ wird fortgesetzt …", flush=True)
+        prl("resume", vm)
+    elif before == "stopped":
+        print(f"VM „{vm}“ wird gestartet …", flush=True)
+        prl("start", vm)
+    elif before != "running":
+        sys.exit(f"VM „{vm}“ nicht gefunden oder im Zustand {before} (prlctl list -a)")
+    end = time.time() + 240
+    while time.time() < end:
+        try:
+            if vm_exec(vm, "cmd", "/c", "echo", "bereit", check=False, timeout=30).stdout.strip() == "bereit":
+                return before
+        except subprocess.TimeoutExpired:
+            pass
+        time.sleep(3)
+    sys.exit(f"VM „{vm}“: keine angemeldete Windows-Sitzung (automatische Anmeldung prüfen)")
+
+
+THEME_KEY = r"HKCU\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize"
+
+
+def vm_theme(vm, values=None):
+    """Liest bzw. setzt das Windows-Farbschema (AppsUseLightTheme/SystemUsesLightTheme, 1 = hell)."""
+    names = ("AppsUseLightTheme", "SystemUsesLightTheme")
+    if values is None:
+        out = {}
+        for n in names:
+            m = re.search(r"0x([0-9a-f]+)", vm_exec(vm, "reg", "query", THEME_KEY, "/v", n, check=False).stdout)
+            out[n] = int(m.group(1), 16) if m else 1
+        return out
+    for n in names:
+        vm_exec(vm, "reg", "add", THEME_KEY, "/v", n, "/t", "REG_DWORD", "/d", str(values[n]), "/f")
+
+
+def wait_turn(mine):
+    """Wartet, bis kein Lauf der anderen Plattform mehr läuft (höchstens eine Stunde)."""
+    def busy():
+        if mine == "vm":  # Test-Thunderbird auf dem Mac
+            return subprocess.run(["pgrep", "-f", "--", "-profile .*/halo-test-"], capture_output=True).returncode == 0
+        try:
+            pid = int(open(VM_LOCK).read().split()[0])
+            os.kill(pid, 0)
+            return True
+        except (OSError, ValueError, IndexError):
+            return False
+    end, said = time.time() + 3600, False
+    while busy():
+        if time.time() > end:
+            sys.exit("Abbruch: der andere Testlauf ist nach einer Stunde noch nicht fertig")
+        if not said:
+            print("Warte: es läuft ein Test " + ("auf dem Mac" if mine == "vm" else "in der Windows-VM") + " – Mac- und Windows-Läufe nie gleichzeitig …", flush=True)
+            said = True
+        time.sleep(10)
+
+
+def run_in_vm(args, xpi):
+    """Führt diesen Test in der Windows-VM aus: Dateien über die Freigabe, Python und Thunderbird in der VM,
+    Marionette dort lokal (Port wie --port, nur in der VM erreichbar). Screenshots kommen zurück auf den Mac."""
+    if not shutil.which("prlctl"):
+        sys.exit("prlctl fehlt – Parallels Desktop (Pro) installieren")
+    vm = args.vm
+    os.makedirs(VM_SHARE, exist_ok=True)
+    wait_turn("vm")
+    with open(VM_LOCK, "w") as f:
+        f.write(f"{os.getpid()} {time.strftime('%Y-%m-%d %H:%M:%S')}\n")
+    run = tempfile.mkdtemp(prefix="lauf-", dir=VM_SHARE)
+    win = VM_UNC + "\\" + os.path.basename(run)
+    before = theme = None
+    try:
+        os.makedirs(os.path.join(run, "tests"))
+        for f in ("halo_test.py", "perf.js"):
+            shutil.copy(os.path.join(ROOT, "tests", f), os.path.join(run, "tests", f))
+        # manifest.json und Stilblätter (z. B. options/options.css) lesen einzelne Prüfungen direkt
+        shutil.copytree(os.path.join(ROOT, "extension"), os.path.join(run, "extension"))
+        shutil.copy(xpi, os.path.join(run, os.path.basename(xpi)))
+        inner = {"xpi": win + "\\" + os.path.basename(xpi), "tb": VM_TB["beta" if args.beta else "release"] if args.tb == DEFAULT_TB else args.tb,
+                 "port": args.port, "dark": args.dark, "keep": args.keep, "only": args.only, "eval": args.eval, "perf": args.perf,
+                 "tb_log": win + "\\thunderbird.log" if args.tb_log else None,
+                 "shots": win + "\\shots" if args.shots else None, "compare": None}
+        if args.compare:
+            shutil.copytree(args.compare, os.path.join(run, "vorher"))
+            inner["compare"] = win + "\\vorher"
+        json.dump(inner, open(os.path.join(run, "args.json"), "w"))
+
+        before = vm_ready(vm)
+        print(f"Windows-VM „{vm}“ (vorher {before}) · {inner['tb']}", flush=True)
+        theme = vm_theme(vm)
+        want = 0 if args.dark else 1
+        if set(theme.values()) != {want}:
+            vm_theme(vm, {k: want for k in theme})
+            time.sleep(3)  # Windows färbt Fensterrahmen und Taskleiste um
+        proc = subprocess.Popen(["prlctl", "exec", vm, "--current-user", VM_PY, "-u", win + "\\tests\\halo_test.py",
+                                 "--vm-args", win + "\\args.json"])
+        try:
+            rc = proc.wait(timeout=3600)
+        except subprocess.TimeoutExpired:
+            proc.kill()
+            vm_exec(vm, "taskkill", "/f", "/im", "thunderbird.exe", check=False)
+            rc = 1
+            print("FEHLER  Testlauf in der VM nach einer Stunde abgebrochen", flush=True)
+        if args.shots and os.path.isdir(os.path.join(run, "shots")):
+            shutil.copytree(os.path.join(run, "shots"), args.shots, dirs_exist_ok=True)
+        if args.tb_log and os.path.exists(os.path.join(run, "thunderbird.log")):
+            shutil.copy(os.path.join(run, "thunderbird.log"), args.tb_log)
+        return rc
+    finally:
+        try:
+            if theme and before:
+                vm_theme(vm, theme)
+            # Speicher für die macOS-Tests freigeben: VM nach dem Lauf pausieren (--vm-weiter: laufen lassen)
+            if before and not args.vm_weiter and vm_state(vm) == "running":
+                prl("suspend", vm, check=False)
+        finally:
+            shutil.rmtree(run, ignore_errors=True)
+            os.remove(VM_LOCK)
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--xpi", help="Paket (Standard: neuestes dist/halo-spaces-*.xpi)")
@@ -289,7 +436,15 @@ def main():
     ap.add_argument("--port", type=int, default=PORT, help=f"Marionette-Port (Standard {PORT}; eigener Port erlaubt mehrere Testläufe gleichzeitig)")
     ap.add_argument("--compare", help="Ordner mit früheren Screenshots: zeigt, wo sich etwas verändert hat (braucht --shots)")
     ap.add_argument("--only", help="nur Prüfungen, deren Name auf diesen regulären Ausdruck passt (z. B. \"Anhänge\")")
+    ap.add_argument("--vm", nargs="?", const=VM_NAME, help=f"in der Windows-VM testen (Parallels, Standard „{VM_NAME}“, sonst $HALO_VM); "
+                    "danach wird die VM pausiert")
+    ap.add_argument("--beta", action="store_true", help="mit --vm: Thunderbird Beta der VM")
+    ap.add_argument("--vm-weiter", action="store_true", help="mit --vm: VM nach dem Lauf nicht pausieren")
+    ap.add_argument("--vm-args", help=argparse.SUPPRESS)  # in der VM: Optionen aus der Datei (prlctl reicht keine Anführungszeichen weiter)
     args = ap.parse_args()
+    if args.vm_args:
+        for k, v in json.load(open(args.vm_args)).items():
+            setattr(args, k, v)
     if args.only:
         global ONLY
         ONLY = re.compile(args.only, re.I)
@@ -304,9 +459,17 @@ def main():
     if not xpi or not os.path.exists(xpi):
         sys.exit("Kein Paket gefunden – zuerst ./build.sh")
     version = json.load(open(os.path.join(ROOT, "extension", "manifest.json")))["version"]
+    if args.vm:
+        sys.exit(run_in_vm(args, xpi))
+    if sys.platform == "darwin":
+        wait_turn("mac")
 
     profile = create_profile(xpi, args.port, args.dark)
     print(f"halo.spaces {version} · Paket {os.path.basename(xpi)} · Profil {profile}", flush=True)
+    if args.vm_args:  # in der VM: welche Thunderbird-Version (application.ini neben dem Programm)
+        ini = os.path.join(os.path.dirname(args.tb), "application.ini")
+        tbv = re.search(r"^Version=(.+)$", open(ini).read(), re.M) if os.path.exists(ini) else None
+        print(f"Windows {platform.version()} · Thunderbird {tbv.group(1) if tbv else '?'}", flush=True)
     proc = start_thunderbird(args.tb, profile, args.tb_log)
     results = []
     try:
@@ -6712,7 +6875,7 @@ def run_checks(m, version, profile, results):
         # Startseite): eine Umleitung ins lokale Netz darf gar nicht erst
         # verbunden werden; Zeitlimit und Größengrenze gelten für die ganze
         # Antwort. Lokaler Server unter einem öffentlichen Namen (localDomains)
-        if not shutil.which("openssl"):
+        if not OPENSSL:
             return True, "kein openssl – übersprungen"
         host = "halo-netz.example.org"
         port, der, hits, posts, close = local_https(host)
@@ -6762,7 +6925,7 @@ def run_checks(m, version, profile, results):
     def unsubscribed_hides_button():
         # Ein-Klick-Abmeldung bestätigt (POST 200 vom lokalen Testserver): Knopf verschwindet, Hinweis sagt es – auch bei
         # einer weiteren Mail desselben Verteilers
-        if not shutil.which("openssl"):
+        if not OPENSSL:
             return True, "kein openssl – übersprungen"
         host = "halo-abmelden.example.org"
         port, der, hits, posts, close = local_https(host)

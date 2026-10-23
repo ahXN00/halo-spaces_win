@@ -3,7 +3,7 @@
 # (Anleitung: tests/MAC-MINI.md). Im Testbenutzer ausführen, beliebig oft –
 # Erledigtes bleibt, wie es ist.
 #   tests/mac-mini-setup.sh                      prüfen, einrichten was ohne Passwort geht, Probelauf
-#   tests/mac-mini-setup.sh --check              nur prüfen, nichts ändern (ohne Probelauf)
+#   tests/mac-mini-setup.sh --check              nur prüfen, nichts ändern (ohne Probelauf; Windows-VM nur, wenn sie läuft)
 #   tests/mac-mini-setup.sh --check --probelauf  nur prüfen, mit Probelauf
 #   --port N                                     Marionette-Port für den Probelauf (Standard 2850)
 # Was ein Passwort oder einen Klick braucht, ändert das Skript nicht selbst:
@@ -409,6 +409,111 @@ pruefe_runner() {
   fi
 }
 
+# Windows-VM (Parallels Pro, tests/MAC-MINI.md Abschnitt 11): Einstellungen am Mac, Windows-Seite über
+# tests/win-vm-setup.ps1 per prlctl exec. Mit --check wird eine pausierte VM nicht geweckt.
+VM=${HALO_VM:-Windows 11}
+VM_SHARE=$HOME/halo-vm
+pruefe_vm() {
+  local info state ed cpu mem tools shf vin
+  if ! command -v prlctl >/dev/null; then
+    hinweis "Windows-VM" "kein Parallels Desktop (optional, tests/MAC-MINI.md, Abschnitt 11)"
+    return
+  fi
+  ed=$(prlsrvctl info --license 2>/dev/null | sed -n 's/.*edition="\([^"]*\)".*/\1/p')
+  if [[ $ed == (pro|business) ]]; then
+    ok "Parallels" "$(prlctl --version | awk '{print $3}'), Ausgabe $ed"
+  else
+    offen "Parallels" "Ausgabe ${ed:-unbekannt} – prlctl und prlsrvctl brauchen Pro oder Business"
+    return
+  fi
+  if ! info=$(prlctl list -i "$VM" 2>/dev/null); then
+    hinweis "Windows-VM" "„$VM“ nicht gefunden (andere VM mit HALO_VM=… wählen; prlctl list -a)"
+    return
+  fi
+  state=$(prlctl status "$VM" | awk '{print $NF}')
+  # feste Größe, damit die macOS-Tests daneben genug Speicher haben (16 GB im Mac mini)
+  cpu=$(sed -n 's/^ *cpu cpus=\([0-9a-z]*\) auto=\([a-z]*\).*/\1 \2/p' <<<$info)
+  mem=$(sed -n 's/^ *memory size=\([0-9]*\)Mb auto=\([a-z]*\).*/\1 \2/p' <<<$info)
+  if [[ $cpu == "4 off" && $mem == "6144 off" ]]; then
+    ok "VM-Größe" "4 Kerne, 6 GB"
+  else
+    hinweis "VM-Größe" "Kerne ${cpu:-?}, Speicher ${mem:-?} MB (vorgesehen: 4 Kerne, 6144 MB, fest)"
+    tun "bei gestoppter VM: prlctl set \"$VM\" --cpus 4 && prlctl set \"$VM\" --memsize 6144"
+  fi
+  if [[ $info == *"Autostart: on"* && $info == *"Autostop: shutdown"* ]]; then
+    ok "VM-Start" "mit dem Mac (start-host), fährt beim Ausschalten herunter"
+  elif (( CHECK )); then
+    offen "VM-Start" "startet nicht mit dem Mac oder wird beim Ausschalten nicht heruntergefahren"
+  else
+    prlctl set "$VM" --autostart start-host >/dev/null && prlctl set "$VM" --autostop shutdown >/dev/null &&
+      ok "VM-Start" "eingerichtet (start-host, Herunterfahren mit dem Mac)" || offen "VM-Start" "ließ sich nicht setzen"
+  fi
+  # nur der Austauschordner, nichts vom Benutzerordner
+  shf=$(sed -n '/^Host Shared Folders/,/^Host defined sharing/p' <<<$info | sed -n "s/^  \([^ ]*\) (+) path='\([^']*\)'.*/\1=\2/p")
+  if [[ $shf == "halo=$VM_SHARE" && $info == *"Shared Profile: (-)"* && $info != *"Host defined sharing: "[HhAa]* &&
+        $info == *"Host-to-guest apps sharing: off"* ]]; then
+    ok "VM-Freigaben" "nur $VM_SHARE"
+  elif (( CHECK )); then
+    offen "VM-Freigaben" "${shf//$'\n'/, } – erwartet nur halo=$VM_SHARE, ohne geteiltes Profil und Programme"
+  else
+    mkdir -p $VM_SHARE && chmod 700 $VM_SHARE
+    prlctl set "$VM" --shared-profile off >/dev/null; prlctl set "$VM" --shf-host-defined off >/dev/null
+    prlctl set "$VM" --sh-app-host-to-guest off --sh-app-guest-to-host off >/dev/null
+    prlctl set "$VM" --shf-guest off >/dev/null; prlctl set "$VM" --smart-mount off >/dev/null
+    for vin in ${(f)"$(sed -n '/^Host Shared Folders/,/^Host defined sharing/p' <<<$info | sed -n 's/^  \([^ ]*\) (+) .*/\1/p')"}; do
+      [[ -n $vin && $vin != halo ]] && prlctl set "$VM" --shf-host-del "$vin" >/dev/null
+    done
+    [[ $shf == *halo=* ]] || prlctl set "$VM" --shf-host on --shf-host-add halo --path $VM_SHARE --mode rw >/dev/null
+    ok "VM-Freigaben" "auf $VM_SHARE beschränkt"
+  fi
+  tools=$(sed -n 's/^GuestTools: state=\([a-z]*\) version=\(.*\)/\1 \2/p' <<<$info)
+  [[ $tools == installed* ]] && ok "Parallels Tools" "${tools#installed }" ||
+    { offen "Parallels Tools" "${tools:-nicht installiert}"; tun "in Parallels: Aktionen → Parallels Tools installieren (am Bildschirm)"; }
+  if prlctl snapshot-list "$VM" -j 2>/dev/null | grep -q '"name": *"sauber"' ||
+     prlctl snapshot-list "$VM" -t 2>/dev/null | grep -q sauber; then
+    ok "VM-Snapshot" "„sauber“ vorhanden"
+  else
+    hinweis "VM-Snapshot" "„sauber“ fehlt"
+    tun "nach der Einrichtung: prlctl snapshot \"$VM\" --name sauber"
+  fi
+  if [[ $state != running ]]; then
+    if (( CHECK )); then
+      hinweis "Windows-VM" "$state – Windows und Thunderbird-Versionen werden beim nächsten Lauf mit --vm geprüft"
+      return
+    fi
+    if [[ $state == (suspended|paused) ]]; then prlctl resume "$VM" >/dev/null; else prlctl start "$VM" >/dev/null; fi
+    for _ in {1..60}; do [[ $(prlctl exec "$VM" --current-user cmd /c echo bereit 2>/dev/null) == bereit* ]] && break; sleep 3; done
+  fi
+  if [[ $(prlctl exec "$VM" --current-user cmd /c echo bereit 2>/dev/null) != bereit* ]]; then
+    offen "Windows-VM" "$state, aber keine angemeldete Sitzung (prlctl exec --current-user)"
+    tun "am Bildschirm: Windows-Benutzer automatisch anmelden lassen (tests/MAC-MINI.md, Abschnitt 11)"
+    return
+  fi
+  ok "Windows-VM" "„$VM“ läuft, $(prlctl exec "$VM" --current-user cmd /c whoami 2>/dev/null | tr -d '\r') angemeldet"
+  mkdir -p $VM_SHARE/setup && cp $ROOT/tests/win-vm-setup.ps1 $VM_SHARE/setup/
+  # prüfen geht als angemeldeter Benutzer direkt von der Freigabe; einrichten als SYSTEM aus C:\ProgramData
+  if (( CHECK )); then
+    prlctl exec "$VM" --current-user powershell -NoProfile -ExecutionPolicy Bypass -File '\\Mac\halo\setup\win-vm-setup.ps1' -Check 2>&1 | tr -d '\r' | vm_zeilen
+  else
+    prlctl exec "$VM" --current-user cmd /c 'mkdir C:\ProgramData\halo-spaces 2>nul & copy /y \\Mac\halo\setup\win-vm-setup.ps1 C:\ProgramData\halo-spaces' >/dev/null
+    prlctl exec "$VM" powershell -NoProfile -ExecutionPolicy Bypass -File 'C:\ProgramData\halo-spaces\win-vm-setup.ps1' 2>&1 | tr -d '\r' | vm_zeilen
+  fi
+  prlctl exec "$VM" --current-user powershell -NoProfile -ExecutionPolicy Bypass -File '\\Mac\halo\setup\win-vm-setup.ps1' -Benutzer ${${CHECK:#0}:+-Check} 2>&1 | tr -d '\r' | vm_zeilen
+  rm -rf $VM_SHARE/setup
+}
+
+# Ausgabe von win-vm-setup.ps1 übernehmen: „VM: “ vor den Namen, OFFEN mitzählen
+vm_zeilen() {
+  local z
+  while IFS= read -r z; do
+    case $z in
+      OK*|OFFEN*|HINWEIS*) [[ $z == OFFEN* ]] && OFFEN=$(( OFFEN + 1 ))
+        print -r -- "${z[1,9]}VM: ${z[10,-1]}" ;;
+      ?*) print -r -- "         $z" ;;
+    esac
+  done
+}
+
 probelauf() {
   local args=() port=2839 log tblog rc
   if [[ ! -d $TB_APP ]] || ! python3 -c '' 2>/dev/null; then
@@ -460,6 +565,7 @@ pruefe_anmeldung
 pruefe_tailscale
 pruefe_ssh
 pruefe_runner
+pruefe_vm
 if (( PROBE )); then
   probelauf
 else

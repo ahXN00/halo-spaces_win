@@ -27,6 +27,7 @@ kann. Ziel ist macOS; Windows/Linux laufen mit, sind aber nicht der Schwerpunkt.
 | `tests/halo_test.py` | automatischer Test per Marionette in frischem Profil |
 | `tests/beta.sh` | gleicher Test mit Thunderbird Beta |
 | `tests/mac-mini-setup.sh`, `tests/mac-runner-hook.sh`, `tests/MAC-MINI.md` | Mac mini als Testrechner: Prüfen/Einrichten, Wächter für den GitHub-Runner, Anleitung |
+| `tests/win-vm-setup.ps1` | Windows-Seite der Test-VM (Energie, Sperre, Thunderbird, Python), aufgerufen von `mac-mini-setup.sh` |
 | `store/` | Texte, Screenshots und Upload-Skript für addons.thunderbird.net |
 | `updates.json` | Update-Manifest, das Thunderbird von GitHub abfragt |
 
@@ -85,7 +86,7 @@ eigener Standardbenutzer ohne echte Mails mit automatischer Anmeldung, erreichba
 nur über Tailscale (keine Portfreigabe), Claude Code per SSH aus der Desktop-App.
 
 - `tests/mac-mini-setup.sh --check` prüft den Rechner (Ruhezustand, Thunderbird,
-  Python, Bildschirm, Rechte, Anmeldung, Tailscale, SSH, Runner) und ändert
+  Python, Bildschirm, Rechte, Anmeldung, Tailscale, SSH, Runner, Windows-VM) und ändert
   nichts; ohne `--check` richtet es ein, was ohne Passwort geht, und macht einen
   Probelauf.
 - Marionette-Ports: 2839 Standard, 2845 CI-Job `mac`, ab 2850 für Läufe von Hand
@@ -101,6 +102,34 @@ nur über Tailscale (keine Portfreigabe), Claude Code per SSH aus der Desktop-Ap
   zusammenhängenden Arbeitsblocks (Phase) pushen – nach dem kompletten Test hell
   und dunkel. Danach die CI des Pushes prüfen (Linux, Beta, `mac`). Früher pushen
   nur, wenn etwas davon abhängt (z. B. Test im echten Profil).
+- **Windows-VM** (Parallels Desktop Pro, Anleitung `tests/MAC-MINI.md`
+  Abschnitt 11): VM `Windows 11` (Windows-Hostname `win11`, Windows 11
+  Enterprise ARM, Benutzer `neosky.cat` mit automatischer Anmeldung, IP im
+  Parallels-Netz 10.211.55.3). Fest 4 Kerne und 6 GB, startet mit dem Mac
+  (`start-host`), einzige Freigabe `~/halo-vm` = `\\Mac\halo` in Windows.
+  Darin Thunderbird (`C:\Program Files\Mozilla Thunderbird`), Beta
+  (`C:\Program Files\Thunderbird Beta`), beide x64 unter Emulation, ohne
+  Selbst-Update; Python `C:\Program Files\Python315-arm64\python.exe`;
+  `openssl` aus Git für Windows. Snapshot `sauber` = Grundzustand.
+  - Testen: `python3 tests/halo_test.py --vm --port 2851 [--dark] [--beta]
+    [--only …] [--shots …]` – setzt die VM fort, testet darin (Marionette nur
+    in der VM auf 127.0.0.1), holt Screenshots zurück und pausiert die VM
+    (`--vm-weiter`: laufen lassen). Ein Lauf dauert gut 15 Minuten.
+  - Nie gleichzeitig mit einem Mac-Lauf; das Skript wartet selbst
+    (`~/halo-vm/lauf.lock` bzw. laufendes Test-Thunderbird auf dem Mac).
+  - Windows-Abweichungen wie Linux behandeln (`sys.platform != "darwin"`, in
+    der VM ist es `win32`).
+  - Einrichten/Prüfen: `tests/mac-mini-setup.sh [--check]` (Windows-Seite:
+    `tests/win-vm-setup.ps1`). Befehle in der VM: `prlctl exec "Windows 11"
+    --current-user …` (angemeldete Sitzung) bzw. ohne `--current-user` als
+    SYSTEM. `prlctl exec` reicht keine Anführungszeichen weiter – Argumente
+    ohne Leerzeichen/Quotes übergeben oder über eine Datei in `~/halo-vm`.
+  - Die VM darf für Tests umkonfiguriert werden (Speicher, Kerne,
+    Start/Pause/Neustart, Snapshots) – danach kurz sagen, was geändert wurde.
+    Beim Probelauf blieb der Mac bei 6 GB VM über 40 % freiem Speicher ohne
+    zusätzliche Auslagerung. Kein Passwort, kein Microsoft-Konto, keine
+    echten Mails in der VM.
+  - CI: noch nicht angebunden (Job `mac` unverändert).
 - Zwischendurch nur betroffene Prüfungen: `python3 tests/halo_test.py --port 2851
   --only "<Teil des Prüfungsnamens>"` (1–2 Minuten). Neue Prüfungen müssen auch
   unter Linux (CI, xvfb) und mit der Beta grün sein.

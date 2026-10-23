@@ -27,6 +27,7 @@ Im Folgenden heißt der Testbenutzer `halotest` und der Mini in Tailscale
 | Netz | Tailscale, keine Portfreigabe | von außen ist kein Dienst offen |
 | Zugriff | SSH über Tailscale, Claude Code aus der Desktop-App | Arbeiten am Mini ohne Bildschirm |
 | CI (optional) | GitHub-Runner als LaunchAgent im Testbenutzer | Tests unter macOS bei jedem Push auf `main` |
+| Windows (optional) | Parallels-VM mit Windows 11, Test per `halo_test.py --vm` | Windows-Abweichungen sehen, ohne zweiten Rechner |
 
 ## 1. Verwalteter Mac?
 
@@ -334,3 +335,56 @@ Benutzen:
 2. `halobild kalender-woche-raster` – Name klein, mit Bindestrichen, ohne
    Leerzeichen und ohne `.png`, Bereich vorneweg; gleicher Name überschreibt.
 3. Im Gespräch mit dem Agenten nur den Namen nennen („Bild: kalender-woche-raster“).
+
+## 11. Windows-VM (Parallels)
+
+Auf dem Mini läuft Parallels Desktop **Pro** (für `prlctl`/`prlsrvctl`; die
+Standard-Ausgabe hat keine Befehlszeile) mit einer Windows-11-VM (ARM, Enterprise).
+`tests/halo_test.py --vm` testet darin wie unter macOS: frisches Profil,
+Paket aus `dist/`, hell oder dunkel, Screenshots zurück auf den Mac.
+
+| Was | Einstellung | Warum |
+|---|---|---|
+| VM | Name `Windows 11` (anderer Name: `HALO_VM=…`), Windows-Hostname `win11` | |
+| Größe | fest 4 Kerne, 6 GB | daneben laufen die macOS-Tests (16 GB im Mini) |
+| Start | `--autostart start-host`, `--autostop shutdown` | startet mit dem Mac, auch nach Stromausfall (`pmset autorestart 1`) |
+| Freigabe | nur `~/halo-vm` (in Windows `\\Mac\halo`), kein geteiltes Profil, keine geteilten Programme | die VM sieht nichts vom Benutzerordner |
+| Windows | automatische Anmeldung, kein Ruhezustand, keine Bildschirmsperre, kein Sperrbildschirm, kein Update-Neustart bei angemeldetem Benutzer | Thunderbird braucht eine Sitzung |
+| Programme | Thunderbird (x64, `C:\Program Files\Mozilla Thunderbird`), Beta (`C:\Program Files\Thunderbird Beta`), Python 3.15 (ARM64), Git für Windows (für `openssl`) | Mozilla baut Thunderbird nicht für ARM64 – läuft unter der Windows-Emulation |
+| Snapshot | `sauber` nach der Einrichtung | zurück: `prlctl snapshot-switch "Windows 11" --id <id>` (`prlctl snapshot-list`) |
+
+Am Bildschirm (einmalig, nicht per Skript): Windows installieren und aktivieren,
+Benutzer anlegen und automatisch anmelden lassen, Parallels Tools installieren.
+Kein Microsoft-Konto, keine echten Mails in der VM.
+
+Alles andere richtet `tests/mac-mini-setup.sh` ein (ohne `--check`): die
+VM-Einstellungen am Mac und über `tests/win-vm-setup.ps1` die Windows-Seite
+(als SYSTEM per `prlctl exec`). Das Skript lädt nur von Mozilla, python.org und
+GitHub (Git für Windows) und startet ein Installationsprogramm nur mit gültiger
+Signatur des Herausgebers. Thunderbird aktualisiert sich nicht selbst
+(`distribution/policies.json`); neue Versionen holt ein erneuter Aufruf des
+Skripts. Mit `--check` wird eine pausierte VM nicht geweckt.
+
+```bash
+python3 tests/halo_test.py --vm --port 2851 --shots /tmp/win-hell           # hell
+python3 tests/halo_test.py --vm --port 2851 --dark --shots /tmp/win-dunkel  # dunkel
+python3 tests/halo_test.py --vm --beta --port 2851                          # Thunderbird Beta
+```
+
+- Ablauf: VM fortsetzen bzw. starten und auf die Windows-Sitzung warten,
+  Paket, `halo_test.py`, `perf.js` und `extension/` in einen Ordner unter
+  `~/halo-vm` legen, Farbschema per Registry (`AppsUseLightTheme`,
+  `SystemUsesLightTheme`) setzen, in der VM `python halo_test.py` als
+  angemeldeter Benutzer starten (`prlctl exec --current-user`), Screenshots
+  zurückkopieren, Farbschema zurücksetzen, VM pausieren (`prlctl suspend`,
+  gibt die 6 GB frei; `--vm-weiter` lässt sie laufen).
+- Marionette läuft nur in der VM auf `127.0.0.1`, kein Port ist im VM-Netz offen.
+  Die Port-Regeln gelten trotzdem (`--port`, ab 2850 von Hand).
+- Mac- und Windows-Läufe nie gleichzeitig: ein Lauf mit `--vm` wartet, bis kein
+  Test-Thunderbird mehr auf dem Mac läuft; ein Mac-Lauf wartet auf
+  `~/halo-vm/lauf.lock` (höchstens eine Stunde).
+- `prlctl exec` reicht keine Anführungszeichen weiter; deshalb gehen die
+  Optionen als `args.json` über die Freigabe in die VM.
+- Windows-Abweichungen werden wie die Linux-Abweichungen behandelt: in der VM
+  ist `sys.platform` `win32`, Prüfungen mit `sys.platform != "darwin"` gelten
+  dort genauso.
