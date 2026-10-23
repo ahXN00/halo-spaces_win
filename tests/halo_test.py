@@ -2674,6 +2674,31 @@ def calendar_checks(m, results):
         return ok, f"{res}"
     check("Termin-Dialog: Schrift 13 px auch in der Beschreibung, Abstand Beschriftung–Feld; Minimonat ruhig; Datum und Uhrzeit in einem Popover, Ende rückt mit, Pfeiltasten, Mausrad", event_dialog, results)
 
+    def event_menu_buttons():
+        # Termin-Dialog: Menüknöpfe (Change Privacy, Add Attachments) zeigen den Pfeil ganz – rechts vom Symbol, nicht
+        # angeschnitten oder darübergelegt (vorher 9 px Innenabstand für Thunderbirds Pfeil-Hintergrundbild)
+        res = m.js(CAL_CHECK_JS + r"""
+          for (const x of [...Services.wm.getEnumerator(null)]) if (!x.location.href.includes("messenger.xhtml")) x.close();
+          let dw = null; const out = {};
+          try {
+            await toCalendar(); w.createEventWithDialog(testCalendar(), null, null, "Halo Menüknöpfe");
+            dw = await winUrl("calendar-event-dialog.xhtml"); if (!dw) return { dialog: false };
+            await pause(1800); const dd = dw.document;
+            for (const id of ["button-privacy", "button-url"]) {
+              const b = dd.getElementById(id), i = b?.querySelector(".toolbarbutton-icon"); if (!b || !i) { out[id] = null; continue; }
+              const br = b.getBoundingClientRect(), ir = i.getBoundingClientRect(), s = csOf(b);
+              const size = parseFloat(s.backgroundSize) || 0, posX = br.width - (parseFloat(s.backgroundPositionX.match(/([\d.]+)px\)?$/)?.[1]) || 0) - size;
+              out[id] = { img: s.backgroundImage.includes("nav-down"), size, chevronLeft: Math.round(posX), iconRight: Math.round(ir.right - br.left), width: Math.round(br.width) };
+            }
+          } finally { if (dw && !dw.closed) { dw.close(); await till(() => dw.closed, 4000); } }
+          return out;""")
+        if res.get("dialog") is False:
+            return False, "Termin-Dialog nicht offen"
+        ok = all(v and v["img"] and v["size"] >= 8 and v["chevronLeft"] >= v["iconRight"] + 2 and v["chevronLeft"] + v["size"] <= v["width"] - 4
+                 for v in res.values())
+        return ok, f"{res}"
+    check("Termin-Dialog: Pfeil in „Change Privacy“ und „Add Attachments“ ganz sichtbar neben dem Symbol", event_menu_buttons, results)
+
     def attendees_dialog():
         # „Teilnehmer einladen“: Liste und Raster ohne harten Rahmen, Linien als Haarlinie, einfarbige Symbole,
         # Legende ohne Rahmen, gewählte Zeit in Akzentfarbe statt Pink; Beginn/Ende mit kombiniertem Popover
