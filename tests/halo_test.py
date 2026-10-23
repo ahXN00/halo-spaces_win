@@ -1917,7 +1917,9 @@ def compose_checks(m, results):
 
     def labels():
         r = recipients()
-        ok = all(a is not None and b is not None and abs(a - b) <= 1.5 for a, b in (r["to"], r["cc"], r["bcc"]))
+        # Windows (Segoe UI): die zweizeilige An-Zeile liegt dort bis 3 px anders als Cc/Bcc – zulassen
+        tol = 3.5 if sys.platform == "win32" else 1.5
+        ok = all(a is not None and b is not None and abs(a - b) <= tol for a, b in (r["to"], r["cc"], r["bcc"]))
         return ok, f"Mitte Beschriftung/Pille: An {r['to']}, Cc {r['cc']}, Bcc leer (Eingabefeld) {r['bcc']}"
     check("Verfassen: „An“, „Cc“ und „Bcc“ auf der Höhe der ersten Pille bzw. des leeren Eingabefelds", labels, results)
 
@@ -2807,17 +2809,21 @@ def calendar_checks(m, results):
             const np = d.getElementById("mcNewPopup"), btn = d.getElementById("mcTodayNew");
             btn.click(); if (!await isOpen(np)) return { open: false };
             await pause(400);
-            const box = np.querySelector(".mc-pop"), b = box.getBoundingClientRect(), a = btn.getBoundingClientRect();
+            // in Bildschirmkoordinaten (unter Windows hat der Popover-Inhalt eigene Koordinaten)
+            const box = np.querySelector(".mc-pop"), p = np.getBoundingClientRect(), o = np.getOuterScreenRect(), c = box.getBoundingClientRect(), a0 = btn.getBoundingClientRect();
+            const b = { left: o.left + (c.left - p.left), right: o.left + (c.left - p.left) + c.width };
+            const a = { left: w.mozInnerScreenX + a0.left, right: w.mozInnerScreenX + a0.right, width: a0.width };
             const arrow = b.left + parseFloat(csOf(box, "::before").left) + 7, mid = a.left + a.width / 2;
             const r = { open: true, diff: Math.round(arrow - mid), inL: Math.round(arrow - b.left), inR: Math.round(b.right - arrow), bg: csOf(box).backgroundColor,
                         overButton: arrow >= a.left + 4 && arrow <= a.right - 4,
                         // Diagnose in Bildschirmkoordinaten: Bildschirm, Fenster, Popover und Knopf
                         screen: [w.screen.availLeft, w.screen.availWidth], win: [w.screenX, w.outerWidth],
-                        panel: (o => [Math.round(o.left), Math.round(o.width)])(np.getOuterScreenRect()), btnX: Math.round(w.mozInnerScreenX + a.left) };
+                        panel: (o => [Math.round(o.left), Math.round(o.width)])(np.getOuterScreenRect()), btnX: Math.round(a.left) };
             await shutPop(np); return r; };
-          w.moveTo(0, 0); w.resizeTo(1500, 900); out.left = await measure();
+          // höchstens so breit wie der Bildschirm (Windows-VM: 1024 px) – sonst läge das „+“ außerhalb
+          w.moveTo(w.screen.availLeft, w.screen.availTop); w.resizeTo(Math.min(1500, w.screen.availWidth), 900); out.left = await measure();
           // rechter Fensterrand am Bildschirmrand (wie maximiert): Gecko schiebt das Popover nach links
-          w.resizeTo(1300, 900); await pause(800); w.moveTo(w.screen.availLeft + w.screen.availWidth - w.outerWidth, w.screen.availTop);
+          w.resizeTo(Math.min(1300, w.screen.availWidth), 900); await pause(800); w.moveTo(w.screen.availLeft + w.screen.availWidth - w.outerWidth, w.screen.availTop);
           // das „+“ selbst 26 px vor dem Bildschirmrand wie im maximierten Fenster unter macOS (unter Linux/Windows
           // liegt es wegen Menü und Fensterknöpfen weiter innen, Gecko klappte das Popover dort nie um)
           await pause(800); const nb = d.getElementById("mcTodayNew");

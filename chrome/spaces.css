@@ -5038,6 +5038,15 @@ dialog separator.groove:not([orient="vertical"]) {
   }
 }
 
+/* Windows/Linux: dort scheint durch die durchsichtige Fläche nicht das neutrale
+   Fenster wie unter macOS, sondern Thunderbirds violettgraue Wurzel
+   (rgb(35, 34, 43)) – die Wurzel selbst in der Dialogfläche */
+@media (prefers-color-scheme: dark) and (not (-moz-platform: macos)) {
+  :root#commonDialogWindow:not([subdialog]) {
+    background-color: var(--mt-sheet) !important;
+  }
+}
+
 /* ---------- Termin- und Aufgaben-Fenster wie Apple Kalender ---------- */
 #event-toolbox,
 #event-toolbar {
@@ -5971,7 +5980,9 @@ menupopup menucaption {
   list-style-image: none !important;
   width: 10px !important;
   height: 10px !important;
-  min-width: 0 !important;
+  /* nie schmaler (Windows drückte ihn auf 8 × 10 px zum Oval) */
+  min-width: 10px !important;
+  flex: none !important;
   margin: 0 !important;
   border-radius: 50% !important;
   background-color: var(--mt-status-online) !important;

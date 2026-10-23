@@ -2384,8 +2384,10 @@ panel[type="autocomplete-richlistbox"] {
   flex: none !important;
   justify-content: flex-start !important;
   margin-inline: 5px !important;
-  min-height: 22px !important;
-  padding-block: var(--menu-item-padding, 4px) !important;
+  /* Maße eines gewöhnlichen Eintrags (setzt die Erweiterung beim Öffnen) */
+  min-height: var(--mc-nav-h, 22px) !important;
+  max-height: var(--mc-nav-h, none) !important;
+  padding-block: var(--mc-nav-pad, var(--menu-item-padding, 4px)) !important;
   padding-inline: 8px !important;
   border-radius: 6px !important;
 }
@@ -7985,6 +7987,15 @@ dialog separator.groove:not([orient="vertical"]) {
   }
 }
 
+/* Windows/Linux: dort scheint durch die durchsichtige Fläche nicht das neutrale
+   Fenster wie unter macOS, sondern Thunderbirds violettgraue Wurzel
+   (rgb(35, 34, 43)) – die Wurzel selbst in der Dialogfläche */
+@media (prefers-color-scheme: dark) and (not (-moz-platform: macos)) {
+  :root#commonDialogWindow:not([subdialog]) {
+    background-color: var(--mt-sheet) !important;
+  }
+}
+
 /* ---------- Termin- und Aufgaben-Fenster wie Apple Kalender ---------- */
 #event-toolbox,
 #event-toolbar {
@@ -8918,7 +8929,9 @@ menupopup menucaption {
   list-style-image: none !important;
   width: 10px !important;
   height: 10px !important;
-  min-width: 0 !important;
+  /* nie schmaler (Windows drückte ihn auf 8 × 10 px zum Oval) */
+  min-width: 10px !important;
+  flex: none !important;
   margin: 0 !important;
   border-radius: 50% !important;
   background-color: var(--mt-status-online) !important;

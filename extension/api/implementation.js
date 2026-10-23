@@ -5181,6 +5181,12 @@ class CardEnhancer {
             value = Math.max(value, Math.ceil(lp.right + 12 + tb.width + 12 + 40 + (w.innerWidth - s.right)));
           }
         }
+        // nie breiter als der Bildschirm: auf kleinen Bildschirmen (oder mit
+        // Today-Pane) ließe sich das Fenster sonst nicht mehr einpassen
+        const screenWidth = w.screen?.availWidth;
+        if (screenWidth > 0) {
+          value = Math.min(value, Math.max(800, screenWidth - (w.outerWidth - w.innerWidth)));
+        }
         // nur bei echter Änderung schreiben (jedes Setzen gestaltet das Fenster neu)
         if (Math.abs((parseFloat(root.style.minWidth) || 0) - value) >= 2) {
           root.style.minWidth = `${value}px`;
@@ -8207,14 +8213,18 @@ class CardEnhancer {
       // Pfeil über die Mitte des Knopfs – nach dem Öffnen gemessen, so stimmt
       // er auch, wenn Gecko das Popover am Bildschirmrand verschiebt (höchstens
       // bis 20 px vor die runden Ecken)
+      // (in Bildschirmkoordinaten: unter Windows hat der Inhalt des Popovers
+      // eigene Koordinaten, der Vergleich mit dem Knopf lag 300 px daneben)
       const aimArrow = anchor => {
         const a = anchor.getBoundingClientRect();
         const b = box.getBoundingClientRect();
         if (!a.width || !b.width) {
           return;
         }
-        const mid = a.left + a.width / 2;
-        const x = w.getComputedStyle(box).direction == "rtl" ? b.right - mid - 7 : mid - b.left - 7;
+        const mid = w.mozInnerScreenX + a.left + a.width / 2;
+        const p = popup.getBoundingClientRect(), outer = popup.getOuterScreenRect();
+        const left = outer.left + (b.left - p.left), right = left + b.width;
+        const x = w.getComputedStyle(box).direction == "rtl" ? right - mid - 7 : mid - left - 7;
         box.style.setProperty("--mc-arrow-x", `${Math.round(Math.min(Math.max(x, 20), b.width - 34))}px`);
       };
       // dasselbe Popover unter dem „+“ oben rechts in der Today-Pane:
@@ -8528,9 +8538,10 @@ class CardEnhancer {
     const msgStart = vertical ? msgBefore : 0;
     const msgProp = "--messagePaneSplitter-width";
     const msgSaved = vertical ? grid.style.getPropertyValue(msgProp) : "";
-    // die Leseansicht ist etwas breiter als ihre Rastervariable (Rand/Teiler) – abziehen
+    // die Leseansicht ist etwas breiter als ihre Rastervariable (Rand/Teiler,
+    // unter Windows samt Bildlaufleiste gut 12 px) – abziehen
     const msgVar = vertical ? parseFloat(ab.getComputedStyle(grid).getPropertyValue(msgProp)) : NaN;
-    const msgExtra = Number.isFinite(msgVar) && Math.abs(msgBefore - msgVar) < 10 ? msgBefore - msgVar : 0;
+    const msgExtra = Number.isFinite(msgVar) && Math.abs(msgBefore - msgVar) < 24 ? msgBefore - msgVar : 0;
     const inner = [...pane.children];
     // Inhalt der Ordnerliste behält seine volle Breite und bleibt stehen –
     // er wird nur von rechts her zugedeckt
@@ -8540,7 +8551,14 @@ class CardEnhancer {
     pane.classList.add("mc-side-anim"); // (auch unsere 160 px)
     // Der Teiler fixiert die Ordnerliste beim Ändern der Fenstergröße mit
     // „width: …px !important“ – das hält sonst das Raster fest
-    const lockedWidth = pane.style.getPropertyValue("width");
+    // (beim Ausblenden merken: das Einblenden stellt sie wieder her – ohne sie
+    // legte Windows die Ordnerliste 11 px schmaler an als vorher)
+    const lockedWidth = pane.style.getPropertyValue("width") || (collapsing ? "" : pane.__mcLockedWidth || "");
+    if (collapsing) {
+      pane.__mcLockedWidth = lockedWidth;
+    } else {
+      delete pane.__mcLockedWidth;
+    }
     pane.style.removeProperty("width");
     let relocked = false;
     ab.__mcAnimating = true;
@@ -9903,6 +9921,26 @@ class CardEnhancer {
       }
     }
     // Den Text (Fluent setzt dort nur aria-label) zeigt userChrome.css an.
+    // Zeilenmaße wie ein gewöhnlicher Eintrag desselben Menüs übernehmen – die
+    // Abstände unterscheiden sich je System (Windows: 3 px statt Thunderbirds
+    // --menu-item-padding, „Löschen“ war dort 2 px höher)
+    const win = doc.defaultView;
+    const match = event => {
+      if (event.target != popup) {
+        return;
+      }
+      // ein sichtbarer, gewöhnlicher Eintrag (welche es gibt, hängt von der Mail ab)
+      const ref = [...popup.children].find(el => el.localName == "menuitem" && el.parentNode != group &&
+        el.getClientRects().length && el.getBoundingClientRect().height > 0);
+      if (!ref) {
+        return;
+      }
+      // als Variablen (das Stylesheet hat Vorrang vor Werten am Element)
+      const cs = win.getComputedStyle(ref);
+      group.style.setProperty("--mc-nav-pad", cs.paddingTop);
+      group.style.setProperty("--mc-nav-h", `${ref.getBoundingClientRect().height}px`);
+    };
+    popup.addEventListener("popupshown", match);
   }
 
   // Heute-Leiste (Aufgaben/Termine rechts) gehört nicht in den Chat – wie in
