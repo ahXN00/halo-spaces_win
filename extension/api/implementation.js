@@ -213,6 +213,8 @@ const DE = {
   "Show Format Bar": "Formatleiste einblenden",
   "Hide Format Bar": "Formatleiste ausblenden",
   "Begin forwarded message:": "Beginn der weitergeleiteten Nachricht:",
+  "Today, {time}": "Heute, {time}",
+  "Yesterday, {time}": "Gestern, {time}",
 };
 const FR = {
   "Install version {v}": "Installer la version {v}",
@@ -397,6 +399,8 @@ const FR = {
   "Show Format Bar": "Afficher la barre de mise en forme",
   "Hide Format Bar": "Masquer la barre de mise en forme",
   "Begin forwarded message:": "Début du message réexpédié :",
+  "Today, {time}": "Aujourd’hui, {time}",
+  "Yesterday, {time}": "Hier, {time}",
 };
 const ES = {
   "Install version {v}": "Instalar la versión {v}",
@@ -581,6 +585,8 @@ const ES = {
   "Show Format Bar": "Mostrar barra de formato",
   "Hide Format Bar": "Ocultar barra de formato",
   "Begin forwarded message:": "Inicio del mensaje reenviado:",
+  "Today, {time}": "Hoy, {time}",
+  "Yesterday, {time}": "Ayer, {time}",
 };
 const IT = {
   "Install version {v}": "Installa la versione {v}",
@@ -765,6 +771,8 @@ const IT = {
   "Show Format Bar": "Mostra barra di formattazione",
   "Hide Format Bar": "Nascondi barra di formattazione",
   "Begin forwarded message:": "Inizio messaggio inoltrato:",
+  "Today, {time}": "Oggi, {time}",
+  "Yesterday, {time}": "Ieri, {time}",
 };
 const TRANSLATIONS = { de: DE, fr: FR, es: ES, it: IT };
 // tr("+{n} more", { n: 3 }) – Platzhalter in geschweiften Klammern
@@ -2925,8 +2933,8 @@ function orgDomain(domain) {
     : lastTwo;
 }
 
-// Datum in der Mailliste: heute nur die Uhrzeit, gestern „Gestern“, davor
-// immer das ganze Datum (17.10.2026) – kein Wochentag.
+// Datum in der Mailliste immer mit Uhrzeit: „Heute, 14:32“, „Gestern, 14:32“,
+// davor das ganze Datum (17.10.2026, 14:32) – kein Wochentag.
 // Formatiert wie der Mailkopf: Thunderbirds eigener Formatierer ohne Sprache
 // nimmt die Regionaleinstellungen des Systems (auch 12/24 Stunden) – sonst
 // stand in der Liste „12:49 AM“ neben „00:49“ im Kopf
@@ -2935,16 +2943,18 @@ function appleListDate(ms, now = new Date()) {
   const d = new Date(ms);
   const startOfDay = x => new Date(x.getFullYear(), x.getMonth(), x.getDate()).getTime();
   const days = Math.round((startOfDay(now) - startOfDay(d)) / 86400000);
-  // nur heute die Uhrzeit – Datum in der Zukunft (falsche Uhr beim Absender,
-  // Spam „oben halten“) zeigt das ganze Datum
+  // immer mit Uhrzeit: „Heute, 14:32“, „Gestern, 14:32“, sonst „17.10.2026,
+  // 14:32“ – Datum in der Zukunft (falsche Uhr beim Absender, Spam „oben
+  // halten“) zeigt das ganze Datum
+  const time = fmt({ timeStyle: "short" }).format(d);
   if (days == 0) {
-    return fmt({ timeStyle: "short" }).format(d);
+    return tr("Today, {time}", { time });
   }
   if (days == 1) {
-    return tr("Yesterday");
+    return tr("Yesterday, {time}", { time });
   }
   // „mittel“ ist das ganze Datum im Muster des Systems (17.10.2026)
-  return fmt({ dateStyle: "medium" }).format(d);
+  return fmt({ dateStyle: "medium", timeStyle: "short" }).format(d);
 }
 
 // Absender ohne eigenen Namen (nur die Adresse, oft auch als Name

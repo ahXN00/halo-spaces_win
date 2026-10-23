@@ -3842,6 +3842,48 @@ def run_checks(m, version, profile, results):
         return res.get("found") and res["diff"] >= 60, f"{res}"
     check("Ausgewählte Karte: Aktions-Symbole sichtbar", selected_actions, results)
 
+    def reply_forward_marks():
+        # wie Apple Mail: links vom Absenderbild grauer Pfeil für beantwortet (nach links) bzw. weitergeleitet (nach rechts);
+        # ungelesen zeigt weiter den blauen Punkt
+        res = m.js(r"""
+          const { MailServices } = ChromeUtils.importESModule("resource:///modules/MailServices.sys.mjs");
+          try { MailServices.accounts.localFoldersServer; } catch { MailServices.accounts.createLocalMailAccount(); await wait(500); }
+          const root = MailServices.accounts.localFoldersServer.rootFolder;
+          if (!root.containsChildNamed("Markierungen")) root.createSubfolder("Markierungen", null);
+          const f = root.getChildNamed("Markierungen");
+          const raw = (id, subject) => ["From - Mon Oct 19 10:00:00 2026", "From: Anna Beispiel <anna@example.invalid>", "To: Halo <halo@example.invalid>",
+            `Subject: ${subject}`, "Date: Mon, 19 Oct 2026 10:00:00 +0200", `Message-ID: <${id}@example.invalid>`, "", "Text", ""].join("\r\n");
+          if (!f.getTotalMessages(false)) {
+            const lf = f.QueryInterface(Ci.nsIMsgLocalMailFolder);
+            lf.addMessage(raw("mark-replied", "Halo beantwortet")); lf.addMessage(raw("mark-forwarded", "Halo weitergeleitet")); lf.addMessage(raw("mark-unread", "Halo ungelesen weitergeleitet"));
+            await wait(800);
+          }
+          const hdr = id => [...f.messages].find(h => h.messageId == id + "@example.invalid");
+          const D = Ci.nsIMsgFolder;
+          f.addMessageDispositionState(hdr("mark-replied"), D.nsMsgDispositionState_Replied);
+          f.addMessageDispositionState(hdr("mark-forwarded"), D.nsMsgDispositionState_Forwarded);
+          f.addMessageDispositionState(hdr("mark-unread"), D.nsMsgDispositionState_Forwarded);
+          for (const id of ["mark-replied", "mark-forwarded"]) hdr(id).markRead(true);
+          hdr("mark-unread").markRead(false);
+          const a3 = await toMail(); a3.displayFolder(f.URI); await wait(1500);
+          const out = {};
+          for (const row of a3.document.querySelectorAll('#threadTree tr[is="thread-card"]')) {
+            const h = a3.gDBView.getMsgHdrAt(row.index); const id = h?.messageId?.split("@")[0]; if (!id?.startsWith("mark-")) continue;
+            const rs = row.querySelector(".read-status"), av = row.querySelector(".mc-avatar"), cs = a3.getComputedStyle(rs);
+            const r = rs.getBoundingClientRect(), ar = av?.getBoundingClientRect();
+            out[id] = { vis: cs.display != "none" && cs.visibility != "hidden" && r.width > 0, mask: /M10 6/.test(cs.maskImage) ? "reply" : /M14 6/.test(cs.maskImage) ? "forward" : cs.maskImage == "none" ? "none" : "?",
+                        left: ar ? Math.round(ar.left - r.right) : null, mid: ar ? Math.round((r.top + r.height / 2) - (ar.top + ar.height / 2)) : null, bg: cs.backgroundColor,
+                        dateIcon: [...row.querySelectorAll("img.state")].some(e => e.getBoundingClientRect().width > 0) };
+          }
+          out.accent = a3.getComputedStyle(a3.document.documentElement).getPropertyValue("--mt-accent").trim();
+          return out;""")
+        rp, fw, un = res.get("mark-replied") or {}, res.get("mark-forwarded") or {}, res.get("mark-unread") or {}
+        ok = (rp.get("vis") and rp.get("mask") == "reply" and fw.get("vis") and fw.get("mask") == "forward"
+              and un.get("vis") and un.get("mask") == "none" and all(0 <= x.get("left", -1) <= 12 for x in (rp, fw))
+              and all(abs(x.get("mid", 99)) <= 2 and not x.get("dateIcon") for x in (rp, fw, un)))
+        return ok, f"{res}"
+    check("Mailliste: beantwortet/weitergeleitet als grauer Pfeil links vom Absenderbild wie Apple Mail, ungelesen weiter mit Punkt", reply_forward_marks, results)
+
     def list_date_future():
         # Datum in der Mailliste: heute nur die Uhrzeit, in der Zukunft (falsche Uhr,
         # Spam „oben halten“) das ganze Datum statt nur der Uhrzeit; „jetzt“ = Di 20.10.2026 15:00
@@ -3849,12 +3891,16 @@ def run_checks(m, version, profile, results):
           const { ExtensionParent } = ChromeUtils.importESModule("resource://gre/modules/ExtensionParent.sys.mjs");
           const g = ExtensionParent.GlobalManager.getExtension("%s").experimentAPIManager.global;
           const f = Cu.evalInSandbox("appleListDate", g); const now = new Date(2026, 9, 20, 15, 0);
-          return { today: f(new Date(2026, 9, 20, 10, 15).getTime(), now), tomorrow: f(new Date(2026, 9, 21, 10, 15).getTime(), now),
+          return { today: f(new Date(2026, 9, 20, 10, 15).getTime(), now), yesterday: f(new Date(2026, 9, 19, 10, 15).getTime(), now),
+                   tomorrow: f(new Date(2026, 9, 21, 10, 15).getTime(), now),
                    nextYear: f(new Date(2027, 2, 1, 10, 15).getTime(), now), older: f(new Date(2026, 9, 17, 10, 15).getTime(), now) };''' % ADDON_ID)
-        ok = ("2026" not in res["today"] and "2026" in res["tomorrow"] and "21" in res["tomorrow"]
-              and "2027" in res["nextYear"] and "2026" in res["older"])
+        # immer mit Uhrzeit: „Today, 10:15“, „Yesterday, 10:15“, älter „17.10.2026, 10:15“ (Format des Systems)
+        has_time = lambda v: re.search(r"10[:.]15", v or "") is not None
+        ok = (res["today"].startswith("Today, ") and "2026" not in res["today"] and res["yesterday"].startswith("Yesterday, ")
+              and "2026" in res["tomorrow"] and "21" in res["tomorrow"] and "2027" in res["nextYear"] and "2026" in res["older"]
+              and all(has_time(res[k]) for k in ("today", "yesterday", "tomorrow", "older")))
         return ok, f"{res}"
-    check("Mailliste: Datum in der Zukunft zeigt das ganze Datum", list_date_future, results)
+    check("Mailliste: Datum immer mit Uhrzeit („Today, …“, „Yesterday, …“, älter mit Datum), in der Zukunft das ganze Datum", list_date_future, results)
 
     def smart_folder_names():
         # Favoriten: nur das Postfach je Konto unter „Alle Eingänge“ heißt wie das Konto –
