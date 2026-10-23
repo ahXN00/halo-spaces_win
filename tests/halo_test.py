@@ -5856,7 +5856,7 @@ def run_checks(m, version, profile, results):
           const A = folder("SucheA"), B = folder("SucheB"); await wait(800);
           const mail = (subject, id, o = {}) => unescape(encodeURIComponent([`From: ${o.from || "Anna Beispiel <anna@example.invalid>"}`,
             `To: ${o.to || "Halo Test <halo@example.invalid>"}`, `Subject: ${subject}`, "Date: Mon, 19 Oct 2026 10:00:00 +0200", `Message-ID: <${id}@example.invalid>`,
-            "MIME-Version: 1.0", `Content-Type: ${o.type || "text/plain; charset=UTF-8"}`, "", o.body || "Nichts Besonderes.", ""].join("\r\n")));
+            ...(o.refs ? [`In-Reply-To: <${o.refs}@example.invalid>`, `References: <${o.refs}@example.invalid>`] : []), "MIME-Version: 1.0", `Content-Type: ${o.type || "text/plain; charset=UTF-8"}`, "", o.body || "Nichts Besonderes.", ""].join("\r\n")));
           if (!A.getTotalMessages(false)) {
             const la = A.QueryInterface(Ci.nsIMsgLocalMailFolder);
             la.addMessage(mail("Halo Zebrafink im Betreff", "suche-a1"));
@@ -5864,12 +5864,15 @@ def run_checks(m, version, profile, results):
             la.addMessage(mail("Halo Link", "suche-a3", { type: "text/html; charset=UTF-8", body: '<p>Siehe <a href="https://zebrafink.example.invalid/">hier</a>.</p>' }));
             la.addMessage(mail("Halo Adresse", "suche-a4", { to: "Kundendienst <service@zebrafink.example.invalid>" }));
             B.QueryInterface(Ci.nsIMsgLocalMailFolder).addMessage(mail("Halo Zebrafink anderswo", "suche-b1"));
+            // Antwort im selben Faden ohne den Begriff – darf in der Trefferliste nicht erscheinen
+            B.QueryInterface(Ci.nsIMsgLocalMailFolder).addMessage(mail("Re: Halo Termin", "suche-b2", { body: "Passt mir.", refs: "suche-b1" }));
             await wait(1000);
           }
           const a3 = await toMail(); const bar = d.querySelector("#unifiedToolbarContent global-search-bar");
           const ph = () => bar?.querySelector('[slot="placeholder"]')?.textContent;
           const search = async text => { bar.dispatchEvent(new w.CustomEvent("search", { detail: text, bubbles: true, composed: true })); await wait(2000); };
-          const hits = () => [...Array(a3.gDBView?.rowCount || 0).keys()].map(i => a3.gDBView.getMsgHdrAt(i)?.messageId?.split("@")[0]).filter(Boolean).sort();
+          const hits = () => { try { a3.gDBView?.doCommand(Ci.nsMsgViewCommandType.expandAll); } catch {}
+            return [...Array(a3.gDBView?.rowCount || 0).keys()].map(i => a3.gDBView.getMsgHdrAt(i)?.messageId?.split("@")[0]).filter(Boolean).sort(); };
           const out = {};
           a3.displayFolder(A.URI); await wait(900); out.phA = ph();
           await search("zebrafink"); out.inA = hits(); out.header = d.getElementById("mcListHeader")?.querySelector(".mc-lh-count")?.textContent;
@@ -5877,8 +5880,18 @@ def run_checks(m, version, profile, results):
           a3.displayFolder(B.URI); await wait(2500); out.inB = hits(); out.phB = ph();
           await search(""); await wait(600);
           // Sammelordner „Alle Eingänge“ (smart mailboxes): global
-          const smart = [...MailServices.accounts.allFolders].find(f => /smart%20mailboxes/i.test(f.URI) && f.getFlag(Ci.nsMsgFolderFlags.Inbox));
-          if (smart) { a3.displayFolder(smart.URI); await wait(900); out.phSmart = ph(); await search("zebrafink"); out.inSmart = hits(); await search(""); }
+          // „Alle Eingänge“ legt Thunderbird erst mit der Ansicht „Unified Folders“ an – dafür einschalten
+          const { SmartMailboxUtils } = ChromeUtils.importESModule("resource:///modules/SmartMailboxUtils.sys.mjs");
+          const smart = [...MailServices.accounts.allFolders].find(f => /smart%20mailboxes/i.test(f.URI) && f.getFlag(Ci.nsMsgFolderFlags.Inbox))
+            || SmartMailboxUtils.getSmartMailbox().rootFolder.getFolderWithFlags(Ci.nsMsgFolderFlags.Inbox);
+          if (smart) { a3.displayFolder(smart.URI); await wait(900); out.phSmart = ph();
+            // Sammelordner zeigen Fäden gruppiert (wie oft im Alltag) – die Treffer trotzdem nur einzeln
+            a3.gViewWrapper.showThreaded = true; await wait(400);
+            await search("zebrafink"); out.inSmart = hits(); out.threaded = a3.gViewWrapper?.showThreaded; await search("");
+            // schnelles Tippen: jeder Buchstabe startet eine Suche, die vorige läuft über alle Postfächer evtl. noch
+            for (const part of ["h", "ha", "hal", "halo", "halo z", "halo ze", "zebrafink"]) {
+              bar.dispatchEvent(new w.CustomEvent("search", { detail: part, bubbles: true, composed: true })); await wait(40); }
+            await wait(2500); out.typedSmart = hits(); await search(""); }
           await wait(600);
           return out;""")
         a = res.get("inA") or []
@@ -5886,7 +5899,9 @@ def run_checks(m, version, profile, results):
         ok = ("suche-a1" in a and "suche-a2" not in a and "suche-a3" not in a and "suche-b1" not in a
               and res.get("phA") == "Search SucheA" and res.get("phB") == "Search SucheB"
               and res.get("inB") == ["suche-b1"] and (res.get("header") or "").startswith("SucheA")
-              and (res.get("phSmart") is None or (res["phSmart"] == "Search All Mailboxes" and {"suche-a1", "suche-b1"} <= set(res.get("inSmart") or []))))
+              and (res.get("phSmart") is None or (res["phSmart"] == "Search All Mailboxes" and {"suche-a1", "suche-b1"} <= set(res.get("inSmart") or [])
+                                                  and not {"suche-a2", "suche-a3", "suche-b2"} & set(res.get("inSmart") or [])
+                                                  and set(res.get("typedSmart") or []) == set(res.get("inSmart") or []))))
         return ok, f"{res}"
     check("Suche: im gewählten Ordner nur dort, in Sammelordnern global, keine Mails ohne den Begriff, Platzhalter je Ordner, Ordnerwechsel sucht weiter", search_scope, results)
 
