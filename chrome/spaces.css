@@ -1573,6 +1573,8 @@ calendar-event-box :is(.alarm-icons-box, .item-classification-icon, .item-recurr
 #today-splitter {
   border: none !important;
   background: transparent !important;
+  /* nur nach rechts (Ausblenden) – die Breite ist fest */
+  cursor: e-resize !important;
 }
 
 /* ---------- Adressbuch wie Apple Kontakte ---------- */
@@ -7755,8 +7757,14 @@ notification-message toolbarbutton.notification-button > .toolbarbutton-menubutt
 #calendar-task-details-container { min-width: 360px !important; }
 #preferencesContainer { min-width: 560px !important; }
 #conversationsBox { min-width: 420px !important; }
-/* nicht während der Ein-/Ausblend-Animation (data-mc-anim), sonst springt sie */
-#today-pane-panel:not([data-mc-anim]) { min-width: 240px !important; }
+/* Today-Pane fest 280 px breit (nicht von Hand veränderbar – die Trennlinie
+   nach rechts gezogen blendet sie aus); nicht während der Ein-/Ausblend-
+   Animation (data-mc-anim), sonst springt sie */
+#today-pane-panel:not([data-mc-anim]) {
+  width: 280px !important;
+  min-width: 280px !important;
+  max-width: 280px !important;
+}
 
 @media (min-resolution: 2dppx) {
   :root {

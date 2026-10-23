@@ -4668,6 +4668,64 @@ def run_checks(m, version, profile, results):
         return ok, f"{res}"
     check("Today-Pane: Ein-/Ausblenden flüssig (kein Sprung)", today_animation, results)
 
+    def drag_hide():
+        # Trennlinien zuziehen: Kalender-Seitenleiste verschwindet schon beim Ziehen (ohne Animation) und kommt mit der
+        # alten Breite wieder; Mail ohne Thunderbirds blauen Balken an der zugeklappten Trennlinie; Today-Pane fest
+        # 280 px, nach rechts gezogen sofort aus, „+“ gleich weg (auch beim Klick auf den Knopf); Spaces-Knopf bleibt
+        # stehen und wechselt nur den Pfeil
+        V = lambda r: r["value"] if isinstance(r, dict) and "value" in r else r
+        def drag(x, y, dx, release=True):
+            steps = [{"type": "pointerMove", "x": x, "y": y, "origin": "viewport"}, {"type": "pointerDown", "button": 0}]
+            steps += [{"type": "pointerMove", "x": x + dx * i // 10, "y": y, "origin": "viewport", "duration": 15} for i in range(1, 11)]
+            m.cmd("WebDriver:PerformActions", {"actions": [{"type": "pointer", "id": "maus", "parameters": {"pointerType": "mouse"}, "actions": steps}]})
+        def release():
+            m.cmd("WebDriver:PerformActions", {"actions": [{"type": "pointer", "id": "maus", "parameters": {"pointerType": "mouse"}, "actions": [{"type": "pointerUp", "button": 0}]}]})
+            m.cmd("WebDriver:ReleaseActions", {})
+        out = {}
+        # Kalender
+        p = m.js(r"""w.resizeTo(1400, 900); await wait(500); await toCalendar(); await wait(1000);
+          const sb = d.getElementById("calSidebar"), sp = d.getElementById("calsidebar_splitter"); const r = sp.getBoundingClientRect();
+          return { x: Math.round(r.left + r.width / 2), y: Math.round(r.top + 300), w: Math.round(sb.getBoundingClientRect().width), hidden: sb.classList.contains("mc-side-hidden") };""")
+        if p.get("hidden"):
+            m.js('d.getElementById("spacesPinnedButton").click(); await wait(800); return 1;')
+        drag(p["x"], p["y"], -(p["w"] - 60))
+        out["calDuring"] = m.js('return d.getElementById("calSidebar").classList.contains("mc-side-hidden");')
+        release(); time.sleep(0.5)
+        out["calShown"] = m.js(r"""d.getElementById("spacesPinnedButton").click(); await wait(900);
+          const sb = d.getElementById("calSidebar"); return [sb.classList.contains("mc-side-hidden"), Math.round(sb.getBoundingClientRect().width)];""")
+        out["calWidth"] = p["w"]
+        # Mail: Balken an der zugeklappten Trennlinie
+        out["mailBar"] = m.js(r"""const a3 = await toMail(); const sp = a3.document.getElementById("folderPaneSplitter");
+          return a3.getComputedStyle(sp, "::after").display;""")
+        # Today-Pane
+        t = m.js(r"""await toMail(); await wait(500); const panel = d.getElementById("today-pane-panel");
+          if (!w.TodayPane?.isVisible) { d.getElementById("mcTodayToggle").click(); await wait(900); }
+          const sp = d.getElementById("today-splitter").getBoundingClientRect(); const row = d.getElementById("unifiedToolbarContainer");
+          return { x: Math.round(sp.left + sp.width / 2), y: Math.round(sp.top + 300), w: Math.round(panel.getBoundingClientRect().width), plus: row.hasAttribute("data-mc-tp-open") };""")
+        out["todayWidth"], out["plusBefore"] = t["w"], t["plus"]
+        drag(t["x"], t["y"], 80)
+        out["todayDuring"] = m.js('return [!!w.TodayPane?.isVisible, d.getElementById("unifiedToolbarContainer").hasAttribute("data-mc-tp-open")];')
+        release(); time.sleep(0.5)
+        out["todayClick"] = m.js(r"""const btn = d.getElementById("mcTodayToggle"), row = d.getElementById("unifiedToolbarContainer");
+          btn.click(); await wait(900); const open = [!!w.TodayPane?.isVisible, row.hasAttribute("data-mc-tp-open"), Math.round(d.getElementById("today-pane-panel").getBoundingClientRect().width)];
+          btn.click(); const right = row.hasAttribute("data-mc-tp-open"); await wait(900);
+          btn.click(); await wait(900); return { open, plusAtStart: right };""")
+        # Spaces-Knopf
+        out["spaces"] = m.js(r"""const b = d.getElementById("mcSpacesToggle"); const L = () => Math.round(b.getBoundingClientRect().left * 2) / 2;
+          const r = { before: [L(), b.hasAttribute("data-mc-hidden")] }; b.click(); await wait(20);
+          r.click = [L(), b.hasAttribute("data-mc-hidden")]; await wait(80); r.mid = L(); await wait(700);
+          r.after = [L(), b.hasAttribute("data-mc-hidden"), !!w.gSpacesToolbar.isHidden]; b.click(); await wait(20);
+          r.back = b.hasAttribute("data-mc-hidden"); await wait(800); r.end = [L(), !!w.gSpacesToolbar.isHidden]; return r;""")
+        c, s_ = out["todayClick"], out["spaces"]
+        ok = (out["calDuring"] is True and out["calShown"][0] is False and abs(out["calShown"][1] - out["calWidth"]) <= 2
+              and out["mailBar"] == "none"
+              and out["todayWidth"] == 280 and out["plusBefore"] and out["todayDuring"] == [False, False]
+              and c["open"] == [True, True, 280] and c["plusAtStart"] is False
+              and s_["before"][1] is False and s_["click"] == [s_["before"][0], True] and s_["mid"] == s_["before"][0]
+              and s_["after"] == [s_["before"][0], True, True] and s_["back"] is False and s_["end"] == [s_["before"][0], False])
+        return ok, f"{out}"
+    check("Trennlinien: Seitenleiste beim Zuziehen sofort weg, kein blauer Balken, Today-Pane fest 280 px und nach rechts gezogen sofort aus, „+“ gleich weg, Spaces-Knopf bleibt stehen", drag_hide, results)
+
     def sidebar_animation():
         # Seitenleiste ein-/ausblenden in Mail, Chat und Einstellungen gleich flüssig: Breite in vielen Zwischenschritten,
         # Knopf vorher und nachher an derselben Stelle, in der Mail bleibt die Liste stehen (kein Neuumbruch der Karten)

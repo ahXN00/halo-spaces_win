@@ -6683,6 +6683,80 @@ class CardEnhancer {
       win.requestAnimationFrame(() => win.requestAnimationFrame(step));
     };
 
+    // Seitenleiste per Trennlinie zugezogen (Kalender, Aufgaben, Chat,
+    // Adressbuch): unter DRAG_HIDE px verschwindet sie sofort und ohne
+    // Animation – wie in der Mail, wo Thunderbird die Ordnerliste selbst
+    // zuklappt. Die Breite von vor dem Ziehen bleibt fürs Einblenden
+    const DRAG_HIDE = 120;
+    const hideSideNow = (mode, el, splitter) => {
+      const state = sideState();
+      state[mode] = true;
+      if (mode == "calendar" || mode == "tasks") {
+        state.calendar = state.tasks = true;
+      }
+      Services.prefs.setStringPref(SIDE_PREF, JSON.stringify(state));
+      el.classList.add("mc-side-hidden");
+      splitter?.classList.add("mc-side-hidden");
+      updateSideEdge();
+      sidebarTip?.();
+    };
+    const hookDragHide = tab => {
+      const mode = tab?.mode?.name;
+      if (!["calendar", "tasks", "chat", "addressBookTab"].includes(mode)) {
+        return;
+      }
+      const [el, splitter, win] = sidebarFor(tab);
+      if (!el || !splitter || !win || splitter.__mcDragHide === this) {
+        return;
+      }
+      splitter.__mcDragHide = this;
+      const onDown = event => {
+        if (event.button != 0 || busy(el, win)) {
+          return;
+        }
+        const startWidth = Math.round(el.getBoundingClientRect().width);
+        const startAttr = el.getAttribute("width");
+        const startStyle = [el.style.getPropertyValue("width"), el.style.getPropertyPriority("width")];
+        let hidden = false;
+        const onMove = e => {
+          if (!hidden && !busy(el, win) && e.clientX - el.getBoundingClientRect().left < DRAG_HIDE) {
+            hidden = true;
+            hideSideNow(mode, el, splitter);
+          }
+        };
+        const onUp = () => {
+          win.removeEventListener("pointermove", onMove, true);
+          win.removeEventListener("pointerup", onUp, true);
+          if (!hidden) {
+            return;
+          }
+          if (splitter.localName == "hr" && "width" in splitter) {
+            splitter.width = startWidth;
+            splitter.dispatchEvent(new win.CustomEvent("splitter-resized", { bubbles: true }));
+          } else {
+            if (startAttr) {
+              el.setAttribute("width", startAttr);
+              try {
+                Services.xulStore.persist(el, "width");
+              } catch {}
+            }
+            if (startStyle[0]) {
+              el.style.setProperty("width", startStyle[0], startStyle[1]);
+            }
+          }
+        };
+        win.addEventListener("pointermove", onMove, true);
+        win.addEventListener("pointerup", onUp, true);
+      };
+      splitter.addEventListener("pointerdown", onDown);
+      this.addWinRestorer(win, () => {
+        splitter.removeEventListener("pointerdown", onDown);
+        if (splitter.__mcDragHide === this) {
+          delete splitter.__mcDragHide;
+        }
+      });
+    };
+
     // Suchfeld oben rechts: im Adressbuch filtert es die Kontakte, in den
     // Aufgaben die Aufgabenliste, in den Einstellungen die Einstellungen (statt der
     // Mail-Volltextsuche) – die Suchfelder in diesen Seiten entfallen.
@@ -7018,6 +7092,9 @@ class CardEnhancer {
       this.updateListHeader(w);
       syncSidebarWidth();
       w.setTimeout(syncSidebarWidth, 400); // Inhalte (Adressbuch …) evtl. später
+      const current = w.document.getElementById("tabmail")?.currentTabInfo;
+      hookDragHide(current);
+      w.setTimeout(() => hookDragHide(current), 400);
       updateSideEdge();
       // Inhalt (Adressbuch, Einstellungen) ist evtl. erst später aufgebaut
       w.setTimeout(updateSideEdge, 300);
@@ -7172,8 +7249,21 @@ class CardEnhancer {
       updateTip();
       btn.addEventListener("mouseenter", updateTip);
       btn.addEventListener("click", () => this.animateSpaces(w, updateTip));
-      bar.after(btn); // Geschwister der Leiste, damit CSS ihren Zustand sieht
-      this.restorers.push(() => btn.remove());
+      bar.after(btn);
+      // Pfeil nach dem Zustand (data-mc-hidden): beim Klick wechselt er sofort
+      // (animateSpaces), auch wenn Thunderbird die Leiste anders ein-/ausblendet
+      const syncArrow = () => {
+        if (!w.__mcSpacesAnimating) {
+          btn.toggleAttribute("data-mc-hidden", !!w.gSpacesToolbar.isHidden);
+        }
+      };
+      syncArrow();
+      const arrowMo = new w.MutationObserver(syncArrow);
+      arrowMo.observe(bar, { attributes: true, attributeFilter: ["hidden"] });
+      this.restorers.push(() => {
+        arrowMo.disconnect();
+        btn.remove();
+      });
       // „Anpassen…“ der Bereiche-Leiste ausblenden: Thunderbirds Panel hängt am
       // ausgeblendeten Knopf #collapseButton – es öffnet nicht und sperrt danach
       // das Ein-/Ausblenden der Leiste (isCustomizing bleibt gesetzt); die
@@ -7270,6 +7360,32 @@ class CardEnhancer {
         w.__mcTodayTopSync?.();
       }) : null;
       mo?.observe(panel, { attributes: true, attributeFilter: ["collapsed", "hidden", "collapsedinmodes"] });
+      // Breite der Today-Pane fest (CSS); die Trennlinie nach rechts gezogen
+      // blendet sie sofort aus, ohne Animation, das „+“ gleich mit
+      const todaySplitter = d.getElementById("today-splitter");
+      const onSplitterDown = event => {
+        if (event.button != 0 || !w.TodayPane?.isVisible || panel?.__mcAnimating) {
+          return;
+        }
+        const startX = event.clientX;
+        const onMove = e => {
+          if (e.clientX - startX > 12) {
+            stop();
+            d.getElementById("unifiedToolbarContainer")?.removeAttribute("data-mc-tp-open");
+            command.doCommand();
+            updateTip();
+            w.__mcTodayTopSync?.();
+          }
+        };
+        const stop = () => {
+          w.removeEventListener("pointermove", onMove, true);
+          w.removeEventListener("pointerup", stop, true);
+        };
+        w.addEventListener("pointermove", onMove, true);
+        w.addEventListener("pointerup", stop, true);
+      };
+      todaySplitter?.addEventListener("pointerdown", onSplitterDown);
+      this.restorers.push(() => todaySplitter?.removeEventListener("pointerdown", onSplitterDown));
       // in die Toolbar-Zeile; darüber reicht die Today-Pane bis ganz oben
       // (#mcTodayTop in ihrer Breite) – wie die Seitenleiste links
       const row = d.getElementById("unifiedToolbarContainer");
@@ -8790,10 +8906,11 @@ class CardEnhancer {
     const title = d.getElementById("titlebar");
     const row = d.getElementById("unifiedToolbarContainer");
     const toggle = d.getElementById("mcSpacesToggle");
+    // der Knopf bleibt stehen und zeigt gleich die neue Richtung
+    toggle?.toggleAttribute("data-mc-hidden", !showing);
     const set = v => {
       const px = `${v}px`;
       bar?.style.setProperty("--spaces-total-width", px);
-      toggle?.style.setProperty("--spaces-total-width", px);
       if (body) {
         body.style.marginInlineStart = px;
       }
@@ -8806,7 +8923,6 @@ class CardEnhancer {
     };
     const clear = () => {
       bar?.style.removeProperty("--spaces-total-width");
-      toggle?.style.removeProperty("--spaces-total-width");
       body?.style.removeProperty("margin-inline-start");
       title?.style.removeProperty("margin-inline-start");
       row?.style.removeProperty("inline-size");
@@ -8834,6 +8950,7 @@ class CardEnhancer {
       clear();
       root.style.removeProperty("--mc-spaces-w");
       w.__mcSpacesAnimating = false;
+      toggle?.toggleAttribute("data-mc-hidden", !!spaces.isHidden);
       onDone?.();
       const realign = () => {
         this.offsetUpdaters?.forEach(fn => fn());
@@ -9448,6 +9565,10 @@ class CardEnhancer {
     }
     panel.__mcAnimating = true;
     panel.setAttribute("data-mc-anim", "true"); // Mindestbreite (CSS) solange aussetzen
+    // „+“ beim Ausblenden gleich zu Beginn weg – sonst gleitet der Today-Knopf darüber
+    if (!showing) {
+      d.getElementById("unifiedToolbarContainer")?.removeAttribute("data-mc-tp-open");
+    }
     // Platz für die Today-Pane in der Toolbar beim Einblenden gleich am Anfang
     // (beim Ausblenden erst am Ende, über todayTopSync) – nicht mittendrin
     if (showing) {
