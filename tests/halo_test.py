@@ -2645,6 +2645,15 @@ def calendar_checks(m, results):
             const fld = tp._inputField; fld.focus(); fld.setSelectionRange(0, 0);
             fld.dispatchEvent(new iw.KeyboardEvent("keydown", { key: "ArrowUp", bubbles: true, cancelable: true })); await pause(300);
             out.time.arrow = tp.value;
+            // Mausrad: über den Stunden (links) bzw. Minuten (rechts) je Rastung eine Einheit, Rad nach oben zählt hoch
+            const wheel = (el, side, dy) => { const r = el.getBoundingClientRect();
+              el.dispatchEvent(new iw.WheelEvent("wheel", { deltaY: dy, deltaMode: 1, clientX: side == "h" ? r.left + 4 : r.right - 4, clientY: r.top + r.height / 2, bubbles: true, cancelable: true })); };
+            wheel(fld, "h", -1); await pause(200); out.time.wheelHour = tp.value;
+            wheel(fld, "m", 1); await pause(200); out.time.wheelMinute = tp.value;
+            dml.open = true; await till(() => dml.menupopup.state == "open" || dml.menupopup.state == "showing", 3000); await pause(400);
+            const pin = dml.menupopup.querySelector(".mc-dtp-time input");
+            if (pin) { wheel(pin, "m", -1); wheel(pin, "m", -1); await pause(200); out.time.popoverWheel = [tp.value, pin.value]; }
+            await shutPop(dml.menupopup);
           } finally {
             if (dw && !dw.closed) { dw.close(); await till(() => dw.closed, 4000); }
             try { await c.deleteItem(saved); } catch {}
@@ -2660,9 +2669,10 @@ def calendar_checks(m, results):
               and bool(mini) and rgba_alpha(mini["bg"]) == 0 and (mini["today"] is None or rgba_alpha(mini["today"]) == 0)
               and mini["week"] and mini["week"][0] == "400" and not same_color(mini["week"][1], "rgb(155, 158, 194)")
               and bool(tp) and tp["grid"] == "closed" and tp["row"] and tp["label"] == "Time"
-              and tp.get("after") == [14, 35] and tp.get("dur") == tp.get("durBefore") and tp.get("arrow") == [15, 35])
+              and tp.get("after") == [14, 35] and tp.get("dur") == tp.get("durBefore") and tp.get("arrow") == [15, 35]
+              and tp.get("wheelHour") == [16, 35] and tp.get("wheelMinute") == [16, 34] and tp.get("popoverWheel") == [[16, 36], "16:36"])
         return ok, f"{res}"
-    check("Termin-Dialog: Schrift 13 px auch in der Beschreibung, Abstand Beschriftung–Feld; Minimonat ruhig; Datum und Uhrzeit in einem Popover, Ende rückt mit, Pfeiltasten", event_dialog, results)
+    check("Termin-Dialog: Schrift 13 px auch in der Beschreibung, Abstand Beschriftung–Feld; Minimonat ruhig; Datum und Uhrzeit in einem Popover, Ende rückt mit, Pfeiltasten, Mausrad", event_dialog, results)
 
     def attendees_dialog():
         # „Teilnehmer einladen“: Liste und Raster ohne harten Rahmen, Linien als Haarlinie, einfarbige Symbole,

@@ -1535,8 +1535,41 @@ function hookDateTimePickers(win) {
         }
       }, 0);
     });
+    // Mausrad über Stunden bzw. Minuten (linke/rechte Hälfte des Felds): je
+    // Rastung eine Einheit; Trackpad-Schritte werden aufsummiert (~40 px je Einheit)
+    const wheelOn = (target, write) => {
+      let sum = 0;
+      target.addEventListener("wheel", event => {
+        if (timeOff() || !event.deltaY) {
+          return;
+        }
+        event.preventDefault();
+        event.stopPropagation();
+        sum += event.deltaMode == 0 ? event.deltaY / 40 : Math.sign(event.deltaY);
+        const units = Math.trunc(sum);
+        if (!units) {
+          return;
+        }
+        sum -= units;
+        const rect = target.getBoundingClientRect();
+        const onHour = event.clientX < rect.left + rect.width / 2;
+        const [h, m] = tp.value || [0, 0];
+        // Rad nach oben (deltaY < 0) zählt hoch, wie bei macOS-Uhrzeitfeldern
+        const step = -units;
+        const total = ((onHour ? h * 60 + m + step * 60 : h * 60 + m + step) % 1440 + 1440) % 1440;
+        tp.value = [Math.floor(total / 60), total % 60];
+        write?.();
+      }, { passive: false });
+    };
+    wheelOn(input, () => {
+      const [h, m] = tp.value;
+      input.value = `${pad(h)}:${pad(m)}`;
+    });
     // Pfeiltasten im Uhrzeitfeld: Stunde bzw. Minute (je nach Schreibmarke) weiter
     const field = tp._inputField;
+    if (field) {
+      wheelOn(field);
+    }
     field?.addEventListener("keydown", event => {
       if ((event.key != "ArrowUp" && event.key != "ArrowDown") || event.altKey || event.metaKey) {
         return;
