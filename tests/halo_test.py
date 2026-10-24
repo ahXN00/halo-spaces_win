@@ -6972,6 +6972,10 @@ def run_checks(m, version, profile, results):
           const onEnd = () => ends.push([html.getAttribute("mc-search-stage"), ids()]); a3.addEventListener("allMessagesLoaded", onEnd);
           const done = () => until(() => !html.hasAttribute("mc-search-stage") && !a3.gViewWrapper?.searching, 10000);
           const out = {};
+          // Gloda aus: die Suche läuft wie ohne Index (mit Index siehe search_gloda)
+          const GLODA = "mailnews.database.global.indexer.enabled"; const glodaWas = Services.prefs.getBoolPref(GLODA, true);
+          Services.prefs.setBoolPref(GLODA, false);
+          try {
           a3.displayFolder(A.URI); await wait(900);
           bar.dispatchEvent(new w.CustomEvent("search", { detail: "kolibri", bubbles: true, composed: true }));
           out.done = !!(await done()); await wait(300);
@@ -6984,6 +6988,7 @@ def run_checks(m, version, profile, results):
           obs.disconnect(); a3.removeEventListener("allMessagesLoaded", onEnd);
           bar.dispatchEvent(new w.CustomEvent("search", { detail: "", bubbles: true, composed: true })); await wait(1200);
           out.attrAfter = html.getAttribute("mc-search-stage");
+          } finally { Services.prefs.setBoolPref(GLODA, glodaWas); }
           return out;""")
         ok = (res.get("done") and res.get("stages") == ["headers", "body", None]
               and res.get("headersEnd") == ["stufe-1", "stufe-2", "stufe-5"]
@@ -6993,6 +6998,65 @@ def run_checks(m, version, profile, results):
               and res.get("attrAfter") is None)
         return ok, f"{res}"
     check("Suche: zuerst Kopfzeilen, Text danach – Treffer bleiben stehen, keine doppelten, Ordnerwechsel startet neu", search_stages, results)
+
+    def search_gloda():
+        # Suche mit Thunderbirds Index (Gloda) wie Apple Mail: indizierte Treffer – auch nur im Text – stehen als gemerkte
+        # Treffer sofort da, die Ordnersuche läuft gleich mit dem Text und ergänzt, was Gloda nicht kennt; keine Zeile
+        # doppelt, nur Treffer im gewählten Ordner. Indiziert Gloda nicht rechtzeitig: übersprungen (Rückfall: search_stages)
+        res = m.js(r"""
+          const { MailServices } = ChromeUtils.importESModule("resource:///modules/MailServices.sys.mjs");
+          const { GlodaMsgIndexer } = ChromeUtils.importESModule("resource:///modules/gloda/IndexMsg.sys.mjs");
+          const { Gloda } = ChromeUtils.importESModule("resource:///modules/gloda/GlodaPublic.sys.mjs");
+          const { GlodaConstants } = ChromeUtils.importESModule("resource:///modules/gloda/GlodaConstants.sys.mjs");
+          const root = MailServices.accounts.localFoldersServer.rootFolder;
+          const folder = name => { if (!root.containsChildNamed(name)) root.createSubfolder(name, null); return root.getChildNamed(name); };
+          const A = folder("IndexA"), B = folder("IndexB"); await wait(800);
+          const mail = (id, subject, body) => ["From: Anna Beispiel <anna@example.invalid>", "To: Halo Test <halo@example.invalid>",
+            `Subject: ${subject}`, "Date: Tue, 20 Oct 2026 10:00:00 +0200", `Message-ID: <${id}@example.invalid>`, "Content-Type: text/plain; charset=UTF-8", "", body, ""].join("\r\n");
+          const la = A.QueryInterface(Ci.nsIMsgLocalMailFolder);
+          if (!A.getTotalMessages(false)) {
+            la.addMessage(mail("index-1", "Pelikan im Betreff", "Nichts Besonderes."));
+            la.addMessage(mail("index-2", "Nur im Text", "Heute stand ein Pelikan am Ufer."));
+            la.addMessage(mail("index-3", "Ganz anderes", "Nichts zu sehen."));
+            B.QueryInterface(Ci.nsIMsgLocalMailFolder).addMessage(mail("index-4", "Anderswo", "Wieder ein Pelikan."));
+            await wait(1000);
+          }
+          const out = {};
+          GlodaMsgIndexer.indexMessages([...A.messages, ...B.messages].map(h => [h.folder, h.messageKey]));
+          const known = () => new Promise(r => { const q = Gloda.newQuery(GlodaConstants.NOUN_MESSAGE); q.fulltextMatches('"pelikan*"');
+            q.getCollection({ onItemsAdded() {}, onItemsModified() {}, onItemsRemoved() {}, onQueryCompleted: c => r(c.items.length) }); });
+          for (let i = 0; i < 60 && (out.indexed = await known()) < 3; i++) await wait(500);
+          if (out.indexed < 3) return out;
+          // ganz neue Mail, die Gloda evtl. noch nicht kennt – die Ordnersuche ergänzt sie
+          if (![...A.messages].some(h => h.messageId.startsWith("index-5"))) { la.addMessage(mail("index-5", "Pelikan ganz neu", "Neu.")); await wait(600); }
+          const a3 = await toMail(); const bar = d.querySelector("#unifiedToolbarContent global-search-bar");
+          const html = a3.document.documentElement;
+          const ids = () => { try { a3.gDBView?.doCommand(Ci.nsMsgViewCommandType.expandAll); } catch {}
+            return [...Array(a3.gDBView?.rowCount || 0).keys()].map(i => a3.gDBView.getMsgHdrAt(i)?.messageId?.split("@")[0]).filter(Boolean).sort(); };
+          const stages = [];
+          const obs = new a3.MutationObserver(() => { const st = html.getAttribute("mc-search-stage"); stages.push(st);
+            // beim Start der Ordnersuche: gemerkte Treffer aus Gloda (auch der Texttreffer)
+            if (st == "body" && !out.seeded) { out.gloda = html.getAttribute("mc-search-gloda");
+              try { out.seeded = [...A.msgDatabase.getCachedHits(MailServices.accounts.localFoldersServer.rootFolder.subFolders.find(f => f.name == "halo.spaces search").URI)]
+                .map(h => h.messageId.split("@")[0]).sort(); } catch (e) { out.seeded = String(e); } } });
+          obs.observe(html, { attributes: true, attributeFilter: ["mc-search-stage"] });
+          a3.displayFolder(A.URI); await wait(900);
+          bar.dispatchEvent(new w.CustomEvent("search", { detail: "pelikan", bubbles: true, composed: true }));
+          out.done = !!(await until(() => !html.hasAttribute("mc-search-stage") && !a3.gViewWrapper?.searching, 10000)); await wait(300);
+          obs.disconnect();
+          out.stages = stages; out.ids = ids(); out.rows = a3.gDBView?.rowCount;
+          bar.dispatchEvent(new w.CustomEvent("search", { detail: "", bubbles: true, composed: true })); await wait(1200);
+          out.glodaAfter = html.getAttribute("mc-search-gloda");
+          return out;""")
+        if (res.get("indexed") or 0) < 3:
+            return True, f"Gloda hat die Testmails nicht rechtzeitig indiziert – übersprungen {res}"
+        seeded = res.get("seeded") or []
+        ok = (res.get("done") and res.get("stages") == ["index", "body", None]
+              and isinstance(seeded, list) and "index-1" in seeded and "index-2" in seeded and "index-4" not in seeded
+              and int(res.get("gloda") or 0) >= 2
+              and res.get("ids") == ["index-1", "index-2", "index-5"] and res.get("rows") == 3 and res.get("glodaAfter") is None)
+        return ok, f"{res}"
+    check("Suche: Treffer aus Thunderbirds Index sofort, auch nur im Text; Ordnersuche ergänzt neue Mails, keine doppelten, nur im gewählten Ordner", search_gloda, results)
 
     def search_scroll():
         # laufende Suche über viele Postfächer: beim Scrollen hält halo.spaces sie an (sonst kam jedes zweite Bild

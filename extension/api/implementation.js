@@ -3329,6 +3329,10 @@ function cleanPreview(text) {
 // Treffer stehen in der Kartenliste, gelb markiert, oben mit Anzahl.
 // ---------------------------------------------------------------------------
 const SEARCH_FOLDER_NAME = "halo.spaces search";
+// Thunderbirds Index (Gloda): so lange wird vor der Suche auf seine Treffer
+// gewartet (sonst ohne ihn), höchstens so viele Treffer (neueste zuerst)
+const GLODA_WAIT_MS = 700;
+const GLODA_LIMIT = 3000;
 
 // Datum im Suchbegriff („12.10“, „12.10.“, „12.10.26“, „12.10.2026“) – ohne
 // Jahr das letzte vergangene Vorkommen
@@ -12308,6 +12312,7 @@ class CardEnhancer {
       this.mailSearchTerm = "";
       this.searchRun = null;
       a3.document.documentElement.removeAttribute("mc-search-stage");
+      a3.document.documentElement.removeAttribute("mc-search-gloda");
       if (folder && this.isSearchFolder(a3.gFolder)) {
         let back = null;
         try {
@@ -12322,6 +12327,31 @@ class CardEnhancer {
       this.updateListHeader(top);
       return;
     }
+    // wie Apple Mail zuerst der fertige Index: Thunderbirds Gloda kennt
+    // Betreff, Personen und Text der indizierten Mails – seine Treffer stehen
+    // sofort in der Liste, die Ordnersuche bestätigt sie im Hintergrund und
+    // ergänzt, was Gloda (noch) nicht kennt. Abgeschaltet, leer oder zu
+    // langsam: wie bisher erst Kopfzeilen, dann Text
+    const run = { term, stage: "index", start: Date.now(), created: Date.now() };
+    this.mailSearchTerm = term;
+    this.searchRun = run;
+    const html = a3.document.documentElement;
+    html.removeAttribute("mc-search-gloda");
+    if (!this.glodaEnabled()) {
+      this.startMailSearch(top, a3, folder, run, null);
+    } else {
+      html.setAttribute("mc-search-stage", "index");
+      this.glodaHits(term).then(hits => {
+        if (this.searchRun === run && this.mailSearchTerm == term) {
+          this.startMailSearch(top, a3, this.searchFolder(false), run, hits);
+        }
+      });
+    }
+    this.updateListHeader(top);
+  }
+
+  startMailSearch(top, a3, folder, run, hits) {
+    const term = run.term;
     try {
       folder ??= this.searchFolder(true);
       const { VirtualFolderHelper } = ChromeUtils.importESModule("resource:///modules/VirtualFolderWrapper.sys.mjs");
@@ -12335,15 +12365,25 @@ class CardEnhancer {
       // Ende auf – über viele IMAP-Postfächer dauert das, und bis dahin standen
       // Mails ohne den Begriff in der Liste. Darum vor jeder Suche leeren.
       this.clearSearchCache(folder, [...new Set([...wrapper.searchFolders, ...scope])]);
+      // Gloda-Treffer als gemerkte Treffer eintragen: Thunderbird zeigt sie
+      // beim Start der Suche sofort, ergänzt nur neue Treffer (keine
+      // doppelten Zeilen) und entfernt am Ende eines Postfachs, was die
+      // Ordnersuche nicht bestätigt
+      const seeded = this.glodaSeed(folder, hits, scope);
       wrapper.searchFolders = scope;
       // zweistufig: erst nur die Kopfzeilen (fast sofort), danach im
-      // Hintergrund der Text (searchStageDone)
-      wrapper.searchTerms = this.searchTerms(wrapper.searchTermsSession, term, false);
+      // Hintergrund der Text (searchStageDone); mit Gloda-Treffern gleich
+      // der Text – die erste Stufe nähme deren Texttreffer wieder heraus
+      wrapper.searchTerms = this.searchTerms(wrapper.searchTermsSession, term, seeded > 0);
       wrapper.onlineSearch = false;
       MailServices.accounts.saveVirtualFolders();
-      this.mailSearchTerm = term;
-      this.searchRun = { term, stage: "headers", start: Date.now() };
-      a3.document.documentElement.setAttribute("mc-search-stage", "headers");
+      run.stage = seeded > 0 ? "body" : "headers";
+      run.start = Date.now();
+      debugLog("search: gloda", hits ? `${seeded} hits` : "off", "after", run.start - run.created, "ms");
+      a3.document.documentElement.setAttribute("mc-search-stage", run.stage);
+      if (seeded > 0) {
+        a3.document.documentElement.setAttribute("mc-search-gloda", seeded);
+      }
       if (this.isSearchFolder(a3.gFolder) && a3.gViewWrapper?.search && !this.searchScopeChanged) {
         // Suche läuft schon: neue Begriffe direkt in die Ansicht
         a3.gViewWrapper.search.virtualFolderTerms = wrapper.searchTerms;
@@ -12365,6 +12405,88 @@ class CardEnhancer {
     this.updateListHeader(top);
   }
 
+  // Gloda aktiv (Thunderbirds Einstellung „Globale Suche und Indizierung“)
+  glodaEnabled() {
+    return Services.prefs.getBoolPref("mailnews.database.global.indexer.enabled", false);
+  }
+
+  // Treffer aus Gloda je Postfach (Ordner-URI → Nachrichtennummern); null,
+  // wenn Gloda nicht oder nicht rechtzeitig antwortet
+  glodaHits(term) {
+    return new Promise(resolve => {
+      let timer = null;
+      const finish = value => {
+        clearTimeout(timer);
+        resolve(value);
+      };
+      // Begriff als Wortfolge, das letzte Wort darf weitergehen („rechn“ →
+      // „Rechnung“); Anführungszeichen und Sterne hätten im Volltext-Index
+      // eigene Bedeutung
+      const words = term.replace(/["*]/g, " ").trim().split(/\s+/).filter(Boolean);
+      if (!words.length) {
+        finish(null);
+        return;
+      }
+      timer = setTimeout(() => finish(null), GLODA_WAIT_MS);
+      try {
+        const { Gloda } = ChromeUtils.importESModule("resource:///modules/gloda/GlodaPublic.sys.mjs");
+        const { GlodaConstants } = ChromeUtils.importESModule("resource:///modules/gloda/GlodaConstants.sys.mjs");
+        const query = Gloda.newQuery(GlodaConstants.NOUN_MESSAGE);
+        query.fulltextMatches(`"${words.join(" ")}*"`);
+        query.orderBy("-date");
+        query.limit(GLODA_LIMIT);
+        query.getCollection({
+          onItemsAdded() {},
+          onItemsModified() {},
+          onItemsRemoved() {},
+          onQueryCompleted: collection => {
+            const hits = new Map();
+            for (const msg of collection.items) {
+              const uri = msg.folderURI;
+              const key = msg.messageKey;
+              if (uri && key != null) {
+                if (!hits.has(uri)) {
+                  hits.set(uri, []);
+                }
+                hits.get(uri).push(key);
+              }
+            }
+            finish(hits);
+          },
+        });
+      } catch (e) {
+        log("search gloda error", e);
+        finish(null);
+      }
+    });
+  }
+
+  // Gloda-Treffer im Suchbereich als gemerkte Treffer des Suchordners
+  // eintragen (nur Mails, die es im Postfach noch gibt); liefert die Anzahl
+  glodaSeed(searchFolder, hits, scope) {
+    let count = 0;
+    if (!hits?.size) {
+      return count;
+    }
+    for (const f of scope) {
+      const keys = hits.get(f.URI);
+      if (!keys?.length) {
+        continue;
+      }
+      try {
+        const db = f.msgDatabase;
+        const found = [...new Set(keys)].filter(k => db.containsKey(k)).sort((a, b) => a - b);
+        if (found.length) {
+          db.refreshCache(searchFolder.URI, found);
+          count += found.length;
+        }
+      } catch (e) {
+        log("search gloda seed error", f.URI, e);
+      }
+    }
+    return count;
+  }
+
   // Zweite Stufe der Suche: sind die Kopfzeilen durch, dieselbe Suche mit dem
   // Text dazu. Thunderbird zeigt dabei sofort die gemerkten Treffer der ersten
   // Stufe (je Postfach zwischengespeichert, alle passen weiter) und ergänzt
@@ -12378,6 +12500,7 @@ class CardEnhancer {
     this.addWinRestorer(win, () => {
       win.removeEventListener("allMessagesLoaded", onLoaded);
       win.document.documentElement.removeAttribute("mc-search-stage");
+      win.document.documentElement.removeAttribute("mc-search-gloda");
     });
   }
 
@@ -12387,7 +12510,7 @@ class CardEnhancer {
     // (Xray-Hülle: Getter wie „searching“ nur am Objekt der Seite sichtbar)
     const page = win.wrappedJSObject || win;
     const view = page.gViewWrapper;
-    if (!run || run.term != this.mailSearchTerm || root.getAttribute("mc-search-stage") != run.stage ||
+    if (!run || run.stage == "index" || run.term != this.mailSearchTerm || root.getAttribute("mc-search-stage") != run.stage ||
         !this.isSearchFolder(win.gFolder) || !view?.search || view.searching) {
       return;
     }
