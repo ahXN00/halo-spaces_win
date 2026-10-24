@@ -4882,6 +4882,18 @@ button.wizard-button[disabled] {
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--mt-accent) 22%, transparent) !important;
 }
 
+/* Gesperrte Felder (z. B. Name des persönlichen Adressbuchs, den Thunderbird
+   nicht umbenennen lässt) sichtbar gesperrt: grau hinterlegt, gedämpfte
+   Schrift, kein Textcursor und kein Fokusring – statt wie ein normales
+   Eingabefeld auszusehen, das keine Eingaben annimmt */
+:is(dialog:not(.account-hub-dialog), wizard) :is(input:not([type="checkbox"], [type="radio"], [type="color"], [type="range"], [type="file"]), textarea):is([readonly], :disabled) {
+  border-color: transparent !important;
+  background-color: var(--mt-control) !important;
+  color: var(--mt-text-secondary) !important;
+  cursor: default !important;
+  box-shadow: none !important;
+}
+
 dialog menulist {
   min-height: 28px !important;
   border: none !important;

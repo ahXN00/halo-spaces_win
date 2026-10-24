@@ -4949,6 +4949,47 @@ def run_checks(m, version, profile, results):
         return ok, f"{res}"
     check("Adressbuch: „Collected Addresses“ nicht in der Seitenleiste (abschaltbar)", collected_hidden, results)
 
+    def pab_properties_locked():
+        # Eigenschaften des persönlichen Adressbuchs: Thunderbird sperrt den Namen
+        # (readonly) – das Feld soll sichtbar gesperrt aussehen, nicht wie ein
+        # normales Eingabefeld; das Feld eines neuen Adressbuchs bleibt normal
+        res = m.js(r"""
+          tm.openTab("addressBookTab", {});
+          const ab = await until(() => tm.currentTabInfo.browser?.contentWindow?.SubDialog && tm.currentTabInfo.browser.contentWindow, 8000);
+          await wait(800);
+          const ad = ab.document, abTab = tm.currentTabInfo;
+          const { MailServices } = ChromeUtils.importESModule("resource:///modules/MailServices.sys.mjs");
+          const URL = "chrome://messenger/content/addressbook/abAddressBookNameDialog.xhtml";
+          const measure = async args => {
+            ab.setTimeout(() => ab.SubDialog.open(URL, { features: "resizable=no" }, args), 0);
+            const fr = await until(() => [...ad.querySelectorAll(".dialogFrame")].find(f => f.contentDocument?.location.href == URL
+              && f.contentDocument.readyState == "complete" && f.contentDocument.getElementById("name")), 6000);
+            await wait(600);
+            const sd = fr?.contentDocument, sw = fr?.contentWindow, inp = sd?.getElementById("name");
+            const cs = inp && sw.getComputedStyle(inp);
+            const probe = sd?.createElement("span");
+            let ctrl = null;
+            if (probe) { probe.style.backgroundColor = "var(--mt-control)"; sd.body.append(probe); ctrl = sw.getComputedStyle(probe).backgroundColor; probe.remove(); }
+            const out = inp && { ro: inp.readOnly, bg: cs.backgroundColor, ctrl, cursor: cs.cursor, color: cs.color };
+            const dlg = sd?.querySelector("dialog");
+            dlg?.getButton?.(dlg.buttons == "accept" ? "accept" : "cancel")?.click();
+            await wait(600);
+            return out;
+          };
+          const out = {};
+          try {
+            out.pab = await measure({ selectedDirectory: MailServices.ab.getDirectory("jsaddrbook://abook.sqlite") });
+            out.neu = await measure({});
+          } finally {
+            tm.closeTab(abTab); await wait(400);
+          }
+          return out;""")
+        p, n = res.get("pab") or {}, res.get("neu") or {}
+        ok = (p.get("ro") is True and same_color(p.get("bg"), p.get("ctrl")) and p.get("cursor") == "default"
+              and n.get("ro") is False and not same_color(n.get("bg"), n.get("ctrl")) and n.get("cursor") != "default")
+        return ok, f"{res}"
+    check("Adressbuch: Name des persönlichen Adressbuchs in „Eigenschaften“ sichtbar gesperrt, neues Adressbuch normal", pab_properties_locked, results)
+
     def contact_edit():
         # Kontakt bearbeiten wie Apple Kontakte: eine Schrift, Überschriften über den Feldern,
         # volle Breite; zuerst nur Vor-/Nachname, E-Mail, Telefon, Adressen und Ausgefülltes
