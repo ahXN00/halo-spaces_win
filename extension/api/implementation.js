@@ -3363,9 +3363,12 @@ function cleanPreview(text) {
 // ---------------------------------------------------------------------------
 const SEARCH_FOLDER_NAME = "halo.spaces search";
 // Thunderbirds Index (Gloda): so lange wird vor der Suche auf seine Treffer
-// gewartet (sonst ohne ihn), höchstens so viele Treffer (neueste zuerst)
-const GLODA_WAIT_MS = 700;
+// gewartet (sonst ohne ihn), höchstens so viele Treffer (neueste zuerst);
+// kürzere Begriffe fragen ihn nicht (riesige Präfix-Abfragen, die sich beim
+// Tippen im Gloda-Thread stauen und nicht abbrechen lassen)
+const GLODA_WAIT_MS = 400;
 const GLODA_LIMIT = 3000;
+const GLODA_MIN_CHARS = 3;
 
 // Datum im Suchbegriff („12.10“, „12.10.“, „12.10.26“, „12.10.2026“) – ohne
 // Jahr das letzte vergangene Vorkommen
@@ -12435,7 +12438,7 @@ class CardEnhancer {
     this.searchRun = run;
     const html = a3.document.documentElement;
     html.removeAttribute("mc-search-gloda");
-    if (!this.glodaEnabled()) {
+    if (!this.glodaEnabled() || term.length < GLODA_MIN_CHARS) {
       this.startMailSearch(top, a3, folder, run, null);
     } else {
       html.setAttribute("mc-search-stage", "index");
@@ -12471,7 +12474,11 @@ class CardEnhancer {
       wrapper.searchFolders = scope;
       // zweistufig: erst nur die Kopfzeilen (fast sofort), danach im
       // Hintergrund der Text (searchStageDone); mit Gloda-Treffern gleich
-      // der Text – die erste Stufe nähme deren Texttreffer wieder heraus
+      // der Text – die erste Stufe nähme deren Texttreffer wieder heraus.
+      // Einschränkung: Kopfzeilentreffer in Mails, die Gloda noch nicht kennt
+      // (neu, Postfach mitten in der Erstindizierung), erscheinen dann erst,
+      // wenn die Textsuche ihr Postfach erreicht (die Begriffe gelten für
+      // alle Postfächer des Suchordners gemeinsam)
       wrapper.searchTerms = this.searchTerms(wrapper.searchTermsSession, term, seeded > 0);
       wrapper.onlineSearch = false;
       MailServices.accounts.saveVirtualFolders();

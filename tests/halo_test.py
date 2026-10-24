@@ -7098,6 +7098,9 @@ def run_checks(m, version, profile, results):
           const obs = new a3.MutationObserver(() => { const st = html.getAttribute("mc-search-stage"); stages.push(st);
             // beim Start der Ordnersuche: gemerkte Treffer aus Gloda (auch der Texttreffer)
             if (st == "body" && !out.seeded) { out.gloda = html.getAttribute("mc-search-gloda");
+              // gleich beim Start, solange die Ordnersuche noch läuft: die Gloda-Treffer stehen schon in der Liste
+              try { out.early = { searching: !!a3.gViewWrapper?.searching,
+                ids: [...Array(a3.gDBView?.rowCount || 0).keys()].map(i => a3.gDBView.getMsgHdrAt(i)?.messageId?.split("@")[0]).filter(Boolean).sort() }; } catch (e) { out.early = String(e); }
               try { out.seeded = [...A.msgDatabase.getCachedHits(MailServices.accounts.localFoldersServer.rootFolder.subFolders.find(f => f.name == "halo.spaces search").URI)]
                 .map(h => h.messageId.split("@")[0]).sort(); } catch (e) { out.seeded = String(e); } } });
           obs.observe(html, { attributes: true, attributeFilter: ["mc-search-stage"] });
@@ -7110,11 +7113,14 @@ def run_checks(m, version, profile, results):
           out.glodaAfter = html.getAttribute("mc-search-gloda");
           return out;""")
         if (res.get("indexed") or 0) < 3:
-            return True, f"Gloda hat die Testmails nicht rechtzeitig indiziert – übersprungen {res}"
+            # nicht still als OK: bricht der Gloda-Weg ganz weg, soll das im Lauf auffallen
+            print(f"WARNUNG Suche mit Gloda: Testmails nicht rechtzeitig indiziert – Prüfung übersprungen {res}", flush=True)
+            return True, f"WARNUNG: Gloda hat die Testmails nicht rechtzeitig indiziert – übersprungen {res}"
         seeded = res.get("seeded") or []
+        early = res.get("early") if isinstance(res.get("early"), dict) else {}
         ok = (res.get("done") and res.get("stages") == ["index", "body", None]
               and isinstance(seeded, list) and "index-1" in seeded and "index-2" in seeded and "index-4" not in seeded
-              and int(res.get("gloda") or 0) >= 2
+              and int(res.get("gloda") or 0) >= 2 and early.get("searching") and {"index-1", "index-2"} <= set(early.get("ids") or [])
               and res.get("ids") == ["index-1", "index-2", "index-5"] and res.get("rows") == 3 and res.get("glodaAfter") is None)
         return ok, f"{res}"
     check("Suche: Treffer aus Thunderbirds Index sofort, auch nur im Text; Ordnersuche ergänzt neue Mails, keine doppelten, nur im gewählten Ordner", search_gloda, results)
