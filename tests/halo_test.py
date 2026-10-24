@@ -5417,8 +5417,12 @@ def run_checks(m, version, profile, results):
           const out = {};
           let card = null;
           try {
+            // persönliches Adressbuch eingeblendet und gewählt …
+            Services.prefs.setBoolPref(P, true); await wait(400);
+            ab.booksList.selectedIndex = ab.booksList.getIndexForUID(pab.UID); await wait(400);
+            out.selBefore = ab.booksList.selectedIndex;
             Services.prefs.setBoolPref(P, false); await wait(400);
-            // gewähltes Buch verschwindet: Auswahl springt auf „Alle Adressbücher“
+            // … verschwindet: Auswahl springt auf „Alle Adressbücher“
             out.hidden = !vis(); out.sel = ab.booksList.selectedIndex;
             out.menuOff = await menuState();
             item.setAttribute("checked", "true"); item.doCommand(); await wait(400);
@@ -5440,7 +5444,7 @@ def run_checks(m, version, profile, results):
           }
           return out;""")
         mo, mon = res.get("menuOff") or {}, res.get("menuOnly") or {}
-        ok = (res.get("hidden") and res.get("sel") == 0 and mo.get("checked") is False and mo.get("disabled") is False
+        ok = (res.get("hidden") and (res.get("selBefore") or 0) > 0 and res.get("sel") == 0 and mo.get("checked") is False and mo.get("disabled") is False
               and mo.get("view") == "view" and len(mo.get("label") or "") > 8)
         ok = (ok and res.get("shownByMenu") and res.get("shownByNewCard") and res.get("onlyBookShown")
               and mon.get("checked") is True and mon.get("disabled") is True)
@@ -5454,6 +5458,10 @@ def run_checks(m, version, profile, results):
         res = m.js(r"""
           const { MailServices } = ChromeUtils.importESModule("resource:///modules/MailServices.sys.mjs");
           const pab = MailServices.ab.getDirectory("jsaddrbook://abook.sqlite");
+          // neue Kontakte im persönlichen Adressbuch blenden es dauerhaft ein –
+          // Zustand merken und am Ende wiederherstellen
+          const P = "extensions.mailcards.showPersonalAddressBook";
+          const had = Services.prefs.prefHasUserValue(P) ? Services.prefs.getBoolPref(P) : null;
           const mk = (n, e) => { const c = Cc["@mozilla.org/addressbook/cardproperty;1"].createInstance(Ci.nsIAbCard); c.displayName = n; c.primaryEmail = e; return pab.addCard(c); };
           const made = [mk("Halo Erstkontakt", "erst@example.invalid"), mk("Halo Zweitkontakt", "zweit@example.invalid")];
           const second = made[1];
@@ -5487,6 +5495,7 @@ def run_checks(m, version, profile, results):
           } finally {
             if (made.length) pab.deleteCards(made);
             Services.prefs.clearUserPref("extensions.mailcards.lastContact");
+            if (had === null) Services.prefs.clearUserPref(P); else Services.prefs.setBoolPref(P, had);
             if (ab) { tm.closeTab(tm.currentTabInfo); await wait(400); }
           }
           return out;""")

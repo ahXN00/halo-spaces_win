@@ -2044,6 +2044,8 @@ function relinkTaskTree(win, restorers) {
 const PAB_URI = "jsaddrbook://abook.sqlite";
 const PAB_NAME_PREF = "ldap_2.servers.pab.description";
 const PAB_RENAMED_PREF = "extensions.mailcards.pabRenamed";
+// gesetzter Name, damit Deaktivieren/Deinstallieren ihn wieder zurücknehmen kann
+const PAB_RENAMED_TO_PREF = "extensions.mailcards.pabRenamedTo";
 
 function renamePersonalBookOnce() {
   if (Services.prefs.getBoolPref(PAB_RENAMED_PREF, false)) {
@@ -2062,11 +2064,29 @@ function renamePersonalBookOnce() {
     } catch {}
     if (!Services.prefs.prefHasUserValue(PAB_NAME_PREF) || (tbDefault && book.dirName == tbDefault)) {
       book.dirName = tr("Contacts");
+      Services.prefs.setStringPref(PAB_RENAMED_TO_PREF, book.dirName);
       log("adressbuch: persönliches Adressbuch umbenannt", book.dirName);
     }
     Services.prefs.setBoolPref(PAB_RENAMED_PREF, true);
   } catch (e) {
     log("pab rename error", e);
+  }
+}
+
+// Deaktivieren/Deinstallieren: trägt das Buch noch den von halo.spaces
+// gesetzten Namen, wieder Thunderbirds (lokalisierten) Standardnamen nehmen –
+// Thunderbird sperrt den Namen dieses Buchs im Dialog „Eigenschaften“
+function restorePersonalBookName() {
+  try {
+    const ours = Services.prefs.getStringPref(PAB_RENAMED_TO_PREF, "");
+    if (ours && Services.prefs.getStringPref(PAB_NAME_PREF, "") == ours) {
+      Services.prefs.clearUserPref(PAB_NAME_PREF);
+      log("adressbuch: Name des persönlichen Adressbuchs zurückgesetzt");
+    }
+    Services.prefs.clearUserPref(PAB_RENAMED_TO_PREF);
+    Services.prefs.clearUserPref(PAB_RENAMED_PREF);
+  } catch (e) {
+    log("pab rename restore error", e);
   }
 }
 
@@ -2104,9 +2124,16 @@ function hookCollectedAddresses(cw, restorers) {
   const prefObs = () => mark();
   Services.prefs.addObserver(HIDE_COLLECTED_PREF, prefObs);
   mark();
-  restorers?.push(() => {
+  // Tab geschlossen: Beobachter sofort abmelden (Fenster-Restorer werden
+  // dann nur verworfen, nicht ausgeführt)
+  const detach = () => {
     mo.disconnect();
     Services.prefs.removeObserver(HIDE_COLLECTED_PREF, prefObs);
+  };
+  cw.addEventListener("unload", detach, { once: true });
+  restorers?.push(() => {
+    detach();
+    cw.removeEventListener("unload", detach);
     doc.documentElement.removeAttribute("mc-hide-collected");
     delete books.__mcCollected;
   });
@@ -2224,10 +2251,16 @@ function hookPersonalBook(cw, restorers) {
   Services.prefs.addObserver(SHOW_PAB_PREF, prefObs);
   Services.prefs.addObserver(HIDE_COLLECTED_PREF, prefObs);
   mark();
-  restorers?.push(() => {
+  // Tab geschlossen: Beobachter sofort abmelden (siehe hookCollectedAddresses)
+  const detach = () => {
     mo.disconnect();
     Services.prefs.removeObserver(SHOW_PAB_PREF, prefObs);
     Services.prefs.removeObserver(HIDE_COLLECTED_PREF, prefObs);
+  };
+  cw.addEventListener("unload", detach, { once: true });
+  restorers?.push(() => {
+    detach();
+    cw.removeEventListener("unload", detach);
     menu?.removeEventListener("popupshowing", updateItem);
     item?.remove();
     for (const row of books.querySelectorAll("li[data-mc-pab-hidden]")) {
@@ -6689,9 +6722,13 @@ class CardEnhancer {
           }
           try {
             hookPersonalBook(cw, winRestorers);
-            hookLastContact(cw, winRestorers);
           } catch (e) {
             log("personal book error", e);
+          }
+          try {
+            hookLastContact(cw, winRestorers);
+          } catch (e) {
+            log("last contact error", e);
           }
         }
         if (!cw || !CONTENT_PAGES.test(url) || cw.__mcSheet == uri || cw.__mcTheme) {
@@ -12589,6 +12626,7 @@ class CardEnhancer {
       if (addon.id == "mail-cards@sebastian.local") {
         this.removeBirthdayCalendar();
         this.removeSearchFolder();
+        restorePersonalBookName();
         EarlyTheme.remove().catch(e => log("early theme remove error", e));
       }
     };
