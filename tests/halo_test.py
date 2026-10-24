@@ -7014,13 +7014,13 @@ def run_checks(m, version, profile, results):
             `Subject: ${subject}`, "Date: Mon, 19 Oct 2026 10:00:00 +0200", `Message-ID: <${id}@example.invalid>`, "Content-Type: text/plain; charset=UTF-8", "", body, ""].join("\r\n");
           if (!A.getTotalMessages(false)) {
             const la = A.QueryInterface(Ci.nsIMsgLocalMailFolder), lb = B.QueryInterface(Ci.nsIMsgLocalMailFolder);
-            la.addMessage(mail("stufe-1", "Kolibri im Betreff", "Nichts Besonderes."));
-            la.addMessage(mail("stufe-2", "Angebot", "Nichts Besonderes.", "Shop <shop@kolibri.example.invalid>"));
-            la.addMessage(mail("stufe-3", "Nur im Text", "Heute kam ein Kolibri vorbei."));
+            la.addMessage(mail("stufe-1", "Qy im Betreff", "Nichts Besonderes."));
+            la.addMessage(mail("stufe-2", "Angebot", "Nichts Besonderes.", "Shop <shop@qy.example.invalid>"));
+            la.addMessage(mail("stufe-3", "Nur im Text", "Heute kam ein Qy vorbei."));
             la.addMessage(mail("stufe-4", "Ganz anderes", "Nichts zu sehen."));
-            la.addMessage(mail("stufe-5", "Kolibri doppelt", "Auch im Text: Kolibri."));
-            lb.addMessage(mail("stufe-6", "Anderswo", "Wieder ein Kolibri."));
-            lb.addMessage(mail("stufe-7", "Kolibri anderswo", "Nichts."));
+            la.addMessage(mail("stufe-5", "Qy doppelt", "Auch im Text: Qy."));
+            lb.addMessage(mail("stufe-6", "Anderswo", "Wieder ein Qy."));
+            lb.addMessage(mail("stufe-7", "Qy anderswo", "Nichts."));
             await wait(1000);
           }
           const a3 = await toMail(); const bar = d.querySelector("#unifiedToolbarContent global-search-bar");
@@ -7033,12 +7033,11 @@ def run_checks(m, version, profile, results):
           const onEnd = () => ends.push([html.getAttribute("mc-search-stage"), ids()]); a3.addEventListener("allMessagesLoaded", onEnd);
           const done = () => until(() => !html.hasAttribute("mc-search-stage") && !a3.gViewWrapper?.searching, 10000);
           const out = {};
-          // Gloda aus: die Suche läuft wie ohne Index (mit Index siehe search_gloda)
-          const GLODA = "mailnews.database.global.indexer.enabled"; const glodaWas = Services.prefs.getBoolPref(GLODA, true);
-          Services.prefs.setBoolPref(GLODA, false);
-          try {
+          // Suche ohne Index (mit Index siehe search_gloda): Begriff mit zwei Zeichen – halo.spaces fragt Gloda erst ab
+          // drei Zeichen. Gloda abschalten geht hier nicht: dann entfernt Thunderbird das Suchfeld aus der Symbolleiste
+          // (je nach Takt vor dem Suchen) und das Ereignis ginge an ein abgehängtes Feld, das Thunderbirds eigene Suche öffnet
           a3.displayFolder(A.URI); await wait(900);
-          bar.dispatchEvent(new w.CustomEvent("search", { detail: "kolibri", bubbles: true, composed: true }));
+          bar.dispatchEvent(new w.CustomEvent("search", { detail: "qy", bubbles: true, composed: true }));
           out.done = !!(await done()); await wait(300);
           out.stages = stages.splice(0); out.headersEnd = ends.filter(e => e[0] == "headers").pop()?.[1]; out.inA = ids(); out.rows = a3.gDBView?.rowCount;
           out.saved = (() => { try { return a3.gFolder.msgDatabase.dBFolderInfo.getCharProperty("searchStr"); } catch { return ""; } })();
@@ -7049,7 +7048,6 @@ def run_checks(m, version, profile, results):
           obs.disconnect(); a3.removeEventListener("allMessagesLoaded", onEnd);
           bar.dispatchEvent(new w.CustomEvent("search", { detail: "", bubbles: true, composed: true })); await wait(1200);
           out.attrAfter = html.getAttribute("mc-search-stage");
-          } finally { Services.prefs.setBoolPref(GLODA, glodaWas); }
           return out;""")
         ok = (res.get("done") and res.get("stages") == ["headers", "body", None]
               and res.get("headersEnd") == ["stufe-1", "stufe-2", "stufe-5"]
