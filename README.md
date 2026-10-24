@@ -41,27 +41,21 @@ Features
 
 Personal data in the screenshots is blurred.
 
-3.5.1 Release Notes
+3.6.0 Release Notes
 --------
-- **Whole conversations like Apple Mail**: selecting a message shows the entire conversation – received mails and your own replies from Sent, newest first, each one in full. Collapsed threads show the same instead of a text summary. Can be turned off in Settings → halo.spaces
-- **Settings → halo.spaces**: all options now live in Thunderbird's settings. Account Settings and Add-ons and Themes open there too, with the sidebar staying in place; the help window links to it. New installs get a short welcome and are switched to *System theme – auto*
-- **Search like Apple Mail**: the search field searches the selected folder, a unified folder searches all mailboxes; switching folders keeps searching there, and the placeholder says where ("Search Sent", "Search Calendar" …). Scrolling through results stays smooth while previews load – and while a long search over many mailboxes is still running (it waits while you scroll)
-- **Message list**: card view, classic table or wide table in one menu; optional light accent tint behind unread mail; the time no longer touches the edge of the selection; quick filter labels no longer overlap their icons; folders light up while you drag mail onto them; the Unsubscribe button disappears once you have unsubscribed; cards always show the time ("Today, 14:32"); replied and forwarded mail get a small grey arrow left of the sender picture like Apple Mail
-- **Events like Apple Calendar**: the event window is laid out like Apple Calendar – title on top, then cards for all-day, start, end, repeat and alert, location, invitees and calendar, with "Add Notes or URL" at the bottom and a stripe in the calendar's colour. Clicking the date shows only a date picker, clicking the time only a small time popover; the mouse wheel changes hours and minutes; changing the start keeps the duration, as in Apple Calendar. The "Invite Attendees" window is restyled; reminders look like Apple Calendar's, with a calendar icon showing month and day
-- **Tasks**: list view with the details to the right of the list (or the previous table view, chosen like the mail list view); the filters (Current Tasks, Today, Next Seven Days …) moved into a menu next to the search field, like the mail Quick Filter; the button turns accent-coloured while another filter is active. New tasks now show up in the list right away, also after hiding and showing the Today pane
-- **Contacts**: cards show only name or company, sized like the mail cards; the photo window works like Apple Contacts – choose a different picture any time, round crop, zoom slider
-- **Everywhere**: the sidebar slides in and out smoothly in every space; "Increase contrast" in the macOS accessibility settings is respected; optional design loading before the first window, so the old look never flashes at start
-- **Writing like Apple Mail**: a calm toolbar with symbols only and a round send button, the format bar on demand ("Aa"), header labels on the left; forwarded mail starts with "Begin forwarded message:" and the sender, the date in your time zone and a bar on the left; attachments as tiles
-- **Dialogs like macOS**: questions such as *Delete folder?* or *Send without subject?* slide in as a sheet at the top of the window instead of opening a separate window; the event, folder properties and filter windows have no visible title bar. Can be turned off in Settings → halo.spaces
-- **Settings**: Account Settings and Add-ons appear as indented sub-entries in the settings sidebar instead of a second grey column; clicking the category again folds them away. Every category now starts right next to the sidebar instead of floating in the middle, and the halo.spaces page has large section headings like General
-- **Event window**: date and time are compact text like Apple Calendar – no boxes, the field only lights up under the pointer; "Category" lines up with the other cards
-- **Sidebars**: dragging a sidebar's divider to the left hides it at once, in every space, without leftover blue bar in Mail. The Today pane has a fixed width; dragging its divider to the right hides it, and its "+" disappears right away. The Show/Hide Spaces button stays where it is and only flips its arrow
-- **Message list**: the same mail stored more than once (Gmail labels, copies in several folders) shows up only once in card view
-- **Context menus**: "Open in New Tab" and "Open in New Window" are gone everywhere, so menus are shorter
-- The sidebar no longer jerks at the end of its animation in Mail; the online icon in the status bar sits in the same place in every space; opening a conversation no longer briefly flashes Thunderbird's own view
-- Searching "All Inboxes" no longer lists mail without the search term while the search is still running
-- "Collected Addresses" no longer appears in the address book sidebar (can be shown again in Settings)
-- Account settings no longer go blank when the sidebar is hidden
+- **Hover actions like Apple Mail**: moving the pointer over an open message shows a small capsule on the line below the header – Delete | Reply, Reply All, Forward. Always on; the capsule in the message list cards is gone
+- **Star button**: the flag button in the toolbar is now a split star button like Apple Mail – click the star to star or unstar the message, the arrow opens the menu as before. The Move button shows folder and arrow without a divider
+- **Unread filter**: the filter button above the message list now shows only unread mail, the next click shows all again; Thunderbird's Quick Filter bar is gone
+- **Faster search**: hits from Thunderbird's index (Gloda) appear right away, matches in subject, sender and recipients follow at once, the message text is searched in the background and only adds new hits – no duplicate rows, the list stays where you scrolled
+- **View menu**: preview lines (none to 4) are now under View, like Apple Mail; the "…" menu above the message list gets "Show Contact Photo". "Table View: Wide" is gone – it broke the layout; whoever used it lands in the classic table
+- **Sending** shows no progress window any more – progress appears in the status bar, errors still show up
+- **Sidebars**: one divider for every space and the Today pane – drag it wider (up to 360 px, like the calendar; Mail can be widened again), drag it under the threshold to hide the sidebar and back in the same motion to show it again, or pull a hidden sidebar back out from the window edge. No animation
+- **Contacts like Apple Contacts**: the personal address book is called "Contacts", is hidden while it is empty (show it from the "…" menu) and the address book always opens with the last selected contact
+- **Calendar**: the quick event window opens next to the day or time you double-clicked, on the side facing the middle; context menus of events show no keyboard shortcuts; "for 2h" on the night clocks go back now really lasts two hours. Birthdays are a calendar in the calendar list – show or hide it with its checkbox
+- **Tables**: the contact and task tables look like the mail table (font, row height, header, stripes, selection)
+- **Message header**: the account's colour dot stands in front of the folder name, like in the folder list
+- **Spaces button**: the Show/Hide Spaces button shows the space colours
+- **Settings → halo.spaces** shows only what can't be set directly in the window; design, icons and logging are grouped under "Troubleshooting". Locked fields in dialogs (e.g. the name of the personal address book) now look locked
 
 See [Releases](https://github.com/sruf79/halo-spaces/releases) for all versions.
 
