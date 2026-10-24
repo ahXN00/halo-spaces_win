@@ -3842,13 +3842,15 @@ def run_checks(m, version, profile, results):
           const qp = d.getElementById("mcQuickPanel"); const t0 = Date.now(); w.__mcQp = { shown: 0, hiddenAfter: null };
           qp?.addEventListener("popupshown", () => { w.__mcQp.shown++; w.__mcQp.t = Date.now(); }, { once: true });
           qp?.addEventListener("popuphidden", () => { w.__mcQp.hiddenAfter = Date.now() - (w.__mcQp.t || t0); }, { once: true });
-          const r = col.getBoundingClientRect(); return [Math.round(r.left + r.width / 2), Math.round(lbl.getBoundingClientRect().top + 8)];''')
+          const r = col.getBoundingClientRect(); w.__mcColRight = Math.round(r.right + w.mozInnerScreenX);
+          return [Math.round(r.left + r.width / 2), Math.round(lbl.getBoundingClientRect().top + 8)];''')
         time.sleep(1.2)
         m.pointer([{"type": "pointerMove", "x": x, "y": y, "origin": "viewport"}, {"type": "pointerDown", "button": 0}, {"type": "pointerUp", "button": 0},
                    {"type": "pause", "duration": 80}, {"type": "pointerDown", "button": 0}, {"type": "pointerUp", "button": 0}])
         res = m.js('''const p = await until(() => { const q = d.getElementById("mcQuickPanel"); return q?.state == "open" && q; }) || d.getElementById("mcQuickPanel");
           const r = { state: p?.state, line: p?.querySelector(".mc-qc-line1").textContent, shown: w.__mcQp?.shown || 0, hiddenAfter: w.__mcQp?.hiddenAfter ?? null,
-            dialogs: [...Services.wm.getEnumerator(null)].filter(x => /calendar-event-dialog/.test(x.location.href)).length };
+            dialogs: [...Services.wm.getEnumerator(null)].filter(x => /calendar-event-dialog/.test(x.location.href)).length,
+            placed: p?.__mcPlaced, colRight: w.__mcColRight };
           p?.hidePopup();
           // falls doch ein Fenster aufging: schließen, sonst fehlt den folgenden Prüfungen der Fokus
           for (const x of [...Services.wm.getEnumerator(null)]) if (!x.location.href.includes("messenger.xhtml")) x.close();
@@ -3856,9 +3858,57 @@ def run_checks(m, version, profile, results):
         # „showing“ = geht gerade auf (in einem verdeckten Fenster bleibt die Animation dort stehen)
         # aufgegangen = jetzt offen oder zumindest einmal gezeigt (xvfb schließt es teils sofort)
         opened = res["state"] in ("open", "showing") or res["shown"] > 0
-        ok = opened and res["dialogs"] == 0 and ("14:" in res["line"] or "02:00 PM" in res["line"] or "2:00 PM" in res["line"])
-        return ok, f"Fenster {res['state']} (gezeigt {res['shown']}×, zu nach {res['hiddenAfter']} ms), {res['line']}, große Dialoge {res['dialogs']}"
+        # zweite Tagesspalte (linke Hälfte): Fenster rechts neben der Spalte
+        placed = res.get("placed") or {}
+        beside = placed.get("side") == "right" and placed.get("x", 0) >= res["colRight"]
+        ok = opened and beside and res["dialogs"] == 0 and ("14:" in res["line"] or "02:00 PM" in res["line"] or "2:00 PM" in res["line"])
+        return ok, (f"Fenster {res['state']} (gezeigt {res['shown']}×, zu nach {res['hiddenAfter']} ms), {res['line']}, große Dialoge {res['dialogs']}, "
+                    f"Lage {placed} (Spalte endet bei {res['colRight']})")
     check("Doppelklick im Kalender öffnet das Schnellfenster", double_click, results)
+
+    def quick_beside_day():
+        # Schnellfenster neben dem angeklickten Tag (Monat), auf der Seite zur Fenstermitte: Tag links → rechts
+        # daneben, Tag rechts → links daneben; senkrecht ganz im Fenster. Aufruf wie beim Doppelklick, nur ohne Maus
+        res = m.js('''
+          const { ExtensionParent } = ChromeUtils.importESModule("resource://gre/modules/ExtensionParent.sys.mjs");
+          const enh = Cu.evalInSandbox("enhancer", ExtensionParent.GlobalManager.getExtension("%s").experimentAPIManager.global);
+          w.resizeTo(1500, 900); await wait(600);
+          await toCalendar(); w.switchToView("month"); await wait(1200);
+          const boxes = [...d.querySelectorAll("#month-view calendar-month-day-box")].filter(b => b.getBoundingClientRect().width);
+          const out = { boxes: boxes.length };
+          const win = { l: w.mozInnerScreenX, t: w.mozInnerScreenY, r: w.mozInnerScreenX + w.innerWidth, b: w.mozInnerScreenY + w.innerHeight };
+          for (const [name, box] of [["links", boxes[14]], ["rechts", boxes[20]], ["unten", boxes.at(-1)]]) {
+            if (!box) continue;
+            const r = box.getBoundingClientRect();
+            const rect = { left: r.left + w.mozInnerScreenX, top: r.top + w.mozInnerScreenY, width: r.width, height: r.height };
+            enh.openQuickCreate(w, "event", null, { start: new Date(2026, 9, 21), allDay: true, at: { x: rect.left + 5, y: rect.top + 5, rect } });
+            const p = d.getElementById("mcQuickPanel");
+            const open = await until(() => p.state == "open", 3000);
+            await wait(300);
+            const placed = p.__mcPlaced, shown = open ? p.getOuterScreenRect() : null;
+            out[name] = { side: placed?.side, x: placed?.x, y: placed?.y, cellL: Math.round(rect.left), cellR: Math.round(rect.left + rect.width),
+                          shown: shown && { x: Math.round(shown.x), y: Math.round(shown.y), w: Math.round(shown.width), h: Math.round(shown.height) } };
+            p.hidePopup(); await until(() => p.state == "closed", 2000); await wait(200);
+          }
+          out.win = { l: Math.round(win.l), t: Math.round(win.t), r: Math.round(win.r), b: Math.round(win.b) };
+          return out;''' % ADDON_ID)
+        W = 380
+        def beside(x, to_right):
+            if not x or x.get("x") is None:
+                return False
+            return x["x"] >= x["cellR"] if to_right else x["x"] + W <= x["cellL"]
+        def inside(x):
+            s = x.get("shown")
+            if not s:  # unter xvfb ohne Fenstermanager klappt das Fenster teils sofort zu – dann die berechnete Lage
+                return res["win"]["t"] <= x["y"] and x["x"] >= res["win"]["l"] and x["x"] + W <= res["win"]["r"]
+            # tatsächliche Lage: dort, wo berechnet (Schatten/Rand eingerechnet), ganz im Fenster
+            return (abs(s["x"] - x["x"]) <= 30 and abs(s["y"] - x["y"]) <= 30
+                    and s["y"] >= res["win"]["t"] - 30 and s["y"] + s["h"] <= res["win"]["b"] + 30)
+        left, right, low = res.get("links") or {}, res.get("rechts") or {}, res.get("unten") or {}
+        ok = (res.get("boxes", 0) >= 28 and left.get("side") == "right" and right.get("side") == "left" and low.get("side") == "left"
+              and beside(left, True) and beside(right, False) and beside(low, False) and inside(left) and inside(right) and inside(low))
+        return ok, f"{res}"
+    check("Schnellfenster: neben dem angeklickten Tag, zur Fenstermitte hin, ganz im Fenster", quick_beside_day, results)
 
     def duplicate_cards():
         # dieselbe Mail (gleiche Message-ID) mehrfach (Gmail-Labels, Kopien): in der Konversation und als eigene Zeile

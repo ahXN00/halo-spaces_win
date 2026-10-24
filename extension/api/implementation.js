@@ -8676,6 +8676,20 @@ class CardEnhancer {
       let lastClick = null;
       const onDbl = event => {
         lastClick = { x: event.screenX, y: event.screenY, time: Date.now() };
+        // angeklickter Tag (Monat, Ganztägig-Zeile) bzw. Tagesspalte (Woche/Tag)
+        // in Bildschirmkoordinaten – das Schnellfenster erscheint daneben
+        const cell = event.target?.closest?.("calendar-month-day-box, calendar-header-container, calendar-event-column");
+        const r = cell?.getBoundingClientRect();
+        if (r?.width) {
+          const column = cell.localName == "calendar-event-column";
+          lastClick.rect = {
+            left: r.left + w.mozInnerScreenX,
+            width: r.width,
+            // in der Spalte zählt nur die angeklickte Uhrzeit, nicht der ganze Tag
+            top: column ? event.screenY : r.top + w.mozInnerScreenY,
+            height: column ? 0 : r.height,
+          };
+        }
       };
       box.addEventListener("dblclick", onDbl, true);
       const orig = ctrl.createNewEvent;
@@ -9990,7 +10004,48 @@ class CardEnhancer {
     // Bildschirm passt (z. B. unter dem „+“ ganz rechts in der Today-Pane)
     const PANEL_W = 380;
     const screenRight = w.screen.availLeft + w.screen.availWidth;
-    if (preset?.at) {
+    panel.__mcPlaced = null;
+    panel.removeEventListener("popupshown", panel.__mcReplace);
+    if (preset?.at?.rect) {
+      // neben dem angeklickten Tag wie in Apple Kalender: auf der Seite zur
+      // Fenstermitte hin (Tag rechts → links daneben), senkrecht mittig zur
+      // Zelle bzw. Uhrzeit, dann ins Fenster und auf den Bildschirm geschoben
+      const cell = preset.at.rect;
+      const fit = (v, size, lo, hi) => (hi - lo >= size ? Math.max(lo, Math.min(v, hi - size)) : lo);
+      const place = height => {
+        const winL = w.mozInnerScreenX;
+        const winT = w.mozInnerScreenY;
+        const scrL = w.screen.availLeft;
+        const scrT = w.screen.availTop;
+        const left = Math.max(winL, scrL) + 8;
+        const right = Math.min(winL + w.innerWidth, scrL + w.screen.availWidth) - 8;
+        const top = Math.max(winT, scrT) + 8;
+        const bottom = Math.min(winT + w.innerHeight, scrT + w.screen.availHeight) - 8;
+        const toRight = cell.left + cell.width / 2 < winL + w.innerWidth / 2;
+        const x = toRight ? cell.left + cell.width + 6 : cell.left - 6 - PANEL_W;
+        const y = cell.top + cell.height / 2 - height / 2;
+        return {
+          x: Math.round(right - left >= PANEL_W ? fit(x, PANEL_W, left, right) : fit(x, PANEL_W, scrL + 8, scrL + w.screen.availWidth - 8)),
+          y: Math.round(bottom - top >= height ? fit(y, height, top, bottom) : fit(y, height, scrT + 8, scrT + w.screen.availHeight - 8)),
+          side: toRight ? "right" : "left",
+        };
+      };
+      // Höhe erst nach dem Öffnen bekannt: mit einer Schätzung öffnen und einmal nachrücken
+      let at = place(360);
+      panel.__mcPlaced = at;
+      panel.__mcReplace = () => {
+        panel.removeEventListener("popupshown", panel.__mcReplace);
+        const height = panel.getOuterScreenRect().height;
+        const again = height ? place(height) : at;
+        if (again.x != at.x || again.y != at.y) {
+          at = again;
+          panel.__mcPlaced = at;
+          panel.moveTo(at.x, at.y);
+        }
+      };
+      panel.addEventListener("popupshown", panel.__mcReplace);
+      panel.openPopupAtScreen(at.x, at.y, false);
+    } else if (preset?.at) {
       // an der Mausposition, etwas nach rechts unten versetzt
       const x = Math.max(w.screen.availLeft + 8, Math.min(preset.at.x + 8, screenRight - PANEL_W - 8));
       panel.openPopupAtScreen(x, preset.at.y + 8, false);
