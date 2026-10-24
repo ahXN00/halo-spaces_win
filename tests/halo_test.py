@@ -2362,6 +2362,31 @@ def folder_checks(m, results):
         return ok, f"{res}"
     check("Ordnerliste: letzte Zeile lässt sich über den Bereiche-Knopf hinaus scrollen (Leiste ausgeblendet)", toggle_room, results)
 
+    def toggle_icon():
+        # Symbol des Bereiche-Knopfs: Pfeil als Maske in Textfarbe (::before), darüber deckungsgleich sechs Rechtecke
+        # in den Bereichsfarben (::after, eigene Fassung für dunkel); Pfeil nach links bzw. nach rechts bei ausgeblendet
+        res = m.js(r"""const b = d.getElementById("mcSpacesToggle");
+          const pe = (x) => w.getComputedStyle(b, x), r = b.getBoundingClientRect();
+          const had = b.hasAttribute("data-mc-hidden");
+          b.toggleAttribute("data-mc-hidden", false); const left = pe("::before").maskImage;
+          b.toggleAttribute("data-mc-hidden", true); const right = pe("::before").maskImage;
+          b.toggleAttribute("data-mc-hidden", had);
+          const be = pe("::before"), af = pe("::after");
+          return { w: Math.round(r.width), h: Math.round(r.height), bw: be.width, bh: be.height, bg: be.backgroundColor, color: w.getComputedStyle(b).color,
+                   left, right, aw: af.width, ah: af.height, top: af.top, start: af.left, pos: af.position, img: af.backgroundImage,
+                   dark: w.matchMedia("(prefers-color-scheme: dark)").matches };""")
+        cols = (["45A0FD", "61C77A", "FCA53E", "FC5F98", "C07BE4", "A8A8AC"] if res["dark"]
+                else ["186EC4", "33924A", "C47212", "C43166", "8C4BAD", "757579"])
+        img = res["img"]
+        pos = [img.find("%23" + c) for c in cols]
+        ok = (res["w"] == 40 and res["h"] == 38 and res["bw"] == "22px" and res["bh"] == "22px" and res["bg"] == res["color"]
+              and "M21 12H10M14.5 7 9.5 12l5 5" in res["left"] and "M9.5 12H20.5M16 7 21 12l-5 5" in res["right"]
+              and "stroke-width=%221.7%22" in res["left"] and "M2.5 2.5v11" not in res["left"] + res["right"]
+              and res["aw"] == "22px" and res["ah"] == "22px" and res["top"] == "8px" and res["start"] == "9px" and res["pos"] == "absolute"
+              and all(x > 0 for x in pos) and pos == sorted(pos) and img.count("%3Crect") == 6)
+        return ok, f"{ {k: v for k, v in res.items() if k not in ('left', 'right', 'img')} } Farben {pos}"
+    check("Bereiche-Leiste: Knopf zum Ein-/Ausblenden mit Pfeil und sechs Rechtecken in den Bereichsfarben (hell/dunkel)", toggle_icon, results)
+
     def mode_lines():
         res = m.js(FOLDER_JS + r"""
           const a3 = await toMail(); const ad = a3.document; const fp = a3.folderPane; const old = fp.activeModes;

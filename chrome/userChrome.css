@@ -2146,19 +2146,41 @@ menupopup > .folderMenuItem:is([_moz-menuactive]:not([disabled]), [disabled]) {
   color: var(--mt-text) !important;
 }
 
-/* Strich links (dort sitzt die Leiste): Pfeil nach links zum Rand =
-   Leiste ausblenden, Pfeil vom Rand weg nach rechts = wieder einblenden */
+/* Symbol: links eine Spalte aus sechs Rechtecken in den Bereichsfarben
+   (Reihenfolge wie in der Leiste), rechts ein Pfeil wie bei Antworten/
+   Weiterleiten – nach links = Leiste ausblenden, nach rechts = einblenden.
+   Masken können nur eine Farbe: der Pfeil ist Maske in currentColor
+   (::before), die Rechtecke ein farbiges Bild darüber (::after) */
 #mcSpacesToggle::before {
   content: "" !important;
-  width: 20px !important;
-  height: 20px !important;
+  width: 22px !important;
+  height: 22px !important;
   background-color: currentColor !important;
-  mask: url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 16 16%22 fill=%22none%22 stroke=%22%23000%22 stroke-width=%221.1%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22%3E%3Cpath d=%22M2.5 2.5v11M13.5 8H5.2M8.6 4.6 5.2 8l3.4 3.4%22/%3E%3C/svg%3E") center / contain no-repeat !important;
+  mask: url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22%23000%22 stroke-width=%221.7%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22%3E%3Cpath d=%22M21 12H10M14.5 7 9.5 12l5 5%22/%3E%3C/svg%3E") center / contain no-repeat !important;
 }
 
 /* (data-mc-hidden setzt die Erweiterung gleich beim Klick) */
 #mcSpacesToggle[data-mc-hidden]::before {
-  mask-image: url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 16 16%22 fill=%22none%22 stroke=%22%23000%22 stroke-width=%221.1%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22%3E%3Cpath d=%22M2.5 2.5v11M5 8h8.3M9.9 4.6 13.3 8l-3.4 3.4%22/%3E%3C/svg%3E") !important;
+  mask-image: url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22%23000%22 stroke-width=%221.7%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22%3E%3Cpath d=%22M9.5 12H20.5M16 7 21 12l-5 5%22/%3E%3C/svg%3E") !important;
+}
+
+/* Farben wie die Symbole in der Leiste: Grundfarbe 70 % mit #3a3a3c
+   (dunkel 75 % mit #f5f5f7), hier fest ausgerechnet */
+#mcSpacesToggle::after {
+  content: "" !important;
+  position: absolute !important;
+  top: 8px !important;
+  inset-inline-start: 9px !important;
+  width: 22px !important;
+  height: 22px !important;
+  pointer-events: none !important;
+  background: url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22%3E%3Crect x=%223%22 y=%222%22 width=%222.6%22 height=%222.8%22 rx=%220.8%22 fill=%22%23186EC4%22/%3E%3Crect x=%223%22 y=%225.44%22 width=%222.6%22 height=%222.8%22 rx=%220.8%22 fill=%22%2333924A%22/%3E%3Crect x=%223%22 y=%228.88%22 width=%222.6%22 height=%222.8%22 rx=%220.8%22 fill=%22%23C47212%22/%3E%3Crect x=%223%22 y=%2212.32%22 width=%222.6%22 height=%222.8%22 rx=%220.8%22 fill=%22%23C43166%22/%3E%3Crect x=%223%22 y=%2215.76%22 width=%222.6%22 height=%222.8%22 rx=%220.8%22 fill=%22%238C4BAD%22/%3E%3Crect x=%223%22 y=%2219.2%22 width=%222.6%22 height=%222.8%22 rx=%220.8%22 fill=%22%23757579%22/%3E%3C/svg%3E") center / contain no-repeat !important;
+}
+
+@media (prefers-color-scheme: dark) {
+  #mcSpacesToggle::after {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22%3E%3Crect x=%223%22 y=%222%22 width=%222.6%22 height=%222.8%22 rx=%220.8%22 fill=%22%2345A0FD%22/%3E%3Crect x=%223%22 y=%225.44%22 width=%222.6%22 height=%222.8%22 rx=%220.8%22 fill=%22%2361C77A%22/%3E%3Crect x=%223%22 y=%228.88%22 width=%222.6%22 height=%222.8%22 rx=%220.8%22 fill=%22%23FCA53E%22/%3E%3Crect x=%223%22 y=%2212.32%22 width=%222.6%22 height=%222.8%22 rx=%220.8%22 fill=%22%23FC5F98%22/%3E%3Crect x=%223%22 y=%2215.76%22 width=%222.6%22 height=%222.8%22 rx=%220.8%22 fill=%22%23C07BE4%22/%3E%3Crect x=%223%22 y=%2219.2%22 width=%222.6%22 height=%222.8%22 rx=%220.8%22 fill=%22%23A8A8AC%22/%3E%3C/svg%3E") !important;
+  }
 }
 
 .spaces-toolbar-button > img,
