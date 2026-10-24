@@ -108,7 +108,7 @@ Known Issues
 
 Options
 -------
-All options of halo.spaces – preview lines, hover actions, sender logos,
+All options of halo.spaces – preview lines, sender logos,
 photos from the Contacts app, calendar emojis, birthdays, the bundled design
 and icons, updates – are in **Settings → halo.spaces** (also reachable via
 **Help → halo.spaces… → Settings…** or **Add-ons and Themes → halo.spaces →

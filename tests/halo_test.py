@@ -505,7 +505,13 @@ def take_shots(m, folder, scheme):
     for name, js in [
         ("mail", "await toMail();"),
         ("message", MESSAGE_JS),
-        ("message-remote", """const { MailServices } = ChromeUtils.importESModule("resource:///modules/MailServices.sys.mjs"); await toMail(); const f = MailServices.accounts.localFoldersServer.rootFolder.getChildNamed("Schrift");
+        # Aktionen beim Überfahren (Kapsel unter dem Mailkopf) – :hover festgehalten
+        ("message-hover", MESSAGE_JS + """const hd = tm.currentAbout3Pane.messageBrowser.contentDocument;
+          hd.getElementById("mcHoverActions")?.style.setProperty("transition", "none");
+          InspectorUtils.addPseudoClassLock(hd.documentElement, ":hover");"""),
+        ("message-remote", """const { MailServices } = ChromeUtils.importESModule("resource:///modules/MailServices.sys.mjs"); await toMail();
+          const hd = tm.currentAbout3Pane.messageBrowser.contentDocument; InspectorUtils.clearPseudoClassLocks(hd.documentElement);
+          hd.getElementById("mcHoverActions")?.style.removeProperty("transition"); const f = MailServices.accounts.localFoldersServer.rootFolder.getChildNamed("Schrift");
           const a3 = tm.currentAbout3Pane; a3.displayFolder(f.URI); await wait(800);
           for (let i = 0; i < a3.gDBView.rowCount; i++) if (a3.gDBView.getMsgHdrAt(i).subject == "Schrift 1") a3.threadTree.selectedIndex = i;
           await wait(6000);"""),
@@ -3538,8 +3544,6 @@ def run_checks(m, version, profile, results):
       Services.obs.addObserver({ observe(ch) { ch.QueryInterface(Ci.nsIHttpChannel);
         if (/\\/updates\\.json(\\?|$)/.test(ch.URI.spec)) ch.cancel(Cr.NS_ERROR_ABORT); } }, "http-on-modify-request");
       Services.prefs.setBoolPref("extensions.update.enabled", true);
-      // Aktionen beim Überfahren sind standardmäßig aus – für die Prüfungen einschalten
-      Services.prefs.setBoolPref("extensions.mailcards.hoverActions", true);
       if (!testCalendar()) { const c = cal.manager.createCalendar("storage", Services.io.newURI("moz-storage-calendar://")); c.name = "Halo Test"; c.setProperty("color", "#FF9500"); cal.manager.registerCalendar(c); }
       return 1;""")
 
@@ -3992,6 +3996,8 @@ def run_checks(m, version, profile, results):
     check("Mailliste: dieselbe Mail mehrfach (in der Konversation oder direkt dahinter) nur einmal als Karte, Antwort bleibt", duplicate_cards, results)
 
     def hover_actions():
+        # wie Apple Mail: beim Überfahren der geöffneten Mail eine Kapsel mittig auf der Linie unter
+        # dem Kopf (Löschen | Antworten, Allen antworten, Weiterleiten); in der Mailliste keine mehr
         res = m.js('''
           const { MailServices } = ChromeUtils.importESModule("resource:///modules/MailServices.sys.mjs");
           try { MailServices.accounts.localFoldersServer; } catch { MailServices.accounts.createLocalMailAccount(); await wait(500); }
@@ -4000,61 +4006,49 @@ def run_checks(m, version, profile, results):
           const inbox = root.getChildNamed("Inbox"); const lf = inbox.QueryInterface(Ci.nsIMsgLocalMailFolder);
           for (const n of [1, 2]) lf.addMessage(`From - Sat Oct 17 10:00:00 2026\\r\\nFrom: Test ${n} <t${n}@example.invalid>\\r\\nSubject: Halo Karte ${n}\\r\\nDate: Sat, 17 Oct 2026 10:0${n}:00 +0200\\r\\nMessage-ID: <halo-card-${n}@example.invalid>\\r\\n\\r\\nTest\\r\\n`);
           const a3 = await toMail(); a3.displayFolder(inbox.URI);
-          await until(() => a3.document.querySelectorAll('#threadTree tr[is="thread-card"] .mc-act-flag').length >= 2, 15000);
-          const rows = a3.document.querySelectorAll('#threadTree tr[is="thread-card"]');
-          if (!rows[0]?.querySelector(".mc-act-flag")) {
-            return { diag: true, visibility: a3.document.visibilityState, topVisibility: d.visibilityState, rows: rows.length, avatars: a3.document.querySelectorAll('#threadTree tr[is="thread-card"] .mc-avatar').length,
-                     patched: !!a3.document.__mcPatched,
-                     protoOurs: String(a3.customElements.get("thread-card")?.prototype.fillRow).includes("decorate"),
-                     rowOwn: rows[0] ? Object.prototype.hasOwnProperty.call(rows[0], "fillRow") : null,
-                     rowIsCard: rows[0] instanceof a3.customElements.get("thread-card"),
-                     container: !!rows[0]?.querySelector(".card-container"),
-                     sameDoc: rows[0]?.ownerDocument == a3.document, tableRows: a3.document.querySelectorAll('#threadTree tr[is="thread-row"]').length,
-                     pref: Services.prefs.getBoolPref("extensions.mailcards.hoverActions", false), msgs: inbox.getTotalMessages(false),
-                     folder: a3.gFolder?.URI == inbox.URI, view: Services.prefs.getIntPref("mail.threadpane.listview", -1) };
-          }
-          const buttons = rows[0]?.querySelectorAll(".mc-action") || [];
-          rows[0].querySelector(".mc-act-flag").click(); await wait(500);
-          const flagged = a3.gDBView.getMsgHdrAt(0).isFlagged; const selected = a3.gDBView.selection.count;
-          // Löschen per Knopf landet in Thunderbirds Rückgängig-Liste (früher ohne msgWindow: nicht)
+          await until(() => a3.document.querySelectorAll('#threadTree tr[is="thread-card"]').length >= 2, 15000);
+          const listActions = a3.document.querySelectorAll('#threadTree .mc-actions, #threadTree .mc-action').length;
+          a3.threadTree.selectedIndex = 0;
+          const am = a3.messageBrowser.contentWindow; const md = am.document;
+          // erst wenn die Mail angezeigt ist (vorher ist der Kopf noch zusammengeklappt)
+          const box = await until(() => { const b = md.getElementById("mcHoverActions"); return b && md.getElementById("messageHeader").getBoundingClientRect().width > 200 && b.getBoundingClientRect().width > 60 && b; }, 10000);
+          if (!box) return { found: false, header: Math.round(md.getElementById("messageHeader")?.getBoundingClientRect().width || 0), box: Math.round(md.getElementById("mcHoverActions")?.getBoundingClientRect().width || 0) };
+          const header = md.getElementById("messageHeader");
+          const cs = am.getComputedStyle;
+          const order = [...box.querySelectorAll(".mc-hover-action, .mc-hover-sep")].map(e => e.className.replace(/^mc-hover-action /, ""));
+          const idle = cs(box).pointerEvents;
+          // ohne Überblendung (verdeckte Testfenster halten Übergänge an)
+          box.style.setProperty("transition", "none", "important");
+          InspectorUtils.addPseudoClassLock(md.documentElement, ":hover");
+          const shown = cs(box).pointerEvents, opacity = cs(box).opacity;
+          const r = box.getBoundingClientRect(), h = header.getBoundingClientRect();
+          const cx = r.left + r.width / 2, cy = r.top + r.height / 2;
+          // die Kapsel liegt über dem Mailtext, nicht darunter (untere Hälfte, unter der Linie)
+          await wait(100);
+          const hit = md.elementFromPoint(cx, cy + r.height / 4);
+          const btn = box.querySelector(".mc-hover-reply");
+          md.documentElement.dispatchEvent(new am.MouseEvent("mouseenter"));
+          const enabledMatch = [...box.querySelectorAll(".mc-hover-action")].every(b => b.disabled == !am.commandController.isCommandEnabled(b.dataset.command));
+          const out = { found: true, listActions, order, idle, shown, opacity, w: Math.round(r.width), h: Math.round(r.height),
+                        dx: Math.round(cx - (h.left + h.width / 2)), dy: Math.round(cy - h.bottom), hit: hit?.closest?.("#mcHoverActions") ? "box" : hit?.id || hit?.localName,
+                        icon: cs(btn, "::before").maskImage.slice(0, 20), tabbable: [...box.querySelectorAll("button")].filter(b => b.tabIndex >= 0).length,
+                        labeled: [...box.querySelectorAll("button")].every(b => b.getAttribute("aria-label")), enabledMatch };
+          // Löschen per Knopf: Mail in den Papierkorb, Thunderbirds Rückgängig geht
           const txn = w.messenger.transactionManager; const undo0 = txn.numberOfUndoItems;
-          rows[0].querySelector(".mc-act-delete").click(); await wait(1200);
-          const trash = root.getFolderWithFlags(Ci.nsMsgFolderFlags.Trash);
-          const out = { buttons: buttons.length, flagged, selected, inbox: inbox.getTotalMessages(false), trash: trash?.getTotalMessages(false),
-                        undoItems: txn.numberOfUndoItems - undo0 };
+          box.querySelector(".mc-hover-delete").click();
+          out.inbox = await until(() => inbox.getTotalMessages(false) == 1 && 1, 6000);
+          out.undoItems = txn.numberOfUndoItems - undo0;
           if (out.undoItems > 0) { w.messenger.undo(w.msgWindow); out.undone = await until(() => inbox.getTotalMessages(false) == 2 && 2, 6000); }
-          // Archivieren per Knopf ebenso rückgängig (ohne Identität: Lokale Ordner/Archives)
-          if (out.undone) {
-            const btn = await until(() => a3.document.querySelector('#threadTree tr[is="thread-card"] .mc-act-archive'), 6000);
-            const undoA = txn.numberOfUndoItems;
-            btn?.click();
-            out.archived = await until(() => inbox.getTotalMessages(false) == 1 && 1, 8000);
-            out.archiveUndo = txn.numberOfUndoItems - undoA;
-            if (out.archiveUndo > 0) { w.messenger.undo(w.msgWindow); out.unarchived = await until(() => inbox.getTotalMessages(false) == 2 && 2, 6000); }
-          }
+          InspectorUtils.clearPseudoClassLocks(md.documentElement); box.style.removeProperty("transition");
           return out;''')
-        if res.get("diag"):
-            return False, f"keine Knöpfe auf der Karte – Diagnose {res}"
-        ok = (res["buttons"] == 3 and res["flagged"] and res["selected"] == 0 and res["inbox"] == 1 and res["trash"] == 1
-              and res["undoItems"] == 1 and res.get("undone") == 2
-              and res.get("archived") == 1 and res.get("archiveUndo") == 1 and res.get("unarchived") == 2)
+        if not res.get("found"):
+            return False, f"keine Kapsel in der Leseansicht: {res}"
+        ok = (res["listActions"] == 0 and res["order"] == ["mc-hover-delete", "mc-hover-sep", "mc-hover-reply", "mc-hover-replyall", "mc-hover-forward"]
+              and res["shown"] == "auto" and res["opacity"] == "1" and abs(res["dx"]) <= 2 and abs(res["dy"]) <= 2 and 20 <= res["h"] <= 32 and res["hit"] == "box"
+              and res["icon"].startswith("url(") and res["tabbable"] == 0 and res["labeled"] and res["enabledMatch"]
+              and res.get("inbox") == 1 and res["undoItems"] >= 1 and res.get("undone") == 2)
         return ok, f"{res}"
-    check("Mailkarte: Aktionen beim Überfahren (Markieren, Löschen, Archivieren, Rückgängig)", hover_actions, results)
-
-    def selected_actions():
-        res = m.js('''
-          const a3 = await toMail(); a3.threadTree.selectedIndex = 0; a3.threadTree.focus();
-          await until(() => a3.document.querySelector('#threadTree tr[is="thread-card"][aria-selected="true"] .mc-action, #threadTree tr[is="thread-card"].selected .mc-action'));
-          const row = a3.document.querySelector('#threadTree tr[is="thread-card"].selected, #threadTree tr[is="thread-card"][aria-selected="true"]');
-          const b = row?.querySelector(".mc-action"); const box = row?.querySelector(".mc-actions");
-          if (!b) return { found: false };
-          // rgb(255, 255, 255) und color(srgb 1 1 1) auf dieselbe Skala 0–255
-          const rgb = c => { const v = (c.match(/[\\d.]+/g) || []).slice(0, 3).map(Number); return c.startsWith("color(") ? v.map(x => x * 255) : v; };
-          const cs = a3.getComputedStyle; const fg = rgb(cs(b).color), bg = rgb(cs(box).backgroundColor);
-          const diff = Math.max(...fg.map((v, i) => Math.abs(v - bg[i])));
-          return { found: true, icon: cs(b).color, pill: cs(box).backgroundColor, diff };''')
-        return res.get("found") and res["diff"] >= 60, f"{res}"
-    check("Ausgewählte Karte: Aktions-Symbole sichtbar", selected_actions, results)
+    check("Mailansicht: Aktionen beim Überfahren als Kapsel unter dem Mailkopf (Löschen | Antworten, Allen antworten, Weiterleiten), keine in der Mailliste", hover_actions, results)
 
     def reply_forward_marks():
         # wie Apple Mail: links vom Absenderbild grauer Pfeil für beantwortet (nach links) bzw. weitergeleitet (nach rechts);
@@ -8003,7 +7997,7 @@ def run_checks(m, version, profile, results):
           const unlabeled = own.filter(b => !b.getAttribute("aria-label")).map(b => b.id);
           const rings = own.filter(b => !ring(b)).map(b => b.id);
           const a3 = d.getElementById("tabmail").currentAbout3Pane;
-          const acts = [...(a3?.document.querySelectorAll(".mc-action") || [])];
+          const acts = [...(a3?.messageBrowser?.contentDocument?.querySelectorAll(".mc-hover-action") || [])];
           return { own: own.length, unlabeled, noRing: rings, actions: acts.length, tabbable: acts.filter(b => b.tabIndex >= 0).length,
                    actionsLabeled: acts.every(b => b.getAttribute("aria-label")) };''')
         ok = res["own"] == 2 and not res["unlabeled"] and not res["noRing"] and res["tabbable"] == 0 and res["actionsLabeled"]

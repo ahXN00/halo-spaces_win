@@ -9,7 +9,7 @@ Ein ruhiges, aufgeräumtes Design im Stil von macOS für Thunderbird: farbige Be
 <b>Mail</b>
 <ul>
 <li>Mailkarten mit zweizeiliger Vorschau und Absenderbildern: aus dem Adressbuch, der macOS-Kontakte-App (optional), dem BIMI-Logo oder Website-Symbol des Absenders, sonst Initialen</li>
-<li>Optional: Markieren, Archivieren und Löschen direkt auf der Karte, wenn man darüberfährt (Einstellungen)</li>
+<li>Wie in Apple Mail: Löschen, Antworten, Allen antworten und Weiterleiten in einer kleinen Leiste unter dem Mailkopf, wenn man über die Mail fährt</li>
 <li>Ganze Konversationen wie in Apple Mail: empfangene Mails und eigene Antworten aus „Gesendet“, neueste oben, jede vollständig (abschaltbar)</li>
 <li>Mailkopf wie in Apple Mail: Absenderbild, Ordner und Uhrzeit, Verteiler-Hinweis mit Abmelden, der Knopf verschwindet nach der Abmeldung</li>
 <li>Mails in der Systemschrift wie bei Apple Mail (Mac: SF Pro, Windows: Segoe UI, Linux: Schrift der Oberfläche)</li>

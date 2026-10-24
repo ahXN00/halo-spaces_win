@@ -56,7 +56,6 @@ const DE = {
   "All Day": "Ganztägig",
   "all-day": "ganztägig",
   "Appearance": "Erscheinungsbild",
-  "Archive": "Archivieren",
   "At time of event": "Zum Termin",
   "Automatic (like macOS)": "Automatisch (wie macOS)",
   "Birthdays": "Geburtstage",
@@ -73,7 +72,7 @@ const DE = {
   "Every Month": "Monatlich",
   "Every Week": "Wöchentlich",
   "Every Year": "Jährlich",
-  "Flag": "Markieren",
+  "Forward": "Weiterleiten",
   "Free": "Frei",
   "halo.spaces is up to date": "halo.spaces ist aktuell",
   "Hide Sidebar": "Seitenleiste ausblenden",
@@ -100,6 +99,8 @@ const DE = {
   "None": "Keine",
   "Previous Month": "Voriger Monat",
   "Repeat": "Wiederholen",
+  "Reply": "Antworten",
+  "Reply All": "Allen antworten",
   "Show As": "Anzeigen als",
   "Show Names As": "Namen anzeigen als",
   "Show Sidebar": "Seitenleiste einblenden",
@@ -113,8 +114,6 @@ const DE = {
   "1 Line": "1 Zeile",
   "{n} Lines": "{n} Zeilen",
   "takes effect after a restart": "gilt nach einem Neustart",
-  "Actions when hovering a message": "Aktionen beim Überfahren einer Mail",
-  "Flag, archive, delete": "Markieren, Archivieren, Löschen",
   "Logos from sender websites": "Logos von Absender-Websites",
   "asks only the sender’s own website (favicon, BIMI) – off: no outside requests": "fragt nur die Website des Absenders (Favicon, BIMI) – aus: keine Anfragen nach außen",
   "Photos from the Contacts app": "Fotos aus der Kontakte-App",
@@ -239,7 +238,6 @@ const FR = {
   "All Day": "Toute la journée",
   "all-day": "toute la journée",
   "Appearance": "Apparence",
-  "Archive": "Archiver",
   "At time of event": "À l’heure de l’événement",
   "Automatic (like macOS)": "Automatique (comme macOS)",
   "Birthdays": "Anniversaires",
@@ -255,7 +253,7 @@ const FR = {
   "Every Month": "Tous les mois",
   "Every Week": "Toutes les semaines",
   "Every Year": "Tous les ans",
-  "Flag": "Marquer",
+  "Forward": "Transférer",
   "Free": "Disponible",
   "halo.spaces is up to date": "halo.spaces est à jour",
   "Hide Sidebar": "Masquer la barre latérale",
@@ -282,6 +280,8 @@ const FR = {
   "None": "Aucune",
   "Previous Month": "Mois précédent",
   "Repeat": "Répéter",
+  "Reply": "Répondre",
+  "Reply All": "Répondre à tous",
   "Show As": "Afficher comme",
   "Show Names As": "Afficher les noms",
   "Show Sidebar": "Afficher la barre latérale",
@@ -295,8 +295,6 @@ const FR = {
   "1 Line": "1 ligne",
   "{n} Lines": "{n} lignes",
   "takes effect after a restart": "après un redémarrage",
-  "Actions when hovering a message": "Actions au survol d’un message",
-  "Flag, archive, delete": "Marquer, archiver, supprimer",
   "Logos from sender websites": "Logos des sites des expéditeurs",
   "asks only the sender’s own website (favicon, BIMI) – off: no outside requests": "interroge uniquement le site de l’expéditeur (favicon, BIMI) – désactivé : aucune requête externe",
   "Photos from the Contacts app": "Photos de l’app Contacts",
@@ -423,7 +421,6 @@ const ES = {
   "All Day": "Todo el día",
   "all-day": "todo el día",
   "Appearance": "Apariencia",
-  "Archive": "Archivar",
   "At time of event": "A la hora del evento",
   "Automatic (like macOS)": "Automático (como macOS)",
   "Birthdays": "Cumpleaños",
@@ -439,7 +436,7 @@ const ES = {
   "Every Month": "Cada mes",
   "Every Week": "Cada semana",
   "Every Year": "Cada año",
-  "Flag": "Marcar",
+  "Forward": "Reenviar",
   "Free": "Libre",
   "halo.spaces is up to date": "halo.spaces está actualizado",
   "Hide Sidebar": "Ocultar barra lateral",
@@ -466,6 +463,8 @@ const ES = {
   "None": "Ninguno",
   "Previous Month": "Mes anterior",
   "Repeat": "Repetir",
+  "Reply": "Responder",
+  "Reply All": "Responder a todos",
   "Show As": "Mostrar como",
   "Show Names As": "Mostrar nombres como",
   "Show Sidebar": "Mostrar barra lateral",
@@ -479,8 +478,6 @@ const ES = {
   "1 Line": "1 línea",
   "{n} Lines": "{n} líneas",
   "takes effect after a restart": "se aplica tras reiniciar",
-  "Actions when hovering a message": "Acciones al pasar sobre un mensaje",
-  "Flag, archive, delete": "Marcar, archivar, eliminar",
   "Logos from sender websites": "Logotipos de los sitios web de los remitentes",
   "asks only the sender’s own website (favicon, BIMI) – off: no outside requests": "solo consulta el sitio web del remitente (favicon, BIMI) – desactivado: ninguna petición externa",
   "Photos from the Contacts app": "Fotos de la app Contactos",
@@ -607,7 +604,6 @@ const IT = {
   "All Day": "Tutto il giorno",
   "all-day": "tutto il giorno",
   "Appearance": "Aspetto",
-  "Archive": "Archivia",
   "At time of event": "All’ora dell’evento",
   "Automatic (like macOS)": "Automatico (come macOS)",
   "Birthdays": "Compleanni",
@@ -623,7 +619,7 @@ const IT = {
   "Every Month": "Ogni mese",
   "Every Week": "Ogni settimana",
   "Every Year": "Ogni anno",
-  "Flag": "Contrassegna",
+  "Forward": "Inoltra",
   "Free": "Libero",
   "halo.spaces is up to date": "halo.spaces è aggiornato",
   "Hide Sidebar": "Nascondi barra laterale",
@@ -650,6 +646,8 @@ const IT = {
   "None": "Nessuno",
   "Previous Month": "Mese precedente",
   "Repeat": "Ripeti",
+  "Reply": "Rispondi",
+  "Reply All": "Rispondi a tutti",
   "Show As": "Mostra come",
   "Show Names As": "Mostra nomi come",
   "Show Sidebar": "Mostra barra laterale",
@@ -663,8 +661,6 @@ const IT = {
   "1 Line": "1 riga",
   "{n} Lines": "{n} righe",
   "takes effect after a restart": "attivo dopo un riavvio",
-  "Actions when hovering a message": "Azioni al passaggio su un messaggio",
-  "Flag, archive, delete": "Contrassegna, archivia, elimina",
   "Logos from sender websites": "Loghi dai siti dei mittenti",
   "asks only the sender’s own website (favicon, BIMI) – off: no outside requests": "interroga solo il sito del mittente (favicon, BIMI) – disattivato: nessuna richiesta esterna",
   "Photos from the Contacts app": "Foto dall’app Contatti",
@@ -3142,59 +3138,6 @@ const CSS = `
 #threadTree tr[is="thread-card"]:is(.dummy, [data-properties~="dummy"]) :is(.mc-avatar, .mc-preview) {
   display: none !important;
 }
-/* Aktionen beim Überfahren: rechts unten in der Karte */
-#threadTree tr[is="thread-card"] .mc-actions {
-  position: absolute;
-  inset-inline-end: 8px;
-  bottom: 6px;
-  display: flex;
-  gap: 2px;
-  padding: 2px;
-  border-radius: 999px;
-  background: var(--mt-window, Canvas);
-  box-shadow: 0 0 0 0.5px var(--mt-pane-line, rgba(0,0,0,.12)), 0 1px 3px rgba(0, 0, 0, 0.12);
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity 120ms ease;
-  z-index: 2;
-}
-#threadTree tr[is="thread-card"]:hover .mc-actions {
-  opacity: 1;
-  pointer-events: auto;
-}
-#threadTree tr[is="thread-card"][data-properties~="dummy"] .mc-actions {
-  display: none;
-}
-#threadTree tr[is="thread-card"] .mc-action {
-  appearance: none;
-  width: 26px;
-  height: 26px;
-  min-width: 0;
-  margin: 0;
-  padding: 0;
-  border: none;
-  border-radius: 999px;
-  background: transparent;
-  color: var(--mt-text-secondary, GrayText) !important;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-#threadTree tr[is="thread-card"] .mc-action:hover {
-  background: var(--mt-control-hover, rgba(0,0,0,.09));
-  color: var(--mt-text, CanvasText) !important;
-}
-#threadTree tr[is="thread-card"] .mc-action::before {
-  content: "";
-  width: 16px;
-  height: 16px;
-  background-color: currentColor;
-  mask: var(--mi-flag) center / contain no-repeat;
-}
-#threadTree tr[is="thread-card"] .mc-act-archive::before { mask-image: var(--mi-archive); }
-#threadTree tr[is="thread-card"] .mc-act-delete::before { mask-image: var(--mi-trash); }
-#threadTree tr[is="thread-card"][data-properties~="flagged"] .mc-act-flag { color: #FF9500 !important; }
-#threadTree tr[is="thread-card"] .mc-actions[data-trash] .mc-act-delete { display: none; }
 `;
 
 // ---------------------------------------------------------------------------
@@ -4493,7 +4436,6 @@ function squeezeToolbar(doc, fits) {
 // nicht in „Badminton“). Reihenfolge: Spezielles vor Allgemeinem.
 // ---------------------------------------------------------------------------
 const EMOJI_PREF = "extensions.mailcards.calendarEmoji";
-const HOVER_ACTIONS_PREF = "extensions.mailcards.hoverActions";
 const UNREAD_TINT_PREF = "extensions.mailcards.unreadTint";
 const BDAY_PREF = "extensions.mailcards.birthdays";
 const BDAY_CAL_PREF = "extensions.mailcards.birthdayCalendarId";
@@ -11711,7 +11653,7 @@ class CardEnhancer {
       threadPane.densityChange = reg.density;
       delete win.__mailCards;
       style.remove();
-      for (const el of doc.querySelectorAll(".mc-avatar, .mc-preview, .mc-actions")) {
+      for (const el of doc.querySelectorAll(".mc-avatar, .mc-preview")) {
         el.remove();
       }
       threadPane.updateThreadItemSize();
@@ -12044,9 +11986,6 @@ class CardEnhancer {
       preview.className = "mc-preview";
       row.querySelector(".thread-card-dynamic-row")?.after(preview);
     }
-    if (!container.querySelector(":scope > .mc-actions") && Services.prefs.getBoolPref(HOVER_ACTIONS_PREF, false)) {
-      container.append(this.hoverActions(win, row));
-    }
 
     if ((row.dataset.properties || "").split(" ").includes("dummy")) {
       return;
@@ -12059,15 +11998,6 @@ class CardEnhancer {
     if (this.isDuplicateRow(row)) {
       row.setAttribute("data-mc-dup", "");
       return;
-    }
-
-    const actions = container.querySelector(":scope > .mc-actions");
-    if (actions) {
-      let trash = false;
-      try {
-        trash = !!hdr.folder?.getFlag(Ci.nsMsgFolderFlags.Trash);
-      } catch {}
-      actions.toggleAttribute("data-trash", trash);
     }
 
     if (preview) {
@@ -12562,59 +12492,6 @@ class CardEnhancer {
     log("birthdays", { count: found.size });
   }
 
-  // Aktionen beim Überfahren einer Karte: Markieren, Archivieren, Löschen –
-  // nur für diese Mail, ohne Auswahl oder Ansicht zu ändern
-  hoverActions(win, row) {
-    const doc = win.document;
-    const box = doc.createElement("div");
-    box.className = "mc-actions";
-    const act = (cls, label, run) => {
-      const b = doc.createElement("button");
-      b.type = "button";
-      // nur für die Maus – sonst müsste man pro Karte durch drei Knöpfe tabben
-      b.tabIndex = -1;
-      b.className = `mc-action ${cls}`;
-      b.title = label;
-      b.setAttribute("aria-label", label);
-      // nicht die Zeile auswählen oder ziehen
-      for (const type of ["mousedown", "pointerdown", "dblclick"]) {
-        b.addEventListener(type, e => e.stopPropagation());
-      }
-      b.addEventListener("click", event => {
-        event.stopPropagation();
-        event.preventDefault();
-        const hdr = this.hdrForRow(row);
-        if (!hdr?.folder) {
-          return;
-        }
-        try {
-          run(hdr);
-        } catch (e) {
-          log("hover action error", cls, e);
-        }
-      });
-      box.append(b);
-    };
-    act("mc-act-flag", tr("Flag"), hdr => hdr.folder.markMessagesFlagged([hdr], !hdr.isFlagged));
-    act("mc-act-archive", tr("Archive"), hdr => {
-      const { MessageArchiver } = ChromeUtils.importESModule("resource:///modules/MessageArchiver.sys.mjs");
-      const archiver = new MessageArchiver();
-      // wie Thunderbirds cmd_archive: ohne msgWindow kein Rückgängig (Cmd+Z);
-      // msgWindow liegt im Hauptfenster, nicht in about:3pane
-      archiver.msgWindow = win.top.msgWindow;
-      archiver.archiveMessages([hdr]);
-    });
-    act("mc-act-delete", tr("Delete"), hdr => {
-      // nur in den Papierkorb verschieben – im Papierkorb selbst (dort wäre es
-      // endgültig) ist der Knopf ausgeblendet und tut nichts
-      if (hdr.folder.getFlag(Ci.nsMsgFolderFlags.Trash)) {
-        return;
-      }
-      hdr.folder.deleteMessages([hdr], win.top.msgWindow, false, false, null, true);
-    });
-    return box;
-  }
-
   // Wie Apple Mail: Eine zugeklappte Konversation zeigt Vorschau und Bild der
   // neuesten Nachricht, nicht der ersten. Aufgeklappt hat jede Zeile ihre eigene.
   // Dieselbe Mail (gleiche Message-ID) mehrfach – etwa Gmail-Labels in „Alle
@@ -12799,6 +12676,7 @@ class CardEnhancer {
     shorten();
     run();
     this.hookNotificationLayout(doc);
+    this.hookHoverActions(doc);
     this.addWinRestorer(win, () => {
       mo.disconnect();
       delete doc.__mcHdrAvatar;
@@ -12815,6 +12693,70 @@ class CardEnhancer {
         box.classList.remove("mc-hdr-avatar", "mc-has-img", "mc-small");
         delete box.dataset.mcFor;
       }
+    });
+  }
+
+  // Aktionen beim Überfahren wie Apple Mail: Fährt die Maus über die
+  // geöffnete Mail (Kopf oder Text), erscheint mittig auf der Linie unter dem
+  // Kopf eine kleine Kapsel mit Löschen | Antworten, Allen antworten,
+  // Weiterleiten. Ein-/Ausblenden über :hover im CSS (userChrome.css); die
+  // Befehle laufen über Thunderbirds commandController der Leseansicht – wie
+  // die Knöpfe im Mailkopf, also auch mit Rückgängig und Folgemail.
+  hookHoverActions(doc) {
+    const win = doc.defaultView;
+    // in den Rahmen um den Kopf – #messageHeader selbst schneidet Überstehendes ab
+    const header = doc.getElementById("msgHeaderView") || doc.getElementById("messageHeader");
+    if (!win || !header || doc.getElementById("mcHoverActions")) {
+      return;
+    }
+    const X = "http://www.w3.org/1999/xhtml";
+    const box = doc.createElementNS(X, "div");
+    box.id = "mcHoverActions";
+    const buttons = [];
+    const act = (cls, label, command) => {
+      const b = doc.createElementNS(X, "button");
+      b.type = "button";
+      // nur für die Maus – per Tastatur gibt es Kopfzeilen-Knöpfe und Kürzel
+      b.tabIndex = -1;
+      b.className = `mc-hover-action ${cls}`;
+      b.title = label;
+      b.setAttribute("aria-label", label);
+      b.dataset.command = command;
+      b.addEventListener("click", event => {
+        event.stopPropagation();
+        try {
+          win.commandController?.doCommand(command, event);
+        } catch (e) {
+          log("hover action error", command, e);
+        }
+      });
+      buttons.push(b);
+      return b;
+    };
+    const sep = doc.createElementNS(X, "span");
+    sep.className = "mc-hover-sep";
+    box.append(
+      act("mc-hover-delete", tr("Delete"), "cmd_deleteMessage"),
+      sep,
+      act("mc-hover-reply", tr("Reply"), "cmd_reply"),
+      act("mc-hover-replyall", tr("Reply All"), "cmd_replyall"),
+      act("mc-hover-forward", tr("Forward"), "cmd_forward"),
+    );
+    header.append(box);
+    // ausgegraut, was gerade nicht geht (z. B. ohne Identität kein Antworten)
+    const update = () => {
+      for (const b of buttons) {
+        let ok = true;
+        try {
+          ok = !!win.commandController?.isCommandEnabled(b.dataset.command);
+        } catch {}
+        b.disabled = !ok;
+      }
+    };
+    doc.documentElement.addEventListener("mouseenter", update);
+    this.addWinRestorer(win, () => {
+      doc.documentElement.removeEventListener("mouseenter", update);
+      box.remove();
     });
   }
 
@@ -13290,8 +13232,6 @@ class CardEnhancer {
 // Einstellungen der Optionsseite: Schlüssel → Pref (Typ), nur diese sind erlaubt
 // (Vorschauzeilen: Menü Ansicht, Geburtstage: Häkchen in der Kalenderliste)
 const SETTINGS = {
-  // standardmäßig aus (auf Wunsch: ruhigere Karten); in den Einstellungen einschaltbar
-  hoverActions: [HOVER_ACTIONS_PREF, "bool", false],
   unreadTint: [UNREAD_TINT_PREF, "bool", false],
   earlyTheme: [EARLY_THEME_PREF, "bool", false],
   inlinePrompts: [INLINE_PROMPTS_PREF, "bool", true],

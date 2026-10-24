@@ -9,7 +9,7 @@ A calm, tidy macOS-style design for Thunderbird: colourful spaces, message cards
 <b>Mail</b>
 <ul>
 <li>Message cards with a two-line preview and sender pictures: from your address book, macOS Contacts (optional), the sender's BIMI logo or website icon, otherwise initials</li>
-<li>Optional: flag, archive and delete right on the card when you hover over it (Preferences)</li>
+<li>Like Apple Mail: delete, reply, reply all and forward in a small bar below the message header when you hover over the message</li>
 <li>Whole conversations like Apple Mail: received mails and your own replies from Sent, newest first, each shown in full (can be turned off)</li>
 <li>Message header like Apple Mail: sender picture, folder and time, a mailing-list note with Unsubscribe that disappears once you have unsubscribed</li>
 <li>Messages in the system font like Apple Mail (Mac: SF Pro, Windows: Segoe UI, Linux: your desktop font)</li>

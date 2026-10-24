@@ -15,8 +15,6 @@ const t = english => TABLE[english] ?? english;
 // bewusst nicht; ihre Prefs bleiben
 const SECTIONS = () => [
   [t("Mail"), [
-    { key: "hoverActions", label: t("Actions when hovering a message"),
-      hint: t("Flag, archive, delete") },
     { key: "fullConversation", label: t("Show whole conversation"),
       hint: t("received and sent messages from all folders, newest first") },
     { key: "unreadTint", label: t("Tint unread messages"),
