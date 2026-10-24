@@ -2202,6 +2202,9 @@ function hookPersonalBook(cw, restorers) {
     if (hidden && books.selectedRow?.closest("li[data-mc-pab-hidden]")) {
       books.selectedIndex = 0;
     }
+    if (item) {
+      updateItem();
+    }
   };
   // abhakbarer Eintrag im „…“-Menü, Abschnitt „View“
   const menu = doc.getElementById("sortContext");
@@ -2245,6 +2248,117 @@ function hookPersonalBook(cw, restorers) {
       row.removeAttribute("data-mc-pab-hidden");
     }
     delete books.__mcPersonal;
+  });
+}
+
+// Adressbuch wie Apple Kontakte: nie eine Kontaktliste ohne gewählten Kontakt.
+// Beim Öffnen und nach jedem Neuaufbau der Liste (Buchwechsel, Suche, Löschen)
+// den zuletzt gewählten Kontakt wieder wählen, sonst den ersten Kontakt aus
+// einem sichtbaren Adressbuch. Gemerkt wird nur, was der Nutzer selbst wählt.
+const LAST_CONTACT_PREF = "extensions.mailcards.lastContact";
+
+function hookLastContact(cw, restorers) {
+  const pane = cw.detailsPane;
+  const books = cw.booksList;
+  const list = cw.cardsPane?.cardsList;
+  if (!pane || !books || !list || typeof pane.displayCards != "function" || pane.__mcLastContact) {
+    return;
+  }
+  pane.__mcLastContact = true;
+  let own = false;
+  let initial = true;
+  let timer = null;
+  const bookVisible = uid => {
+    const row = uid && books.querySelector(`:scope > li[data-uid="${uid}"]`);
+    return !row || cw.getComputedStyle(row).display != "none";
+  };
+  const remember = () => {
+    if (own) {
+      return;
+    }
+    try {
+      const idx = list.selectedIndices;
+      const card = idx.length == 1 ? list.view?.getCardFromRow(idx[0]) : null;
+      if (card?.UID) {
+        Services.prefs.setStringPref(LAST_CONTACT_PREF, `${card.directoryUID || ""} ${card.UID}`);
+      }
+    } catch (e) {
+      log("last contact save error", e);
+    }
+  };
+  const ensure = () => {
+    timer = null;
+    try {
+      const view = list.view;
+      if (pane.isEditing || !view || list.selectedIndices.length) {
+        initial = false;
+        return;
+      }
+      const n = view.rowCount || 0;
+      const [dirUID, cardUID] = Services.prefs.getStringPref(LAST_CONTACT_PREF, "").split(" ");
+      let index = -1;
+      for (let i = 0; cardUID && i < n; i++) {
+        if (view.getCardFromRow(i)?.UID == cardUID) {
+          index = i;
+          break;
+        }
+      }
+      // beim Öffnen: steht der Kontakt nicht im gewählten Buch, in sein Buch wechseln
+      if (index < 0 && initial && dirUID && books.selectedIndex != 0) {
+        initial = false;
+        const bi = books.getIndexForUID?.(dirUID) ?? -1;
+        if (bi > 0 && bi != books.selectedIndex && bookVisible(dirUID)) {
+          books.selectedIndex = bi;
+          return;
+        }
+      }
+      initial = false;
+      if (index < 0) {
+        // Rückfall: erster Kontakt aus einem sichtbaren Adressbuch
+        for (let i = 0; i < n; i++) {
+          if (bookVisible(view.getCardFromRow(i)?.directoryUID)) {
+            index = i;
+            break;
+          }
+        }
+      }
+      if (index < 0 && n) {
+        index = 0;
+      }
+      if (index >= 0) {
+        own = true;
+        try {
+          list.selectedIndex = index;
+        } finally {
+          own = false;
+        }
+      }
+    } catch (e) {
+      log("last contact error", e);
+    }
+  };
+  const schedule = () => {
+    if (!timer) {
+      timer = cw.setTimeout(ensure, 0);
+    }
+  };
+  const origDisplay = pane.displayCards;
+  pane.displayCards = function (cards = [], ...rest) {
+    const result = origDisplay.call(this, cards, ...rest);
+    if (!cards?.length) {
+      schedule();
+    }
+    return result;
+  };
+  list.addEventListener("select", remember);
+  schedule();
+  restorers?.push(() => {
+    pane.displayCards = origDisplay;
+    list.removeEventListener("select", remember);
+    if (timer) {
+      cw.clearTimeout(timer);
+    }
+    delete pane.__mcLastContact;
   });
 }
 
@@ -6517,6 +6631,7 @@ class CardEnhancer {
           }
           try {
             hookPersonalBook(cw, winRestorers);
+            hookLastContact(cw, winRestorers);
           } catch (e) {
             log("personal book error", e);
           }

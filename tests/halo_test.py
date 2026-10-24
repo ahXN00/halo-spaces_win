@@ -4355,13 +4355,18 @@ def run_checks(m, version, profile, results):
           const ab = await until(() => { const c = tab.browser?.contentWindow; return c?.document?.getElementById("cards")?.view?.rowCount && c; }, 8000);
           const ad = ab.document, list = ad.getElementById("cards"), dp = ad.getElementById("detailsPane");
           const out = {};
+          // ohne Auswahl gibt es nur noch in einem leeren Adressbuch (sonst wählt
+          // halo.spaces immer einen Kontakt)
+          const { MailServices } = ChromeUtils.importESModule("resource:///modules/MailServices.sys.mjs");
+          const empty = MailServices.ab.getDirectoryFromId(MailServices.ab.newAddressBook("Halo Ohne Auswahl", "", Ci.nsIAbManager.JS_DIRECTORY_TYPE));
           try {
             await wait(800);
-            list.selectedIndices = []; await wait(800);
+            ab.booksList.selectedIndex = ab.booksList.getIndexForUID(empty.UID); await wait(800);
             out.hidden = dp.hidden || !dp.getClientRects().length;
             w.resizeTo(1500, 900); await wait(1000);
             w.resizeTo(1250, 900); await wait(1200);
             out.narrow = w.outerWidth;
+            ab.booksList.selectedIndex = 0; await wait(800);
             list.selectedIndex = 0; await wait(1000);
             w.resizeTo(600, 900); await wait(1500);
             const r = dp.getBoundingClientRect();
@@ -4369,6 +4374,7 @@ def run_checks(m, version, profile, results):
             out.inside = r.right <= ab.innerWidth + 1; out.window = w.outerWidth;
           } finally {
             tm.closeTab(tab); w.resizeTo(1500, 900); await wait(800);
+            MailServices.ab.deleteAddressBook(empty.URI); await wait(300);
           }
           return out;""")
         ok = (res["hidden"] and res["narrow"] < 1450 and res["pane"] >= res["min"] - 1 and res["min"] >= 560
@@ -5067,6 +5073,56 @@ def run_checks(m, version, profile, results):
               and mon.get("checked") is True and mon.get("disabled") is True)
         return ok, f"{res}"
     check("Adressbuch: persönliches Adressbuch ausblendbar über „…“, neuer Kontakt blendet es ein, als einziges Buch immer sichtbar", pab_hidden, results)
+
+    def ab_last_contact():
+        # Adressbuch öffnet mit dem zuletzt gewählten Kontakt; nie eine Liste ohne
+        # Auswahl: nach Löschen des gewählten Kontakts und beim Buchwechsel ist
+        # wieder ein Kontakt gewählt und im Detailbereich zu sehen
+        res = m.js(r"""
+          const { MailServices } = ChromeUtils.importESModule("resource:///modules/MailServices.sys.mjs");
+          const pab = MailServices.ab.getDirectory("jsaddrbook://abook.sqlite");
+          const mk = (n, e) => { const c = Cc["@mozilla.org/addressbook/cardproperty;1"].createInstance(Ci.nsIAbCard); c.displayName = n; c.primaryEmail = e; return pab.addCard(c); };
+          const made = [mk("Halo Erstkontakt", "erst@example.invalid"), mk("Halo Zweitkontakt", "zweit@example.invalid")];
+          const second = made[1];
+          const open = async () => {
+            tm.openTab("addressBookTab", {});
+            const ab = await until(() => tm.currentTabInfo.browser?.contentWindow?.cardsPane && tm.currentTabInfo.browser.contentWindow, 8000);
+            await wait(1500);
+            return ab;
+          };
+          const state = ab => { const l = ab.cardsPane.cardsList, idx = l.selectedIndices;
+            return { n: idx.length, uid: idx.length == 1 ? l.view.getCardFromRow(idx[0])?.UID : null,
+              shown: !ab.detailsPane.node.hidden && !!ab.detailsPane.currentCard }; };
+          const out = {};
+          let ab = null;
+          try {
+            ab = await open();
+            ab.booksList.selectedIndex = 0; await wait(800);
+            out.first = state(ab);
+            const l = ab.cardsPane.cardsList;
+            l.selectedIndex = l.view.getIndexForUID(second.UID); await wait(600);
+            tm.closeTab(tm.currentTabInfo); await wait(500);
+            ab = await open();
+            out.reopened = state(ab);
+            out.wantUID = second.UID;
+            pab.deleteCards([second]); made.pop(); await wait(1000);
+            out.afterDelete = state(ab);
+            const brow = [...ab.booksList.querySelectorAll(":scope > li")].find(r => r.dataset.uid == pab.UID);
+            ab.booksList.selectedIndex = ab.booksList.rows.indexOf(brow); await wait(1000);
+            out.afterBook = state(ab);
+            ab.booksList.selectedIndex = 0; await wait(600);
+          } finally {
+            if (made.length) pab.deleteCards(made);
+            Services.prefs.clearUserPref("extensions.mailcards.lastContact");
+            if (ab) { tm.closeTab(tm.currentTabInfo); await wait(400); }
+          }
+          return out;""")
+        f, r, d, b = (res.get(k) or {} for k in ("first", "reopened", "afterDelete", "afterBook"))
+        ok = (f.get("n") == 1 and f.get("shown") and r.get("uid") == res.get("wantUID") and r.get("shown")
+              and d.get("n") == 1 and d.get("uid") != res.get("wantUID") and d.get("shown")
+              and b.get("n") == 1 and b.get("shown"))
+        return ok, f"{res}"
+    check("Adressbuch: öffnet mit dem zuletzt gewählten Kontakt, nie ohne gewählten Kontakt", ab_last_contact, results)
 
     def contact_edit():
         # Kontakt bearbeiten wie Apple Kontakte: eine Schrift, Überschriften über den Feldern,
