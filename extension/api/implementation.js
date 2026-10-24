@@ -101,6 +101,9 @@ const DE = {
   "Repeat": "Wiederholen",
   "Reply": "Antworten",
   "Reply All": "Allen antworten",
+  "Show Outbox": "Postausgang zeigen",
+  "The message could not be sent": "Die Nachricht konnte nicht gesendet werden",
+  "The message was kept in the Outbox.": "Die Nachricht liegt weiter im Postausgang.",
   "Show As": "Anzeigen als",
   "Show Names As": "Namen anzeigen als",
   "Show Sidebar": "Seitenleiste einblenden",
@@ -282,6 +285,9 @@ const FR = {
   "Repeat": "Répéter",
   "Reply": "Répondre",
   "Reply All": "Répondre à tous",
+  "Show Outbox": "Afficher la boîte d’envoi",
+  "The message could not be sent": "Le message n’a pas pu être envoyé",
+  "The message was kept in the Outbox.": "Le message a été conservé dans la boîte d’envoi.",
   "Show As": "Afficher comme",
   "Show Names As": "Afficher les noms",
   "Show Sidebar": "Afficher la barre latérale",
@@ -465,6 +471,9 @@ const ES = {
   "Repeat": "Repetir",
   "Reply": "Responder",
   "Reply All": "Responder a todos",
+  "Show Outbox": "Mostrar bandeja de salida",
+  "The message could not be sent": "No se pudo enviar el mensaje",
+  "The message was kept in the Outbox.": "El mensaje se ha guardado en la bandeja de salida.",
   "Show As": "Mostrar como",
   "Show Names As": "Mostrar nombres como",
   "Show Sidebar": "Mostrar barra lateral",
@@ -648,6 +657,9 @@ const IT = {
   "Repeat": "Ripeti",
   "Reply": "Rispondi",
   "Reply All": "Rispondi a tutti",
+  "Show Outbox": "Mostra posta in uscita",
+  "The message could not be sent": "Impossibile inviare il messaggio",
+  "The message was kept in the Outbox.": "Il messaggio è rimasto nella posta in uscita.",
   "Show As": "Mostra come",
   "Show Names As": "Mostra nomi come",
   "Show Sidebar": "Mostra barra laterale",
@@ -5160,30 +5172,33 @@ class CardEnhancer {
       Services.prefs.setBoolPref("gloda.show_as_list_by_default", true);
       Services.prefs.setBoolPref("extensions.mailcards.searchApplied", true);
     }
-    // Wie Apple Mail: kein Fenster „Nachricht wird gesendet“. Das
-    // Verfassen-Fenster bleibt (gesperrt) offen, bis Versand und Kopie in
-    // „Gesendet“ fertig sind; der Fortschritt steht in seiner Statusleiste.
-    // Fehler beim Senden zeigt Thunderbird davon unabhängig weiter als Dialog.
-    // Bewusst nicht mailnews.sendInBackground: dann schlösse das Fenster zwar
-    // sofort, ein Fehler erschiene aber nur in der Aktivitätsanzeige und die
-    // Mail bliebe unbemerkt im Postausgang. Der vorherige Wert wird gemerkt
-    // und beim Ausschalten wiederhergestellt.
-    const SEND_PROGRESS_PREF = "mailnews.show_send_progress";
-    const SEND_PROGRESS_SAVED = "extensions.mailcards.sendProgressSaved";
-    if (!Services.prefs.prefHasUserValue(SEND_PROGRESS_SAVED)) {
-      Services.prefs.setBoolPref(SEND_PROGRESS_SAVED, Services.prefs.getBoolPref(SEND_PROGRESS_PREF, true));
+    // Wie Apple Mail: das Verfassen-Fenster schließt beim Senden sofort, die
+    // Mail geht im Hintergrund über den Postausgang hinaus, ohne Fenster
+    // „Nachricht wird gesendet“. Thunderbird meldet Fehler dabei nur in der
+    // Aktivitätsanzeige – darum zeigt sendErrors() sie selbst als Dialog.
+    // Die vorherigen Werte werden gemerkt und beim Ausschalten wiederhergestellt.
+    for (const [pref, saved, value, def] of [
+      ["mailnews.show_send_progress", "extensions.mailcards.sendProgressSaved", false, true],
+      ["mailnews.sendInBackground", "extensions.mailcards.sendBackgroundSaved", true, false],
+    ]) {
+      if (!Services.prefs.prefHasUserValue(saved)) {
+        Services.prefs.setBoolPref(saved, Services.prefs.getBoolPref(pref, def));
+      }
+      Services.prefs.setBoolPref(pref, value);
+      this.restorers.push(() => {
+        if (!Services.prefs.prefHasUserValue(saved)) {
+          return;
+        }
+        const was = Services.prefs.getBoolPref(saved, def);
+        Services.prefs.clearUserPref(saved);
+        if (was == def) {
+          Services.prefs.clearUserPref(pref);
+        } else {
+          Services.prefs.setBoolPref(pref, was);
+        }
+      });
     }
-    Services.prefs.setBoolPref(SEND_PROGRESS_PREF, false);
-    this.restorers.push(() => {
-      if (!Services.prefs.prefHasUserValue(SEND_PROGRESS_SAVED)) {
-        return;
-      }
-      const was = Services.prefs.getBoolPref(SEND_PROGRESS_SAVED, true);
-      Services.prefs.clearUserPref(SEND_PROGRESS_SAVED);
-      if (was) {
-        Services.prefs.clearUserPref(SEND_PROGRESS_PREF);
-      }
-    });
+    this.sendErrors();
     // Einmal nach der Erstinstallation begrüßen: was halo.spaces ändert und wo
     // die Einstellungen liegen. Windows/Linux: im selben Fenster der Hinweis,
     // dass halo.spaces für macOS gemacht ist (früher ein eigenes Fenster)
@@ -11655,6 +11670,54 @@ class CardEnhancer {
       set();
       w.setTimeout(set, 0);
     } catch {}
+  }
+
+  // Senden im Hintergrund: scheitert eine Mail aus dem Postausgang, wie Apple
+  // Mail einen Dialog zeigen (Thunderbird nennt den Fehler sonst nur in der
+  // Aktivitätsanzeige); „Postausgang zeigen“ öffnet den Ordner im Hauptfenster
+  sendErrors() {
+    let sendLater;
+    try {
+      sendLater = Cc["@mozilla.org/messengercompose/sendlater;1"].getService(Ci.nsIMsgSendLater);
+    } catch (e) {
+      log("send errors error", e);
+      return;
+    }
+    const listener = {
+      QueryInterface: ChromeUtils.generateQI(["nsIMsgSendLaterListener"]),
+      onStartSending() {},
+      onMessageStartSending() {},
+      onMessageSendProgress() {},
+      onStopSending() {},
+      onMessageSendError: (current, hdr, status, message) => {
+        this.showSendError(hdr, message).catch(e => log("send error dialog error", e));
+      },
+    };
+    sendLater.addListener(listener);
+    this.sendErrorListener = listener;
+    this.restorers.push(() => sendLater.removeListener(listener));
+  }
+
+  async showSendError(hdr, message) {
+    const win = Services.wm.getMostRecentWindow("mail:3pane");
+    if (!win) {
+      return;
+    }
+    const subject = hdr?.mime2DecodedSubject || "";
+    const detail = [subject && `„${subject}“`, message, tr("The message was kept in the Outbox.")].filter(Boolean).join("\n\n");
+    const P = Services.prompt;
+    const flags = P.BUTTON_POS_0 * P.BUTTON_TITLE_OK + P.BUTTON_POS_1 * P.BUTTON_TITLE_IS_STRING;
+    const result = await P.asyncConfirmEx(win.browsingContext.top, P.MODAL_TYPE_WINDOW,
+      tr("The message could not be sent"), detail, flags, null, tr("Show Outbox"), null, null, false);
+    if (result.getProperty("buttonNumClicked") != 1) {
+      return;
+    }
+    const outbox = hdr?.folder || MailServices.accounts.localFoldersServer?.rootFolder?.getFolderWithFlags(Ci.nsMsgFolderFlags.Queue);
+    if (outbox) {
+      win.focus();
+      win.document.getElementById("tabmail")?.switchToTab(0);
+      win.gTabmail?.currentAbout3Pane?.displayFolder(outbox.URI);
+    }
   }
 
   setUnreadFilter(a3, on) {

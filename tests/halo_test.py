@@ -8271,12 +8271,26 @@ def run_checks(m, version, profile, results):
           Services.prefs.clearUserPref(P);
           restart();
           out.on3 = Services.prefs.getBoolPref(P);
+          // Senden im Hintergrund wie Apple Mail (Fenster schließt sofort), Fehler als eigener Dialog
+          const B = "mailnews.sendInBackground";
+          const e3 = Cu.evalInSandbox("enhancer", g);
+          out.bg = Services.prefs.getBoolPref(B);
+          const seen = [];
+          e3.showSendError = async (hdr, message) => seen.push(message);
+          e3.sendErrorListener?.onMessageSendError(1, null, 0x80004005, "Testfehler");
+          out.seen = seen;
+          delete e3.showSendError;
+          e3.stop();
+          out.bgOff = { value: Services.prefs.getBoolPref(B), user: Services.prefs.prefHasUserValue(B) };
+          restart();
+          out.bg2 = Services.prefs.getBoolPref(B);
           await toMail();
           return out;''')
         ok = (res["on"] is False and res["off"] == {"value": True, "user": False, "saved": False}
-              and res["on2"] is False and res["off2"] is False and res["on3"] is False)
+              and res["on2"] is False and res["off2"] is False and res["on3"] is False
+              and res["bg"] is True and res["seen"] == ["Testfehler"] and res["bgOff"] == {"value": False, "user": False} and res["bg2"] is True)
         return ok, f"{res}"
-    check("Verfassen: kein Fortschrittsfenster beim Senden; Ausschalten stellt den vorherigen Wert wieder her", send_progress, results)
+    check("Verfassen: kein Fortschrittsfenster, Senden im Hintergrund mit eigener Fehlermeldung; Ausschalten stellt die vorherigen Werte wieder her", send_progress, results)
 
     def local_collapse():
         # „Auf meinem Mac“ klappt auch nach einer Suche zu: der eigene Suchordner
