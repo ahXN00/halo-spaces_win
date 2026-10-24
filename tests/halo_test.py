@@ -7171,6 +7171,7 @@ def run_checks(m, version, profile, results):
           const html = a3.document.documentElement;
           await until(() => !a3.gViewWrapper?.searching && !html.hasAttribute("mc-search-stage"), 40000); await wait(500);
           out.end = a3.gDBView.rowCount; out.done = !a3.gViewWrapper?.searching;
+          out.rowH = Math.round(tree.querySelector('tr[is="thread-card"]')?.getBoundingClientRect().height || 0);
           // grobe Messung ohne Scrollen: Dauer der Kopfzeilen- und der Text-Stufe, Treffer nach Stufe eins
           const marks = []; const t0s = performance.now();
           const obs = new a3.MutationObserver(() => marks.push([html.getAttribute("mc-search-stage"), Math.round(performance.now() - t0s), a3.gDBView?.rowCount]));
@@ -7178,6 +7179,15 @@ def run_checks(m, version, profile, results):
           bar.dispatchEvent(new w.CustomEvent("search", { detail: "bestellung", bubbles: true, composed: true }));
           await until(() => !a3.gViewWrapper?.searching && !html.hasAttribute("mc-search-stage"), 40000); obs.disconnect();
           out.timing = marks;
+          // Scrollposition: in der Textstufe (die Liste kennt die Kopfzeilentreffer) wegscrollen – nach dem Ende
+          // der Suche steht die Liste noch dort, statt nach oben zu springen
+          bar.dispatchEvent(new w.CustomEvent("search", { detail: "betreff", bubbles: true, composed: true }));
+          await until(() => html.getAttribute("mc-search-stage") == "body" && tree.querySelector('tr[is="thread-card"]'), 10000);
+          // (Thunderbird meldet der Liste die Treffer erst am Ende – weit scrollen lässt sie sich währenddessen nicht)
+          for (let i = 0; i < 20; i++) { wheel(); await frame(); }
+          out.scroll = { stage: html.getAttribute("mc-search-stage"), after: Math.round(sc.scrollTop) };
+          await until(() => !a3.gViewWrapper?.searching && !html.hasAttribute("mc-search-stage"), 40000); await wait(500);
+          out.scroll.end = Math.round(sc.scrollTop);
           return out;""")
         # aufräumen: Suche beenden, die großen Ordner wieder löschen (sonst bremsen sie spätere Prüfungen)
         m.js(r"""
@@ -7194,9 +7204,10 @@ def run_checks(m, version, profile, results):
             return True, f"Testfenster verdeckt – übersprungen {res}"
         # (Treffer mindestens die Hälfte: bei so erzeugten lokalen Mails liest die Textsuche teils in die nächste Mail hinein)
         ok = (res["duringScroll"][0] == res["duringScroll"][1] and res["done"] and res["end"] >= NF * NM // 2
-              and res["frameMedian"] <= 25 and res["slow"] <= res["frames"] // 10)
+              and res["frameMedian"] <= 25 and res["slow"] <= res["frames"] // 10
+              and abs(res["scroll"]["end"] - res["scroll"]["after"]) <= max(res["rowH"], 40))
         return ok, f"{res}"
-    check("Suche: Scrollen während einer laufenden Suche flüssig (Suche wartet), danach alle Treffer", search_scroll, results)
+    check("Suche: Scrollen während einer laufenden Suche flüssig (Suche wartet), danach alle Treffer, Scrollposition bleibt", search_scroll, results)
 
     def settings_style():
         # Einstellungen: Inhalt linksbündig 28 px neben der Seitenleiste (max. 800 px), Kästchen/Optionsfelder im macOS-Stil,
