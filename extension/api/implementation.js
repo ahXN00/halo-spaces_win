@@ -5160,10 +5160,14 @@ class CardEnhancer {
       Services.prefs.setBoolPref("gloda.show_as_list_by_default", true);
       Services.prefs.setBoolPref("extensions.mailcards.searchApplied", true);
     }
-    // Wie Apple Mail: kein Fenster „Nachricht wird gesendet“, das Senden läuft
-    // im Hintergrund, der Fortschritt steht nur in der Statusleiste. Fehler
-    // beim Senden zeigt Thunderbird davon unabhängig weiter als Dialog. Der
-    // vorherige Wert wird gemerkt und beim Ausschalten wiederhergestellt.
+    // Wie Apple Mail: kein Fenster „Nachricht wird gesendet“. Das
+    // Verfassen-Fenster bleibt (gesperrt) offen, bis Versand und Kopie in
+    // „Gesendet“ fertig sind; der Fortschritt steht in seiner Statusleiste.
+    // Fehler beim Senden zeigt Thunderbird davon unabhängig weiter als Dialog.
+    // Bewusst nicht mailnews.sendInBackground: dann schlösse das Fenster zwar
+    // sofort, ein Fehler erschiene aber nur in der Aktivitätsanzeige und die
+    // Mail bliebe unbemerkt im Postausgang. Der vorherige Wert wird gemerkt
+    // und beim Ausschalten wiederhergestellt.
     const SEND_PROGRESS_PREF = "mailnews.show_send_progress";
     const SEND_PROGRESS_SAVED = "extensions.mailcards.sendProgressSaved";
     if (!Services.prefs.prefHasUserValue(SEND_PROGRESS_SAVED)) {
