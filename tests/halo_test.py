@@ -6897,6 +6897,59 @@ def run_checks(m, version, profile, results):
         return ok, f"{res}"
     check("Suche: im gewählten Ordner nur dort, in Sammelordnern global, keine Mails ohne den Begriff, Platzhalter je Ordner, Ordnerwechsel sucht weiter", search_scope, results)
 
+    def search_stages():
+        # zweistufige Suche: erst Betreff/Absender/Empfänger (Treffer sofort), danach der Text – die Treffer der
+        # ersten Stufe bleiben stehen, Texttreffer kommen dazu, keine Zeile doppelt; Ordnerwechsel startet neu
+        res = m.js(r"""
+          const { MailServices } = ChromeUtils.importESModule("resource:///modules/MailServices.sys.mjs");
+          const root = MailServices.accounts.localFoldersServer.rootFolder;
+          const folder = name => { if (!root.containsChildNamed(name)) root.createSubfolder(name, null); return root.getChildNamed(name); };
+          const A = folder("StufeA"), B = folder("StufeB"); await wait(800);
+          const mail = (id, subject, body, from = "Anna Beispiel <anna@example.invalid>") => [`From: ${from}`, "To: Halo Test <halo@example.invalid>",
+            `Subject: ${subject}`, "Date: Mon, 19 Oct 2026 10:00:00 +0200", `Message-ID: <${id}@example.invalid>`, "Content-Type: text/plain; charset=UTF-8", "", body, ""].join("\r\n");
+          if (!A.getTotalMessages(false)) {
+            const la = A.QueryInterface(Ci.nsIMsgLocalMailFolder), lb = B.QueryInterface(Ci.nsIMsgLocalMailFolder);
+            la.addMessage(mail("stufe-1", "Kolibri im Betreff", "Nichts Besonderes."));
+            la.addMessage(mail("stufe-2", "Angebot", "Nichts Besonderes.", "Shop <shop@kolibri.example.invalid>"));
+            la.addMessage(mail("stufe-3", "Nur im Text", "Heute kam ein Kolibri vorbei."));
+            la.addMessage(mail("stufe-4", "Ganz anderes", "Nichts zu sehen."));
+            la.addMessage(mail("stufe-5", "Kolibri doppelt", "Auch im Text: Kolibri."));
+            lb.addMessage(mail("stufe-6", "Anderswo", "Wieder ein Kolibri."));
+            lb.addMessage(mail("stufe-7", "Kolibri anderswo", "Nichts."));
+            await wait(1000);
+          }
+          const a3 = await toMail(); const bar = d.querySelector("#unifiedToolbarContent global-search-bar");
+          const html = a3.document.documentElement;
+          const ids = () => { try { a3.gDBView?.doCommand(Ci.nsMsgViewCommandType.expandAll); } catch {}
+            return [...Array(a3.gDBView?.rowCount || 0).keys()].map(i => a3.gDBView.getMsgHdrAt(i)?.messageId?.split("@")[0]).filter(Boolean).sort(); };
+          // Stufen mitschreiben; Trefferliste am Ende jeder Stufe (kleine Ordner: die Suche ist schon im ersten Takt fertig)
+          const stages = [], ends = []; const obs = new a3.MutationObserver(() => stages.push(html.getAttribute("mc-search-stage")));
+          obs.observe(html, { attributes: true, attributeFilter: ["mc-search-stage"] });
+          const onEnd = () => ends.push([html.getAttribute("mc-search-stage"), ids()]); a3.addEventListener("allMessagesLoaded", onEnd);
+          const done = () => until(() => !html.hasAttribute("mc-search-stage") && !a3.gViewWrapper?.searching, 10000);
+          const out = {};
+          a3.displayFolder(A.URI); await wait(900);
+          bar.dispatchEvent(new w.CustomEvent("search", { detail: "kolibri", bubbles: true, composed: true }));
+          out.done = !!(await done()); await wait(300);
+          out.stages = stages.splice(0); out.headersEnd = ends.filter(e => e[0] == "headers").pop()?.[1]; out.inA = ids(); out.rows = a3.gDBView?.rowCount;
+          out.saved = (() => { try { return a3.gFolder.msgDatabase.dBFolderInfo.getCharProperty("searchStr"); } catch { return ""; } })();
+          // Ordnerwechsel während der Suche: dort wieder erst Kopfzeilen, dann Text (je nach Takt startet der Wechsel
+          // die Suche zweimal – es zählt der letzte Durchgang)
+          a3.displayFolder(B.URI); await wait(400); out.doneB = !!(await done()); await wait(300);
+          out.stagesB = stages.splice(0); out.inB = ids();
+          obs.disconnect(); a3.removeEventListener("allMessagesLoaded", onEnd);
+          bar.dispatchEvent(new w.CustomEvent("search", { detail: "", bubbles: true, composed: true })); await wait(1200);
+          out.attrAfter = html.getAttribute("mc-search-stage");
+          return out;""")
+        ok = (res.get("done") and res.get("stages") == ["headers", "body", None]
+              and res.get("headersEnd") == ["stufe-1", "stufe-2", "stufe-5"]
+              and res.get("inA") == ["stufe-1", "stufe-2", "stufe-3", "stufe-5"] and res.get("rows") == 4
+              and "body" in (res.get("saved") or "").lower()
+              and res.get("doneB") and (res.get("stagesB") or [])[-3:] == ["headers", "body", None] and res.get("inB") == ["stufe-6", "stufe-7"]
+              and res.get("attrAfter") is None)
+        return ok, f"{res}"
+    check("Suche: zuerst Kopfzeilen, Text danach – Treffer bleiben stehen, keine doppelten, Ordnerwechsel startet neu", search_stages, results)
+
     def search_scroll():
         # laufende Suche über viele Postfächer: beim Scrollen hält halo.spaces sie an (sonst kam jedes zweite Bild
         # 50–70 ms zu spät), danach läuft sie weiter und findet alle Treffer
@@ -6939,8 +6992,17 @@ def run_checks(m, version, profile, results):
           dts.sort((x, y) => x - y);
           out.duringScroll = [r0, a3.gDBView.rowCount]; out.frameMedian = Math.round(dts[dts.length >> 1]); out.slow = dts.filter(x => x > 40).length; out.frames = dts.length;
           // losgelassen: die Suche läuft weiter bis zum Ende
-          await until(() => !a3.gViewWrapper?.searching, 25000); await wait(500);
+          // (zweistufig: erst wenn auch der Text durchsucht ist)
+          const html = a3.document.documentElement;
+          await until(() => !a3.gViewWrapper?.searching && !html.hasAttribute("mc-search-stage"), 40000); await wait(500);
           out.end = a3.gDBView.rowCount; out.done = !a3.gViewWrapper?.searching;
+          // grobe Messung ohne Scrollen: Dauer der Kopfzeilen- und der Text-Stufe, Treffer nach Stufe eins
+          const marks = []; const t0s = performance.now();
+          const obs = new a3.MutationObserver(() => marks.push([html.getAttribute("mc-search-stage"), Math.round(performance.now() - t0s), a3.gDBView?.rowCount]));
+          obs.observe(html, { attributes: true, attributeFilter: ["mc-search-stage"] });
+          bar.dispatchEvent(new w.CustomEvent("search", { detail: "bestellung", bubbles: true, composed: true }));
+          await until(() => !a3.gViewWrapper?.searching && !html.hasAttribute("mc-search-stage"), 40000); obs.disconnect();
+          out.timing = marks;
           return out;""")
         # aufräumen: Suche beenden, die großen Ordner wieder löschen (sonst bremsen sie spätere Prüfungen)
         m.js(r"""

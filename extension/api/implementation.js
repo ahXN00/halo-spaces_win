@@ -11378,6 +11378,7 @@ class CardEnhancer {
     });
     safely("account rows", () => colorAccountRows(doc, this.restorers));
     safely("search pause", () => this.hookSearchPause(win));
+    safely("search stages", () => this.hookSearchStages(win));
     const mb = win.messageBrowser?.contentDocument;
     if (mb?.readyState == "complete") {
       safely("message context", () => this.hookMailContext(mb));
@@ -11906,8 +11907,10 @@ class CardEnhancer {
   }
 
   // Begriff in Betreff, Absender, Empfänger oder Text – oder, wenn er wie ein
-  // Datum aussieht („12.10“), Mails von diesem Tag
-  searchTerms(session, text) {
+  // Datum aussieht („12.10“), Mails von diesem Tag; ohne body nur die
+  // Kopfzeilen (stehen in der Ordner-Datenbank, der Text muss je Mail von der
+  // Platte gelesen werden)
+  searchTerms(session, text, body = true) {
     const A = Ci.nsMsgSearchAttrib;
     const O = Ci.nsMsgSearchOp;
     const terms = [];
@@ -11922,7 +11925,7 @@ class CardEnhancer {
       term.booleanAnd = false;
       terms.push(term);
     };
-    for (const attrib of [A.Subject, A.Sender, A.ToOrCC, A.Body]) {
+    for (const attrib of body ? [A.Subject, A.Sender, A.ToOrCC, A.Body] : [A.Subject, A.Sender, A.ToOrCC]) {
       add(attrib, O.Contains, v => (v.str = text));
     }
     const date = searchDate(text);
@@ -11943,6 +11946,8 @@ class CardEnhancer {
     let folder = this.searchFolder(false);
     if (!term) {
       this.mailSearchTerm = "";
+      this.searchRun = null;
+      a3.document.documentElement.removeAttribute("mc-search-stage");
       if (folder && this.isSearchFolder(a3.gFolder)) {
         let back = null;
         try {
@@ -11971,10 +11976,14 @@ class CardEnhancer {
       // Mails ohne den Begriff in der Liste. Darum vor jeder Suche leeren.
       this.clearSearchCache(folder, [...new Set([...wrapper.searchFolders, ...scope])]);
       wrapper.searchFolders = scope;
-      wrapper.searchTerms = this.searchTerms(wrapper.searchTermsSession, term);
+      // zweistufig: erst nur die Kopfzeilen (fast sofort), danach im
+      // Hintergrund der Text (searchStageDone)
+      wrapper.searchTerms = this.searchTerms(wrapper.searchTermsSession, term, false);
       wrapper.onlineSearch = false;
       MailServices.accounts.saveVirtualFolders();
       this.mailSearchTerm = term;
+      this.searchRun = { term, stage: "headers", start: Date.now() };
+      a3.document.documentElement.setAttribute("mc-search-stage", "headers");
       if (this.isSearchFolder(a3.gFolder) && a3.gViewWrapper?.search && !this.searchScopeChanged) {
         // Suche läuft schon: neue Begriffe direkt in die Ansicht
         a3.gViewWrapper.search.virtualFolderTerms = wrapper.searchTerms;
@@ -11994,6 +12003,71 @@ class CardEnhancer {
       log("mail search error", e);
     }
     this.updateListHeader(top);
+  }
+
+  // Zweite Stufe der Suche: sind die Kopfzeilen durch, dieselbe Suche mit dem
+  // Text dazu. Thunderbird zeigt dabei sofort die gemerkten Treffer der ersten
+  // Stufe (je Postfach zwischengespeichert, alle passen weiter) und ergänzt
+  // nur die neuen – keine doppelten Zeilen; Mails mit Treffer in den
+  // Kopfzeilen liest es nicht noch einmal von der Platte. Pausiert beim
+  // Scrollen wie jede Suche (hookSearchPause); ein neuer Begriff oder ein
+  // Ordnerwechsel startet wieder mit Stufe eins (mailSearch).
+  hookSearchStages(win) {
+    const onLoaded = () => win.setTimeout(() => this.searchStageDone(win), 0);
+    win.addEventListener("allMessagesLoaded", onLoaded);
+    this.addWinRestorer(win, () => {
+      win.removeEventListener("allMessagesLoaded", onLoaded);
+      win.document.documentElement.removeAttribute("mc-search-stage");
+    });
+  }
+
+  searchStageDone(win) {
+    const run = this.searchRun;
+    const root = win.document.documentElement;
+    // (Xray-Hülle: Getter wie „searching“ nur am Objekt der Seite sichtbar)
+    const page = win.wrappedJSObject || win;
+    const view = page.gViewWrapper;
+    if (!run || run.term != this.mailSearchTerm || root.getAttribute("mc-search-stage") != run.stage ||
+        !this.isSearchFolder(win.gFolder) || !view?.search || view.searching) {
+      return;
+    }
+    const ms = Date.now() - run.start;
+    if (run.stage == "body") {
+      log("search: body done", ms, "ms,", page.gDBView?.rowCount, "hits");
+      this.searchRun = null;
+      root.removeAttribute("mc-search-stage");
+      return;
+    }
+    log("search: headers done", ms, "ms,", page.gDBView?.rowCount, "hits");
+    try {
+      const { VirtualFolderHelper } = ChromeUtils.importESModule("resource:///modules/VirtualFolderWrapper.sys.mjs");
+      const wrapper = VirtualFolderHelper.wrapVirtualFolder(win.gFolder);
+      const terms = this.searchTerms(wrapper.searchTermsSession, run.term, true);
+      // erst im Ordner speichern: nur wenn die Begriffe der Ansicht dort
+      // stehen, nimmt Thunderbird die gemerkten Treffer
+      wrapper.searchTerms = terms;
+      MailServices.accounts.saveVirtualFolders();
+      run.stage = "body";
+      run.start = Date.now();
+      root.setAttribute("mc-search-stage", "body");
+      // die Ansicht wird dabei neu angelegt und springt sonst nach oben –
+      // weggescrollt: dort bleiben, auch wenn die Suche fertig ist
+      const tree = win.threadTree;
+      const pane = page.threadPane;
+      const scrollTop = tree?.scrollTop || 0;
+      view.search.virtualFolderTerms = terms;
+      if (scrollTop > 0) {
+        tree.scrollTop = scrollTop;
+        if (pane) {
+          pane.isFirstScroll = false;
+          pane.scrollDetected = true;
+        }
+      }
+    } catch (e) {
+      log("search body stage error", e);
+      this.searchRun = null;
+      root.removeAttribute("mc-search-stage");
+    }
   }
 
   clearSearchCache(searchFolder, folders) {
