@@ -5010,6 +5010,64 @@ def run_checks(m, version, profile, results):
         return ok, f"{res}"
     check("Adressbuch: persönliches Adressbuch heißt „Contacts“ wie in Apple Kontakte", pab_renamed, results)
 
+    def pab_hidden():
+        # Persönliches Adressbuch: leer ausgeblendet, über das „…“-Menü ein-/ausblendbar;
+        # ein neuer Kontakt darin (z. B. über den Stern im Mailkopf) blendet es ein;
+        # als einziges Adressbuch nie ausgeblendet (Menüeintrag dann gesperrt)
+        res = m.js(r"""
+          const { MailServices } = ChromeUtils.importESModule("resource:///modules/MailServices.sys.mjs");
+          const P = "extensions.mailcards.showPersonalAddressBook";
+          const had = Services.prefs.prefHasUserValue(P) ? Services.prefs.getBoolPref(P) : null;
+          const pab = MailServices.ab.getDirectory("jsaddrbook://abook.sqlite");
+          const otherURI = MailServices.ab.getDirectoryFromId(MailServices.ab.newAddressBook("Halo Zweitbuch", "", Ci.nsIAbManager.JS_DIRECTORY_TYPE)).URI;
+          tm.openTab("addressBookTab", {});
+          const ab = await until(() => tm.currentTabInfo.browser?.contentWindow?.booksList && tm.currentTabInfo.browser.contentWindow, 8000);
+          const abTab = tm.currentTabInfo, ad = ab.document;
+          await until(() => ad.getElementById("mcShowPersonalBook"), 6000); await wait(500);
+          const vis = () => { const r = ad.querySelector(`#books > li[data-uid="${pab.UID}"]`); return !!r && r.getBoundingClientRect().height > 0; };
+          const item = ad.getElementById("mcShowPersonalBook"), sc = ad.getElementById("sortContext");
+          const menuState = async () => {
+            const shown = new Promise(r => sc.addEventListener("popupshown", r, { once: true }));
+            sc.openPopup(ad.getElementById("cards"), "after_start"); await Promise.race([shown, wait(3000)]); await wait(200);
+            const st = { checked: item.hasAttribute("checked"), disabled: item.hasAttribute("disabled"), label: item.getAttribute("label"),
+              view: (() => { let e = item.previousElementSibling; while (e && e.localName != "menucaption") e = e.previousElementSibling; return e?.getAttribute("mc-section"); })() };
+            const hid = new Promise(r => sc.addEventListener("popuphidden", r, { once: true }));
+            sc.hidePopup(); await Promise.race([hid, wait(2000)]);
+            return st;
+          };
+          const out = {};
+          let card = null;
+          try {
+            Services.prefs.setBoolPref(P, false); await wait(400);
+            // gewähltes Buch verschwindet: Auswahl springt auf „Alle Adressbücher“
+            out.hidden = !vis(); out.sel = ab.booksList.selectedIndex;
+            out.menuOff = await menuState();
+            item.setAttribute("checked", "true"); item.doCommand(); await wait(400);
+            out.shownByMenu = vis() && Services.prefs.getBoolPref(P);
+            Services.prefs.setBoolPref(P, false); await wait(400);
+            const c = Cc["@mozilla.org/addressbook/cardproperty;1"].createInstance(Ci.nsIAbCard);
+            c.displayName = "Halo Stern"; c.primaryEmail = "stern@example.invalid";
+            card = pab.addCard(c); await wait(400);
+            out.shownByNewCard = vis();
+            MailServices.ab.deleteAddressBook(otherURI); await wait(600);
+            Services.prefs.setBoolPref(P, false); await wait(400);
+            out.onlyBookShown = vis();
+            out.menuOnly = await menuState();
+          } finally {
+            if (card) pab.deleteCards([card]);
+            if (MailServices.ab.directories.some(d => d.URI == otherURI)) MailServices.ab.deleteAddressBook(otherURI);
+            if (had === null) Services.prefs.clearUserPref(P); else Services.prefs.setBoolPref(P, had);
+            tm.closeTab(abTab); await wait(400);
+          }
+          return out;""")
+        mo, mon = res.get("menuOff") or {}, res.get("menuOnly") or {}
+        ok = (res.get("hidden") and res.get("sel") == 0 and mo.get("checked") is False and mo.get("disabled") is False
+              and mo.get("view") == "view" and len(mo.get("label") or "") > 8)
+        ok = (ok and res.get("shownByMenu") and res.get("shownByNewCard") and res.get("onlyBookShown")
+              and mon.get("checked") is True and mon.get("disabled") is True)
+        return ok, f"{res}"
+    check("Adressbuch: persönliches Adressbuch ausblendbar über „…“, neuer Kontakt blendet es ein, als einziges Buch immer sichtbar", pab_hidden, results)
+
     def contact_edit():
         # Kontakt bearbeiten wie Apple Kontakte: eine Schrift, Überschriften über den Feldern,
         # volle Breite; zuerst nur Vor-/Nachname, E-Mail, Telefon, Adressen und Ausgefülltes

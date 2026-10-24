@@ -11361,4 +11361,10 @@ notification-message toolbarbutton.notification-button > .toolbarbutton-menubutt
 :root[mc-hide-collected] #books > li[data-mc-collected] {
   display: none !important;
 }
+
+/* Adressbuch: persönliches Adressbuch ausgeblendet (Erweiterung markiert die
+   Zeile, solange es leer ist bzw. per „…“-Menü abgewählt) */
+#books > li[data-mc-pab-hidden] {
+  display: none !important;
+}
 /* ==== Ende Bereiche ==== */

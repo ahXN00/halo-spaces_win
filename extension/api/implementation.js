@@ -85,6 +85,7 @@ const DE = {
   "Light": "Hell",
   "Light, dark or follow macOS": "Hell, dunkel oder wie macOS",
   "Contacts": "Kontakte",
+  "Show Address Book “{name}”": "Adressbuch „{name}“ anzeigen",
   "Merge Duplicate Contacts": "Doppelte Kontakte zusammenführen",
   "Message List Display Options": "Darstellung der Liste",
   "More Options…": "Mehr Optionen …",
@@ -270,6 +271,7 @@ const FR = {
   "Light": "Clair",
   "Light, dark or follow macOS": "Clair, sombre ou comme macOS",
   "Contacts": "Contacts",
+  "Show Address Book “{name}”": "Afficher le carnet d’adresses « {name} »",
   "Merge Duplicate Contacts": "Fusionner les contacts en double",
   "Message List Display Options": "Options d’affichage de la liste",
   "More Options…": "Plus d’options…",
@@ -457,6 +459,7 @@ const ES = {
   "Light": "Claro",
   "Light, dark or follow macOS": "Claro, oscuro o como macOS",
   "Contacts": "Contactos",
+  "Show Address Book “{name}”": "Mostrar la libreta de direcciones “{name}”",
   "Merge Duplicate Contacts": "Combinar contactos duplicados",
   "Message List Display Options": "Opciones de vista de la lista",
   "More Options…": "Más opciones…",
@@ -644,6 +647,7 @@ const IT = {
   "Light": "Chiaro",
   "Light, dark or follow macOS": "Chiaro, scuro o come macOS",
   "Contacts": "Contatti",
+  "Show Address Book “{name}”": "Mostra la rubrica “{name}”",
   "Merge Duplicate Contacts": "Unisci contatti duplicati",
   "Message List Display Options": "Opzioni di visualizzazione dell’elenco",
   "More Options…": "Altre opzioni…",
@@ -2119,6 +2123,128 @@ function hookCollectedAddresses(cw, restorers) {
     Services.prefs.removeObserver(HIDE_COLLECTED_PREF, prefObs);
     doc.documentElement.removeAttribute("mc-hide-collected");
     delete books.__mcCollected;
+  });
+}
+
+// Adressbuch: das persönliche Adressbuch (ldap_2.servers.pab, lässt sich in
+// Thunderbird nicht löschen) in der Seitenleiste ausblenden, solange es leer
+// ist – wer Konten (CardDAV) nutzt, braucht es nicht. Ein- und Ausblenden über
+// das „…“-Menü der Kontaktliste (Pref, ohne eigene Wahl gilt „leer = aus“).
+// Nie ausgeblendet, wenn es das einzige sichtbare Adressbuch ist. Kommt ein
+// Kontakt hinein (z. B. über den Stern im Mailkopf), wird es eingeblendet –
+// sonst entstünden Kontakte in einem unsichtbaren Buch.
+const SHOW_PAB_PREF = "extensions.mailcards.showPersonalAddressBook";
+
+function personalBookState() {
+  let pab = null;
+  let others = [];
+  try {
+    const hideCollected = Services.prefs.getBoolPref(HIDE_COLLECTED_PREF, true);
+    const dirs = MailServices.ab.directories;
+    pab = dirs.find(d => d.URI == PAB_URI) || null;
+    others = dirs.filter(d => d.URI != PAB_URI && !(hideCollected && d.dirPrefId == "ldap_2.servers.history"));
+  } catch {}
+  if (!pab) {
+    return { pab: null, uid: null, canHide: false, hidden: false };
+  }
+  const canHide = others.length > 0;
+  let shown;
+  if (Services.prefs.prefHasUserValue(SHOW_PAB_PREF)) {
+    shown = Services.prefs.getBoolPref(SHOW_PAB_PREF, false);
+  } else {
+    try {
+      shown = pab.childCardCount > 0 || pab.childNodes.length > 0;
+    } catch {
+      shown = true;
+    }
+  }
+  return { pab, uid: pab.UID, canHide, hidden: canHide && !shown };
+}
+
+// global: neuer Kontakt oder neue Liste im persönlichen Adressbuch → einblenden
+// (als eigene Wahl gemerkt, damit es nicht wieder verschwindet, wenn es leer wird)
+function watchPersonalBook(restorers) {
+  const obs = {
+    observe(_subject, _topic, dirUID) {
+      try {
+        if (dirUID && dirUID == MailServices.ab.getDirectory(PAB_URI)?.UID && !Services.prefs.getBoolPref(SHOW_PAB_PREF, false)) {
+          Services.prefs.setBoolPref(SHOW_PAB_PREF, true);
+        }
+      } catch (e) {
+        log("pab watch error", e);
+      }
+    },
+  };
+  const TOPICS = ["addrbook-contact-created", "addrbook-list-created"];
+  for (const t of TOPICS) {
+    Services.obs.addObserver(obs, t);
+  }
+  restorers.push(() => {
+    for (const t of TOPICS) {
+      Services.obs.removeObserver(obs, t);
+    }
+  });
+}
+
+function hookPersonalBook(cw, restorers) {
+  const doc = cw.document;
+  const books = cw.booksList;
+  if (!books || books.__mcPersonal) {
+    return;
+  }
+  books.__mcPersonal = true;
+  const mark = () => {
+    const { uid, hidden } = personalBookState();
+    for (const row of books.querySelectorAll(":scope > li")) {
+      row.toggleAttribute("data-mc-pab-hidden", hidden && !!uid && row.dataset.uid == uid);
+    }
+    // war es (oder eine seiner Listen) gewählt: auf „Alle Adressbücher“ wechseln
+    if (hidden && books.selectedRow?.closest("li[data-mc-pab-hidden]")) {
+      books.selectedIndex = 0;
+    }
+  };
+  // abhakbarer Eintrag im „…“-Menü, Abschnitt „View“
+  const menu = doc.getElementById("sortContext");
+  let item = null;
+  const updateItem = () => {
+    const { pab, canHide, hidden } = personalBookState();
+    item.hidden = !pab;
+    item.setAttribute("label", tr("Show Address Book “{name}”", { name: pab?.dirName || "" }));
+    item.toggleAttribute("checked", !hidden);
+    item.toggleAttribute("disabled", !canHide);
+  };
+  if (menu && !doc.getElementById("mcShowPersonalBook")) {
+    item = doc.createXULElement("menuitem");
+    item.id = "mcShowPersonalBook";
+    item.setAttribute("type", "checkbox");
+    item.addEventListener("command", () => {
+      Services.prefs.setBoolPref(SHOW_PAB_PREF, item.hasAttribute("checked"));
+    });
+    const after = doc.getElementById("mcHideDuplicates");
+    if (after) {
+      after.after(item);
+    } else {
+      menu.append(item);
+    }
+    menu.addEventListener("popupshowing", updateItem);
+    updateItem();
+  }
+  const mo = new cw.MutationObserver(mark);
+  mo.observe(books, { childList: true });
+  const prefObs = () => mark();
+  Services.prefs.addObserver(SHOW_PAB_PREF, prefObs);
+  Services.prefs.addObserver(HIDE_COLLECTED_PREF, prefObs);
+  mark();
+  restorers?.push(() => {
+    mo.disconnect();
+    Services.prefs.removeObserver(SHOW_PAB_PREF, prefObs);
+    Services.prefs.removeObserver(HIDE_COLLECTED_PREF, prefObs);
+    menu?.removeEventListener("popupshowing", updateItem);
+    item?.remove();
+    for (const row of books.querySelectorAll("li[data-mc-pab-hidden]")) {
+      row.removeAttribute("data-mc-pab-hidden");
+    }
+    delete books.__mcPersonal;
   });
 }
 
@@ -4898,6 +5024,7 @@ class CardEnhancer {
     this.restorers.push(() => clearTimeout(updateTimer));
     this.hookBirthdays();
     renamePersonalBookOnce();
+    watchPersonalBook(this.restorers);
     // Fotos aus der macOS-Kontakte-App: kurz nach dem Start und dann stündlich
     MacPhotos.load();
     this.registerIconVars();
@@ -6387,6 +6514,11 @@ class CardEnhancer {
             cacheCardCount(cw.document, winRestorers);
           } catch (e) {
             log("dedupe error", e);
+          }
+          try {
+            hookPersonalBook(cw, winRestorers);
+          } catch (e) {
+            log("personal book error", e);
           }
         }
         if (!cw || !CONTENT_PAGES.test(url) || cw.__mcSheet == uri || cw.__mcTheme) {
