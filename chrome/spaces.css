@@ -863,6 +863,12 @@ calendar-month-day-box .calendar-month-day-box-list {
   border: none !important;
 }
 
+/* Kontextmenüs in der Kalenderansicht (Termin bzw. freie Fläche) ohne
+   Tastenkürzel – nur die Texte, ruhig wie in Apple Kalender */
+:is(#calendar-item-context-menu, #calendar-view-context-menu) > menuitem :is(.menu-accel-container, .menu-accel) {
+  display: none !important;
+}
+
 /* ---------- Woche, Tag, Mehrere Wochen ---------- */
 calendar-week-view, calendar-day-view {
   background: var(--mt-window) !important;
@@ -1394,6 +1400,64 @@ calendar-event-box :is(.alarm-icons-box, .item-classification-icon, .item-recurr
   background: transparent !important;
 }
 
+/* Tabellenansicht der Aufgaben (Erweiterung: ohne mc-task-list) wie die
+   Mail-Tabelle: Zeilen 28 px mit feiner Trennlinie, jede zweite Zeile leicht
+   getönt, Spaltenkopf 30 px in 13 px, Auswahl mit Fokus in Akzentfarbe
+   (Schrift, Kreis und Priorität in Akzentkontrast). Die Listenansicht bleibt
+   luftig wie Apple Erinnerungen, die Aufgaben der Today-Pane
+   (.calendar-task-tree) bleiben, wie sie sind. */
+:root:not([mc-task-list]) #calendar-task-tree > treecols {
+  min-height: var(--mt-table-head-h) !important;
+}
+
+:root:not([mc-task-list]) #calendar-task-tree > treecols > :is(treecol, treecolpicker) {
+  min-height: var(--mt-table-head-h) !important;
+  font-size: var(--mt-table-font) !important;
+  font-weight: 400 !important;
+}
+
+:root:not([mc-task-list]) #calendar-task-tree treechildren::-moz-tree-row {
+  height: var(--mt-table-row-h) !important;
+  min-height: var(--mt-table-row-h) !important;
+  border-bottom: 1px solid var(--mt-separator) !important;
+}
+
+:root:not([mc-task-list]) #calendar-task-tree treechildren::-moz-tree-row(odd) {
+  background-color: var(--mt-table-stripe) !important;
+}
+
+:root:not([mc-task-list]) #calendar-task-tree treechildren::-moz-tree-row(hover) {
+  background-color: var(--mt-control) !important;
+}
+
+:root:not([mc-task-list]) #calendar-task-tree treechildren::-moz-tree-row(selected) {
+  background-color: var(--mt-selected-unfocused) !important;
+}
+
+:root:not([mc-task-list]) #calendar-task-tree treechildren::-moz-tree-row(selected, focus) {
+  background-color: var(--mt-accent) !important;
+}
+
+:root:not([mc-task-list]) #calendar-task-tree treechildren::-moz-tree-cell-text(selected, focus) {
+  color: var(--mt-accent-text) !important;
+}
+
+:root:not([mc-task-list]) #calendar-task-tree > treechildren::-moz-tree-image(calendar-task-tree-col-completed, selected, focus) {
+  list-style-image: url("resource://mailcards/icons/task-open.svg") !important;
+  -moz-context-properties: stroke !important;
+  stroke: var(--mt-accent-text) !important;
+}
+
+:root:not([mc-task-list]) #calendar-task-tree > treechildren::-moz-tree-image(calendar-task-tree-col-completed, completed, selected, focus) {
+  list-style-image: url("resource://mailcards/icons/task-done.svg") !important;
+  fill: var(--mt-accent-text) !important;
+  stroke: var(--mt-accent) !important;
+}
+
+:root:not([mc-task-list]) #calendar-task-tree > treechildren::-moz-tree-image(calendar-task-tree-col-priority, highpriority, selected, focus) {
+  stroke: var(--mt-accent-text) !important;
+}
+
 /* Detailbereich unten: helle Fläche, Titel groß, Angaben in leiser Schrift */
 /* ohne Auswahl blendet Thunderbird nur die Details aus, den Teiler nicht
    (calendar-task-view.js: displayElement(…) && displayElement(splitter, …)
@@ -1865,6 +1929,63 @@ calendar-event-box :is(.alarm-icons-box, .item-classification-icon, .item-recurr
 }
 
 #cards:focus-within .card-layout.selected :is(.name, .ab-card-second-line, .address) {
+  color: var(--mt-accent-text) !important;
+}
+
+/* Tabellenansicht der Kontakte wie die Mail-Tabelle: Schrift und Spaltenkopf
+   13 px, Kopf 30 px ohne graue Fläche, feine Trennlinien, jede zweite Zeile
+   leicht getönt (data-mc-odd setzt die Erweiterung, die auch die Zeilenhöhe
+   auf 28 px bringt), Auswahl in Akzentfarbe */
+#cards thead th,
+#cards .tree-table-header {
+  background: var(--mt-window) !important;
+  border: none !important;
+  color: var(--mt-text-tertiary) !important;
+}
+
+#cards thead th,
+#cards thead th button {
+  font-size: var(--mt-table-font) !important;
+}
+
+#cards thead th {
+  height: var(--mt-table-head-h) !important;
+}
+
+#cards thead th img {
+  width: 16px !important;
+  height: 16px !important;
+}
+
+#cards tr[is="ab-table-card-row"],
+#cards tr[is="ab-table-card-row"] td {
+  font-size: var(--mt-table-font) !important;
+}
+
+#cards tr[is="ab-table-card-row"] {
+  box-shadow: inset 0 -1px 0 var(--mt-separator) !important;
+}
+
+#cards tr[is="ab-table-card-row"][data-mc-odd]:not(.selected, [aria-selected="true"]) {
+  background-color: var(--mt-table-stripe) !important;
+}
+
+#cards tr[is="ab-table-card-row"]:not(.selected, [aria-selected="true"]):hover {
+  background-color: var(--mt-control) !important;
+}
+
+#cards tr[is="ab-table-card-row"]:is(.selected, [aria-selected="true"]) {
+  background: var(--mt-selected-unfocused) !important;
+  color: var(--mt-text) !important;
+}
+
+#cards:focus-within tr[is="ab-table-card-row"]:is(.selected, [aria-selected="true"]) {
+  background: var(--mt-accent) !important;
+  color: var(--mt-accent-text) !important;
+}
+
+#cards:focus-within tr[is="ab-table-card-row"]:is(.selected, [aria-selected="true"]) .mc-book {
+  background: color-mix(in srgb, var(--mt-accent-text) 25%, transparent) !important;
   color: var(--mt-accent-text) !important;
 }
 
@@ -4882,6 +5003,18 @@ button.wizard-button[disabled] {
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--mt-accent) 22%, transparent) !important;
 }
 
+/* Gesperrte Felder (z. B. Name des persönlichen Adressbuchs, den Thunderbird
+   nicht umbenennen lässt) sichtbar gesperrt: grau hinterlegt, gedämpfte
+   Schrift, kein Textcursor und kein Fokusring – statt wie ein normales
+   Eingabefeld auszusehen, das keine Eingaben annimmt */
+:is(dialog:not(.account-hub-dialog), wizard) :is(input:not([type="checkbox"], [type="radio"], [type="color"], [type="range"], [type="file"]), textarea):is([readonly], :disabled) {
+  border-color: transparent !important;
+  background-color: var(--mt-control) !important;
+  color: var(--mt-text-secondary) !important;
+  cursor: default !important;
+  box-shadow: none !important;
+}
+
 dialog menulist {
   min-height: 28px !important;
   border: none !important;
@@ -6170,10 +6303,11 @@ calendar-month-day-box > .mc-more:hover {
   min-width: 160px !important;
 }
 
-/* … und nicht breiter als 360 px – sonst verdrängt die Seitenleiste die
-   Knöpfe und das Suchfeld oben aus der Toolbar */
-:is(#listPaneBox, #calSidebar, #booksPane):not(.mc-side-anim) {
-  max-width: 360px !important;
+/* … und nicht breiter als die gemeinsame Höchstbreite (360 px wie im
+   Kalender) – sonst verdrängt die Seitenleiste die Knöpfe und das Suchfeld
+   oben aus der Toolbar */
+:is(#listPaneBox, #calSidebar, #booksPane, #folderPane):not(.mc-side-anim) {
+  max-width: var(--mt-sidebar-max-width, 360px) !important;
 }
 
 /* Adressbuch: Thunderbird schreibt der Bücherliste mindestens 240 px vor
@@ -7621,6 +7755,105 @@ notification-message toolbarbutton.notification-button > .toolbarbutton-menubutt
   mask: var(--mi-folder) center / contain no-repeat !important;
 }
 
+/* Farbpunkt des Kontos links vom Ordnersymbol – wie in der Ordnerliste
+   (--mc-acc setzt die Erweiterung) */
+#mcHdrMeta .mc-hdr-acc {
+  order: -1 !important;
+  flex: none !important;
+  width: 8px !important;
+  height: 8px !important;
+  margin-inline-end: 2px !important;
+  border-radius: 50% !important;
+  background-color: var(--mc-acc) !important;
+}
+
+/* Aktionen beim Überfahren wie Apple Mail (#mcHoverActions, setzt die
+   Erweiterung): kleine Kapsel mittig auf der Linie unter dem Kopf mit
+   Löschen | Antworten, Allen antworten, Weiterleiten – erscheint, solange die
+   Maus über der Mail (Kopf oder Text) ist. Im eigenen Nachrichtenfenster
+   stehen dieselben Knöpfe schon im Kopf. */
+#msgHeaderView:has(> #mcHoverActions) {
+  position: relative !important;
+}
+
+#mcHoverActions {
+  position: absolute !important;
+  /* left statt inset-inline-start: die Mitte hängt nicht von der
+     Schreibrichtung ab (rechts nach links stünde sie sonst daneben) */
+  left: 50% !important;
+  bottom: 0 !important;
+  transform: translate(-50%, 50%) !important;
+  z-index: 5 !important;
+  /* als Kind von Thunderbirds Kopf-Raster sonst auf 0 gestaucht */
+  width: max-content !important;
+  display: flex !important;
+  align-items: center !important;
+  gap: 2px !important;
+  padding: 2px 6px !important;
+  border-radius: 999px !important;
+  background: var(--mt-window) !important;
+  box-shadow: 0 0 0 0.5px var(--mt-separator), 0 1px 3px rgba(0, 0, 0, 0.08) !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+  /* ohne !important – so kann der Test die Überblendung abschalten */
+  transition: opacity 150ms ease;
+}
+
+:root:hover #mcHoverActions {
+  opacity: 1 !important;
+  pointer-events: auto !important;
+}
+
+:root[mc-standalone] #mcHoverActions {
+  display: none !important;
+}
+
+#mcHoverActions .mc-hover-action {
+  appearance: none !important;
+  flex: none !important;
+  width: 28px !important;
+  height: 22px !important;
+  min-width: 0 !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  border: none !important;
+  border-radius: 999px !important;
+  background: transparent !important;
+  color: var(--mt-text-tertiary) !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+}
+
+#mcHoverActions .mc-hover-action:not(:disabled):hover {
+  background: var(--mt-control-hover) !important;
+  color: var(--mt-text) !important;
+}
+
+#mcHoverActions .mc-hover-action:disabled {
+  opacity: 0.4 !important;
+}
+
+#mcHoverActions .mc-hover-action::before {
+  content: "" !important;
+  width: 15px !important;
+  height: 15px !important;
+  background-color: currentColor !important;
+  mask: var(--mi-trash) center / contain no-repeat !important;
+}
+
+#mcHoverActions .mc-hover-reply::before { mask-image: var(--mi-reply) !important; }
+#mcHoverActions .mc-hover-replyall::before { mask-image: var(--mi-reply-all) !important; }
+#mcHoverActions .mc-hover-forward::before { mask-image: var(--mi-forward) !important; }
+
+#mcHoverActions .mc-hover-sep {
+  flex: none !important;
+  width: 1px !important;
+  height: 14px !important;
+  margin: 0 4px !important;
+  background: var(--mt-separator) !important;
+}
+
 /* Name und Betreff laufen nicht unter Ordner und Uhrzeit */
 #messageHeader:has(#mcHdrMeta) #headerSenderToolbarContainer {
   /* Breite von Ordner + Uhrzeit misst die Erweiterung (--mc-meta-w) */
@@ -8394,5 +8627,11 @@ notification-message toolbarbutton.notification-button > .toolbarbutton-menubutt
 /* Adressbuch: „Collected Addresses“ nicht in der Seitenleiste (Erweiterung
    markiert die Zeile, abschaltbar) */
 :root[mc-hide-collected] #books > li[data-mc-collected] {
+  display: none !important;
+}
+
+/* Adressbuch: persönliches Adressbuch ausgeblendet (Erweiterung markiert die
+   Zeile, solange es leer ist bzw. per „…“-Menü abgewählt) */
+#books > li[data-mc-pab-hidden] {
   display: none !important;
 }

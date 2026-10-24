@@ -46,9 +46,23 @@
   /* Statuspunkte im Chat wie macOS systemGreen / systemOrange */
   --mt-status-online: #34C759;
   --mt-status-away: #FF9500;
+  /* Stern („Starred“) in der Symbolleiste wie macOS systemOrange */
+  --mt-star: #FF9500;
   /* Fläche der Unterdialoge im Tab (Einstellungen, Adressbuch) */
   --mt-sheet: #FFFFFF;
   --mt-font: -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif;
+  /* größte Breite der grauen Seitenleiste – in allen Bereichen gleich (wie im
+     Kalender, dessen Ansicht daneben Platz braucht); die Erweiterung liest sie
+     beim Ziehen an der Trennlinie */
+  --mt-sidebar-max-width: 360px;
+  /* Tabellen (Mailliste als Tabelle, Adressbuch-Tabelle, Aufgabenliste): Schrift,
+     Zeilen- und Kopfhöhe, Tönung jeder zweiten Zeile – überall gleich wie die
+     Mail-Tabelle. Die Zeilenhöhe rechnet die Erweiterung zusätzlich in
+     ROW_HEIGHT (thread-row, ab-table-card-row) ein. */
+  --mt-table-font: 13px;
+  --mt-table-row-h: 28px;
+  --mt-table-head-h: 30px;
+  --mt-table-stripe: rgba(0, 0, 0, 0.035);
 }
 
 @media (prefers-color-scheme: dark) {
@@ -79,7 +93,9 @@
     --mt-red: #FF6961;
     --mt-status-online: #30D158;
     --mt-status-away: #FF9F0A;
+    --mt-star: #FF9F0A;
     --mt-sheet: #2A2A2C;
+    --mt-table-stripe: rgba(255, 255, 255, 0.045);
   }
 }
 
@@ -677,13 +693,10 @@ hr[is="pane-splitter"]::after {
   padding-inline: 12px !important;
 }
 
-/* Schnellfilter-Leiste: dieselbe Fläche wie die Liste, nur eine Haarlinie
-   darunter; Inhalt bündig mit den Karten (8 px Einzug wie .card-container) */
+/* Schnellfilter-Leiste entfällt: der Filterknopf über der Liste zeigt wie
+   in Apple Mail nur ungelesene Mails (die Erweiterung hält sie auch zu) */
 #quick-filter-bar {
-  background: var(--mt-window) !important;
-  border: none !important;
-  border-block-end: var(--mt-hairline) solid var(--mt-separator) !important;
-  padding-inline: 8px !important;
+  display: none !important;
 }
 
 #threadPaneFolderName {
@@ -738,62 +751,11 @@ hr[is="pane-splitter"]::after {
   fill: var(--mt-accent-text) !important;
 }
 
-/* Aktionen beim Überfahren: Kapsel deutlich abgehoben, Symbole in voller
-   Textfarbe (vorher grau auf fast gleichem Grund – schlecht zu sehen) */
-#threadTree tr[is="thread-card"] .mc-actions {
-  --mc-pill: #ffffff;
-  --mc-pill-icon: #1d1d1f;
-  --mc-pill-hover: rgba(0, 0, 0, 0.08);
-  background: var(--mc-pill) !important;
-  box-shadow: 0 0 0 0.5px rgba(0, 0, 0, 0.14), 0 2px 6px rgba(0, 0, 0, 0.16) !important;
-}
-
-@media (prefers-color-scheme: dark) {
-  #threadTree tr[is="thread-card"] .mc-actions {
-    --mc-pill: #5a5a5e;
-    --mc-pill-icon: #ffffff;
-    --mc-pill-hover: rgba(255, 255, 255, 0.16);
-    box-shadow: 0 0 0 0.5px rgba(255, 255, 255, 0.18), 0 2px 8px rgba(0, 0, 0, 0.5) !important;
-  }
-}
-
-#threadTree tr[is="thread-card"] .mc-actions .mc-action {
-  color: var(--mc-pill-icon) !important;
-}
-
-#threadTree tr[is="thread-card"] .mc-actions .mc-action:hover {
-  background: var(--mc-pill-hover) !important;
-}
-
-/* Aktionen beim Überfahren auf der ausgewählten Karte: sonst weiße Symbole
-   in der weißen Kapsel – hier durchscheinend auf der Akzentfarbe */
-#threadTree tr[is="thread-card"]:is(.selected, [aria-selected="true"]) .mc-actions {
-  background: color-mix(in srgb, var(--mt-accent-text) 20%, var(--mt-accent)) !important;
-  box-shadow: 0 0 0 0.5px color-mix(in srgb, var(--mt-accent-text) 35%, transparent) !important;
-}
-
-#threadTree tr[is="thread-card"]:is(.selected, [aria-selected="true"]) .mc-actions .mc-action {
-  color: var(--mt-accent-text) !important;
-}
-
-#threadTree tr[is="thread-card"]:is(.selected, [aria-selected="true"]) .mc-actions .mc-action:hover {
-  background: color-mix(in srgb, var(--mt-accent-text) 22%, transparent) !important;
-}
-
-/* ohne Fokus ist die Auswahl grau – dort die normale Kapsel */
-#threadTree:not(:focus-within) tr[is="thread-card"]:is(.selected, [aria-selected="true"]) .mc-actions {
-  background: var(--mc-pill) !important;
-}
-
-#threadTree:not(:focus-within) tr[is="thread-card"]:is(.selected, [aria-selected="true"]) .mc-actions .mc-action {
-  color: var(--mc-pill-icon) !important;
-}
-
 /* Tabellenansicht: wie Absender und Betreff in der Kartenansicht und der
    Spaltenkopf 13 px (Apple-Listenschrift; sonst erbt sie Thunderbirds Grundschrift) */
 #threadTree tr[is="thread-row"],
 #threadTree tr[is="thread-row"] td {
-  font-size: 13px !important;
+  font-size: var(--mt-table-font) !important;
 }
 
 /* Gruppenköpfe der Tabelle („Gestern (1/2)“ bei „Gruppiert nach Sortierung“)
@@ -817,11 +779,11 @@ hr[is="pane-splitter"]::after {
 
 #threadTree thead th,
 #threadTree thead th button {
-  font-size: 13px !important;
+  font-size: var(--mt-table-font) !important;
 }
 
 #threadTree thead th {
-  height: 30px !important;
+  height: var(--mt-table-head-h) !important;
 }
 
 /* Spaltensymbole (Stern, Anhang, Spam, Spaltenauswahl) so groß wie die
@@ -831,46 +793,6 @@ hr[is="pane-splitter"]::after {
   height: 16px !important;
 }
 
-/* Schnellfilter: keine Ein/Aus-Pille vor jedem Knopf – eingeschaltet zeigt
-   wie bei macOS die getönte Fläche in Akzentfarbe */
-#quick-filter-bar .check-button::before {
-  display: none !important;
-}
-
-/* ohne Pille: Symbol (Hintergrundbild) 8 px vom Rand statt Thunderbirds 12 px
-   (Platz für die entfernte Pille), Beschriftung dahinter. Thunderbird zeigt die
-   Beschriftungen erst ab 1000 px Listenbreite (Kartenansicht im Layout
-   Klassisch/Breit) – sonst lagen Symbol und Text übereinander */
-#quick-filter-bar .check-button {
-  padding-inline: 30px 10px !important;
-  gap: 0 !important;
-  min-width: 34px !important;
-  flex-shrink: 0 !important;
-  background-position: 8px center !important;
-}
-
-/* schmale Liste (nur Symbole): links und rechts gleich viel Platz, Symbol mittig */
-@container threadPane (max-width: 999px) {
-  #quick-filter-bar .check-button.collapsible-button {
-    padding-inline: 8px !important;
-    justify-content: center !important;
-    background-position: center !important;
-  }
-}
-
-#quick-filter-bar .quickFilterButtons {
-  padding-inline: 4px !important;
-}
-
-#quick-filter-bar #qfb-sticky {
-  border-radius: 999px !important;
-}
-
-#quick-filter-bar .check-button[aria-pressed="true"] {
-  background-color: color-mix(in srgb, var(--mt-accent) 18%, transparent) !important;
-  color: var(--mt-accent) !important;
-}
-
 /* abwechselnde Zeilenfarben und feine Trennlinien, damit sich die Mails
    leichter unterscheiden lassen (data-mc-odd setzt die Erweiterung) */
 #threadTree tr[is="thread-row"] {
@@ -878,34 +800,24 @@ hr[is="pane-splitter"]::after {
 }
 
 #threadTree tr[is="thread-row"][data-mc-odd]:not(.selected, [aria-selected="true"]) {
-  background-color: light-dark(rgba(0, 0, 0, 0.035), rgba(255, 255, 255, 0.045)) !important;
+  background-color: var(--mt-table-stripe) !important;
 }
 
 #threadTree tr[is="thread-row"]:not(.selected, [aria-selected="true"]):hover {
   background-color: var(--mt-control) !important;
 }
 
-/* Schlagwortfarben als Schrift (Tabellenzeilen, Schnellfilter-Knöpfe): die
-   Grundfarben (#FF9900, #3333FF …) sind auf Weiß bzw. Dunkelgrau kaum lesbar –
-   hell abgedunkelt, dunkel aufgehellt (Kontrast mind. 4,5:1). Ausgewählte
-   Zeilen (Schrift in Akzentkontrast) und gedrückte Knöpfe bleiben, wie sie sind. */
+/* Schlagwortfarben als Schrift (Tabellenzeilen): die Grundfarben (#FF9900,
+   #3333FF …) sind auf Weiß bzw. Dunkelgrau kaum lesbar – hell abgedunkelt,
+   dunkel aufgehellt (Kontrast mind. 4,5:1). Ausgewählte Zeilen (Schrift in
+   Akzentkontrast) bleiben, wie sie sind. */
 #threadTree tr[is="thread-row"][data-properties~="tagged"] {
   color: color-mix(in srgb, var(--tag-color) 60%, black) !important;
-}
-
-#quick-filter-bar button.qfb-tag-button:not([aria-pressed="true"]) {
-  color: color-mix(in srgb, var(--tag-color) 60%, black) !important;
-  border-color: color-mix(in srgb, var(--tag-color) 60%, black) !important;
 }
 
 @media (prefers-color-scheme: dark) {
   #threadTree tr[is="thread-row"][data-properties~="tagged"] {
     color: color-mix(in srgb, var(--tag-color) 55%, white) !important;
-  }
-
-  #quick-filter-bar button.qfb-tag-button:not([aria-pressed="true"]) {
-    color: color-mix(in srgb, var(--tag-color) 55%, white) !important;
-    border-color: color-mix(in srgb, var(--tag-color) 55%, white) !important;
   }
 }
 
@@ -989,7 +901,9 @@ hr[is="pane-splitter"]::after {
 #threadTree tr[is="thread-card"] .read-status {
   position: absolute !important;
   inset-inline-start: 7px !important;
-  top: 19px !important;
+  /* ohne Kontaktfoto setzt die Erweiterung --mc-status-top auf die Mitte
+     der Absenderzeile */
+  top: var(--mc-status-top, 19px) !important;
 }
 
 /* Beantwortet / weitergeleitet wie in Apple Mail: grauer Pfeil an der
@@ -1003,7 +917,7 @@ hr[is="pane-splitter"]::after {
   width: 12px !important;
   height: 12px !important;
   inset-inline-start: 6px !important;
-  top: 18px !important;
+  top: calc(var(--mc-status-top, 19px) - 1px) !important;
   border-radius: 0 !important;
   background-color: var(--mt-text-tertiary) !important;
   mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M10 6 4 12l6 6M4 12h10a6 6 0 0 1 6 6'/%3E%3C/svg%3E") center / 12px no-repeat !important;
@@ -1738,10 +1652,9 @@ findbar .findbar-textbox:focus {
   --mi-trash: url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22%23000%22 stroke-width=%221.7%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22%3E%3Cpath d=%22M3.8 6.6h16.4%22/%3E%3Cpath d=%22M9 6.6V5.1A1.6 1.6 0 0 1 10.6 3.5h2.8A1.6 1.6 0 0 1 15 5.1v1.5%22/%3E%3Cpath d=%22m5.9 6.6 1 12a1.6 1.6 0 0 0 1.6 1.4h7a1.6 1.6 0 0 0 1.6-1.4l1-12%22/%3E%3Cpath d=%22M10 10.4v6.2M14 10.4v6.2%22/%3E%3C/svg%3E");
   --mi-junk: url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22%23000%22 stroke-width=%221.7%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22%3E%3Crect x=%223%22 y=%224%22 width=%2218%22 height=%224.8%22 rx=%221.4%22/%3E%3Cpath d=%22M4.8 8.8v9.6A1.6 1.6 0 0 0 6.4 20h11.2a1.6 1.6 0 0 0 1.6-1.6V8.8%22/%3E%3Cpath d=%22m9.6 11.4 4.8 5.2M14.4 11.4l-4.8 5.2%22/%3E%3C/svg%3E");
   --mi-folder-menu: url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 34 24%22 fill=%22none%22 stroke=%22%23000%22 stroke-width=%221.7%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22%3E%3Cpath d=%22M3 7.8A2.3 2.3 0 0 1 5.3 5.5h3.9l2.1 2.1h7.4A2.3 2.3 0 0 1 21 9.9v7.8a2.3 2.3 0 0 1-2.3 2.3H5.3A2.3 2.3 0 0 1 3 17.7z%22/%3E%3Cpath d=%22M3 10.3h18%22/%3E%3Cpath d=%22m26 11 3 3 3-3%22/%3E%3C/svg%3E");
-  --mi-flag: url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22%23000%22 stroke-width=%221.7%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22%3E%3Cpath d=%22M5.5 20.5V4.2%22/%3E%3Cpath d=%22M5.5 4.7c2.6-1.3 4.6-.9 6.7 0s4.2 1.3 7.3 0v9c-3.1 1.3-5.2.9-7.3 0s-4.1-1.3-6.7 0%22/%3E%3C/svg%3E");
-  --mi-flag-menu: url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 34 24%22 fill=%22none%22 stroke=%22%23000%22 stroke-width=%221.7%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22%3E%3Cpath d=%22M5.5 20.5V4.2%22/%3E%3Cpath d=%22M5.5 4.7c2.6-1.3 4.6-.9 6.7 0s4.2 1.3 7.3 0v9c-3.1 1.3-5.2.9-7.3 0s-4.1-1.3-6.7 0%22/%3E%3Cpath d=%22m26 11 3 3 3-3%22/%3E%3C/svg%3E");
+  --mi-star: url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22%23000%22 stroke-width=%221.7%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22%3E%3Cpath d=%22M12 3.8 9.71 9.24l-5.89.5 4.47 3.87-1.34 5.75L12 16.3l5.05 3.06-1.34-5.75 4.47-3.87-5.89-.5z%22/%3E%3C/svg%3E");
+  --mi-star-fill: url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22%23000%22 stroke-width=%221.7%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22%3E%3Cpath d=%22M12 3.8 9.71 9.24l-5.89.5 4.47 3.87-1.34 5.75L12 16.3l5.05 3.06-1.34-5.75 4.47-3.87-5.89-.5z%22 fill=%22%23000%22/%3E%3C/svg%3E");
   --mi-folder-split: url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 46 24%22 fill=%22none%22 stroke=%22%23000%22 stroke-width=%221.7%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22%3E%3Cpath d=%22M3 7.8A2.3 2.3 0 0 1 5.3 5.5h3.9l2.1 2.1h7.4A2.3 2.3 0 0 1 21 9.9v7.8a2.3 2.3 0 0 1-2.3 2.3H5.3A2.3 2.3 0 0 1 3 17.7z%22/%3E%3Cpath d=%22M3 10.3h18%22/%3E%3Cpath d=%22M30.5 6v12%22 stroke-width=%221%22/%3E%3Cpath d=%22m36 10.5 3.5 3.5 3.5-3.5%22/%3E%3C/svg%3E");
-  --mi-flag-split: url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 46 24%22 fill=%22none%22 stroke=%22%23000%22 stroke-width=%221.7%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22%3E%3Cpath d=%22M5.5 20.5V4.2%22/%3E%3Cpath d=%22M5.5 4.7c2.6-1.3 4.6-.9 6.7 0s4.2 1.3 7.3 0v9c-3.1 1.3-5.2.9-7.3 0s-4.1-1.3-6.7 0%22/%3E%3Cpath d=%22M30.5 6v12%22 stroke-width=%221%22/%3E%3Cpath d=%22m36 10.5 3.5 3.5 3.5-3.5%22/%3E%3C/svg%3E");
   --mi-chevron: url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22%23000%22 stroke-width=%221.7%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22%3E%3Cpath d=%22m6.5 9.5 5.5 5.5 5.5-5.5%22/%3E%3C/svg%3E");
   --mi-addressbook: url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22%23000%22 stroke-width=%221.7%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22%3E%3Crect x=%224.5%22 y=%223.5%22 width=%2215%22 height=%2217%22 rx=%222.4%22/%3E%3Ccircle cx=%2212%22 cy=%2210.2%22 r=%222.6%22/%3E%3Cpath d=%22M8.1 16.6c.8-1.9 2.2-2.8 3.9-2.8s3.1.9 3.9 2.8%22/%3E%3Cpath d=%22M4.5 7.5H3M4.5 12H3M4.5 16.5H3%22/%3E%3C/svg%3E");
   --mi-calendar: url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22%23000%22 stroke-width=%221.7%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22%3E%3Crect x=%223.5%22 y=%225%22 width=%2217%22 height=%2215.5%22 rx=%222.6%22/%3E%3Cpath d=%22M3.5 9.6h17%22/%3E%3Cpath d=%22M8 3.2v3.4M16 3.2v3.4%22/%3E%3Ccircle cx=%228%22 cy=%2213.2%22 r=%22.9%22 fill=%22%23000%22 stroke=%22none%22/%3E%3Ccircle cx=%2212%22 cy=%2213.2%22 r=%22.9%22 fill=%22%23000%22 stroke=%22none%22/%3E%3Ccircle cx=%2216%22 cy=%2213.2%22 r=%22.9%22 fill=%22%23000%22 stroke=%22none%22/%3E%3Ccircle cx=%228%22 cy=%2216.8%22 r=%22.9%22 fill=%22%23000%22 stroke=%22none%22/%3E%3Ccircle cx=%2212%22 cy=%2216.8%22 r=%22.9%22 fill=%22%23000%22 stroke=%22none%22/%3E%3C/svg%3E");
@@ -1789,15 +1702,18 @@ findbar .findbar-textbox:focus {
   color: color-mix(in srgb, var(--mt-text) 82%, transparent) !important;
 }
 
-/* Verschieben und Markieren: geteilter Knopf wie bei Apple (Symbol | Pfeil).
-   Thunderbirds eigener Pfeil (Hintergrundbild rechts + 20 px Abstand) entfällt. */
+/* Verschieben und Markieren: Thunderbirds eigener Pfeil (Hintergrundbild
+   rechts + 20 px Abstand) entfällt. */
 #unifiedToolbarContent li button[popup] {
   background-image: none !important;
   padding-inline: 8px !important;
 }
 
-/* Geteilter Knopf aus denselben Teilen wie die Mehrfach-Kapseln:
-   40 px Symbolbereich | derselbe Trennstrich | 28 px Pfeilbereich */
+/* Verschieben: ein Knopf wie bei Apple (Ordner und Pfeil ohne Trennstrich),
+   jeder Klick öffnet das Menü. Markieren: echter geteilter Knopf aus denselben
+   Teilen wie die Mehrfach-Kapseln – 40 px Stern | Trennstrich | 28 px Pfeil;
+   ein Klick auf den Stern setzt bzw. entfernt den Stern der gewählten Mail
+   (Erweiterung), der Pfeil öffnet das Menü */
 #unifiedToolbarContent li:is([item-id="move-to"], [item-id="mark-as"]) button {
   position: relative !important;
   width: 69px !important;
@@ -1806,11 +1722,16 @@ findbar .findbar-textbox:focus {
   justify-content: flex-start !important;
 }
 
+#unifiedToolbarContent li[item-id="move-to"] button {
+  width: 62px !important;
+  min-width: 62px !important;
+}
+
 #unifiedToolbarContent li:is([item-id="move-to"], [item-id="mark-as"]) button .button-icon {
   margin-inline-start: 9px !important;
 }
 
-#unifiedToolbarContent li:is([item-id="move-to"], [item-id="mark-as"]) button::before {
+#unifiedToolbarContent li[item-id="mark-as"] button::before {
   content: "" !important;
   position: absolute !important;
   inset-inline-start: 40px !important;
@@ -1831,6 +1752,39 @@ findbar .findbar-textbox:focus {
   background-color: currentColor !important;
   mask: var(--mi-chevron) center / 14px 14px no-repeat !important;
   pointer-events: none !important;
+}
+
+#unifiedToolbarContent li[item-id="move-to"] button::after {
+  inset-inline-start: 34px !important;
+  width: 26px !important;
+}
+
+/* Gewählte Mail mit Stern: Stern gefüllt in Orange wie Apple Mails Markierung */
+#unifiedToolbarContent li[item-id="mark-as"][mc-starred] button:not([disabled]) .button-icon {
+  mask-image: var(--mi-star-fill) !important;
+  background-color: var(--mt-star) !important;
+}
+
+/* Hervorhebung beim Überfahren nur für die Hälfte unter der Maus (mc-hot
+   setzt die Erweiterung) */
+#unifiedToolbarContent > li[item-id="mark-as"][mc-hot] button:hover:not([disabled]) {
+  background-color: transparent !important;
+}
+
+#unifiedToolbarContent > li[item-id="mark-as"][mc-hot="star"] button:hover:not([disabled]) {
+  background-image: linear-gradient(to right, var(--mt-control-hover) 40px, transparent 40px) !important;
+}
+
+#unifiedToolbarContent > li[item-id="mark-as"][mc-hot="menu"] button:hover:not([disabled]) {
+  background-image: linear-gradient(to right, transparent 41px, var(--mt-control-hover) 41px) !important;
+}
+
+#unifiedToolbarContent > li[item-id="mark-as"][mc-hot="star"] button:hover:not([disabled]):dir(rtl) {
+  background-image: linear-gradient(to left, var(--mt-control-hover) 40px, transparent 40px) !important;
+}
+
+#unifiedToolbarContent > li[item-id="mark-as"][mc-hot="menu"] button:hover:not([disabled]):dir(rtl) {
+  background-image: linear-gradient(to left, transparent 41px, var(--mt-control-hover) 41px) !important;
 }
 
 /* Feine Trennlinien zwischen den Knöpfen einer Kapsel */
@@ -1920,7 +1874,7 @@ findbar .findbar-textbox:focus {
 #unifiedToolbarContent li[item-id="delete"] button .button-icon { mask-image: var(--mi-trash) !important; }
 #unifiedToolbarContent li[item-id="junk"] button .button-icon { mask-image: var(--mi-junk) !important; }
 #unifiedToolbarContent li[item-id="move-to"] button .button-icon { mask-image: var(--mi-folder) !important; }
-#unifiedToolbarContent li[item-id="mark-as"] button .button-icon { mask-image: var(--mi-flag) !important; }
+#unifiedToolbarContent li[item-id="mark-as"] button .button-icon { mask-image: var(--mi-star) !important; }
 #unifiedToolbarContent li[item-id="create-contact"] button .button-icon { mask-image: var(--mi-new-contact) !important; }
 #unifiedToolbarContent li[item-id="create-address-book"] button .button-icon { mask-image: var(--mi-new-address-book) !important; }
 #unifiedToolbarContent li[item-id="create-list"] button .button-icon { mask-image: var(--mi-new-list) !important; }
@@ -2142,19 +2096,41 @@ menupopup > .folderMenuItem:is([_moz-menuactive]:not([disabled]), [disabled]) {
   color: var(--mt-text) !important;
 }
 
-/* Strich links (dort sitzt die Leiste): Pfeil nach links zum Rand =
-   Leiste ausblenden, Pfeil vom Rand weg nach rechts = wieder einblenden */
+/* Symbol: links eine Spalte aus sechs Rechtecken in den Bereichsfarben
+   (Reihenfolge wie in der Leiste), rechts ein Pfeil wie bei Antworten/
+   Weiterleiten – nach links = Leiste ausblenden, nach rechts = einblenden.
+   Masken können nur eine Farbe: der Pfeil ist Maske in currentColor
+   (::before), die Rechtecke ein farbiges Bild darüber (::after) */
 #mcSpacesToggle::before {
   content: "" !important;
-  width: 20px !important;
-  height: 20px !important;
+  width: 22px !important;
+  height: 22px !important;
   background-color: currentColor !important;
-  mask: url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 16 16%22 fill=%22none%22 stroke=%22%23000%22 stroke-width=%221.1%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22%3E%3Cpath d=%22M2.5 2.5v11M13.5 8H5.2M8.6 4.6 5.2 8l3.4 3.4%22/%3E%3C/svg%3E") center / contain no-repeat !important;
+  mask: url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22%23000%22 stroke-width=%221.7%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22%3E%3Cpath d=%22M21 12H10M14.5 7 9.5 12l5 5%22/%3E%3C/svg%3E") center / contain no-repeat !important;
 }
 
 /* (data-mc-hidden setzt die Erweiterung gleich beim Klick) */
 #mcSpacesToggle[data-mc-hidden]::before {
-  mask-image: url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 16 16%22 fill=%22none%22 stroke=%22%23000%22 stroke-width=%221.1%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22%3E%3Cpath d=%22M2.5 2.5v11M5 8h8.3M9.9 4.6 13.3 8l-3.4 3.4%22/%3E%3C/svg%3E") !important;
+  mask-image: url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22%23000%22 stroke-width=%221.7%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22%3E%3Cpath d=%22M9.5 12H20.5M16 7 21 12l-5 5%22/%3E%3C/svg%3E") !important;
+}
+
+/* Farben wie die Symbole in der Leiste: Grundfarbe 70 % mit #3a3a3c
+   (dunkel 75 % mit #f5f5f7), hier fest ausgerechnet */
+#mcSpacesToggle::after {
+  content: "" !important;
+  position: absolute !important;
+  top: 8px !important;
+  inset-inline-start: 9px !important;
+  width: 22px !important;
+  height: 22px !important;
+  pointer-events: none !important;
+  background: url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22%3E%3Crect x=%223%22 y=%222%22 width=%222.6%22 height=%222.8%22 rx=%220.8%22 fill=%22%23186EC4%22/%3E%3Crect x=%223%22 y=%225.44%22 width=%222.6%22 height=%222.8%22 rx=%220.8%22 fill=%22%2333924A%22/%3E%3Crect x=%223%22 y=%228.88%22 width=%222.6%22 height=%222.8%22 rx=%220.8%22 fill=%22%23C47212%22/%3E%3Crect x=%223%22 y=%2212.32%22 width=%222.6%22 height=%222.8%22 rx=%220.8%22 fill=%22%23C43166%22/%3E%3Crect x=%223%22 y=%2215.76%22 width=%222.6%22 height=%222.8%22 rx=%220.8%22 fill=%22%238C4BAD%22/%3E%3Crect x=%223%22 y=%2219.2%22 width=%222.6%22 height=%222.8%22 rx=%220.8%22 fill=%22%23757579%22/%3E%3C/svg%3E") center / contain no-repeat !important;
+}
+
+@media (prefers-color-scheme: dark) {
+  #mcSpacesToggle::after {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22%3E%3Crect x=%223%22 y=%222%22 width=%222.6%22 height=%222.8%22 rx=%220.8%22 fill=%22%2345A0FD%22/%3E%3Crect x=%223%22 y=%225.44%22 width=%222.6%22 height=%222.8%22 rx=%220.8%22 fill=%22%2361C77A%22/%3E%3Crect x=%223%22 y=%228.88%22 width=%222.6%22 height=%222.8%22 rx=%220.8%22 fill=%22%23FCA53E%22/%3E%3Crect x=%223%22 y=%2212.32%22 width=%222.6%22 height=%222.8%22 rx=%220.8%22 fill=%22%23FC5F98%22/%3E%3Crect x=%223%22 y=%2215.76%22 width=%222.6%22 height=%222.8%22 rx=%220.8%22 fill=%22%23C07BE4%22/%3E%3Crect x=%223%22 y=%2219.2%22 width=%222.6%22 height=%222.8%22 rx=%220.8%22 fill=%22%23A8A8AC%22/%3E%3C/svg%3E") !important;
+  }
 }
 
 .spaces-toolbar-button > img,
@@ -2539,6 +2515,13 @@ unified-toolbar {
 
 #mcListHeader .mc-lh-tools > .mc-lh-more::before {
   mask-image: var(--mi-ellipsis) !important;
+}
+
+/* Filter „nur ungelesene“ eingeschaltet: getönt in Akzentfarbe wie der
+   Filter der Aufgaben */
+#mcListHeader .mc-lh-tools > .mc-lh-filter[aria-pressed="true"] {
+  background-color: color-mix(in srgb, var(--mt-accent) 18%, transparent) !important;
+  color: var(--mt-accent) !important;
 }
 
 /* Thunderbirds eigene Kopfzeile in der Liste ersetzt die obige */
@@ -3816,6 +3799,12 @@ calendar-month-day-box .calendar-month-day-box-list {
   border: none !important;
 }
 
+/* Kontextmenüs in der Kalenderansicht (Termin bzw. freie Fläche) ohne
+   Tastenkürzel – nur die Texte, ruhig wie in Apple Kalender */
+:is(#calendar-item-context-menu, #calendar-view-context-menu) > menuitem :is(.menu-accel-container, .menu-accel) {
+  display: none !important;
+}
+
 /* ---------- Woche, Tag, Mehrere Wochen ---------- */
 calendar-week-view, calendar-day-view {
   background: var(--mt-window) !important;
@@ -4347,6 +4336,64 @@ calendar-event-box :is(.alarm-icons-box, .item-classification-icon, .item-recurr
   background: transparent !important;
 }
 
+/* Tabellenansicht der Aufgaben (Erweiterung: ohne mc-task-list) wie die
+   Mail-Tabelle: Zeilen 28 px mit feiner Trennlinie, jede zweite Zeile leicht
+   getönt, Spaltenkopf 30 px in 13 px, Auswahl mit Fokus in Akzentfarbe
+   (Schrift, Kreis und Priorität in Akzentkontrast). Die Listenansicht bleibt
+   luftig wie Apple Erinnerungen, die Aufgaben der Today-Pane
+   (.calendar-task-tree) bleiben, wie sie sind. */
+:root:not([mc-task-list]) #calendar-task-tree > treecols {
+  min-height: var(--mt-table-head-h) !important;
+}
+
+:root:not([mc-task-list]) #calendar-task-tree > treecols > :is(treecol, treecolpicker) {
+  min-height: var(--mt-table-head-h) !important;
+  font-size: var(--mt-table-font) !important;
+  font-weight: 400 !important;
+}
+
+:root:not([mc-task-list]) #calendar-task-tree treechildren::-moz-tree-row {
+  height: var(--mt-table-row-h) !important;
+  min-height: var(--mt-table-row-h) !important;
+  border-bottom: 1px solid var(--mt-separator) !important;
+}
+
+:root:not([mc-task-list]) #calendar-task-tree treechildren::-moz-tree-row(odd) {
+  background-color: var(--mt-table-stripe) !important;
+}
+
+:root:not([mc-task-list]) #calendar-task-tree treechildren::-moz-tree-row(hover) {
+  background-color: var(--mt-control) !important;
+}
+
+:root:not([mc-task-list]) #calendar-task-tree treechildren::-moz-tree-row(selected) {
+  background-color: var(--mt-selected-unfocused) !important;
+}
+
+:root:not([mc-task-list]) #calendar-task-tree treechildren::-moz-tree-row(selected, focus) {
+  background-color: var(--mt-accent) !important;
+}
+
+:root:not([mc-task-list]) #calendar-task-tree treechildren::-moz-tree-cell-text(selected, focus) {
+  color: var(--mt-accent-text) !important;
+}
+
+:root:not([mc-task-list]) #calendar-task-tree > treechildren::-moz-tree-image(calendar-task-tree-col-completed, selected, focus) {
+  list-style-image: url("resource://mailcards/icons/task-open.svg") !important;
+  -moz-context-properties: stroke !important;
+  stroke: var(--mt-accent-text) !important;
+}
+
+:root:not([mc-task-list]) #calendar-task-tree > treechildren::-moz-tree-image(calendar-task-tree-col-completed, completed, selected, focus) {
+  list-style-image: url("resource://mailcards/icons/task-done.svg") !important;
+  fill: var(--mt-accent-text) !important;
+  stroke: var(--mt-accent) !important;
+}
+
+:root:not([mc-task-list]) #calendar-task-tree > treechildren::-moz-tree-image(calendar-task-tree-col-priority, highpriority, selected, focus) {
+  stroke: var(--mt-accent-text) !important;
+}
+
 /* Detailbereich unten: helle Fläche, Titel groß, Angaben in leiser Schrift */
 /* ohne Auswahl blendet Thunderbird nur die Details aus, den Teiler nicht
    (calendar-task-view.js: displayElement(…) && displayElement(splitter, …)
@@ -4818,6 +4865,63 @@ calendar-event-box :is(.alarm-icons-box, .item-classification-icon, .item-recurr
 }
 
 #cards:focus-within .card-layout.selected :is(.name, .ab-card-second-line, .address) {
+  color: var(--mt-accent-text) !important;
+}
+
+/* Tabellenansicht der Kontakte wie die Mail-Tabelle: Schrift und Spaltenkopf
+   13 px, Kopf 30 px ohne graue Fläche, feine Trennlinien, jede zweite Zeile
+   leicht getönt (data-mc-odd setzt die Erweiterung, die auch die Zeilenhöhe
+   auf 28 px bringt), Auswahl in Akzentfarbe */
+#cards thead th,
+#cards .tree-table-header {
+  background: var(--mt-window) !important;
+  border: none !important;
+  color: var(--mt-text-tertiary) !important;
+}
+
+#cards thead th,
+#cards thead th button {
+  font-size: var(--mt-table-font) !important;
+}
+
+#cards thead th {
+  height: var(--mt-table-head-h) !important;
+}
+
+#cards thead th img {
+  width: 16px !important;
+  height: 16px !important;
+}
+
+#cards tr[is="ab-table-card-row"],
+#cards tr[is="ab-table-card-row"] td {
+  font-size: var(--mt-table-font) !important;
+}
+
+#cards tr[is="ab-table-card-row"] {
+  box-shadow: inset 0 -1px 0 var(--mt-separator) !important;
+}
+
+#cards tr[is="ab-table-card-row"][data-mc-odd]:not(.selected, [aria-selected="true"]) {
+  background-color: var(--mt-table-stripe) !important;
+}
+
+#cards tr[is="ab-table-card-row"]:not(.selected, [aria-selected="true"]):hover {
+  background-color: var(--mt-control) !important;
+}
+
+#cards tr[is="ab-table-card-row"]:is(.selected, [aria-selected="true"]) {
+  background: var(--mt-selected-unfocused) !important;
+  color: var(--mt-text) !important;
+}
+
+#cards:focus-within tr[is="ab-table-card-row"]:is(.selected, [aria-selected="true"]) {
+  background: var(--mt-accent) !important;
+  color: var(--mt-accent-text) !important;
+}
+
+#cards:focus-within tr[is="ab-table-card-row"]:is(.selected, [aria-selected="true"]) .mc-book {
+  background: color-mix(in srgb, var(--mt-accent-text) 25%, transparent) !important;
   color: var(--mt-accent-text) !important;
 }
 
@@ -7835,6 +7939,18 @@ button.wizard-button[disabled] {
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--mt-accent) 22%, transparent) !important;
 }
 
+/* Gesperrte Felder (z. B. Name des persönlichen Adressbuchs, den Thunderbird
+   nicht umbenennen lässt) sichtbar gesperrt: grau hinterlegt, gedämpfte
+   Schrift, kein Textcursor und kein Fokusring – statt wie ein normales
+   Eingabefeld auszusehen, das keine Eingaben annimmt */
+:is(dialog:not(.account-hub-dialog), wizard) :is(input:not([type="checkbox"], [type="radio"], [type="color"], [type="range"], [type="file"]), textarea):is([readonly], :disabled) {
+  border-color: transparent !important;
+  background-color: var(--mt-control) !important;
+  color: var(--mt-text-secondary) !important;
+  cursor: default !important;
+  box-shadow: none !important;
+}
+
 dialog menulist {
   min-height: 28px !important;
   border: none !important;
@@ -9123,10 +9239,11 @@ calendar-month-day-box > .mc-more:hover {
   min-width: 160px !important;
 }
 
-/* … und nicht breiter als 360 px – sonst verdrängt die Seitenleiste die
-   Knöpfe und das Suchfeld oben aus der Toolbar */
-:is(#listPaneBox, #calSidebar, #booksPane):not(.mc-side-anim) {
-  max-width: 360px !important;
+/* … und nicht breiter als die gemeinsame Höchstbreite (360 px wie im
+   Kalender) – sonst verdrängt die Seitenleiste die Knöpfe und das Suchfeld
+   oben aus der Toolbar */
+:is(#listPaneBox, #calSidebar, #booksPane, #folderPane):not(.mc-side-anim) {
+  max-width: var(--mt-sidebar-max-width, 360px) !important;
 }
 
 /* Adressbuch: Thunderbird schreibt der Bücherliste mindestens 240 px vor
@@ -10574,6 +10691,105 @@ notification-message toolbarbutton.notification-button > .toolbarbutton-menubutt
   mask: var(--mi-folder) center / contain no-repeat !important;
 }
 
+/* Farbpunkt des Kontos links vom Ordnersymbol – wie in der Ordnerliste
+   (--mc-acc setzt die Erweiterung) */
+#mcHdrMeta .mc-hdr-acc {
+  order: -1 !important;
+  flex: none !important;
+  width: 8px !important;
+  height: 8px !important;
+  margin-inline-end: 2px !important;
+  border-radius: 50% !important;
+  background-color: var(--mc-acc) !important;
+}
+
+/* Aktionen beim Überfahren wie Apple Mail (#mcHoverActions, setzt die
+   Erweiterung): kleine Kapsel mittig auf der Linie unter dem Kopf mit
+   Löschen | Antworten, Allen antworten, Weiterleiten – erscheint, solange die
+   Maus über der Mail (Kopf oder Text) ist. Im eigenen Nachrichtenfenster
+   stehen dieselben Knöpfe schon im Kopf. */
+#msgHeaderView:has(> #mcHoverActions) {
+  position: relative !important;
+}
+
+#mcHoverActions {
+  position: absolute !important;
+  /* left statt inset-inline-start: die Mitte hängt nicht von der
+     Schreibrichtung ab (rechts nach links stünde sie sonst daneben) */
+  left: 50% !important;
+  bottom: 0 !important;
+  transform: translate(-50%, 50%) !important;
+  z-index: 5 !important;
+  /* als Kind von Thunderbirds Kopf-Raster sonst auf 0 gestaucht */
+  width: max-content !important;
+  display: flex !important;
+  align-items: center !important;
+  gap: 2px !important;
+  padding: 2px 6px !important;
+  border-radius: 999px !important;
+  background: var(--mt-window) !important;
+  box-shadow: 0 0 0 0.5px var(--mt-separator), 0 1px 3px rgba(0, 0, 0, 0.08) !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+  /* ohne !important – so kann der Test die Überblendung abschalten */
+  transition: opacity 150ms ease;
+}
+
+:root:hover #mcHoverActions {
+  opacity: 1 !important;
+  pointer-events: auto !important;
+}
+
+:root[mc-standalone] #mcHoverActions {
+  display: none !important;
+}
+
+#mcHoverActions .mc-hover-action {
+  appearance: none !important;
+  flex: none !important;
+  width: 28px !important;
+  height: 22px !important;
+  min-width: 0 !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  border: none !important;
+  border-radius: 999px !important;
+  background: transparent !important;
+  color: var(--mt-text-tertiary) !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+}
+
+#mcHoverActions .mc-hover-action:not(:disabled):hover {
+  background: var(--mt-control-hover) !important;
+  color: var(--mt-text) !important;
+}
+
+#mcHoverActions .mc-hover-action:disabled {
+  opacity: 0.4 !important;
+}
+
+#mcHoverActions .mc-hover-action::before {
+  content: "" !important;
+  width: 15px !important;
+  height: 15px !important;
+  background-color: currentColor !important;
+  mask: var(--mi-trash) center / contain no-repeat !important;
+}
+
+#mcHoverActions .mc-hover-reply::before { mask-image: var(--mi-reply) !important; }
+#mcHoverActions .mc-hover-replyall::before { mask-image: var(--mi-reply-all) !important; }
+#mcHoverActions .mc-hover-forward::before { mask-image: var(--mi-forward) !important; }
+
+#mcHoverActions .mc-hover-sep {
+  flex: none !important;
+  width: 1px !important;
+  height: 14px !important;
+  margin: 0 4px !important;
+  background: var(--mt-separator) !important;
+}
+
 /* Name und Betreff laufen nicht unter Ordner und Uhrzeit */
 #messageHeader:has(#mcHdrMeta) #headerSenderToolbarContainer {
   /* Breite von Ordner + Uhrzeit misst die Erweiterung (--mc-meta-w) */
@@ -11347,6 +11563,12 @@ notification-message toolbarbutton.notification-button > .toolbarbutton-menubutt
 /* Adressbuch: „Collected Addresses“ nicht in der Seitenleiste (Erweiterung
    markiert die Zeile, abschaltbar) */
 :root[mc-hide-collected] #books > li[data-mc-collected] {
+  display: none !important;
+}
+
+/* Adressbuch: persönliches Adressbuch ausgeblendet (Erweiterung markiert die
+   Zeile, solange es leer ist bzw. per „…“-Menü abgewählt) */
+#books > li[data-mc-pab-hidden] {
   display: none !important;
 }
 /* ==== Ende Bereiche ==== */
