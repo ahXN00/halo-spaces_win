@@ -4762,6 +4762,151 @@ def run_checks(m, version, profile, results):
         return ok, f"{out}"
     check("Trennlinien: Seitenleiste beim Zuziehen sofort weg, kein blauer Balken, Today-Pane fest 280 px und nach rechts gezogen sofort aus, „+“ gleich weg, Spaces-Knopf bleibt stehen", drag_hide, results)
 
+    def drag_reshow():
+        # Eine Zieh-Logik für alle Bereiche: Seitenleiste (Kalender, Mail, Adressbuch, Einstellungen) bis zur gemeinsamen
+        # Höchstbreite ziehbar (Mail wird breiter), unter der Schwelle sofort aus, im selben Zug zurück wieder da;
+        # ausgeblendet bleibt links eine Greifzone, an der man sie herauszieht; Today-Pane gespiegelt am rechten Rand;
+        # alles ohne Animation
+        def act(steps):
+            m.cmd("WebDriver:PerformActions", {"actions": [{"type": "pointer", "id": "maus", "parameters": {"pointerType": "mouse"}, "actions": steps}]})
+        def down(x, y):
+            act([{"type": "pointerMove", "x": x, "y": y, "origin": "viewport"}, {"type": "pointerDown", "button": 0}])
+        def move(x0, x1, y, n=8):
+            act([{"type": "pointerMove", "x": x0 + (x1 - x0) * i // n, "y": y, "origin": "viewport", "duration": 15} for i in range(1, n + 1)])
+        def up():
+            act([{"type": "pointerUp", "button": 0}])
+            m.cmd("WebDriver:ReleaseActions", {})
+        # Zustand: hidden, Breite, Trennlinie (x, y), Greifzone (sichtbar, x), animiert?
+        cal_js = r"""const sb = d.getElementById("calSidebar"), sp = d.getElementById("calsidebar_splitter").getBoundingClientRect(), g = d.getElementById("mcSideGrip");
+          return { hidden: sb.classList.contains("mc-side-hidden"), w: Math.round(sb.getBoundingClientRect().width), x: Math.round(sp.left + sp.width / 2), y: Math.round(sp.top + 300),
+            grip: !!g && g.style.display != "none", gx: g ? Math.round(g.getBoundingClientRect().left + 2) : 0, left: Math.round(d.getElementById("calendarContent").getBoundingClientRect().left),
+            anim: sb.classList.contains("mc-side-anim"), max: parseFloat(getComputedStyle(sb).getPropertyValue("--mt-sidebar-max-width")) };"""
+        mail_js = r"""const a3 = tm.currentAbout3Pane, ad = a3.document, off = a3.browsingContext.embedderElement.getBoundingClientRect(); const sp = ad.getElementById("folderPaneSplitter"), r = sp.getBoundingClientRect(), g = ad.getElementById("mcSideGrip");
+          return { hidden: sp.isCollapsed, w: Math.round(ad.getElementById("folderPane").getBoundingClientRect().width), x: Math.round(off.left + r.left + r.width / 2), y: Math.round(off.top + 300),
+            grip: !!g && g.style.display != "none", gx: g ? Math.round(off.left + g.getBoundingClientRect().left + 2) : 0, left: Math.round(off.left), anim: !!a3.__mcAnimating };"""
+        ab_js = r"""const b = tm.currentTabInfo.browser, ad = b.contentDocument, off = b.getBoundingClientRect(); const bp = ad.getElementById("booksPane"), sp = ad.getElementById("booksSplitter").getBoundingClientRect(), g = ad.getElementById("mcSideGrip");
+          return { hidden: bp.classList.contains("mc-side-hidden"), w: Math.round(bp.getBoundingClientRect().width), x: Math.round(off.left + sp.left + sp.width / 2), y: Math.round(off.top + 300),
+            grip: !!g && g.style.display != "none", gx: g ? Math.round(off.left + g.getBoundingClientRect().left + 2) : 0, left: Math.round(off.left), anim: bp.classList.contains("mc-side-anim") };"""
+        pref_js = r"""const b = tm.currentTabInfo.browser, pd = b.contentDocument, off = b.getBoundingClientRect(); const box = pd.getElementById("pref-category-box"), g = pd.getElementById("mcSideGrip");
+          return { hidden: box.classList.contains("mc-side-hidden"), w: Math.round(box.getBoundingClientRect().width), y: Math.round(off.top + 300),
+            grip: !!g && g.style.display != "none", gx: g ? Math.round(off.left + g.getBoundingClientRect().left + 2) : 0, left: Math.round(off.left), anim: box.classList.contains("mc-side-anim") };"""
+        today_js = r"""const p = d.getElementById("today-pane-panel"), sp = d.getElementById("today-splitter").getBoundingClientRect(), g = d.getElementById("mcTodayGrip");
+          return { hidden: !w.TodayPane?.isVisible, w: Math.round(p.getBoundingClientRect().width), x: Math.round(sp.left + sp.width / 2), y: Math.round(sp.top + 300),
+            grip: g.style.display != "none", gx: Math.round(g.getBoundingClientRect().left + 2), right: Math.round(d.getElementById("tabmail-container").getBoundingClientRect().right), anim: !!p.__mcAnimating };"""
+        out, bad = {}, []
+        def side(name, state, widen):
+            # breiter ziehen, ganz nach rechts (Höchstbreite), nach links (aus), zurück (ein), wieder aus und loslassen,
+            # dann an der Greifzone herausziehen
+            s = m.js(state)
+            if s["hidden"]:
+                bad.append(f"{name}: anfangs ausgeblendet")
+                return
+            r = {"start": s["w"]}
+            x, y = s["x"], s["y"]
+            down(x, y)
+            if widen:
+                move(x, x + 60, y)
+                r["wider"] = m.js(state)["w"]
+                move(x + 60, x + 500, y)
+                r["max"] = m.js(state)["w"]
+                x += 500
+            move(x, s["left"] + 40, y)
+            mid = m.js(state)
+            r["off"] = [mid["hidden"], mid["anim"]]
+            move(s["left"] + 40, s["left"] + 240, y)
+            mid = m.js(state)
+            r["on"] = [mid["hidden"], mid["anim"], mid["w"]]
+            move(s["left"] + 240, s["left"] + 20, y)
+            up()
+            time.sleep(0.4)
+            e = m.js(state)
+            r["released"] = [e["hidden"], e["grip"], e["gx"] - e["left"]]
+            down(e["gx"], y)
+            move(e["gx"], e["gx"] + 250, y)
+            up()
+            time.sleep(0.4)
+            e = m.js(state)
+            r["grip"] = [e["hidden"], e["grip"], e["anim"]]
+            out[name] = r
+            if r["off"] != [True, False] or r["on"][:2] != [False, False] or abs(r["on"][2] - 240) > 30:
+                bad.append(f"{name}: im selben Zug {r['off']} / {r['on']}")
+            if r["released"][:2] != [True, True] or not 0 <= r["released"][2] <= 6:
+                bad.append(f"{name}: Greifzone {r['released']}")
+            if r["grip"] != [False, s["grip"], False]:
+                bad.append(f"{name}: herausgezogen {r['grip']}")
+            if widen and (r["wider"] < r["start"] + 40 or r["max"] != 360):
+                bad.append(f"{name}: Breite {r['start']} → {r['wider']} → {r['max']} (Höchstbreite 360)")
+        m.js('w.resizeTo(1400, 900); await wait(500); await toCalendar(); await wait(800); return 1;')
+        out["max"] = m.js(cal_js)["max"]
+        if out["max"] != 360:
+            bad.append(f"--mt-sidebar-max-width {out['max']}")
+        side("Kalender", cal_js, True)
+        m.js('await toMail(); await wait(500); return 1;')
+        side("Mail", mail_js, True)
+        m.js('tm.openTab("addressBookTab", {}); await wait(2000); return 1;')
+        side("Adressbuch", ab_js, False)
+        # Einstellungen: feste Breite, keine eigene Trennlinie – die Greifzone sitzt am rechten Rand der Leiste
+        m.js('w.openPreferencesTab(); await wait(2000); return 1;')
+        s = m.js(pref_js)
+        r = {"start": [s["hidden"], s["w"], s["grip"]]}
+        x, y = s["gx"], s["y"]
+        down(x, y)
+        move(x, x - 180, y)
+        r["off"] = m.js(pref_js)["hidden"]
+        move(x - 180, x, y)
+        r["on"] = m.js(pref_js)["hidden"]
+        move(x, x - 200, y)
+        up()
+        time.sleep(0.4)
+        e = m.js(pref_js)
+        r["released"] = [e["hidden"], e["grip"], e["gx"] - e["left"]]
+        down(e["gx"], y)
+        move(e["gx"], e["gx"] + 200, y)
+        up()
+        time.sleep(0.4)
+        e = m.js(pref_js)
+        r["grip"] = [e["hidden"], e["w"], e["anim"]]
+        out["Einstellungen"] = r
+        if not (r["start"][0] is False and r["start"][2] and r["off"] is True and r["on"] is False and r["released"][:2] == [True, True]
+                and 0 <= r["released"][2] <= 6 and r["grip"] == [False, s["w"], False]):
+            bad.append(f"Einstellungen: {r}")
+        # Today-Pane (gespiegelt): nach rechts aus, zurück ein, ausgeblendet am rechten Rand herausziehen
+        m.js('await toMail(); await wait(500); if (!w.TodayPane?.isVisible) { d.getElementById("mcTodayToggle").click(); await wait(900); } return 1;')
+        s = m.js(today_js)
+        r = {}
+        x, y = s["x"], s["y"]
+        down(x, y)
+        move(x, x + 40, y)
+        mid = m.js(today_js)
+        r["off"] = [mid["hidden"], mid["anim"], mid["grip"]]
+        move(x + 40, x - 20, y)
+        mid = m.js(today_js)
+        r["on"] = [mid["hidden"], mid["anim"], mid["w"]]
+        move(x - 20, x + 60, y)
+        up()
+        time.sleep(0.4)
+        e = m.js(today_js)
+        r["released"] = [e["hidden"], e["grip"], e["right"] - e["gx"]]
+        down(e["gx"], y)
+        move(e["gx"], e["gx"] - 60, y)
+        up()
+        time.sleep(0.4)
+        e = m.js(today_js)
+        r["grip"] = [e["hidden"], e["grip"], e["anim"], e["w"]]
+        out["Today"] = r
+        if not (r["off"] == [True, False, True] and r["on"] == [False, False, 280] and r["released"][:2] == [True, True]
+                and 0 < r["released"][2] <= 6 and r["grip"] == [False, False, False, 280]):
+            bad.append(f"Today-Pane: {r}")
+        # gemeinsame Breite zurück auf den Standard (Doppelklick auf die Trennlinie der Mail)
+        x, y = m.js(r"""const a3 = await toMail(); const off = a3.browsingContext.embedderElement.getBoundingClientRect(), s = a3.document.getElementById("folderPaneSplitter").getBoundingClientRect();
+          return [Math.round(off.left + s.left + s.width / 2), Math.round(off.top + 300)];""")
+        act([{"type": "pointerMove", "x": x, "y": y, "origin": "viewport"}, {"type": "pointerDown", "button": 0}, {"type": "pointerUp", "button": 0},
+             {"type": "pause", "duration": 80}, {"type": "pointerDown", "button": 0}, {"type": "pointerUp", "button": 0}])
+        m.cmd("WebDriver:ReleaseActions", {})
+        time.sleep(1)
+        return not bad, "; ".join(bad) or f"{out}"
+    check("Trennlinien: Seitenleisten aller Bereiche und Today-Pane bis zur gemeinsamen Höchstbreite ziehbar, im selben Zug wieder ein, ausgeblendet am Rand wieder herausziehbar, ohne Animation", drag_reshow, results)
+
     def sidebar_animation():
         # Seitenleiste ein-/ausblenden in Mail, Chat und Einstellungen gleich flüssig: Breite in vielen Zwischenschritten,
         # Knopf vorher und nachher an derselben Stelle, in der Mail bleibt die Liste stehen (kein Neuumbruch der Karten)

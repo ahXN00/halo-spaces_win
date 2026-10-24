@@ -3737,6 +3737,74 @@ function cubicBezier(x1, y1, x2, y2) {
   };
 }
 
+// Ziehen an der Trennlinie einer Seitenleiste (links) bzw. der Today-Pane
+// (rechts, gespiegelt) – eine Logik für alle Bereiche, wie in Apple Mail:
+// unter der Schwelle verschwindet die Leiste sofort, zurückgezogen kommt sie
+// im selben Zug wieder (beliebig oft, bis zum Loslassen), alles ohne
+// Animation. Aus der ausgeblendeten Lage heraus (Greifzone am Rand) ebenso.
+// Die Breite folgt dem Zeiger, wenn pane.setWidth da ist (sonst feste Breite:
+// nur ein-/ausblenden).
+//   pane.side: "left" | "right"
+//   pane.hidden(), pane.setHidden(bool), pane.width()
+//   pane.threshold(startHidden, startWidth): Breite, unter der die Leiste aus ist
+//   pane.setWidth(px) (optional), pane.done(hidden) (optional, beim Loslassen)
+function dragPane(event, pane) {
+  if (event.button != 0) {
+    return;
+  }
+  const doc = event.currentTarget.ownerDocument;
+  const win = doc.defaultView;
+  const root = doc.documentElement;
+  const dir = pane.side == "right" ? -1 : 1;
+  const startX = event.clientX;
+  const startHidden = pane.hidden();
+  const startWidth = startHidden ? 0 : pane.width();
+  const threshold = pane.threshold(startHidden, startWidth);
+  let hidden = startHidden;
+  // Zeiger an die Seite binden: Bewegungen kommen weiter an, auch wenn die
+  // Trennlinie mit der Leiste verschwindet oder der Zeiger die Seite verlässt
+  try {
+    root.setPointerCapture(event.pointerId);
+  } catch {}
+  const cursor = root.style.cursor;
+  root.style.cursor = "col-resize";
+  const onMove = e => {
+    if (!(e.buttons & 1)) {
+      end();
+      return;
+    }
+    const size = startWidth + dir * (e.clientX - startX);
+    const hide = size < threshold;
+    if (hide != hidden) {
+      hidden = hide;
+      pane.setHidden(hide);
+    }
+    if (!hide) {
+      pane.setWidth?.(size);
+    }
+  };
+  const end = () => {
+    win.removeEventListener("pointermove", onMove, true);
+    win.removeEventListener("pointerup", end, true);
+    root.style.cursor = cursor;
+    try {
+      root.releasePointerCapture(event.pointerId);
+    } catch {}
+    pane.done?.(hidden);
+  };
+  win.addEventListener("pointermove", onMove, true);
+  win.addEventListener("pointerup", end, true);
+}
+
+// Thunderbirds eigenes Ziehen an einer Trennlinie (XUL-Splitter, Pane-Splitter)
+// abschalten – dragPane übernimmt es (beide reagieren auf „mousedown“)
+function blockNativeSplitter(event) {
+  if (event.button == 0) {
+    event.preventDefault();
+    event.stopImmediatePropagation();
+  }
+}
+
 // ---------------------------------------------------------------------------
 // Logo-Cache (pro Domain, im Profil gespeichert)
 // ---------------------------------------------------------------------------
@@ -6672,6 +6740,11 @@ class CardEnhancer {
     // bekommt dessen Seitenleiste dieselbe Breite – die Knöpfe springen nicht.
     // Zieht man eine Seitenleiste breiter/schmaler, gilt das für alle.
     const WIDTH_PREF = "extensions.mailcards.sidebarWidth";
+    // gemeinsame Höchstbreite aller Seitenleisten (CSS-Variable, 360 px wie im Kalender)
+    const sideMax = el => {
+      const win = el.ownerDocument.defaultView;
+      return parseFloat(win.getComputedStyle(el).getPropertyValue("--mt-sidebar-max-width")) || 360;
+    };
     const sidebarFor = tab => {
       if (!tab) {
         return [null, null, null];
@@ -6690,12 +6763,19 @@ class CardEnhancer {
         return;
       }
       // (noch keine eigene Breite gespeichert: 206 px wie die Ordnerliste in Apple Mail)
-      const W = Services.prefs.getIntPref(WIDTH_PREF, 0) || 206;
+      // (nie breiter als die gemeinsame Höchstbreite, --mt-sidebar-max-width)
       const [el, splitter, win] = sidebarFor(tab);
-      if (W < 160 || busy(el, win)) {
+      if (busy(el, win)) {
         return;
       }
-      const current = el.getBoundingClientRect().width;
+      const W = Math.min(sideMax(el), Services.prefs.getIntPref(WIDTH_PREF, 0) || 206);
+      if (W < 160) {
+        return;
+      }
+      // (Mail, Adressbuch: die Spalte des Teilers zählt – sie kann breiter
+      // sein als die auf die Höchstbreite begrenzte Leiste)
+      const hr = splitter?.localName == "hr" && "width" in splitter;
+      const current = hr && splitter.width ? splitter.width : el.getBoundingClientRect().width;
       if (!current || Math.abs(current - W) < 1.5) {
         return;
       }
@@ -6881,6 +6961,7 @@ class CardEnhancer {
       const hidden = !!sideState()[mode];
       el.classList.toggle("mc-side-hidden", hidden);
       splitter?.classList.toggle("mc-side-hidden", hidden);
+      placeSideGrip();
     };
     const sideHidden = () => {
       const { mode, el } = currentSide();
@@ -6906,6 +6987,7 @@ class CardEnhancer {
       if (show) {
         el.classList.remove("mc-side-hidden");
         splitter?.classList.remove("mc-side-hidden");
+        placeSideGrip();
       }
       const full = el.getBoundingClientRect().width;
       if (!full) {
@@ -6967,80 +7049,213 @@ class CardEnhancer {
         el.__mcAnimating = false;
         updateSideEdge();
         sidebarTip?.();
+        placeSideGrip();
       };
       win.requestAnimationFrame(() => win.requestAnimationFrame(step));
     };
 
-    // Seitenleiste per Trennlinie zugezogen (Kalender, Aufgaben, Chat,
-    // Adressbuch): unter DRAG_HIDE px verschwindet sie sofort und ohne
-    // Animation – wie in der Mail, wo Thunderbird die Ordnerliste selbst
-    // zuklappt. Die Breite von vor dem Ziehen bleibt fürs Einblenden
+    // Seitenleiste per Trennlinie ziehen – in allen Bereichen dieselbe Logik
+    // (dragPane): breiter/schmaler bis zur gemeinsamen Höchstbreite, unter
+    // DRAG_HIDE px sofort und ohne Animation ausgeblendet, im selben Zug
+    // zurückgezogen wieder da. Ausgeblendet bleibt am linken Rand eine schmale
+    // Greifzone (#mcSideGrip), an der man sie wieder herauszieht. Die Breite
+    // von vor dem Ziehen bleibt fürs Einblenden
     const DRAG_HIDE = 120;
-    const hideSideNow = (mode, el, splitter) => {
+    const SIDE_MIN = 160;
+    const SIDE_GRIP = 5; // so breit wie die Trennlinien
+    const setSideHidden = (mode, el, splitter, hidden) => {
       const state = sideState();
-      state[mode] = true;
+      state[mode] = hidden;
+      // Kalender und Aufgaben teilen sich die Seitenleiste
       if (mode == "calendar" || mode == "tasks") {
-        state.calendar = state.tasks = true;
+        state.calendar = state.tasks = hidden;
       }
       Services.prefs.setStringPref(SIDE_PREF, JSON.stringify(state));
-      el.classList.add("mc-side-hidden");
-      splitter?.classList.add("mc-side-hidden");
+      if (!hidden) {
+        unCollapse(el, splitter);
+      }
+      el.classList.toggle("mc-side-hidden", hidden);
+      splitter?.classList.toggle("mc-side-hidden", hidden);
       updateSideEdge();
       sidebarTip?.();
+      placeSideGrip();
     };
-    const hookDragHide = tab => {
+    const hideSideNow = (mode, el, splitter) => setSideHidden(mode, el, splitter, true);
+    // Seitenleiste des Tabs als Objekt für dragPane
+    const sidePane = tab => {
       const mode = tab?.mode?.name;
-      if (!["calendar", "tasks", "chat", "addressBookTab"].includes(mode)) {
-        return;
-      }
       const [el, splitter, win] = sidebarFor(tab);
-      if (!el || !splitter || !win || splitter.__mcDragHide === this) {
-        return;
+      if (!el || !win) {
+        return null;
       }
-      splitter.__mcDragHide = this;
-      const onDown = event => {
-        if (event.button != 0 || busy(el, win)) {
-          return;
+      const commonWidth = () => Math.min(sideMax(el), Services.prefs.getIntPref(WIDTH_PREF, 0) || 206);
+      const pane = {
+        el, splitter, win, mode,
+        side: "left",
+        width: () => el.getBoundingClientRect().width,
+        threshold: () => DRAG_HIDE,
+      };
+      const lock = W => {
+        // Thunderbirds Sperre der Breite („width: …px !important“) mitziehen
+        if (el.style.getPropertyPriority("width") == "important") {
+          el.style.setProperty("width", `${W}px`, "important");
         }
-        const startWidth = Math.round(el.getBoundingClientRect().width);
-        const startAttr = el.getAttribute("width");
-        const startStyle = [el.style.getPropertyValue("width"), el.style.getPropertyPriority("width")];
-        let hidden = false;
-        const onMove = e => {
-          if (!hidden && !busy(el, win) && e.clientX - el.getBoundingClientRect().left < DRAG_HIDE) {
-            hidden = true;
-            hideSideNow(mode, el, splitter);
-          }
-        };
-        const onUp = () => {
-          win.removeEventListener("pointermove", onMove, true);
-          win.removeEventListener("pointerup", onUp, true);
+      };
+      if (mode == "mail3PaneTab") {
+        if (!splitter) {
+          return null;
+        }
+        // Mail: ausgeblendet heißt von Thunderbirds Teiler zugeklappt
+        pane.hidden = () => splitter.isCollapsed;
+        pane.setHidden = hidden => {
+          splitter.isCollapsed = hidden;
           if (!hidden) {
-            return;
+            lock(splitter.width || commonWidth());
           }
-          if (splitter.localName == "hr" && "width" in splitter) {
-            splitter.width = startWidth;
-            splitter.dispatchEvent(new win.CustomEvent("splitter-resized", { bubbles: true }));
-          } else {
-            if (startAttr) {
-              el.setAttribute("width", startAttr);
+          updateSideEdge();
+          this.offsetUpdaters?.forEach(fn => fn());
+          sidebarTip?.();
+          placeSideGrip();
+        };
+        pane.setWidth = W => {
+          splitter.width = W;
+          lock(W);
+        };
+        pane.save = () => splitter.dispatchEvent(new win.CustomEvent("splitter-resized", { bubbles: true }));
+      } else {
+        const hr = splitter?.localName == "hr" && "width" in splitter;
+        pane.hidden = () => el.classList.contains("mc-side-hidden");
+        pane.setHidden = hidden => setSideHidden(mode, el, splitter, hidden);
+        // ohne eigene Trennlinie (Einstellungen): feste Breite, nur ein-/ausblenden
+        if (splitter) {
+          pane.setWidth = W => {
+            if (hr) {
+              splitter.width = W;
+            } else {
+              el.style.setProperty("width", `${W}px`, "important");
+            }
+          };
+          pane.save = () => {
+            if (hr) {
+              splitter.dispatchEvent(new win.CustomEvent("splitter-resized", { bubbles: true }));
+              return;
+            }
+            const W = parseFloat(el.style.getPropertyValue("width"));
+            if (W) {
+              el.setAttribute("width", String(Math.round(W)));
               try {
                 Services.xulStore.persist(el, "width");
               } catch {}
             }
-            if (startStyle[0]) {
-              el.style.setProperty("width", startStyle[0], startStyle[1]);
+          };
+        }
+      }
+      pane.commonWidth = commonWidth;
+      return pane;
+    };
+    const startSideDrag = event => {
+      const pane = sidePane(w.document.getElementById("tabmail")?.currentTabInfo);
+      if (!pane || event.button != 0 || pane.el.__mcAnimating || pane.win.__mcAnimating) {
+        return;
+      }
+      const max = sideMax(pane.el);
+      let resized = false;
+      dragPane(event, {
+        side: "left",
+        hidden: pane.hidden,
+        width: pane.width,
+        threshold: pane.threshold,
+        setHidden: pane.setHidden,
+        setWidth: pane.setWidth && (W => {
+          pane.setWidth(Math.round(Math.min(max, Math.max(SIDE_MIN, W))));
+          resized = true;
+          updateSideEdge();
+        }),
+        done: hidden => {
+          if (pane.setWidth) {
+            if (hidden) {
+              // ausgeblendet losgelassen: beim Einblenden wieder die gemeinsame Breite
+              pane.setWidth(pane.commonWidth());
+            } else if (resized) {
+              Services.prefs.setIntPref(WIDTH_PREF, Math.round(pane.width()));
             }
+            pane.save?.();
           }
-        };
-        win.addEventListener("pointermove", onMove, true);
-        win.addEventListener("pointerup", onUp, true);
-      };
-      splitter.addEventListener("pointerdown", onDown);
+          placeSideGrip();
+          updateSideEdge();
+          this.offsetUpdaters?.forEach(fn => fn());
+        },
+      });
+    };
+    // Greifzone: bei ausgeblendeter Seitenleiste am linken Rand (gleich rechts
+    // der Bereiche-Leiste), bei einer Leiste ohne eigene Trennlinie
+    // (Einstellungen) auch an ihrem rechten Rand – eine je Dokument
+    const sideGrip = doc => {
+      let grip = doc.getElementById("mcSideGrip");
+      if (grip) {
+        return grip;
+      }
+      grip = doc.createElementNS("http://www.w3.org/1999/xhtml", "div");
+      grip.id = "mcSideGrip";
+      grip.setAttribute("aria-hidden", "true");
+      grip.style.cssText = `position: fixed; z-index: 10; width: ${SIDE_GRIP}px; display: none;`;
+      grip.addEventListener("pointerdown", startSideDrag);
+      grip.addEventListener("mousedown", blockNativeSplitter, true);
+      doc.documentElement.append(grip);
+      this.addWinRestorer(doc.defaultView == w ? null : doc.defaultView, () => grip.remove());
+      return grip;
+    };
+    const placeSideGrip = () => {
+      const pane = sidePane(w.document.getElementById("tabmail")?.currentTabInfo);
+      const mainGrip = w.document.getElementById("mcSideGrip");
+      if (mainGrip && pane?.el.ownerDocument != w.document) {
+        mainGrip.style.display = "none";
+      }
+      if (!pane) {
+        return;
+      }
+      const grip = sideGrip(pane.el.ownerDocument);
+      const hidden = pane.hidden();
+      if (!hidden && pane.splitter) {
+        grip.style.display = "none";
+        return;
+      }
+      const box = (hidden ? pane.el.parentNode : pane.el).getBoundingClientRect();
+      if (!box.height) {
+        grip.style.display = "none";
+        return;
+      }
+      grip.style.left = `${Math.round(hidden ? box.left : box.right - SIDE_GRIP / 2)}px`;
+      grip.style.top = `${Math.round(box.top)}px`;
+      grip.style.height = `${Math.round(box.height)}px`;
+      grip.style.cursor = hidden ? "e-resize" : "col-resize";
+      grip.style.display = "block";
+    };
+    // Fenstergröße geändert oder Bereiche-Leiste ein-/ausgeblendet: neu setzen
+    const gripRo = new w.ResizeObserver(() => placeSideGrip());
+    const gripBox = w.document.getElementById("tabmail-container");
+    gripBox && gripRo.observe(gripBox);
+    this.restorers.push(() => gripRo.disconnect());
+    // Trennlinie des Bereichs übernehmen (statt Thunderbirds eigenem Ziehen)
+    const hookSideDrag = tab => {
+      placeSideGrip();
+      const [el, splitter, win] = sidebarFor(tab);
+      if (!el || !splitter || !win || splitter.__mcSideDrag === this) {
+        return;
+      }
+      splitter.__mcSideDrag = this;
+      splitter.addEventListener("pointerdown", startSideDrag);
+      splitter.addEventListener("mousedown", blockNativeSplitter, true);
+      // Mail: Thunderbird klappt die Ordnerliste auch selbst (Menü Ansicht)
+      splitter.addEventListener("splitter-collapsed", placeSideGrip);
+      splitter.addEventListener("splitter-expanded", placeSideGrip);
       this.addWinRestorer(win, () => {
-        splitter.removeEventListener("pointerdown", onDown);
-        if (splitter.__mcDragHide === this) {
-          delete splitter.__mcDragHide;
+        splitter.removeEventListener("pointerdown", startSideDrag);
+        splitter.removeEventListener("mousedown", blockNativeSplitter, true);
+        splitter.removeEventListener("splitter-collapsed", placeSideGrip);
+        splitter.removeEventListener("splitter-expanded", placeSideGrip);
+        if (splitter.__mcSideDrag === this) {
+          delete splitter.__mcSideDrag;
         }
       });
     };
@@ -7381,8 +7596,8 @@ class CardEnhancer {
       syncSidebarWidth();
       w.setTimeout(syncSidebarWidth, 400); // Inhalte (Adressbuch …) evtl. später
       const current = w.document.getElementById("tabmail")?.currentTabInfo;
-      hookDragHide(current);
-      w.setTimeout(() => hookDragHide(current), 400);
+      hookSideDrag(current);
+      w.setTimeout(() => hookSideDrag(current), 400);
       updateSideEdge();
       // Inhalt (Adressbuch, Einstellungen) ist evtl. erst später aufgebaut
       w.setTimeout(updateSideEdge, 300);
@@ -7450,7 +7665,10 @@ class CardEnhancer {
         const ab = tab.chromeBrowser?.contentWindow;
         const splitter = ab?.paneLayout?.folderPaneSplitter;
         if (splitter) {
-          this.animateSidebar(ab, splitter, () => sidebarTip?.());
+          this.animateSidebar(ab, splitter, () => {
+            sidebarTip?.();
+            placeSideGrip();
+          });
         }
       } else {
         // in allen anderen Bereichen deren Seitenleiste ein-/ausblenden
@@ -7646,34 +7864,83 @@ class CardEnhancer {
       const mo = panel ? new w.MutationObserver(() => {
         updateTip();
         w.__mcTodayTopSync?.();
+        placeTodayGrip?.();
       }) : null;
-      mo?.observe(panel, { attributes: true, attributeFilter: ["collapsed", "hidden", "collapsedinmodes"] });
-      // Breite der Today-Pane fest (CSS); die Trennlinie nach rechts gezogen
-      // blendet sie sofort aus, ohne Animation, das „+“ gleich mit
+      // (current: Bereich gewechselt)
+      mo?.observe(panel, { attributes: true, attributeFilter: ["collapsed", "hidden", "collapsedinmodes", "current"] });
+      let placeTodayGrip = null;
+      // Breite der Today-Pane fest (CSS). Ziehen an der Trennlinie wie bei den
+      // Seitenleisten (dragPane, gespiegelt): 12 px nach rechts blendet sie
+      // sofort aus, ohne Animation, das „+“ gleich mit; im selben Zug zurück
+      // nach links ist sie wieder da. Ausgeblendet bleibt am rechten Rand eine
+      // schmale Greifzone (#mcTodayGrip), an der man sie wieder herauszieht
+      const TODAY_SNAP = 12;
       const todaySplitter = d.getElementById("today-splitter");
-      const onSplitterDown = event => {
-        if (event.button != 0 || !w.TodayPane?.isVisible || panel?.__mcAnimating) {
+      const row0 = d.getElementById("unifiedToolbarContainer");
+      const grip = d.createElementNS("http://www.w3.org/1999/xhtml", "div");
+      grip.id = "mcTodayGrip";
+      grip.setAttribute("aria-hidden", "true");
+      grip.style.cssText = "position: fixed; z-index: 10; width: 5px; cursor: w-resize; display: none;";
+      d.documentElement.append(grip);
+      // Greifzone nur, wo die Today-Pane erscheinen kann (Kalender aktiv, Bereich mit Today-Pane)
+      const placeGrip = () => {
+        const modes = (panel?.getAttribute("mode") || "").split(",");
+        const box = d.getElementById("tabmail-container")?.getBoundingClientRect();
+        const show = panel && !w.TodayPane?.isVisible && !d.documentElement.hasAttribute("calendar-deactivated") &&
+          modes.includes(w.gCurrentMode) && box?.height;
+        grip.style.display = show ? "block" : "none";
+        if (show) {
+          grip.style.left = `${Math.round(box.right - 5)}px`;
+          grip.style.top = `${Math.round(box.top)}px`;
+          grip.style.height = `${Math.round(box.height)}px`;
+        }
+      };
+      const onTodayDown = event => {
+        if (event.button != 0 || panel?.__mcAnimating) {
           return;
         }
-        const startX = event.clientX;
-        const onMove = e => {
-          if (e.clientX - startX > 12) {
-            stop();
-            d.getElementById("unifiedToolbarContainer")?.removeAttribute("data-mc-tp-open");
+        dragPane(event, {
+          side: "right",
+          hidden: () => !w.TodayPane?.isVisible,
+          width: () => panel.getBoundingClientRect().width,
+          threshold: (startHidden, startWidth) => (startHidden ? TODAY_SNAP : startWidth - TODAY_SNAP),
+          setHidden: hidden => {
+            if (hidden == !w.TodayPane?.isVisible) {
+              return;
+            }
+            if (hidden) {
+              row0?.removeAttribute("data-mc-tp-open");
+            }
             command.doCommand();
             updateTip();
             w.__mcTodayTopSync?.();
-          }
-        };
-        const stop = () => {
-          w.removeEventListener("pointermove", onMove, true);
-          w.removeEventListener("pointerup", stop, true);
-        };
-        w.addEventListener("pointermove", onMove, true);
-        w.addEventListener("pointerup", stop, true);
+            placeGrip();
+          },
+          done: () => {
+            placeGrip();
+            this.offsetUpdaters?.forEach(fn => fn());
+          },
+        });
       };
-      todaySplitter?.addEventListener("pointerdown", onSplitterDown);
-      this.restorers.push(() => todaySplitter?.removeEventListener("pointerdown", onSplitterDown));
+      for (const el of [todaySplitter, grip]) {
+        el?.addEventListener("pointerdown", onTodayDown);
+        el?.addEventListener("mousedown", blockNativeSplitter, true);
+      }
+      placeGrip();
+      const gripMo = new w.MutationObserver(placeGrip);
+      gripMo.observe(d.documentElement, { attributes: true, attributeFilter: ["calendar-deactivated", "mc-tab"] });
+      // (Fenstergröße, Bereiche-Leiste)
+      const gripRo = new w.ResizeObserver(placeGrip);
+      const gripBox = d.getElementById("tabmail-container");
+      gripBox && gripRo.observe(gripBox);
+      this.restorers.push(() => {
+        todaySplitter?.removeEventListener("pointerdown", onTodayDown);
+        todaySplitter?.removeEventListener("mousedown", blockNativeSplitter, true);
+        gripMo.disconnect();
+        gripRo.disconnect();
+        grip.remove();
+      });
+      placeTodayGrip = placeGrip;
       // in die Toolbar-Zeile; darüber reicht die Today-Pane bis ganz oben
       // (#mcTodayTop in ihrer Breite) – wie die Seitenleiste links
       const row = d.getElementById("unifiedToolbarContainer");

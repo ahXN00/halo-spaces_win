@@ -6182,10 +6182,11 @@ calendar-month-day-box > .mc-more:hover {
   min-width: 160px !important;
 }
 
-/* … und nicht breiter als 360 px – sonst verdrängt die Seitenleiste die
-   Knöpfe und das Suchfeld oben aus der Toolbar */
-:is(#listPaneBox, #calSidebar, #booksPane):not(.mc-side-anim) {
-  max-width: 360px !important;
+/* … und nicht breiter als die gemeinsame Höchstbreite (360 px wie im
+   Kalender) – sonst verdrängt die Seitenleiste die Knöpfe und das Suchfeld
+   oben aus der Toolbar */
+:is(#listPaneBox, #calSidebar, #booksPane, #folderPane):not(.mc-side-anim) {
+  max-width: var(--mt-sidebar-max-width, 360px) !important;
 }
 
 /* Adressbuch: Thunderbird schreibt der Bücherliste mindestens 240 px vor
