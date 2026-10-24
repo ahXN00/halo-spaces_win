@@ -863,6 +863,12 @@ calendar-month-day-box .calendar-month-day-box-list {
   border: none !important;
 }
 
+/* Kontextmenüs in der Kalenderansicht (Termin bzw. freie Fläche) ohne
+   Tastenkürzel – nur die Texte, ruhig wie in Apple Kalender */
+:is(#calendar-item-context-menu, #calendar-view-context-menu) > menuitem :is(.menu-accel-container, .menu-accel) {
+  display: none !important;
+}
+
 /* ---------- Woche, Tag, Mehrere Wochen ---------- */
 calendar-week-view, calendar-day-view {
   background: var(--mt-window) !important;

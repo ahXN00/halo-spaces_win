@@ -2467,6 +2467,40 @@ def folder_checks(m, results):
         return ok, f"{res}"
     check("Menüs: Tastenkürzel neutral grau, im markierten Eintrag in der Schriftfarbe der Auswahl", menu_accel, results)
 
+    def calendar_menu_accel():
+        # Kontextmenüs der Kalenderansicht (Termin und freie Fläche) zeigen nur die Texte, keine Tastenkürzel –
+        # andere Menüs behalten sie (Gegenprobe mit eigenem Menü)
+        res = m.js(FOLDER_JS + r"""
+          await toCalendar();
+          const out = {};
+          for (const id of ["calendar-item-context-menu", "calendar-view-context-menu"]) {
+            const p = d.getElementById(id);
+            p.openPopupAtScreen(w.screenX + 300, w.screenY + 200, false);
+            try {
+              out[id] = { state: await until(() => p.state == "open" && p.state, 4000) || p.state };
+              const keyed = [...p.children].filter(x => x.localName == "menuitem" && x.hasAttribute("key") && !x.hidden);
+              out[id].keyed = keyed.length;
+              out[id].shown = keyed.filter(x => [...x.querySelectorAll(".menu-accel-container, .menu-accel")]
+                .some(a => csOf(a).display != "none" && a.getBoundingClientRect().width > 0)).map(x => x.id);
+              out[id].labels = keyed.filter(x => (x.querySelector(".menu-text, label")?.getBoundingClientRect().width || 0) > 0).length;
+            } finally { p.hidePopup(); await wait(300); }
+          }
+          const p = d.createXULElement("menupopup"), mi = d.createXULElement("menuitem");
+          mi.setAttribute("label", "Gegenprobe"); mi.setAttribute("acceltext", "M"); p.append(mi);
+          (d.getElementById("mainPopupSet") || d.documentElement).append(p);
+          p.openPopupAtScreen(w.screenX + 300, w.screenY + 200, false);
+          try {
+            await until(() => p.state == "open", 4000);
+            const acc = mi.querySelector(".menu-accel");
+            out.other = !!acc && csOf(acc).display != "none";
+          } finally { p.hidePopup(); await wait(300); p.remove(); }
+          return out;""")
+        menus = [res.get(k) or {} for k in ("calendar-item-context-menu", "calendar-view-context-menu")]
+        ok = all(x.get("state") == "open" and x.get("keyed", 0) >= 2 and not x.get("shown") and x.get("labels") == x.get("keyed")
+                 for x in menus) and res.get("other") is True
+        return ok, f"{res}"
+    check("Kalender: Kontextmenüs von Termin und Ansicht ohne Tastenkürzel, andere Menüs mit", calendar_menu_accel, results)
+
     def folder_menu_icons():
         # Ordnermenü „Verschieben“ (Toolbar): Umriss-Symbole wie die Ordnerliste in Akzentfarbe, Papierkorb und Konto
         # mit eigenem Symbol; markiertes Konto in der Schrift der Auswahl, ohne dass sein Untermenü das erbt
