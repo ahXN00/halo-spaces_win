@@ -7089,6 +7089,7 @@ class CardEnhancer {
     // von vor dem Ziehen bleibt fürs Einblenden
     const DRAG_HIDE = 120;
     const SIDE_MIN = 160;
+    const SIDE_ROOM = 400; // mindestens so viel Platz bleibt der Ansicht daneben
     const SIDE_GRIP = 5; // so breit wie die Trennlinien
     const setSideHidden = (mode, el, splitter, hidden) => {
       const state = sideState();
@@ -7185,7 +7186,24 @@ class CardEnhancer {
       if (!pane || event.button != 0 || pane.el.__mcAnimating || pane.win.__mcAnimating) {
         return;
       }
-      const max = sideMax(pane.el);
+      // höchstens die gemeinsame Höchstbreite, aber nie so breit, dass die
+      // Ansicht daneben (Mailliste, Kalender, Chat) unter ihre Mindestbreite
+      // gedrückt wird – Thunderbirds eigener Teiler (jetzt abgeschaltet) hat
+      // das bisher selbst begrenzt
+      let room = Infinity;
+      try {
+        const parent = pane.el.parentElement;
+        let need = 0;
+        for (const c of parent?.children || []) {
+          if (c != pane.el && c != pane.splitter && c.getBoundingClientRect().width > 0) {
+            need += parseFloat(pane.win.getComputedStyle(c).minWidth) || 0;
+          }
+        }
+        if (parent) {
+          room = parent.getBoundingClientRect().width - Math.max(SIDE_ROOM, need);
+        }
+      } catch {}
+      const max = Math.max(SIDE_MIN, Math.min(sideMax(pane.el), room));
       let resized = false;
       dragPane(event, {
         side: "left",
