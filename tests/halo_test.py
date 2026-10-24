@@ -1099,75 +1099,61 @@ def maillist_checks(m, results):
     check("Mailliste: Tabelle und Zusammenfassung mit Ungelesen-Punkt in Akzentfarbe, ohne Stern", table_unread, results)
 
     def tag_contrast():
-        # Schlagwortfarben als Schrift (Tabelle, Schnellfilter-Knöpfe) mit Kontrast ≥ 4,5:1
+        # Schlagwortfarben als Schrift in der Tabelle mit Kontrast ≥ 4,5:1
         res = m.js(MAILLIST_JS + r"""
           await showFolder(); await asTable(); a3.threadTree.selectedIndex = -1; await wait(600);
           const treeBg = rgba(cs(ad.getElementById("threadTree")).backgroundColor);
-          const out = { rows: {}, buttons: {} };
+          const out = { rows: {} };
           for (const r of tableRows().filter(x => subjectOf(x).includes("Halo Schlagwort")))
             out.rows[subjectOf(r)] = contrast(over(rgba(cs(r).color), treeBg), over(rgba(cs(r).backgroundColor), treeBg));
           await asCards();
-          if (ad.getElementById("quick-filter-bar")?.hidden !== false) { cmd("cmd_toggleQuickFilterBar"); await wait(900); }
-          ad.getElementById("qfb-tags").click(); await wait(1200);
-          const bar = ad.getElementById("quick-filter-bar"), barBg = over(rgba(cs(bar).backgroundColor), treeBg);
-          for (const b of ad.querySelectorAll('#quick-filter-bar button.qfb-tag-button:not([aria-pressed="true"])'))
-            if (b.getClientRects().length) out.buttons[b.textContent.trim()] = contrast(rgba(cs(b).color), barBg);
-          cmd("cmd_resetQuickFilterBar"); cmd("cmd_toggleQuickFilterBar"); await wait(600);
           return out;""")
-        values = list(res["rows"].values()) + list(res["buttons"].values())
-        ok = len(res["rows"]) == 2 and len(res["buttons"]) >= 2 and all(v >= 4.5 for v in values)
+        values = list(res["rows"].values())
+        ok = len(res["rows"]) == 2 and all(v >= 4.5 for v in values)
         return ok, f"Kontrast {res}"
-    check("Mailliste: Schlagwortfarben in Tabelle und Schnellfilter lesbar (Kontrast ≥ 4,5:1)", tag_contrast, results)
+    check("Mailliste: Schlagwortfarben in der Tabelle lesbar (Kontrast ≥ 4,5:1)", tag_contrast, results)
 
-    def quick_filter():
+    def unread_filter():
+        # Filterknopf über der Liste wie Apple Mail: nur ungelesene Mails, erneut alle; bleibt beim Ordnerwechsel;
+        # Thunderbirds Schnellfilter-Leiste erscheint nie (Knopf, Befehle, ⇧⌘K) und hat keine Menüeinträge mehr
         res = m.js(MAILLIST_JS + r"""
-          await showFolder(); await asCards();
-          if (ad.getElementById("quick-filter-bar")?.hidden !== false) { cmd("cmd_toggleQuickFilterBar"); await wait(900); }
-          const bar = ad.getElementById("quick-filter-bar");
-          const card = cards().find(x => !props(x).includes("dummy"))?.querySelector(".card-container");
-          const left = el => el ? Math.round(el.getBoundingClientRect().left) : null;
-          const out = { bg: cs(bar).backgroundColor, tree: cs(ad.getElementById("threadTree")).backgroundColor, line: parseFloat(cs(bar).borderBottomWidth),
-                        card: left(card), pin: left(ad.getElementById("qfb-sticky")) };
-          ad.getElementById("qfb-tags").click(); await wait(1200);
-          out.mode = left(ad.getElementById("qfb-tag-filter-mode"));
-          cmd("cmd_resetQuickFilterBar"); cmd("cmd_toggleQuickFilterBar"); await wait(600);
-          return out;""")
-        ok = (res["bg"] == res["tree"] and res["line"] <= 1 and res["card"] is not None
-              and abs(res["pin"] - res["card"]) <= 4 and abs(res["mode"] - res["card"]) <= 4)
-        return ok, f"{res}"
-    check("Mailliste: Schnellfilter-Leiste auf der Listenfläche, bündig mit den Karten", quick_filter, results)
-
-    def quick_filter_labels():
-        # Kartenansicht im Layout Klassisch: Liste ≥ 1000 px, Thunderbird zeigt die Beschriftungen –
-        # das Symbol darf nicht auf dem Text liegen (vorher mittig über „Unread“, „Starred“ …)
-        res = m.js(MAILLIST_JS + r"""
-          await showFolder(); await asCards();
-          if (ad.getElementById("quick-filter-bar")?.hidden !== false) { cmd("cmd_toggleQuickFilterBar"); await wait(900); }
-          const was = Services.prefs.getIntPref("mail.pane_config.dynamic", 2), out = {};
-          w.resizeTo(2000, 900); await wait(1000);
+          await showFolder(); await asCards(); a3.threadTree.selectedIndex = -1;
+          // mindestens eine ungelesene (frühere Prüfungen können Mails gelesen haben)
+          const emil = list.msgDatabase.getMsgHdrForMessageID("halo-ml-5@example.invalid");
+          if (emil?.isRead) list.markMessagesRead([emil], false);
+          cmd("cmd_expandAllThreads"); await wait(600);
+          const btn = d.querySelector("#mcListHeader .mc-lh-filter"), bar = ad.getElementById("quick-filter-bar");
+          const shown = () => [...Array(a3.gDBView.rowCount).keys()].map(i => a3.gDBView.getMsgHdrAt(i)).filter(Boolean);
+          const barVisible = () => !!bar && (!bar.hidden || cs(bar).display != "none");
+          const state = () => { const h = shown(); return { rows: h.length, unread: h.filter(x => !x.isRead).length, pressed: btn.getAttribute("aria-pressed"), bar: barVisible() }; };
+          const out = { unreadInFolder: list.getNumUnread(false), before: state() };
           try {
-            for (const [name, layout] of [["klassisch", 0], ["vertikal", 2]]) {
-              Services.prefs.setIntPref("mail.pane_config.dynamic", layout); await wait(1500);
-              const btns = [...ad.querySelectorAll("#quick-filter-bar .quickFilterButtons .check-button")].filter(b => b.getBoundingClientRect().width > 0);
-              const r = { pane: Math.round(ad.getElementById("threadPane").getBoundingClientRect().width), labels: 0, overlap: [] };
-              for (const b of btns) {
-                const br = b.getBoundingClientRect(), span = b.querySelector("span"), sr = span?.getBoundingClientRect();
-                const pos = cs(b).backgroundPositionX, size = 16;
-                const iconLeft = br.left + (pos.endsWith("%") ? (br.width - size) * parseFloat(pos) / 100 : parseFloat(pos));
-                if (sr && sr.width > 1 && cs(span).visibility != "hidden") { r.labels++;
-                  if (sr.left < iconLeft + size + 2 && sr.right > iconLeft) r.overlap.push(b.id); }
-                else if (Math.abs((iconLeft + size / 2) - (br.left + br.width / 2)) > 1.5) r.overlap.push(b.id + ":nicht mittig");
-              }
-              out[name] = r;
-            }
+            btn.click(); await wait(1200); out.on = state();
+            const sentF = root.getChildNamed("Gesendet-Test");
+            await showFolder(sentF); out.otherFolder = state();
+            await showFolder(); cmd("cmd_expandAllThreads"); await wait(600); out.back = state();
+            btn.click(); await wait(1200); out.off = state();
+            cmd("cmd_toggleQuickFilterBar"); await wait(1200); out.cmdOn = state();
+            cmd("cmd_toggleQuickFilterBar"); await wait(1200); out.cmdOff = state();
+            cmd("cmd_showQuickFilterBar"); await wait(800); out.show = state();
           } finally {
-            Services.prefs.setIntPref("mail.pane_config.dynamic", was); w.resizeTo(1500, 900); await wait(1200);
-            cmd("cmd_resetQuickFilterBar"); cmd("cmd_toggleQuickFilterBar"); await wait(600);
+            if (btn.getAttribute("aria-pressed") == "true") { btn.click(); await wait(1000); }
+            a3.threadTree.table.body.focus();
           }
+          out.menus = ["view_toolbars_popup_quickFilterBar", "appmenu_quickFilterBar"].map(id => d.getElementById(id)?.hidden ?? true);
           return out;""")
-        ok = all(v["overlap"] == [] for v in res.values()) and any(v["labels"] > 0 for v in res.values())
+        b, on, oth, back, off = res["before"], res["on"], res["otherFolder"], res["back"], res["off"]
+        n = res["unreadInFolder"]
+        ok = (n >= 1 and b["rows"] > n and b["pressed"] == "false"
+              and on["pressed"] == "true" and on["rows"] == on["unread"] == n
+              and oth["pressed"] == "true" and oth["rows"] == 0
+              and back["pressed"] == "true" and back["rows"] == n
+              and off["pressed"] == "false" and off["rows"] == b["rows"]
+              and res["cmdOn"]["pressed"] == "true" and res["cmdOn"]["rows"] == n and res["cmdOff"]["rows"] == b["rows"]
+              and not any(res[k]["bar"] for k in ("before", "on", "off", "cmdOn", "cmdOff", "show"))
+              and res["menus"] == [True, True])
         return ok, f"{res}"
-    check("Mailliste: Schnellfilter-Knöpfe in allen Layouts ohne Symbol auf der Beschriftung (mit Text: Symbol links, ohne: mittig)", quick_filter_labels, results)
+    check("Mailliste: Filterknopf zeigt nur ungelesene Mails und wieder alle, bleibt beim Ordnerwechsel; Schnellfilter-Leiste erscheint nie", unread_filter, results)
 
     def layout_lines():
         res = m.js(MAILLIST_JS + r"""

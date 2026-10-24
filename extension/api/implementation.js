@@ -99,7 +99,6 @@ const DE = {
   "No writable calendar": "Kein beschreibbarer Kalender",
   "None": "Keine",
   "Previous Month": "Voriger Monat",
-  "Quick Filter": "Schnellfilter",
   "Repeat": "Wiederholen",
   "Show As": "Anzeigen als",
   "Show Names As": "Namen anzeigen als",
@@ -186,6 +185,8 @@ const DE = {
   "Card View": "Kartenansicht",
   "Table View: Classic": "Tabelle: Klassisch",
   "Show Contact Photo": "Kontaktfoto anzeigen",
+  "Show Only Unread Messages": "Nur ungelesene E-Mails anzeigen",
+  "Show All Messages": "Alle E-Mails anzeigen",
   "Design without flicker at start": "Design ohne Aufblitzen beim Start",
   "writes a userChrome.css into your profile; from the next start": "schreibt eine userChrome.css ins Profil; ab dem nächsten Start",
   "Only messages from this folder – turn on Global Search to include your replies from Sent.": "Nur E-Mails aus diesem Ordner – mit eingeschalteter globaler Suche erscheinen auch deine Antworten aus „Gesendet“.",
@@ -280,7 +281,6 @@ const FR = {
   "No writable calendar": "Aucun calendrier modifiable",
   "None": "Aucune",
   "Previous Month": "Mois précédent",
-  "Quick Filter": "Filtre rapide",
   "Repeat": "Répéter",
   "Show As": "Afficher comme",
   "Show Names As": "Afficher les noms",
@@ -369,6 +369,8 @@ const FR = {
   "Card View": "Vue en cartes",
   "Table View: Classic": "Tableau : classique",
   "Show Contact Photo": "Afficher la photo du contact",
+  "Show Only Unread Messages": "Afficher uniquement les messages non lus",
+  "Show All Messages": "Afficher tous les messages",
   "Design without flicker at start": "Design sans clignotement au démarrage",
   "writes a userChrome.css into your profile; from the next start": "écrit un userChrome.css dans votre profil ; au prochain démarrage",
   "Only messages from this folder – turn on Global Search to include your replies from Sent.": "Seulement les messages de ce dossier – activez la recherche globale pour inclure vos réponses envoyées.",
@@ -463,7 +465,6 @@ const ES = {
   "No writable calendar": "Ningún calendario editable",
   "None": "Ninguno",
   "Previous Month": "Mes anterior",
-  "Quick Filter": "Filtro rápido",
   "Repeat": "Repetir",
   "Show As": "Mostrar como",
   "Show Names As": "Mostrar nombres como",
@@ -552,6 +553,8 @@ const ES = {
   "Card View": "Vista de tarjetas",
   "Table View: Classic": "Tabla: clásica",
   "Show Contact Photo": "Mostrar foto del contacto",
+  "Show Only Unread Messages": "Mostrar solo los mensajes no leídos",
+  "Show All Messages": "Mostrar todos los mensajes",
   "Design without flicker at start": "Diseño sin parpadeo al iniciar",
   "writes a userChrome.css into your profile; from the next start": "escribe un userChrome.css en tu perfil; a partir del próximo inicio",
   "Only messages from this folder – turn on Global Search to include your replies from Sent.": "Solo mensajes de esta carpeta: activa la búsqueda global para incluir tus respuestas enviadas.",
@@ -646,7 +649,6 @@ const IT = {
   "No writable calendar": "Nessun calendario modificabile",
   "None": "Nessuno",
   "Previous Month": "Mese precedente",
-  "Quick Filter": "Filtro rapido",
   "Repeat": "Ripeti",
   "Show As": "Mostra come",
   "Show Names As": "Mostra nomi come",
@@ -735,6 +737,8 @@ const IT = {
   "Card View": "Vista a schede",
   "Table View: Classic": "Tabella: classica",
   "Show Contact Photo": "Mostra foto del contatto",
+  "Show Only Unread Messages": "Mostra solo i messaggi non letti",
+  "Show All Messages": "Mostra tutti i messaggi",
   "Design without flicker at start": "Design senza sfarfallio all’avvio",
   "writes a userChrome.css into your profile; from the next start": "scrive un userChrome.css nel profilo; dal prossimo avvio",
   "Only messages from this folder – turn on Global Search to include your replies from Sent.": "Solo messaggi di questa cartella – attiva la ricerca globale per includere le risposte inviate.",
@@ -8162,7 +8166,10 @@ class CardEnhancer {
 
     // Titel und Anzahl über der Mailliste in der Toolbar-Zeile, rechts davon
     // Filter und „…“ in einer Kapsel – wie Apple Mail. Thunderbirds eigene
-    // Kopfzeile in der Liste wird per CSS ausgeblendet.
+    // Kopfzeile in der Liste wird per CSS ausgeblendet. Der Filter zeigt nur
+    // ungelesene Mails (setUnreadFilter); Thunderbirds Schnellfilter-Leiste
+    // gibt es nicht mehr, ihre Menüeinträge (Ansicht → Symbolleisten,
+    // App-Menü) entfallen.
     const hookListHeader = () => {
       const d = w.document;
       const row = d.getElementById("unifiedToolbarContainer");
@@ -8183,13 +8190,19 @@ class CardEnhancer {
       text.append(title, count);
       const tools = el("div", "mc-lh-tools");
       const filter = el("button", "mc-lh-filter");
-      filter.title = tr("Quick Filter");
+      filter.title = tr("Show Only Unread Messages");
+      filter.setAttribute("aria-pressed", "false");
       const more = el("button", "mc-lh-more");
       more.title = tr("Message List Display Options");
       tools.append(filter, more);
       box.append(text, tools);
       const ab = () => d.getElementById("tabmail")?.currentAbout3Pane;
-      filter.addEventListener("click", () => ab()?.goDoCommand("cmd_toggleQuickFilterBar"));
+      filter.addEventListener("click", () => {
+        const a3 = ab();
+        if (a3) {
+          this.setUnreadFilter(a3, !this.unreadFilterOn(a3));
+        }
+      });
       more.addEventListener("click", () => {
         const cw = abWindow();
         const popup = cw
@@ -8200,6 +8213,13 @@ class CardEnhancer {
       });
       row.append(box);
       this.restorers.push(() => box.remove());
+      for (const id of ["view_toolbars_popup_quickFilterBar", "appmenu_quickFilterBar"]) {
+        const item = d.getElementById(id);
+        if (item && !item.hidden) {
+          item.hidden = true;
+          this.restorers.push(() => (item.hidden = false));
+        }
+      }
       this.updateListHeader(w);
     };
 
@@ -9507,6 +9527,12 @@ class CardEnhancer {
     const ab = d.getElementById("tabmail")?.currentAbout3Pane;
     if (!box || !ab?.document) {
       return;
+    }
+    const filter = box.querySelector(".mc-lh-filter");
+    if (filter) {
+      const on = this.unreadFilterOn(ab);
+      filter.setAttribute("aria-pressed", String(on));
+      filter.title = tr(on ? "Show All Messages" : "Show Only Unread Messages");
     }
     const title = box.querySelector(".mc-lh-title");
     const count = box.querySelector(".mc-lh-count");
@@ -11478,6 +11504,97 @@ class CardEnhancer {
     });
   }
 
+  // Filter wie in Apple Mail: nur ungelesene Mails bzw. wieder alle – über
+  // Thunderbirds Schnellfilter „Ungelesen“, aber ohne dessen Leiste. Der
+  // Filter bleibt beim Ordnerwechsel aktiv (wie „Filter beibehalten“), bis
+  // man erneut klickt; nach einem Neustart ist er aus
+  unreadFilterOn(a3) {
+    return !!a3?.quickFilterBar?._filterer?.filterValues?.unread;
+  }
+
+  setUnreadFilter(a3, on) {
+    const qfb = a3?.quickFilterBar;
+    if (!qfb) {
+      return;
+    }
+    const state = qfb.filterer;
+    state.clear();
+    if (on) {
+      state.setFilterValue("sticky", true, true);
+      state.setFilterValue("unread", true);
+    }
+    qfb.updateSearch();
+    const top = a3.browsingContext?.topChromeWindow;
+    if (top) {
+      this.updateListHeader(top);
+    }
+  }
+
+  // Schnellfilter-Leiste nie zeigen: Thunderbirds Befehle dafür (Knopf in
+  // der Symbolleiste, Menü, ⇧⌘K) schalten stattdessen den Filter um bzw.
+  // setzen den Cursor ins Suchfeld; „Zurücksetzen“ (z. B. beim Springen zu
+  // einer ausgefilterten Mail) hebt den Filter auf
+  hookUnreadFilter(win) {
+    const qfb = win.quickFilterBar;
+    const cc = win.commandController;
+    if (!qfb || !cc || qfb.__mcUnread) {
+      return;
+    }
+    qfb.__mcUnread = true;
+    const origShow = qfb._showFilterBar;
+    qfb._showFilterBar = function (show, init) {
+      if (show && !init) {
+        return undefined;
+      }
+      return origShow.call(this, false, init);
+    };
+    // war die Leiste schon offen (gemerkt vom letzten Start): schließen
+    if (qfb._filterer?.visible) {
+      origShow.call(qfb, false, true);
+    }
+    const ours = {
+      cmd_toggleQuickFilterBar: () => this.setUnreadFilter(win, !this.unreadFilterOn(win)),
+      cmd_showQuickFilterBar: () => win.browsingContext?.topChromeWindow?.QuickSearchFocus?.(),
+      cmd_resetQuickFilterBar: () => this.setUnreadFilter(win, false),
+    };
+    // Thunderbird meldet die Befehle erst nach dem Laden der Leiste an –
+    // auch dann gelten unsere
+    const saved = {};
+    const origRegister = cc.registerCallback;
+    cc.registerCallback = function (name, callback, isEnabled) {
+      if (name in ours) {
+        saved[name] = [callback, isEnabled];
+        return origRegister.call(this, name, ours[name]);
+      }
+      return origRegister.call(this, name, callback, isEnabled);
+    };
+    for (const name of Object.keys(ours)) {
+      if (name in cc._callbackCommands) {
+        saved[name] = [cc._callbackCommands[name], cc._isCallbackEnabled[name]];
+      }
+      origRegister.call(cc, name, ours[name]);
+    }
+    for (const name of ["cmd_showQuickFilterBar", "cmd_toggleQuickFilterBar"]) {
+      win.top?.goUpdateCommand?.(name);
+    }
+    this.addWinRestorer(win, () => {
+      if (this.unreadFilterOn(win)) {
+        this.setUnreadFilter(win, false);
+      }
+      cc.registerCallback = origRegister;
+      for (const name of Object.keys(ours)) {
+        if (saved[name]) {
+          origRegister.call(cc, name, ...saved[name]);
+        } else {
+          delete cc._callbackCommands[name];
+          delete cc._isCallbackEnabled[name];
+        }
+      }
+      qfb._showFilterBar = origShow;
+      delete qfb.__mcUnread;
+    });
+  }
+
   patch(win, attempt) {
     // Merkmal an der Seite selbst: lädt Thunderbird die Mailansicht neu, bleibt
     // das Fensterobjekt dasselbe, die Seite (und ihre Karten) aber ist neu
@@ -11508,6 +11625,7 @@ class CardEnhancer {
     safely("mail context", () => this.hookMailContext(doc));
     safely("dialog box", () => shareDialogBox(win, { push: fn => this.addWinRestorer(win, fn) }));
     safely("view choice", () => this.hookViewChoice(doc));
+    safely("unread filter", () => this.hookUnreadFilter(win));
     safely("conversation", () => this.hookConversation(win));
     safely("scroll watch", () => {
       const onScroll = () => (this.lastListScroll = Date.now());

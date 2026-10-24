@@ -690,13 +690,10 @@ hr[is="pane-splitter"]::after {
   padding-inline: 12px !important;
 }
 
-/* Schnellfilter-Leiste: dieselbe Fläche wie die Liste, nur eine Haarlinie
-   darunter; Inhalt bündig mit den Karten (8 px Einzug wie .card-container) */
+/* Schnellfilter-Leiste entfällt: der Filterknopf über der Liste zeigt wie
+   in Apple Mail nur ungelesene Mails (die Erweiterung hält sie auch zu) */
 #quick-filter-bar {
-  background: var(--mt-window) !important;
-  border: none !important;
-  border-block-end: var(--mt-hairline) solid var(--mt-separator) !important;
-  padding-inline: 8px !important;
+  display: none !important;
 }
 
 #threadPaneFolderName {
@@ -844,46 +841,6 @@ hr[is="pane-splitter"]::after {
   height: 16px !important;
 }
 
-/* Schnellfilter: keine Ein/Aus-Pille vor jedem Knopf – eingeschaltet zeigt
-   wie bei macOS die getönte Fläche in Akzentfarbe */
-#quick-filter-bar .check-button::before {
-  display: none !important;
-}
-
-/* ohne Pille: Symbol (Hintergrundbild) 8 px vom Rand statt Thunderbirds 12 px
-   (Platz für die entfernte Pille), Beschriftung dahinter. Thunderbird zeigt die
-   Beschriftungen erst ab 1000 px Listenbreite (Kartenansicht im Layout
-   Klassisch/Breit) – sonst lagen Symbol und Text übereinander */
-#quick-filter-bar .check-button {
-  padding-inline: 30px 10px !important;
-  gap: 0 !important;
-  min-width: 34px !important;
-  flex-shrink: 0 !important;
-  background-position: 8px center !important;
-}
-
-/* schmale Liste (nur Symbole): links und rechts gleich viel Platz, Symbol mittig */
-@container threadPane (max-width: 999px) {
-  #quick-filter-bar .check-button.collapsible-button {
-    padding-inline: 8px !important;
-    justify-content: center !important;
-    background-position: center !important;
-  }
-}
-
-#quick-filter-bar .quickFilterButtons {
-  padding-inline: 4px !important;
-}
-
-#quick-filter-bar #qfb-sticky {
-  border-radius: 999px !important;
-}
-
-#quick-filter-bar .check-button[aria-pressed="true"] {
-  background-color: color-mix(in srgb, var(--mt-accent) 18%, transparent) !important;
-  color: var(--mt-accent) !important;
-}
-
 /* abwechselnde Zeilenfarben und feine Trennlinien, damit sich die Mails
    leichter unterscheiden lassen (data-mc-odd setzt die Erweiterung) */
 #threadTree tr[is="thread-row"] {
@@ -898,27 +855,17 @@ hr[is="pane-splitter"]::after {
   background-color: var(--mt-control) !important;
 }
 
-/* Schlagwortfarben als Schrift (Tabellenzeilen, Schnellfilter-Knöpfe): die
-   Grundfarben (#FF9900, #3333FF …) sind auf Weiß bzw. Dunkelgrau kaum lesbar –
-   hell abgedunkelt, dunkel aufgehellt (Kontrast mind. 4,5:1). Ausgewählte
-   Zeilen (Schrift in Akzentkontrast) und gedrückte Knöpfe bleiben, wie sie sind. */
+/* Schlagwortfarben als Schrift (Tabellenzeilen): die Grundfarben (#FF9900,
+   #3333FF …) sind auf Weiß bzw. Dunkelgrau kaum lesbar – hell abgedunkelt,
+   dunkel aufgehellt (Kontrast mind. 4,5:1). Ausgewählte Zeilen (Schrift in
+   Akzentkontrast) bleiben, wie sie sind. */
 #threadTree tr[is="thread-row"][data-properties~="tagged"] {
   color: color-mix(in srgb, var(--tag-color) 60%, black) !important;
-}
-
-#quick-filter-bar button.qfb-tag-button:not([aria-pressed="true"]) {
-  color: color-mix(in srgb, var(--tag-color) 60%, black) !important;
-  border-color: color-mix(in srgb, var(--tag-color) 60%, black) !important;
 }
 
 @media (prefers-color-scheme: dark) {
   #threadTree tr[is="thread-row"][data-properties~="tagged"] {
     color: color-mix(in srgb, var(--tag-color) 55%, white) !important;
-  }
-
-  #quick-filter-bar button.qfb-tag-button:not([aria-pressed="true"]) {
-    color: color-mix(in srgb, var(--tag-color) 55%, white) !important;
-    border-color: color-mix(in srgb, var(--tag-color) 55%, white) !important;
   }
 }
 
@@ -2574,6 +2521,13 @@ unified-toolbar {
 
 #mcListHeader .mc-lh-tools > .mc-lh-more::before {
   mask-image: var(--mi-ellipsis) !important;
+}
+
+/* Filter „nur ungelesene“ eingeschaltet: getönt in Akzentfarbe wie der
+   Filter der Aufgaben */
+#mcListHeader .mc-lh-tools > .mc-lh-filter[aria-pressed="true"] {
+  background-color: color-mix(in srgb, var(--mt-accent) 18%, transparent) !important;
+  color: var(--mt-accent) !important;
 }
 
 /* Thunderbirds eigene Kopfzeile in der Liste ersetzt die obige */
