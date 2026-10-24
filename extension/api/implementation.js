@@ -10266,7 +10266,10 @@ class CardEnhancer {
       // neben dem angeklickten Tag wie in Apple Kalender: auf der Seite zur
       // Fenstermitte hin (Tag rechts → links daneben), senkrecht mittig zur
       // Zelle bzw. Uhrzeit, dann ins Fenster und auf den Bildschirm geschoben
-      const cell = preset.at.rect;
+      // sehr breite Zelle (Tagesansicht: eine Spalte fast so breit wie das
+      // Fenster): neben der Klickstelle statt neben der ganzen Spalte, sonst
+      // landete das Fenster weit weg am Fensterrand
+      const cell = preset.at.rect.width > 2 * PANEL_W ? { ...preset.at.rect, left: preset.at.x, width: 0 } : preset.at.rect;
       const fit = (v, size, lo, hi) => (hi - lo >= size ? Math.max(lo, Math.min(v, hi - size)) : lo);
       const place = height => {
         const winL = w.mozInnerScreenX;

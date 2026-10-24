@@ -3777,7 +3777,10 @@ def run_checks(m, version, profile, results):
           await until(() => p.state == "closed", 3000);
           const tz = cal.dtz.defaultTimezone;
           const hm = dt => { const x = dt.getInTimezone(tz); return `${x.day}. ${x.hour}:${String(x.minute).padStart(2, "0")}`; };
-          return { preset, typed, item: it ? `${hm(it.startDate)} – ${hm(it.endDate)}` : null, tz: tz.tzid };''' % ADDON_ID)
+          const out = { preset, typed, item: it ? `${hm(it.startDate)} – ${hm(it.endDate)}` : null, tz: tz.tzid };
+          // Termin wieder entfernen – sonst stört er spätere Prüfungen im Oktober 2026
+          if (it) try { await testCalendar().deleteItem(it); } catch {}
+          return out;''' % ADDON_ID)
         ok = (res["preset"] == "02:00 2026-10-25 03:00" and res["typed"] == "2026-10-25 02:00 2026-10-25 04:00"
               and res["item"] == "25. 2:00 – 25. 4:00")
         return ok, f"{res}"
@@ -3945,6 +3948,17 @@ def run_checks(m, version, profile, results):
                           shown: shown && { x: Math.round(shown.x), y: Math.round(shown.y), w: Math.round(shown.width), h: Math.round(shown.height) } };
             p.hidePopup(); await until(() => p.state == "closed", 2000); await wait(200);
           }
+          // Tagesansicht: eine Spalte fast so breit wie das Fenster – das Fenster
+          // erscheint neben der Klickstelle, nicht am Fensterrand
+          const wide = { left: win.l + 260, top: win.t + 200, width: w.innerWidth - 280, height: 0 };
+          for (const [name, cx] of [["tagLinks", wide.left + 150], ["tagRechts", wide.left + wide.width - 150]]) {
+            enh.openQuickCreate(w, "event", null, { start: new Date(2026, 9, 21, 14), allDay: false, at: { x: cx, y: wide.top, rect: wide } });
+            const p = d.getElementById("mcQuickPanel");
+            await until(() => p.state == "open", 3000);
+            const placed = p.__mcPlaced;
+            out[name] = { side: placed?.side, x: placed?.x, click: Math.round(cx), cellW: Math.round(wide.width) };
+            p.hidePopup(); await until(() => p.state == "closed", 2000); await wait(200);
+          }
           out.win = { l: Math.round(win.l), t: Math.round(win.t), r: Math.round(win.r), b: Math.round(win.b) };
           return out;''' % ADDON_ID)
         W = 380
@@ -3960,10 +3974,13 @@ def run_checks(m, version, profile, results):
             return (abs(s["x"] - x["x"]) <= 30 and abs(s["y"] - x["y"]) <= 30
                     and s["y"] >= res["win"]["t"] - 30 and s["y"] + s["h"] <= res["win"]["b"] + 30)
         left, right, low = res.get("links") or {}, res.get("rechts") or {}, res.get("unten") or {}
-        ok = (res.get("boxes", 0) >= 28 and left.get("side") == "right" and right.get("side") == "left" and low.get("side") == "left"
+        dl, dr = res.get("tagLinks") or {}, res.get("tagRechts") or {}
+        day_ok = (dl.get("side") == "right" and dl.get("x") is not None and dl["click"] <= dl["x"] <= dl["click"] + 40
+                  and dr.get("side") == "left" and dr.get("x") is not None and dr["click"] - W - 40 <= dr["x"] <= dr["click"] - W)
+        ok = (day_ok and res.get("boxes", 0) >= 28 and left.get("side") == "right" and right.get("side") == "left" and low.get("side") == "left"
               and beside(left, True) and beside(right, False) and beside(low, False) and inside(left) and inside(right) and inside(low))
         return ok, f"{res}"
-    check("Schnellfenster: neben dem angeklickten Tag, zur Fenstermitte hin, ganz im Fenster", quick_beside_day, results)
+    check("Schnellfenster: neben dem angeklickten Tag, zur Fenstermitte hin, ganz im Fenster, in der Tagesansicht neben der Klickstelle", quick_beside_day, results)
 
     def duplicate_cards():
         # dieselbe Mail (gleiche Message-ID) mehrfach (Gmail-Labels, Kopien): in der Konversation und als eigene Zeile
