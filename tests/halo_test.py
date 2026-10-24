@@ -4286,13 +4286,37 @@ def run_checks(m, version, profile, results):
           at("mousemove", 55); out.hotMenu = li.getAttribute("mc-hot");
           at("click", 55); await until(() => popup.state == "open", 3000); out.popup = popup.state; out.flaggedByMenu = hdr.isFlagged;
           popup.hidePopup(); await wait(400);
+          // Tabwechsel: Stern folgt der Mail des gewählten Tabs (Mail mit Stern hier, ohne Stern im Nachrichten-Tab)
+          if (!root.containsChildNamed("Stern-Tab")) { root.createSubfolder("Stern-Tab", null); await wait(800); }
+          const sf = root.getChildNamed("Stern-Tab");
+          if (!sf.getTotalMessages(false)) {
+            sf.QueryInterface(Ci.nsIMsgLocalMailFolder).addMessage("From - Sat Oct 17 10:00:00 2026\\r\\nFrom: Ben Muster <ben@example.invalid>\\r\\nSubject: Halo ohne Stern\\r\\nDate: Sat, 17 Oct 2026 10:00:00 +0200\\r\\nMessage-ID: <halo-stern-tab@example.invalid>\\r\\n\\r\\nText\\r\\n");
+            await wait(800);
+          }
+          const other = [...sf.messages].find(h => !h.isFlagged);
+          if (other) {
+            const tm = d.getElementById("tabmail"), first = tm.currentTabInfo;
+            hdr.folder.markMessagesFlagged([hdr], true); await wait(400);
+            tm.openTab("mailMessageTab", { messageURI: other.folder.getUriForMsg(other), background: false });
+            const msgTab = tm.currentTabInfo;
+            await until(() => msgTab.message?.messageKey == other.messageKey && !li.hasAttribute("mc-starred"), 5000);
+            out.tabOther = { starred: li.hasAttribute("mc-starred") };
+            tm.switchToTab(first); await until(() => li.hasAttribute("mc-starred"), 3000);
+            out.tabBack = { starred: li.hasAttribute("mc-starred") };
+            tm.switchToTab(msgTab); await until(() => !li.hasAttribute("mc-starred"), 3000);
+            out.tabAgain = { starred: li.hasAttribute("mc-starred") };
+            tm.closeTab(msgTab); await wait(400);
+            hdr.folder.markMessagesFlagged([hdr], false); await wait(300);
+          }
           return out;''')
-        ok = (res["moveLine"] == "none" and res["markLine"] != "none" and not res["disabled"] and res["flagged"] and res["starred"]
+        tabs_ok = (res.get("tabOther", {}).get("starred") is False and res.get("tabBack", {}).get("starred") is True
+                   and res.get("tabAgain", {}).get("starred") is False)
+        ok = (tabs_ok and res["moveLine"] == "none" and res["markLine"] != "none" and not res["disabled"] and res["flagged"] and res["starred"]
               and res["popupAfterStar"] == "closed" and res["maskOn"] != res["maskOff"] and res["unflagged"] and res["unstarred"]
               and res["listener"] and res["listenerOff"] and res["hotStar"] == "star" and res["hotMenu"] == "menu"
               and res["popup"] in ("open", "showing") and not res["flaggedByMenu"])
         return ok, f"{res}"
-    check("Symbolleiste: Verschieben ohne Trennstrich, Stern-Knopf setzt Starred, Pfeil öffnet Menü", star_button, results)
+    check("Symbolleiste: Verschieben ohne Trennstrich, Stern-Knopf setzt Starred, Pfeil öffnet Menü, Stern folgt dem Tab", star_button, results)
 
     def header_account_dot():
         # Mailkopf: Farbpunkt des Kontos links vom Ordnersymbol; Lokale Ordner

@@ -8218,14 +8218,22 @@ class CardEnhancer {
           }
         },
       };
+      // Tabwechsel und neu geladene Mail (Nachrichten-Tab: Weiterblättern,
+      // nächste Mail nach dem Löschen) – „MsgLoaded“ steigt aus about:message auf
+      const refresh = () => w.setTimeout(() => this.updateStarButton(w), 0);
+      const tabs = w.document.getElementById("tabmail")?.tabContainer;
       w.addEventListener("click", onClick, true);
       w.addEventListener("mousemove", onMove, true);
+      w.addEventListener("MsgLoaded", refresh, true);
+      tabs?.addEventListener("TabSelect", refresh);
       MailServices.mailSession.AddFolderListener(listener, Ci.nsIFolderListener.propertyFlagChanged);
       const remove = () => MailServices.mailSession.RemoveFolderListener(listener);
       w.addEventListener("unload", remove, { once: true });
       this.restorers.push(() => {
         w.removeEventListener("click", onClick, true);
         w.removeEventListener("mousemove", onMove, true);
+        w.removeEventListener("MsgLoaded", refresh, true);
+        tabs?.removeEventListener("TabSelect", refresh);
         remove();
         for (const li of w.document.querySelectorAll('#unifiedToolbarContent > li[item-id="mark-as"]')) {
           li.removeAttribute("mc-starred");
