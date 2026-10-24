@@ -6378,6 +6378,97 @@ def run_checks(m, version, profile, results):
         return ok, f"desc={ok_desc} kopf={ok_head} pfeil={ok_marker} fokus={ok_focus} rot={ok_red} {res}"
     check("Aufgaben: Beschreibung 13 px ohne Rand und dunkel lesbar, Spaltenköpfe ohne zweiten Strich, „Erledigt“ mit schmalem Pfeil, überfällig rot, kein Fokusrechteck", tasks_details, results)
 
+    def tables_like_mail():
+        # Tabellenansichten in Adressbuch und Aufgaben wie die Mail-Tabelle: gleiche Schrift, Zeilen- und Kopfhöhe,
+        # Kopf in Fensterfarbe und leiser Schrift, Trennlinie je Zeile, jede zweite Zeile getönt (--mt-table-*);
+        # Auswahl mit Fokus in Akzentfarbe (nur geprüft, wenn das Fenster den Fokus hat)
+        res = m.js(MAILLIST_JS + r"""
+          const out = {};
+          const R = el => Math.round(el.getBoundingClientRect().height);
+          const rootCs = cs(ad.documentElement);
+          out.vars = ["--mt-table-font", "--mt-table-row-h", "--mt-table-head-h", "--mt-table-stripe"].map(v => rootCs.getPropertyValue(v).trim());
+          // Vorgabe: Mail-Tabelle
+          await showFolder(); await asTable();
+          const mrow = await until(() => tableRows().find(r => r.hasAttribute("data-mc-odd") && !r.classList.contains("selected")), 5000);
+          const mth = [...ad.querySelectorAll("#threadTree thead th")].find(t => t.getClientRects().length);
+          out.mail = mrow && { font: cs(mrow.querySelector("td")).fontSize, rowH: R(mrow), headH: R(mth), headFont: cs(mth).fontSize,
+            headColor: cs(mth).color, headBg: cs(mth).backgroundColor, line: cs(mrow).boxShadow, odd: cs(mrow).backgroundColor };
+          await asCards();
+          // Adressbuch (Tabellenansicht)
+          const book = MailServices.ab.getDirectory("jsaddrbook://abook.sqlite");
+          for (const n of ["Tabea Eins", "Tobias Zwei", "Theo Drei"]) if (!book.childCards.some(c => c.displayName == n)) {
+            const c = Cc["@mozilla.org/addressbook/cardproperty;1"].createInstance(Ci.nsIAbCard);
+            c.displayName = n; c.primaryEmail = n.split(" ")[0].toLowerCase() + "@example.invalid"; book.addCard(c); }
+          tm.openTab("addressBookTab", {}); await wait(2000);
+          const ab = tm.currentTabInfo.browser.contentWindow, abd = ab.document, acs = el => ab.getComputedStyle(el);
+          ab.cardsPane.toggleLayout(true); await wait(1500);
+          try {
+            const rows = () => [...abd.querySelectorAll('#cards tr[is="ab-table-card-row"]')];
+            const odd = await until(() => rows().find(r => r.hasAttribute("data-mc-odd") && !r.classList.contains("selected")), 5000);
+            const th = [...abd.querySelectorAll("#cards thead th")].find(t => t.getClientRects().length);
+            out.ab = odd && th && { font: acs(odd.querySelector("td")).fontSize, rowH: R(odd), headH: R(th), headFont: acs(th).fontSize,
+              headColor: acs(th).color, headBg: acs(th).backgroundColor, line: acs(odd).boxShadow, odd: acs(odd).backgroundColor,
+              even: acs(rows().find(r => !r.hasAttribute("data-mc-odd") && !r.classList.contains("selected"))).backgroundColor };
+            const list = abd.getElementById("cards");
+            w.focus(); tm.currentTabInfo.browser.focus(); list.focus(); list.selectedIndex = 0; await wait(500);
+            const sel = rows().find(r => r.classList.contains("selected"));
+            out.abFocus = list.matches(":focus-within") && Services.focus.activeWindow == w;
+            out.abSel = sel && [acs(sel).backgroundColor, acs(sel).color, accent];
+          } finally { ab.cardsPane.toggleLayout(false); await wait(800); tm.closeTab(tm.currentTabInfo); }
+          // Aufgaben (Tabellenansicht)
+          const { CalTodo } = ChromeUtils.importESModule("resource:///modules/CalTodo.sys.mjs");
+          const c = testCalendar(), saved = [];
+          for (const t of ["Halo Tabelle 1", "Halo Tabelle 2", "Halo Tabelle 3"]) { const x = new CalTodo(); x.title = t; x.calendar = c; saved.push(await c.addItem(x)); }
+          tm.openTab("tasks", {}); await wait(1500);
+          const tree = d.getElementById("calendar-task-tree");
+          const btn = d.querySelector("#mcTaskFilter > button"), popup = d.getElementById("mcTaskFilterPopup");
+          const pick = async view => { btn.click(); await until(() => popup.state == "open", 2000); await wait(200);
+            const it = popup.querySelector(`menuitem[data-view="${view}"]`); popup.activateItem?.(it) ?? it.doCommand(); await wait(600); popup.hidePopup(); await wait(200); };
+          const start = Services.prefs.getCharPref("extensions.mailcards.taskView", "list");
+          const pixels = async r => { const cv = d.createElementNS("http://www.w3.org/1999/xhtml", "canvas");
+            cv.width = Math.round(r.width); cv.height = Math.round(r.height); const ctx = cv.getContext("2d");
+            try { const bm = await w.browsingContext.currentWindowGlobal.drawSnapshot(new w.DOMRect(r.left, r.top, r.width, r.height), 1, "white"); ctx.drawImage(bm, 0, 0); }
+            catch { ctx.drawWindow(w, r.left, r.top, r.width, r.height, "white"); }
+            const data = ctx.getImageData(0, 0, cv.width, cv.height).data;
+            return (x, y) => { const i = (Math.round(y) * cv.width + Math.round(x)) * 4; return [data[i], data[i + 1], data[i + 2]]; }; };
+          try {
+            await pick("table");
+            await until(() => tree.mTreeView.rowCount >= 3, 4000);
+            tree.mTreeView.selection.clearSelection(); tree.scrollToRow?.(0); await wait(600);
+            const col = [...tree.querySelectorAll("treecol")].find(t => t.getClientRects().length && t.getAttribute("itemproperty") == "title");
+            const tc = tree.querySelector("treechildren").getBoundingClientRect(), rh = tree.rowHeight;
+            const first = tree.getFirstVisibleRow();
+            // Zeilenfarbe rechts in der Zeile (kein Text), je eine gerade und eine ungerade Zeile
+            const px = await pixels({ left: tc.right - 30, top: tc.top, width: 20, height: rh * 2 });
+            const at = row => px(10, (row - first) * rh + rh / 2);
+            out.tasks = { list: d.documentElement.hasAttribute("mc-task-list"), rowH: rh, headFont: csOf(col).fontSize, headH: R(col),
+              headColor: csOf(col).color, even: at(first % 2 ? first + 1 : first), odd: at(first % 2 ? first : first + 1), first };
+          } finally {
+            await pick(start);
+            for (const x of saved) { try { await c.deleteItem(x); } catch {} }
+            for (const t of [...tm.tabInfo].slice(1)) tm.closeTab(t);
+          }
+          return out;""".replace("csOf(", "w.getComputedStyle("))
+        mail, ab, t = res.get("mail") or {}, res.get("ab") or {}, res.get("tasks") or {}
+        font, rowh, headh, stripe = (res.get("vars") or [""] * 4)
+        if not (mail and ab and t):
+            return False, f"{res}"
+        rgb = lambda c: [float(x) for x in re.findall(r"[\d.]+", c)]
+        # erwartete Farbe der ungeraden Aufgabenzeile: Fensterfarbe mit der Tönung darüber
+        win, st = rgb(mail["headBg"]), rgb(stripe)
+        want = [st[i] * st[3] + win[i] * (1 - st[3]) for i in range(3)] if len(st) == 4 and len(win) >= 3 else None
+        ok_mail = mail["font"] == font and mail["rowH"] == int(rowh.rstrip("px") or 0) and mail["headH"] == int(headh.rstrip("px") or 0)
+        ok_ab = all(ab[k] == mail[k] for k in ("font", "rowH", "headH", "headFont")) and same_color(ab["headColor"], mail["headColor"]) \
+            and same_color(ab["headBg"], mail["headBg"]) and ab["line"] == mail["line"] and same_color(ab["odd"], mail["odd"]) and rgba_alpha(ab["even"]) == 0
+        sel = res.get("abSel")
+        ok_sel = not res.get("abFocus") or (bool(sel) and same_color(sel[0], sel[2]))
+        ok_tasks = (not t["list"] and t["rowH"] == mail["rowH"] and t["headFont"] == mail["font"] and abs(t["headH"] - mail["headH"]) <= 1
+                    and same_color(t["headColor"], mail["headColor"]) and want is not None
+                    and max(abs(a - b) for a, b in zip(t["odd"], want)) <= 3 and max(abs(a - b) for a, b in zip(t["even"], win)) <= 3)
+        ok = ok_mail and ok_ab and ok_sel and ok_tasks
+        return ok, f"mail={ok_mail} adressbuch={ok_ab} auswahl={ok_sel} aufgaben={ok_tasks} erwartet={want} {res}"
+    check("Bereiche: Tabellen in Adressbuch und Aufgaben wie die Mail-Tabelle (Schrift, Zeilen- und Kopfhöhe, Trennlinien, getönte Zeilen, Auswahl)", tables_like_mail, results)
+
     def tasks_list_states():
         # erledigte Aufgaben aufrecht (Thunderbird: kursiv) mit Kreis in der Systemakzentfarbe statt fest #007AFF;
         # ohne Auswahl kein Teiler über der Statusleiste (früher zwei Haarlinien); Leeranzeige bei Suche ohne Treffer

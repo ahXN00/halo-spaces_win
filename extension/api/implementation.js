@@ -6543,6 +6543,9 @@ class CardEnhancer {
           } catch (e) {
             log("table labels error", e);
           }
+          // jede zweite Zeile leicht getönt wie in der Mail-Tabelle (nach der
+          // echten Listenposition – die Zeilen werden beim Scrollen wiederverwendet)
+          this.toggleAttribute("data-mc-odd", this._index % 2 == 1);
           return result;
         };
         TableRow.prototype.__mcBooks = true;
@@ -6550,6 +6553,28 @@ class CardEnhancer {
           TableRow.prototype.fillRow = origTableFill;
           delete TableRow.prototype.__mcBooks;
         });
+      }
+      // Tabellenzeilen so hoch wie in der Mail-Tabelle (13-px-Schrift, 28 px);
+      // Thunderbird setzt ROW_HEIGHT je nach Dichte neu – der Wert bleibt
+      // gemerkt, gelesen wird mindestens 28
+      if (TableRow && !Object.getOwnPropertyDescriptor(TableRow, "ROW_HEIGHT")?.get) {
+        let tbHeight = TableRow.ROW_HEIGHT || 22;
+        Object.defineProperty(TableRow, "ROW_HEIGHT", {
+          configurable: true,
+          get: () => Math.max(tbHeight, 28),
+          set: v => {
+            tbHeight = v;
+          },
+        });
+        try {
+          cw.cardsPane?.cardsList?.reset?.();
+        } catch {}
+        restorers.push(() => {
+          delete TableRow.ROW_HEIGHT;
+          TableRow.ROW_HEIGHT = tbHeight;
+        });
+      }
+      if (TableRow) {
         const COLUMN_PREF = "extensions.mailcards.abLabelColumn";
         const pane = cw.cardsPane;
         const abColumn = pane?.COLUMNS?.find(c => c.id == "addrbook");
