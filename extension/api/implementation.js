@@ -185,7 +185,6 @@ const DE = {
   "You unsubscribed from this mailing list.": "Du hast diesen Verteiler abbestellt.",
   "Card View": "Kartenansicht",
   "Table View: Classic": "Tabelle: Klassisch",
-  "Table View: Wide": "Tabelle: Breit",
   "Design without flicker at start": "Design ohne Aufblitzen beim Start",
   "writes a userChrome.css into your profile; from the next start": "schreibt eine userChrome.css ins Profil; ab dem nächsten Start",
   "Only messages from this folder – turn on Global Search to include your replies from Sent.": "Nur E-Mails aus diesem Ordner – mit eingeschalteter globaler Suche erscheinen auch deine Antworten aus „Gesendet“.",
@@ -368,7 +367,6 @@ const FR = {
   "You unsubscribed from this mailing list.": "Vous vous êtes désabonné de cette liste de diffusion.",
   "Card View": "Vue en cartes",
   "Table View: Classic": "Tableau : classique",
-  "Table View: Wide": "Tableau : large",
   "Design without flicker at start": "Design sans clignotement au démarrage",
   "writes a userChrome.css into your profile; from the next start": "écrit un userChrome.css dans votre profil ; au prochain démarrage",
   "Only messages from this folder – turn on Global Search to include your replies from Sent.": "Seulement les messages de ce dossier – activez la recherche globale pour inclure vos réponses envoyées.",
@@ -551,7 +549,6 @@ const ES = {
   "You unsubscribed from this mailing list.": "Te has dado de baja de esta lista de correo.",
   "Card View": "Vista de tarjetas",
   "Table View: Classic": "Tabla: clásica",
-  "Table View: Wide": "Tabla: ancha",
   "Design without flicker at start": "Diseño sin parpadeo al iniciar",
   "writes a userChrome.css into your profile; from the next start": "escribe un userChrome.css en tu perfil; a partir del próximo inicio",
   "Only messages from this folder – turn on Global Search to include your replies from Sent.": "Solo mensajes de esta carpeta: activa la búsqueda global para incluir tus respuestas enviadas.",
@@ -734,7 +731,6 @@ const IT = {
   "You unsubscribed from this mailing list.": "Hai annullato l’iscrizione a questa lista.",
   "Card View": "Vista a schede",
   "Table View: Classic": "Tabella: classica",
-  "Table View: Wide": "Tabella: ampia",
   "Design without flicker at start": "Design senza sfarfallio all’avvio",
   "writes a userChrome.css into your profile; from the next start": "scrive un userChrome.css nel profilo; dal prossimo avvio",
   "Only messages from this folder – turn on Global Search to include your replies from Sent.": "Solo messaggi di questa cartella – attiva la ricerca globale per includere le risposte inviate.",
@@ -1233,18 +1229,16 @@ function hookPrefCategories(cw, restorers = null) {
   });
 }
 
-// Ansicht der Mailliste: nur drei gültige Kombinationen aus Ansicht
+// Ansicht der Mailliste: nur zwei gültige Kombinationen aus Ansicht
 // (mail.threadpane.listview: 0 Karten, 1 Tabelle) und Layout
 // (mail.pane_config.dynamic: 0 klassisch, 1 breit, 2 vertikal). Karten gehen
-// nur vertikal, Tabelle nur klassisch/breit
+// nur vertikal, Tabelle nur klassisch; „breit“ passt nicht zum Design und
+// wird nicht angeboten
 const LISTVIEW_PREF = "mail.threadpane.listview";
 const PANE_PREF = "mail.pane_config.dynamic";
-const VIEW_CHOICES = [["cards", "Card View", 0, 2], ["classic", "Table View: Classic", 1, 0], ["wide", "Table View: Wide", 1, 1]];
+const VIEW_CHOICES = [["cards", "Card View", 0, 2], ["classic", "Table View: Classic", 1, 0]];
 function viewChoice() {
-  if (Services.prefs.getIntPref(LISTVIEW_PREF, 0) == 0) {
-    return "cards";
-  }
-  return Services.prefs.getIntPref(PANE_PREF, 0) == 1 ? "wide" : "classic";
+  return Services.prefs.getIntPref(LISTVIEW_PREF, 0) == 0 ? "cards" : "classic";
 }
 function setViewChoice(key) {
   const [, , list, pane] = VIEW_CHOICES.find(c => c[0] == key) || VIEW_CHOICES[0];
@@ -1256,6 +1250,12 @@ function setViewChoice(key) {
 function syncViewChoice(changed) {
   const list = Services.prefs.getIntPref(LISTVIEW_PREF, 0);
   const pane = Services.prefs.getIntPref(PANE_PREF, 0);
+  // „breit“ (alte Einstellung oder Thunderbirds Befehl): Tabelle wird
+  // klassisch, Karten bleiben vertikal
+  if (pane == 1) {
+    Services.prefs.setIntPref(PANE_PREF, list == 0 ? 2 : 0);
+    return;
+  }
   if (changed == PANE_PREF) {
     const want = pane == 2 ? 0 : 1;
     if (list != want) {
@@ -5134,7 +5134,7 @@ class CardEnhancer {
     Services.prefs.addObserver(EARLY_THEME_PREF, earlyObs);
     this.restorers.push(() => Services.prefs.removeObserver(EARLY_THEME_PREF, earlyObs));
     // Ansicht und Layout der Mailliste nur in gültigen Kombinationen (Karten
-    // vertikal, Tabelle klassisch/breit) – beim Start bestehende Profile umstellen
+    // vertikal, Tabelle klassisch) – beim Start bestehende Profile umstellen
     syncViewChoice(LISTVIEW_PREF);
     const viewObs = { observe: (_s, _t, pref) => syncViewChoice(pref) };
     Services.prefs.addObserver(LISTVIEW_PREF, viewObs);
@@ -7478,11 +7478,11 @@ class CardEnhancer {
       });
     };
 
-    // Ansicht → Layout (Menüleiste, App-Menü): nur noch die drei gültigen
-    // Kombinationen – Kartenansicht (immer vertikal), Tabelle klassisch, Tabelle
-    // breit. Thunderbirds Punkte bleiben (Häkchen über mail.pane_config.dynamic,
+    // Ansicht → Layout (Menüleiste, App-Menü): nur noch die zwei gültigen
+    // Kombinationen – Kartenansicht (immer vertikal), Tabelle klassisch.
+    // Thunderbirds Punkte bleiben (Häkchen über mail.pane_config.dynamic,
     // syncViewChoice hält die Ansicht passend), nur umbenannt und Karten zuerst;
-    // „Message List Header“ ohne Wirkung (eigener Listenkopf) – ausgeblendet
+    // „breit“ und „Message List Header“ (ohne Wirkung, eigener Listenkopf) ausgeblendet
     const hookLayoutMenus = () => {
       const d = w.document;
       if (d.getElementById("messagePaneVertical")?.__mcLayout) {
@@ -7491,7 +7491,6 @@ class CardEnhancer {
       const relabel = [
         ["messagePaneVertical", "appmenu_messagePaneVertical", tr("Card View")],
         ["messagePaneClassic", "appmenu_messagePaneClassic", tr("Table View: Classic")],
-        ["messagePaneWide", "appmenu_messagePaneWide", tr("Table View: Wide")],
       ];
       for (const [menuId, appId, label] of relabel) {
         for (const el of [d.getElementById(menuId), d.getElementById(appId)]) {
@@ -7519,7 +7518,7 @@ class CardEnhancer {
           this.restorers.push(() => next?.before(el));
         }
       }
-      for (const id of ["menu_toggleThreadPaneHeader", "appmenu_toggleThreadPaneHeader"]) {
+      for (const id of ["messagePaneWide", "appmenu_messagePaneWide", "menu_toggleThreadPaneHeader", "appmenu_toggleThreadPaneHeader"]) {
         const el = d.getElementById(id);
         if (el && !el.hidden) {
           el.hidden = true;
@@ -11261,7 +11260,7 @@ class CardEnhancer {
   }
 
   // Drei-Punkte-Menü über der Mailliste: Ansicht und Layout als eine Auswahl
-  // (Kartenansicht, Tabelle klassisch, Tabelle breit) statt Tabelle/Karten;
+  // (Kartenansicht, Tabelle klassisch) statt Tabelle/Karten;
   // „Hide Message List Header“ ohne Wirkung (eigener Listenkopf) – ausgeblendet
   hookViewChoice(doc) {
     const popup = doc.getElementById("threadPaneDisplayContext");

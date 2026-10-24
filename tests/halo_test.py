@@ -908,8 +908,9 @@ def maillist_checks(m, results):
     check("Bedienungshilfen: bei „Kontrast erhöhen“ kräftigere Linien und Texte, Auswahl mit Rand; sonst unverändert", increased_contrast, results)
 
     def view_choice_menu():
-        # Ansicht und Layout als eine Auswahl: Kartenansicht (immer vertikal), Tabelle klassisch, Tabelle breit – im Drei-
-        # Punkte-Menü und unter Ansicht → Layout; ungültige Kombinationen werden ausgeglichen; „Message List Header“ weg
+        # Ansicht und Layout als eine Auswahl: Kartenansicht (immer vertikal), Tabelle klassisch – im Drei-Punkte-Menü
+        # und unter Ansicht → Layout; „breit“ nirgends wählbar und wird umgestellt (Tabelle → klassisch, Karten bleiben);
+        # ungültige Kombinationen werden ausgeglichen; „Message List Header“ weg
         res = m.js(MAILLIST_JS + r"""
           await showFolder(); await asCards(); await wait(500);
           const P = n => Services.prefs.getIntPref(n, -1), state = () => [P("mail.threadpane.listview"), P("mail.pane_config.dynamic")];
@@ -922,7 +923,11 @@ def maillist_checks(m, results):
           popup.hidePopup(); await wait(300);
           const pick = async id => { ad.getElementById(id).doCommand(); await wait(700); return state(); };
           try {
-            out.classic = await pick("mcViewChoiceClassic"); out.wide = await pick("mcViewChoiceWide"); out.cards = await pick("mcViewChoiceCards");
+            out.classic = await pick("mcViewChoiceClassic"); out.wideItem = !!ad.getElementById("mcViewChoiceWide");
+            // „breit“ wie aus einer alten Einstellung oder Thunderbirds Befehl
+            Services.prefs.setIntPref("mail.pane_config.dynamic", 1); await wait(400); out.wideFromTable = state();
+            out.cards = await pick("mcViewChoiceCards");
+            Services.prefs.setIntPref("mail.pane_config.dynamic", 1); await wait(400); out.wideFromCards = state();
             // Tabelle + vertikal (z. B. per Menüleiste „Vertical“ aus der Tabelle): wird Karten
             Services.prefs.setIntPref("mail.threadpane.listview", 1); await wait(400); out.tableAfter = state();
             Services.prefs.setIntPref("mail.pane_config.dynamic", 2); await wait(400); out.vertical = state();
@@ -931,16 +936,19 @@ def maillist_checks(m, results):
           } finally { ad.getElementById("mcViewChoiceCards").doCommand(); await wait(700); }
           const menu = id => d.getElementById(id);
           out.menubar = [...(menu("view_layout_popup")?.children || [])].filter(e => e.localName == "menuitem" && !e.hidden).map(e => e.getAttribute("label") || e.id);
+          out.appWide = menu("appmenu_messagePaneWide") ? menu("appmenu_messagePaneWide").hidden : true;
           out.header = [menu("menu_toggleThreadPaneHeader")?.hidden, menu("appmenu_toggleThreadPaneHeader")?.hidden];
           return out;""")
-        ok = (res["items"][:3] == ["Card View", "Table View: Classic", "Table View: Wide"]
+        no_wide = lambda items: not any("Wide" in i or "messagePaneWide" in i for i in items)
+        ok = (res["items"][:2] == ["Card View", "Table View: Classic"] and no_wide(res["items"]) and not res["wideItem"]
               and not any(i in ("Table View", "Cards View", "Hide Message List Header") for i in res["items"])
               and res["checked"] == ["mcViewChoiceCards"]
-              and res["classic"] == [1, 0] and res["wide"] == [1, 1] and res["cards"] == [0, 2]
+              and res["classic"] == [1, 0] and res["wideFromTable"] == [1, 0] and res["cards"] == [0, 2] and res["wideFromCards"] == [0, 2]
               and res["tableAfter"] == [1, 0] and res["vertical"] == [0, 2] and res["classicFromCards"] == [1, 0]
-              and res["menubar"][:3] == ["Card View", "Table View: Classic", "Table View: Wide"] and res["header"] == [True, True])
+              and res["menubar"][:2] == ["Card View", "Table View: Classic"] and no_wide(res["menubar"]) and res["appWide"]
+              and res["header"] == [True, True])
         return ok, f"{res}"
-    check("Mailliste: Ansicht und Layout als eine Auswahl (Karten, Tabelle klassisch, Tabelle breit), ungültige Kombinationen ausgeglichen, ohne Listenkopf-Schalter", view_choice_menu, results)
+    check("Mailliste: Ansicht und Layout als eine Auswahl (Karten, Tabelle klassisch), „breit“ nicht wählbar und umgestellt, ungültige Kombinationen ausgeglichen, ohne Listenkopf-Schalter", view_choice_menu, results)
 
     def thread_sender():
         # zugeklappt: Name und Bild der neuesten Mail (Carla), aufgeklappt die Wurzel (Ben)
@@ -1098,7 +1106,7 @@ def maillist_checks(m, results):
     check("Mailliste: Schnellfilter-Leiste auf der Listenfläche, bündig mit den Karten", quick_filter, results)
 
     def quick_filter_labels():
-        # Kartenansicht im Layout Klassisch/Breit: Liste ≥ 1000 px, Thunderbird zeigt die Beschriftungen –
+        # Kartenansicht im Layout Klassisch: Liste ≥ 1000 px, Thunderbird zeigt die Beschriftungen –
         # das Symbol darf nicht auf dem Text liegen (vorher mittig über „Unread“, „Starred“ …)
         res = m.js(MAILLIST_JS + r"""
           await showFolder(); await asCards();
@@ -1106,7 +1114,7 @@ def maillist_checks(m, results):
           const was = Services.prefs.getIntPref("mail.pane_config.dynamic", 2), out = {};
           w.resizeTo(2000, 900); await wait(1000);
           try {
-            for (const [name, layout] of [["klassisch", 0], ["breit", 1], ["vertikal", 2]]) {
+            for (const [name, layout] of [["klassisch", 0], ["vertikal", 2]]) {
               Services.prefs.setIntPref("mail.pane_config.dynamic", layout); await wait(1500);
               const btns = [...ad.querySelectorAll("#quick-filter-bar .quickFilterButtons .check-button")].filter(b => b.getBoundingClientRect().width > 0);
               const r = { pane: Math.round(ad.getElementById("threadPane").getBoundingClientRect().width), labels: 0, overlap: [] };
@@ -1137,15 +1145,15 @@ def maillist_checks(m, results):
             left: Math.round(p.getBoundingClientRect().left), folders: Math.round(ad.getElementById("folderPane").getBoundingClientRect().left) }; };
           const out = {};
           cmd("cmd_viewClassicMailLayout"); await wait(1200); out.classic = line();
-          cmd("cmd_viewWideMailLayout"); await wait(1200); out.wide = line();
+          // Thunderbirds Befehl für „breit“ landet in „klassisch“
+          cmd("cmd_viewWideMailLayout"); await wait(1200); out.wide = line(); out.widePane = Services.prefs.getIntPref("mail.pane_config.dynamic", -1);
           cmd("cmd_viewVerticalMailLayout"); await wait(1200); out.vertical = line();
           Services.prefs.setIntPref("mail.pane_config.dynamic", before); await wait(800);
           return out;""")
-        c, w_, v = res["classic"], res["wide"], res["vertical"]
-        ok = (c["width"] > 0 and c["style"] == "solid" and w_["width"] > 0 and w_["style"] == "solid"
-              and w_["left"] <= w_["folders"] + 1 and v["width"] == 0)
+        c, v = res["classic"], res["vertical"]
+        ok = (c["width"] > 0 and c["style"] == "solid" and res["widePane"] != 1 and v["width"] == 0)
         return ok, f"{res}"
-    check("Mailliste: Layout „klassisch“ und „breit“ mit Linie über der Leseansicht, „vertikal“ ohne", layout_lines, results)
+    check("Mailliste: Layout „klassisch“ mit Linie über der Leseansicht, „vertikal“ ohne, „breit“ nicht mehr erreichbar", layout_lines, results)
 
     def account_central():
         res = m.js(MAILLIST_JS + r"""

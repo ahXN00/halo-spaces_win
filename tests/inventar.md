@@ -55,7 +55,6 @@ CSS/Code: chrome/userChrome.css (Thread-Liste, Karten), extension/api/implementa
 | `mail-dichte-kompakt` | Dichte „kompakt“ | zustand | ja |  |
 | `mail-dichte-gross` | Dichte „Touch“ (groß) | zustand | ja |  |
 | `mail-layout-klassisch` | Layout „klassisch“ (Liste oben, Mail unten) | zustand | ja |  |
-| `mail-layout-breit` | Layout „breit“ | zustand | ja |  |
 | `mail-ohne-leseansicht` | Leseansicht ausgeblendet (nur Liste) | zustand | ja |  |
 | `mail-schnellfilter` | Schnellfilter-Leiste offen | zustand | ja |  |
 | `mail-schnellfilter-aktiv` | Schnellfilter „Ungelesen“ aktiv | zustand | ja |  |
@@ -426,4 +425,4 @@ CSS/Code: chrome/userChrome.css (Dialoge, commonDialog), chrome/spaces.css
 | `dlg-anhang-oeffnen` | Anhang öffnen: Dialog „Öffnen von …“ (Programmauswahl) | dialog | ja | Fenster unknownContentType.xhtml; nur angesehen, nie OK – kein PDF (öffnet intern im Tab) |
 | `dlg-dateiauswahl` | Dateiauswahl (Anhängen, Kontaktbild …) | dialog | nein | nativ: macOS-Dateidialog – nicht gestaltbar |
 
-Gesamt: 304 Oberflächen, davon 282 mit Bild.
+Gesamt: 303 Oberflächen, davon 281 mit Bild.
