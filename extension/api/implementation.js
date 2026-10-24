@@ -110,7 +110,9 @@ const DE = {
   "Starts": "Beginn",
   "Task": "Aufgabe",
   "View": "Ansicht",
-  "Preview lines in the message list": "Vorschauzeilen in der Mailliste",
+  "Preview Lines": "Vorschauzeilen",
+  "1 Line": "1 Zeile",
+  "{n} Lines": "{n} Zeilen",
   "takes effect after a restart": "gilt nach einem Neustart",
   "Actions when hovering a message": "Aktionen beim Überfahren einer Mail",
   "Flag, archive, delete": "Markieren, Archivieren, Löschen",
@@ -126,8 +128,6 @@ const DE = {
   "Own keywords": "Eigene Stichwörter",
   "one per line, “keyword = emoji”, e.g. “Book club = 📖” – take precedence": "je Zeile „Stichwort = Emoji“, z. B. „Hellas Kagran = ⚽“ – haben Vorrang",
   "Book club = 📖\nChoir = 🎶": "Hellas Kagran = ⚽\nChor = 🎶",
-  "Birthdays from the address book": "Geburtstage aus dem Adressbuch",
-  "separate read-only calendar": "eigener, schreibgeschützter Kalender",
   "Offline copy for online calendars": "Offline-Kopie für Online-Kalender",
   "faster loading; re-creates the calendars once": "schnelleres Laden; legt die Kalender einmal neu an",
   "halo.spaces design": "Design von halo.spaces",
@@ -290,7 +290,9 @@ const FR = {
   "Starts": "Début",
   "Task": "Tâche",
   "View": "Présentation",
-  "Preview lines in the message list": "Lignes d’aperçu dans la liste",
+  "Preview Lines": "Lignes d’aperçu",
+  "1 Line": "1 ligne",
+  "{n} Lines": "{n} lignes",
   "takes effect after a restart": "après un redémarrage",
   "Actions when hovering a message": "Actions au survol d’un message",
   "Flag, archive, delete": "Marquer, archiver, supprimer",
@@ -306,8 +308,6 @@ const FR = {
   "Own keywords": "Mots-clés personnels",
   "one per line, “keyword = emoji”, e.g. “Book club = 📖” – take precedence": "un par ligne, « mot-clé = emoji », p. ex. « Club de lecture = 📖 » – prioritaires",
   "Book club = 📖\nChoir = 🎶": "Club de lecture = 📖\nChorale = 🎶",
-  "Birthdays from the address book": "Anniversaires du carnet d’adresses",
-  "separate read-only calendar": "calendrier séparé en lecture seule",
   "Offline copy for online calendars": "Copie hors ligne des calendriers en ligne",
   "faster loading; re-creates the calendars once": "chargement plus rapide ; recrée les calendriers une fois",
   "halo.spaces design": "Design halo.spaces",
@@ -472,7 +472,9 @@ const ES = {
   "Starts": "Empieza",
   "Task": "Tarea",
   "View": "Ver",
-  "Preview lines in the message list": "Líneas de vista previa en la lista",
+  "Preview Lines": "Líneas de vista previa",
+  "1 Line": "1 línea",
+  "{n} Lines": "{n} líneas",
   "takes effect after a restart": "se aplica tras reiniciar",
   "Actions when hovering a message": "Acciones al pasar sobre un mensaje",
   "Flag, archive, delete": "Marcar, archivar, eliminar",
@@ -488,8 +490,6 @@ const ES = {
   "Own keywords": "Palabras clave propias",
   "one per line, “keyword = emoji”, e.g. “Book club = 📖” – take precedence": "uno por línea, «palabra = emoji», p. ej. «Club de lectura = 📖» – tienen prioridad",
   "Book club = 📖\nChoir = 🎶": "Club de lectura = 📖\nCoro = 🎶",
-  "Birthdays from the address book": "Cumpleaños de la libreta de direcciones",
-  "separate read-only calendar": "calendario aparte de solo lectura",
   "Offline copy for online calendars": "Copia sin conexión de calendarios en línea",
   "faster loading; re-creates the calendars once": "carga más rápida; vuelve a crear los calendarios una vez",
   "halo.spaces design": "Diseño de halo.spaces",
@@ -654,7 +654,9 @@ const IT = {
   "Starts": "Inizio",
   "Task": "Attività",
   "View": "Visualizza",
-  "Preview lines in the message list": "Righe di anteprima nell’elenco",
+  "Preview Lines": "Righe di anteprima",
+  "1 Line": "1 riga",
+  "{n} Lines": "{n} righe",
   "takes effect after a restart": "attivo dopo un riavvio",
   "Actions when hovering a message": "Azioni al passaggio su un messaggio",
   "Flag, archive, delete": "Contrassegna, archivia, elimina",
@@ -670,8 +672,6 @@ const IT = {
   "Own keywords": "Parole chiave personali",
   "one per line, “keyword = emoji”, e.g. “Book club = 📖” – take precedence": "uno per riga, «parola = emoji», ad es. «Club del libro = 📖» – hanno la precedenza",
   "Book club = 📖\nChoir = 🎶": "Club del libro = 📖\nCoro = 🎶",
-  "Birthdays from the address book": "Compleanni dalla rubrica",
-  "separate read-only calendar": "calendario separato di sola lettura",
   "Offline copy for online calendars": "Copia offline dei calendari online",
   "faster loading; re-creates the calendars once": "caricamento più rapido; ricrea i calendari una volta",
   "halo.spaces design": "Design di halo.spaces",
@@ -5133,6 +5133,10 @@ class CardEnhancer {
     const earlyObs = { observe: () => EarlyTheme.sync() };
     Services.prefs.addObserver(EARLY_THEME_PREF, earlyObs);
     this.restorers.push(() => Services.prefs.removeObserver(EARLY_THEME_PREF, earlyObs));
+    // Vorschauzeilen (Ansicht → Vorschauzeilen) gelten sofort, ohne Neustart
+    const previewObs = { observe: () => this.applyPreviewLines() };
+    Services.prefs.addObserver(PREVIEW_PREF, previewObs);
+    this.restorers.push(() => Services.prefs.removeObserver(PREVIEW_PREF, previewObs));
     // Ansicht und Layout der Mailliste nur in gültigen Kombinationen (Karten
     // vertikal, Tabelle klassisch) – beim Start bestehende Profile umstellen
     syncViewChoice(LISTVIEW_PREF);
@@ -7411,6 +7415,109 @@ class CardEnhancer {
       });
     };
 
+    // Ansicht → Vorschauzeilen (Menüleiste und App-Menü → Ansicht): Keine,
+    // 1–4 Zeilen, Häkchen am aktuellen Wert; gilt sofort (applyPreviewLines).
+    // Nur in der Kartenansicht wirksam, in der Tabelle daher ausgegraut
+    const hookPreviewMenu = () => {
+      const d = w.document;
+      if (d.getElementById("mcPreviewLines")) {
+        return;
+      }
+      const values = [0, 1, 2, 3, 4];
+      const label = n => (n == 0 ? tr("None") : n == 1 ? tr("1 Line") : tr("{n} Lines", { n }));
+      const current = () => Math.max(0, Math.min(4, Services.prefs.getIntPref(PREVIEW_PREF, 1)));
+      const choose = n => {
+        if (n == 1) {
+          Services.prefs.clearUserPref(PREVIEW_PREF); // Standard: nichts im Profil speichern
+        } else {
+          Services.prefs.setIntPref(PREVIEW_PREF, n);
+        }
+      };
+      const added = [];
+      // Menüleiste: Untermenü nach „Layout“
+      const layout = d.getElementById("menu_MessagePaneLayout");
+      if (layout) {
+        const menu = d.createXULElement("menu");
+        menu.id = "mcPreviewLines";
+        menu.setAttribute("label", tr("Preview Lines"));
+        const popup = d.createXULElement("menupopup");
+        popup.id = "mcPreviewLinesPopup";
+        for (const n of values) {
+          const item = d.createXULElement("menuitem");
+          item.setAttribute("type", "radio");
+          item.setAttribute("name", "mcpreviewlines");
+          item.setAttribute("label", label(n));
+          item.setAttribute("value", String(n));
+          item.addEventListener("command", () => choose(n));
+          popup.append(item);
+        }
+        popup.addEventListener("popupshowing", event => {
+          if (event.target != popup) {
+            return;
+          }
+          for (const item of popup.children) {
+            item.toggleAttribute("checked", item.getAttribute("value") == String(current()));
+          }
+        });
+        menu.append(popup);
+        layout.after(menu);
+        added.push(menu);
+        const viewPopup = d.getElementById("menu_View_Popup");
+        const onView = event => {
+          if (event.target == viewPopup) {
+            menu.disabled = viewChoice() != "cards";
+          }
+        };
+        viewPopup?.addEventListener("popupshowing", onView);
+        this.restorers.push(() => viewPopup?.removeEventListener("popupshowing", onView));
+      }
+      // App-Menü → Ansicht: Knopf mit eigener Unteransicht wie „Layout“
+      const appLayout = d.getElementById("appmenu_MessagePaneLayout");
+      const viewView = d.getElementById("appMenu-viewView");
+      if (appLayout && viewView) {
+        const view = d.createXULElement("panelview");
+        view.id = "mcPreviewLinesView";
+        view.className = "PanelUI-subView";
+        view.setAttribute("title", tr("Preview Lines"));
+        const body = d.createXULElement("vbox");
+        body.className = "panel-subview-body";
+        for (const n of values) {
+          const button = d.createXULElement("toolbarbutton");
+          button.className = "subviewbutton subviewbutton-iconic";
+          button.setAttribute("type", "radio");
+          button.setAttribute("name", "mcpreviewlines");
+          button.setAttribute("label", label(n));
+          button.setAttribute("value", String(n));
+          button.addEventListener("command", () => {
+            choose(n);
+            w.PanelUI?.hide();
+          });
+          body.append(button);
+        }
+        view.append(body);
+        view.addEventListener("ViewShowing", () => {
+          for (const button of body.children) {
+            button.toggleAttribute("checked", button.getAttribute("value") == String(current()));
+          }
+        });
+        viewView.after(view);
+        const nav = d.createXULElement("toolbarbutton");
+        nav.id = "appmenu_mcPreviewLines";
+        nav.className = "subviewbutton subviewbutton-iconic subviewbutton-nav";
+        nav.setAttribute("label", tr("Preview Lines"));
+        nav.setAttribute("closemenu", "none");
+        nav.addEventListener("command", () => w.PanelUI.showSubView("mcPreviewLinesView", nav));
+        appLayout.after(nav);
+        added.push(view, nav);
+        const onAppView = () => {
+          nav.disabled = viewChoice() != "cards";
+        };
+        viewView.addEventListener("ViewShowing", onAppView);
+        this.restorers.push(() => viewView.removeEventListener("ViewShowing", onAppView));
+      }
+      this.restorers.push(() => added.forEach(el => el.remove()));
+    };
+
     // Aufgaben: die Filter („Current Tasks“, „Today“ …) als Menü hinter einem
     // Knopf wie „Quick Filter“ in der Mail statt als Liste in der Seitenleiste.
     // Die Auswahl klickt Thunderbirds eigene Liste (Filterlogik und Speicherung
@@ -7565,6 +7672,7 @@ class CardEnhancer {
     const markTab = () => {
       hookSearchForwarding();
       hookHelpMenu();
+      hookPreviewMenu();
       hookNewTabMenus(w.document, this.restorers);
       try {
         hookTaskFilter();
@@ -11402,9 +11510,7 @@ class CardEnhancer {
     doc.getElementById(STYLE_ID)?.remove();
     const style = doc.createElement("style");
     style.id = STYLE_ID;
-    style.textContent =
-      CSS +
-      `#threadTree tr[is="thread-card"] .mc-preview { -webkit-line-clamp: ${this.previewLines}; min-height: ${this.previewLines * 16}px; }`;
+    style.textContent = this.cardStyle();
     doc.head.appendChild(style);
 
     const enhancer = this;
@@ -11421,9 +11527,10 @@ class CardEnhancer {
     };
     Card.prototype.fillRow = fill;
 
-    const extra = this.previewLines ? this.previewLines * 16 + 10 : 0;
     const density = async function (...args) {
       await reg.density.apply(this, args);
+      // bei jedem Aufruf neu: die Zeilenzahl lässt sich im Betrieb ändern
+      const extra = enhancer.previewLines ? enhancer.previewLines * 16 + 10 : 0;
       Card.ROW_HEIGHT = Math.max(Card.ROW_HEIGHT + extra, 52);
       this.mcCardHeight = Card.ROW_HEIGHT; // Kontaktkarten im Adressbuch gleich hoch
       // Tabellenansicht: 14-px-Schrift (userChrome.css) braucht luftigere Zeilen
@@ -11710,6 +11817,45 @@ class CardEnhancer {
         doc.l10n?.setAttributes(header, `folder-pane-mode-header-${header.closest("li[data-mode]").dataset.mode}`);
       }
     });
+  }
+
+  // Stylesheet der Kartenansicht samt Höhe der Vorschau
+  cardStyle() {
+    return CSS +
+      `#threadTree tr[is="thread-card"] .mc-preview { -webkit-line-clamp: ${this.previewLines}; min-height: ${this.previewLines * 16}px; }`;
+  }
+
+  // Vorschauzeilen geändert (Menü Ansicht): Stil, Kartenhöhe und Karten in
+  // allen Mailansichten sofort anpassen; 0 = Vorschau ganz entfernen
+  applyPreviewLines() {
+    const lines = Math.max(0, Math.min(4, Services.prefs.getIntPref(PREVIEW_PREF, 1)));
+    if (lines == this.previewLines) {
+      return;
+    }
+    this.previewLines = lines;
+    // wie beim Start: Karten mit Vorschau zeigen Absender und Betreff in zwei Zeilen
+    if (lines && !Services.prefs.getBoolPref("extensions.mailcards.rowcountApplied", false)) {
+      Services.prefs.setIntPref("mail.threadpane.cardsview.rowcount", 2);
+      Services.prefs.setBoolPref("extensions.mailcards.rowcountApplied", true);
+    }
+    for (const win of this.windows) {
+      try {
+        const doc = win.document;
+        const style = doc.getElementById(STYLE_ID);
+        if (style) {
+          style.textContent = this.cardStyle();
+        }
+        if (!lines) {
+          for (const el of doc.querySelectorAll(".mc-preview")) {
+            el.remove();
+          }
+        }
+        // berechnet die Kartenhöhe neu und baut die Zeilen neu auf (decorate)
+        win.threadPane?.updateThreadItemSize();
+      } catch (e) {
+        log("preview lines error", e);
+      }
+    }
   }
 
   decorate(win, row) {
@@ -12080,8 +12226,9 @@ class CardEnhancer {
 
   // Geburtstage aus dem Adressbuch als eigener Kalender wie bei Apple:
   // nur im Speicher und schreibgeschützt, bei jedem Start und bei Änderungen
-  // an Kontakten neu gefüllt; synchronisiert nirgendwohin. Beim Abschalten,
-  // Deaktivieren oder Deinstallieren wird er wieder entfernt.
+  // an Kontakten neu gefüllt; synchronisiert nirgendwohin. Ein-/Ausblenden
+  // über das Häkchen in der Kalenderliste. Beim Deaktivieren oder
+  // Deinstallieren wird er wieder entfernt.
   hookBirthdays() {
     let timer = null;
     const schedule = (ms = 3000) => {
@@ -12147,9 +12294,13 @@ class CardEnhancer {
     const { cal } = ChromeUtils.importESModule("resource:///modules/calendar/calUtils.sys.mjs");
     const { CalEvent } = ChromeUtils.importESModule("resource:///modules/CalEvent.sys.mjs");
     const { CalRecurrenceInfo } = ChromeUtils.importESModule("resource:///modules/CalRecurrenceInfo.sys.mjs");
-    if (!Services.prefs.getBoolPref(BDAY_PREF, true)) {
-      this.removeBirthdayCalendar();
-      return;
+    // Ein-/Ausblenden wie bei Apple Kalender über das Häkchen am Kalender
+    // „Geburtstage“ in der Kalenderliste. Die frühere Option (Pref aus)
+    // blendet ihn einmal aus und wird dann gelöscht
+    let hide = false;
+    if (Services.prefs.prefHasUserValue(BDAY_PREF)) {
+      hide = !Services.prefs.getBoolPref(BDAY_PREF, true);
+      Services.prefs.clearUserPref(BDAY_PREF);
     }
     // Geburtstage einsammeln (lokale Adressbücher; doppelte Kontakte einmal)
     const found = new Map();
@@ -12190,10 +12341,9 @@ class CardEnhancer {
         }
       }
     }
+    // wie bei Apple immer vorhanden (auch ohne Geburtstage), damit er sich
+    // in der Kalenderliste ein- und ausblenden lässt
     let calendar = cal.manager.getCalendarById(Services.prefs.getStringPref(BDAY_CAL_PREF, ""));
-    if (!found.size && !calendar) {
-      return; // keine Geburtstage – keinen leeren Kalender anlegen
-    }
     if (!calendar) {
       calendar = cal.manager.createCalendar("memory", Services.io.newURI("moz-memory-calendar://"));
       calendar.name = tr("Birthdays");
@@ -12201,6 +12351,15 @@ class CardEnhancer {
       calendar.setProperty("suppressAlarms", true);
       cal.manager.registerCalendar(calendar);
       Services.prefs.setStringPref(BDAY_CAL_PREF, calendar.id);
+    }
+    if (hide) {
+      // wie das Häkchen: aus der sichtbaren Kalendersammlung jedes Fensters nehmen
+      for (const win of Services.wm.getEnumerator("mail:3pane")) {
+        try {
+          cal.view.getCompositeCalendar(win).removeCalendar(calendar);
+        } catch {}
+      }
+      calendar.deleteProperty("calendar-main-in-composite");
     }
     calendar.readOnly = false;
     try {
@@ -12962,8 +13121,8 @@ class CardEnhancer {
 // ---------------------------------------------------------------------------
 
 // Einstellungen der Optionsseite: Schlüssel → Pref (Typ), nur diese sind erlaubt
+// (Vorschauzeilen: Menü Ansicht, Geburtstage: Häkchen in der Kalenderliste)
 const SETTINGS = {
-  previewLines: [PREVIEW_PREF, "int", 1],
   // standardmäßig aus (auf Wunsch: ruhigere Karten); in den Einstellungen einschaltbar
   hoverActions: [HOVER_ACTIONS_PREF, "bool", false],
   unreadTint: [UNREAD_TINT_PREF, "bool", false],
@@ -12973,7 +13132,6 @@ const SETTINGS = {
   fullConversation: [CONVERSATION_PREF, "bool", true],
   calendarEmoji: [EMOJI_PREF, "bool", true],
   emojiCustom: [EMOJI_CUSTOM_PREF, "string", ""],
-  birthdays: [BDAY_PREF, "bool", true],
   macContactPhotos: [MAC_PHOTOS_PREF, "bool", false],
   senderLogos: [SENDER_LOGOS_PREF, "bool", true],
   plainTextSystemFont: [PLAIN_TEXT_PREF, "bool", true],
@@ -13028,7 +13186,7 @@ this.mailCards = class extends ExtensionCommon.ExtensionAPI {
           } else if (type == "int") {
             const n = Math.round(Number(value));
             if (!Number.isFinite(n)) throw new Error("not a number");
-            Services.prefs.setIntPref(pref, Math.max(0, Math.min(4, n))); // nur previewLines
+            Services.prefs.setIntPref(pref, Math.max(0, Math.min(4, n))); // derzeit keine Zahl-Einstellung
           } else {
             Services.prefs.setStringPref(pref, String(value).slice(0, 10000));
           }

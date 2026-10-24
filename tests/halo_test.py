@@ -7412,20 +7412,77 @@ def run_checks(m, version, profile, results):
           const used = [...src.matchAll(/\\bt\\("((?:[^"\\\\]|\\\\.)*)"\\)/g)].map(x => JSON.parse('"' + x[1] + '"'));
           const T = Cu.evalInSandbox("TRANSLATIONS", g), SETTINGS = Cu.evalInSandbox("SETTINGS", g);
           const api = Cu.evalInSandbox("mailCards.prototype.getAPI({})", g).mailCards, st = await api.getSettings();
-          const gone = ["Message list width", "pixels; double-click the divider to reset", "Merge duplicate contacts", "display only", "Default"];
+          const gone = ["Message list width", "pixels; double-click the divider to reset", "Merge duplicate contacts", "display only", "Default",
+                        "Preview lines in the message list", "Birthdays from the address book", "separate read-only calendar"];
           return { sections, missing: Object.entries(T).flatMap(([l, tab]) => used.filter(u => !(u in tab) && !["Mail", "Updates"].includes(u)).map(u => l + ":" + u)),
                    leftover: Object.entries(T).flatMap(([l, tab]) => gone.filter(k => k in tab).map(k => l + ":" + k)),
-                   unknown: sections.flatMap(([, keys]) => keys).filter(k => !(k in SETTINGS)), inTable: ["listWidth", "hideDuplicateContacts"].filter(k => k in SETTINGS),
+                   unknown: sections.flatMap(([, keys]) => keys).filter(k => !(k in SETTINGS)), inTable: ["listWidth", "hideDuplicateContacts", "previewLines", "birthdays"].filter(k => k in SETTINGS),
                    emoji: st.calendarEmoji, emojiStored: Services.prefs.prefHasUserValue("extensions.mailcards.calendarEmoji"),
                    width: Services.prefs.getIntPref("extensions.mailcards.listWidth", -1) > 0 || Cu.evalInSandbox("LIST_WIDTH_DEFAULT", g) > 0 };''' % ADDON_ID)
         keys = [k for _, ks in res["sections"] for k in ks]
         last = res["sections"][-1][1] if res["sections"] else []
-        ok = ("listWidth" not in keys and "hideDuplicateContacts" not in keys and "calendarEmoji" in keys and "macContactPhotos" in keys
+        ok = (not {"listWidth", "hideDuplicateContacts", "previewLines", "birthdays"} & set(keys) and "calendarEmoji" in keys and "macContactPhotos" in keys
               and last == ["bundledTheme", "appleIcons", "debug"] and keys.count("bundledTheme") == 1 and keys.count("appleIcons") == 1
               and not res["missing"] and not res["leftover"] and not res["unknown"] and not res["inTable"]
               and res["emoji"] is True and not res["emojiStored"] and res["width"])
         return ok, f"{res}"
-    check("Einstellungen: Seite ohne Breite der Mailliste und doppelte Kontakte, Design/Symbole/Protokoll unter „Fehlerbehebung“; Kalender-Emojis im frischen Profil an", options_page_slim, results)
+    check("Einstellungen: Seite ohne Breite der Mailliste, doppelte Kontakte, Vorschauzeilen und Geburtstage, Design/Symbole/Protokoll unter „Fehlerbehebung“; Kalender-Emojis im frischen Profil an", options_page_slim, results)
+
+    def preview_menu():
+        # Ansicht → Vorschauzeilen (Menüleiste und App-Menü): Häkchen am aktuellen Wert,
+        # Auswahl ändert Zeilen und Kartenhöhe sofort, 0 entfernt die Vorschau, 1 = Standard ohne Pref
+        res = m.js('''
+          const { MailServices } = ChromeUtils.importESModule("resource:///modules/MailServices.sys.mjs");
+          const PREF = "extensions.mailcards.previewLines";
+          const menu = d.getElementById("mcPreviewLines"), popup = d.getElementById("mcPreviewLinesPopup");
+          const nav = d.getElementById("appmenu_mcPreviewLines"), view = d.getElementById("mcPreviewLinesView");
+          if (!menu || !popup) return { menu: false };
+          const place = { parent: menu.parentNode?.id, after: menu.previousElementSibling?.id, app: nav?.previousElementSibling?.id,
+                          appButtons: view ? view.querySelectorAll("toolbarbutton[type=radio]").length : 0 };
+          const labels = [...popup.children].map(i => i.getAttribute("label"));
+          const root = MailServices.accounts.localFoldersServer.rootFolder;
+          if (!root.containsChildNamed("Vorschau")) { root.createSubfolder("Vorschau", null); await wait(800); }
+          const f = root.getChildNamed("Vorschau");
+          if (!f.getTotalMessages(false)) {
+            f.QueryInterface(Ci.nsIMsgLocalMailFolder).addMessage("From - Mon Jan 05 10:00:00 2026\\r\\nFrom: Halo Vorschau <vorschau@example.invalid>\\r\\nSubject: Vorschauzeilen\\r\\nDate: Mon, 05 Jan 2026 10:00:00 +0100\\r\\nMessage-ID: <halo-vorschau@example.invalid>\\r\\n\\r\\nEine erste Zeile Text fuer die Vorschau der Karte.\\r\\n");
+          }
+          const a3 = await toMail();
+          const viewBefore = Services.prefs.getIntPref("mail.threadpane.listview", 0);
+          Services.prefs.setIntPref("mail.threadpane.listview", 0); await wait(600);
+          a3.displayFolder(f.URI);
+          const Card = a3.customElements.get("thread-card");
+          const row = () => a3.document.querySelector(\'#threadTree tr[is="thread-card"]\');
+          await until(() => row()?.querySelector(".mc-preview"), 8000);
+          const pick = async n => {
+            [...popup.children].find(i => i.getAttribute("value") == String(n)).doCommand();
+            await wait(900);
+            popup.dispatchEvent(new w.Event("popupshowing"));
+            const pv = row()?.querySelector(".mc-preview");
+            return { pref: Services.prefs.prefHasUserValue(PREF) ? Services.prefs.getIntPref(PREF) : "standard", height: Card.ROW_HEIGHT,
+                     clamp: pv ? a3.getComputedStyle(pv).webkitLineClamp : null, previews: a3.document.querySelectorAll(".mc-preview").length,
+                     checked: [...popup.children].filter(i => i.hasAttribute("checked")).map(i => i.getAttribute("value")) };
+          };
+          const out = { place, labels, three: await pick(3), none: await pick(0), one: await pick(1) };
+          // in der Tabelle ausgegraut
+          Services.prefs.setIntPref("mail.threadpane.listview", 1); await wait(600);
+          d.getElementById("menu_View_Popup").dispatchEvent(new w.Event("popupshowing"));
+          out.tableDisabled = menu.disabled;
+          Services.prefs.setIntPref("mail.threadpane.listview", viewBefore); await wait(600);
+          d.getElementById("menu_View_Popup").dispatchEvent(new w.Event("popupshowing"));
+          out.cardsEnabled = !menu.disabled;
+          return out;''')
+        if res.get("menu") is False:
+            return False, "Untermenü Ansicht → Vorschauzeilen fehlt"
+        t, z, o = res["three"], res["none"], res["one"]
+        ok = (res["place"] == {"parent": "menu_View_Popup", "after": "menu_MessagePaneLayout", "app": "appmenu_MessagePaneLayout", "appButtons": 5}
+              and len(res["labels"]) == 5 and len(set(res["labels"])) == 5
+              and t["pref"] == 3 and t["clamp"] == "3" and t["checked"] == ["3"]
+              and z["pref"] == 0 and z["previews"] == 0 and z["checked"] == ["0"]
+              and o["pref"] == "standard" and o["clamp"] == "1" and o["checked"] == ["1"] and o["previews"] > 0
+              and t["height"] - o["height"] == 32 and z["height"] < o["height"]
+              and res["tableDisabled"] and res["cardsEnabled"])
+        return ok, f"{res}"
+    check("Ansicht → Vorschauzeilen: Untermenü (Menüleiste und App-Menü), Auswahl ändert Vorschau und Kartenhöhe sofort ohne Neustart", preview_menu, results)
 
     def early_theme():
         # Option „Design ohne Aufblitzen beim Start“ (Standard aus): schreibt das Design als userChrome.css ins Profil
@@ -7723,6 +7780,35 @@ def run_checks(m, version, profile, results):
             and "1990" in (res.get("born") or "") and res.get("apple") == {"year": 2000, "desc": None}
         return ok, f"{res}"
     check("Geburtstage aus dem Adressbuch als Kalender (Apple ohne Jahr ohne „Geboren 1604“)", birthdays, results)
+
+    def birthdays_toggle():
+        # wie Apple Kalender: „Geburtstage“ steht in der Kalenderliste und wird über das Häkchen
+        # ein-/ausgeblendet (keine Option mehr auf der Einstellungsseite); die frühere Option
+        # „aus“ blendet ihn einmal aus und wird gelöscht
+        res = m.js('''
+          const PREF = "extensions.mailcards.birthdays";
+          const c = await until(() => cal.manager.getCalendarById(Services.prefs.getStringPref("extensions.mailcards.birthdayCalendarId", "")), 15000);
+          if (!c) return { calendar: false };
+          await toCalendar();
+          const composite = cal.view.getCompositeCalendar(w);
+          const box = () => d.querySelector(`#calendar-list li[calendar-id="${c.id}"] .calendar-displayed`);
+          const shown = () => !!composite.getCalendarById(c.id);
+          const out = { name: c.name, row: !!box(), start: [box()?.checked, shown()] };
+          box()?.click(); await wait(400);
+          out.off = [box()?.checked, shown()];
+          box()?.click(); await wait(400);
+          out.on = [box()?.checked, shown()];
+          Services.prefs.setBoolPref(PREF, false);
+          await until(() => !Services.prefs.prefHasUserValue(PREF), 5000); await wait(400);
+          out.migrated = [Services.prefs.prefHasUserValue(PREF), box()?.checked, shown(), !!cal.manager.getCalendarById(c.id)];
+          composite.addCalendar(c); await wait(300);
+          out.back = [box()?.checked, shown()];
+          await toMail();
+          return out;''')
+        ok = (res.get("calendar") is not False and res.get("row") and res.get("start") == [True, True] and res.get("off") == [False, False]
+              and res.get("on") == [True, True] and res.get("migrated") == [False, False, False, True] and res.get("back") == [True, True])
+        return ok, f"{res}"
+    check("Geburtstage: eigener Kalender in der Kalenderliste, Häkchen blendet ein/aus; frühere Option „aus“ blendet ihn einmal aus", birthdays_toggle, results)
 
     def mac_photos_off():
         # Einstellungsseite (setSetting) direkt über das Experiment-Modul; den

@@ -9,12 +9,12 @@ let TABLE = {};
 const t = english => TABLE[english] ?? english;
 
 // Nur was sich nicht direkt in der Oberfläche einstellen lässt (wie Apple Mail):
-// Breite der Mailliste (Trennlinie ziehen, Doppelklick) und doppelte Kontakte
-// (Adressbuch → Ansicht) stehen hier bewusst nicht; ihre Prefs bleiben
+// Breite der Mailliste (Trennlinie ziehen, Doppelklick), doppelte Kontakte
+// (Adressbuch → Ansicht), Vorschauzeilen (Mail → Ansicht) und Geburtstage
+// (Häkchen am Kalender „Geburtstage“ in der Kalenderliste) stehen hier
+// bewusst nicht; ihre Prefs bleiben
 const SECTIONS = () => [
   [t("Mail"), [
-    { key: "previewLines", type: "select", label: t("Preview lines in the message list"),
-      hint: t("takes effect after a restart"), options: [0, 1, 2, 3, 4] },
     { key: "hoverActions", label: t("Actions when hovering a message"),
       hint: t("Flag, archive, delete") },
     { key: "fullConversation", label: t("Show whole conversation"),
@@ -36,8 +36,6 @@ const SECTIONS = () => [
     { key: "emojiCustom", type: "textarea", label: t("Own keywords"),
       hint: t("one per line, “keyword = emoji”, e.g. “Book club = 📖” – take precedence"),
       placeholder: t("Book club = 📖\nChoir = 🎶") },
-    { key: "birthdays", label: t("Birthdays from the address book"),
-      hint: t("separate read-only calendar") },
     { key: "calendarOffline", label: t("Offline copy for online calendars"),
       hint: t("faster loading; re-creates the calendars once") },
   ]],
