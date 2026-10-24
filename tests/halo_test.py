@@ -4234,6 +4234,38 @@ def run_checks(m, version, profile, results):
         return ok, f"{res}"
     check("Leseansicht wie Apple: Absenderbild, Ordner, Verteiler-Hinweis statt List-ID", reading, results)
 
+    def star_button():
+        # Symbolleiste: Verschieben ohne Trennstrich; Markieren als geteilter Stern-Knopf – Stern
+        # setzt/entfernt „Starred“ an der Testmail, der Pfeil öffnet das Menü, Hervorhebung je Hälfte
+        res = m.js(MESSAGE_JS + '''
+          w.resizeTo(1500, 900); await wait(1000);
+          const hdr = a3.gDBView.hdrForFirstSelectedMessage; if (hdr.isFlagged) { hdr.folder.markMessagesFlagged([hdr], false); await wait(300); }
+          const li = d.querySelector('#unifiedToolbarContent > li[item-id="mark-as"]'); const btn = li.querySelector("button");
+          const move = d.querySelector('#unifiedToolbarContent > li[item-id="move-to"] button');
+          const popup = d.getElementById("toolbarMarkPopup"); const icon = btn.querySelector(".button-icon");
+          const r = btn.getBoundingClientRect(), y = r.top + r.height / 2;
+          const at = (type, x) => btn.dispatchEvent(new w.MouseEvent(type, { bubbles: true, cancelable: true, view: w, clientX: r.left + x, clientY: y, button: 0, detail: 1 }));
+          const out = { moveLine: w.getComputedStyle(move, "::before").content, markLine: w.getComputedStyle(btn, "::before").content,
+                        disabled: btn.disabled, maskOff: w.getComputedStyle(icon).maskImage.length };
+          at("click", 20); await wait(500);
+          out.flagged = hdr.isFlagged; out.starred = li.hasAttribute("mc-starred"); out.popupAfterStar = popup.state;
+          out.maskOn = w.getComputedStyle(icon).maskImage.length; out.colorOn = w.getComputedStyle(icon).backgroundColor;
+          at("click", 20); await wait(500);
+          out.unflagged = !hdr.isFlagged; out.unstarred = !li.hasAttribute("mc-starred");
+          hdr.folder.markMessagesFlagged([hdr], true); await wait(500); out.listener = li.hasAttribute("mc-starred");
+          hdr.folder.markMessagesFlagged([hdr], false); await wait(500); out.listenerOff = !li.hasAttribute("mc-starred");
+          at("mousemove", 20); out.hotStar = li.getAttribute("mc-hot");
+          at("mousemove", 55); out.hotMenu = li.getAttribute("mc-hot");
+          at("click", 55); await until(() => popup.state == "open", 3000); out.popup = popup.state; out.flaggedByMenu = hdr.isFlagged;
+          popup.hidePopup(); await wait(400);
+          return out;''')
+        ok = (res["moveLine"] == "none" and res["markLine"] != "none" and not res["disabled"] and res["flagged"] and res["starred"]
+              and res["popupAfterStar"] == "closed" and res["maskOn"] != res["maskOff"] and res["unflagged"] and res["unstarred"]
+              and res["listener"] and res["listenerOff"] and res["hotStar"] == "star" and res["hotMenu"] == "menu"
+              and res["popup"] in ("open", "showing") and not res["flaggedByMenu"])
+        return ok, f"{res}"
+    check("Symbolleiste: Verschieben ohne Trennstrich, Stern-Knopf setzt Starred, Pfeil öffnet Menü", star_button, results)
+
     def header_account_dot():
         # Mailkopf: Farbpunkt des Kontos links vom Ordnersymbol; Lokale Ordner
         # ohne Punkt. Feed-Konto ohne Abos (kein Netzzugriff), danach entfernt

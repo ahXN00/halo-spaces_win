@@ -46,6 +46,8 @@
   /* Statuspunkte im Chat wie macOS systemGreen / systemOrange */
   --mt-status-online: #34C759;
   --mt-status-away: #FF9500;
+  /* Stern („Starred“) in der Symbolleiste wie macOS systemOrange */
+  --mt-star: #FF9500;
   /* Fläche der Unterdialoge im Tab (Einstellungen, Adressbuch) */
   --mt-sheet: #FFFFFF;
   --mt-font: -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif;
@@ -91,6 +93,7 @@
     --mt-red: #FF6961;
     --mt-status-online: #30D158;
     --mt-status-away: #FF9F0A;
+    --mt-star: #FF9F0A;
     --mt-sheet: #2A2A2C;
     --mt-table-stripe: rgba(255, 255, 255, 0.045);
   }
@@ -1698,10 +1701,9 @@ findbar .findbar-textbox:focus {
   --mi-trash: url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22%23000%22 stroke-width=%221.7%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22%3E%3Cpath d=%22M3.8 6.6h16.4%22/%3E%3Cpath d=%22M9 6.6V5.1A1.6 1.6 0 0 1 10.6 3.5h2.8A1.6 1.6 0 0 1 15 5.1v1.5%22/%3E%3Cpath d=%22m5.9 6.6 1 12a1.6 1.6 0 0 0 1.6 1.4h7a1.6 1.6 0 0 0 1.6-1.4l1-12%22/%3E%3Cpath d=%22M10 10.4v6.2M14 10.4v6.2%22/%3E%3C/svg%3E");
   --mi-junk: url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22%23000%22 stroke-width=%221.7%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22%3E%3Crect x=%223%22 y=%224%22 width=%2218%22 height=%224.8%22 rx=%221.4%22/%3E%3Cpath d=%22M4.8 8.8v9.6A1.6 1.6 0 0 0 6.4 20h11.2a1.6 1.6 0 0 0 1.6-1.6V8.8%22/%3E%3Cpath d=%22m9.6 11.4 4.8 5.2M14.4 11.4l-4.8 5.2%22/%3E%3C/svg%3E");
   --mi-folder-menu: url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 34 24%22 fill=%22none%22 stroke=%22%23000%22 stroke-width=%221.7%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22%3E%3Cpath d=%22M3 7.8A2.3 2.3 0 0 1 5.3 5.5h3.9l2.1 2.1h7.4A2.3 2.3 0 0 1 21 9.9v7.8a2.3 2.3 0 0 1-2.3 2.3H5.3A2.3 2.3 0 0 1 3 17.7z%22/%3E%3Cpath d=%22M3 10.3h18%22/%3E%3Cpath d=%22m26 11 3 3 3-3%22/%3E%3C/svg%3E");
-  --mi-flag: url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22%23000%22 stroke-width=%221.7%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22%3E%3Cpath d=%22M5.5 20.5V4.2%22/%3E%3Cpath d=%22M5.5 4.7c2.6-1.3 4.6-.9 6.7 0s4.2 1.3 7.3 0v9c-3.1 1.3-5.2.9-7.3 0s-4.1-1.3-6.7 0%22/%3E%3C/svg%3E");
-  --mi-flag-menu: url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 34 24%22 fill=%22none%22 stroke=%22%23000%22 stroke-width=%221.7%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22%3E%3Cpath d=%22M5.5 20.5V4.2%22/%3E%3Cpath d=%22M5.5 4.7c2.6-1.3 4.6-.9 6.7 0s4.2 1.3 7.3 0v9c-3.1 1.3-5.2.9-7.3 0s-4.1-1.3-6.7 0%22/%3E%3Cpath d=%22m26 11 3 3 3-3%22/%3E%3C/svg%3E");
+  --mi-star: url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22%23000%22 stroke-width=%221.7%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22%3E%3Cpath d=%22M12 3.8 9.71 9.24l-5.89.5 4.47 3.87-1.34 5.75L12 16.3l5.05 3.06-1.34-5.75 4.47-3.87-5.89-.5z%22/%3E%3C/svg%3E");
+  --mi-star-fill: url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22%23000%22 stroke-width=%221.7%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22%3E%3Cpath d=%22M12 3.8 9.71 9.24l-5.89.5 4.47 3.87-1.34 5.75L12 16.3l5.05 3.06-1.34-5.75 4.47-3.87-5.89-.5z%22 fill=%22%23000%22/%3E%3C/svg%3E");
   --mi-folder-split: url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 46 24%22 fill=%22none%22 stroke=%22%23000%22 stroke-width=%221.7%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22%3E%3Cpath d=%22M3 7.8A2.3 2.3 0 0 1 5.3 5.5h3.9l2.1 2.1h7.4A2.3 2.3 0 0 1 21 9.9v7.8a2.3 2.3 0 0 1-2.3 2.3H5.3A2.3 2.3 0 0 1 3 17.7z%22/%3E%3Cpath d=%22M3 10.3h18%22/%3E%3Cpath d=%22M30.5 6v12%22 stroke-width=%221%22/%3E%3Cpath d=%22m36 10.5 3.5 3.5 3.5-3.5%22/%3E%3C/svg%3E");
-  --mi-flag-split: url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 46 24%22 fill=%22none%22 stroke=%22%23000%22 stroke-width=%221.7%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22%3E%3Cpath d=%22M5.5 20.5V4.2%22/%3E%3Cpath d=%22M5.5 4.7c2.6-1.3 4.6-.9 6.7 0s4.2 1.3 7.3 0v9c-3.1 1.3-5.2.9-7.3 0s-4.1-1.3-6.7 0%22/%3E%3Cpath d=%22M30.5 6v12%22 stroke-width=%221%22/%3E%3Cpath d=%22m36 10.5 3.5 3.5 3.5-3.5%22/%3E%3C/svg%3E");
   --mi-chevron: url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22%23000%22 stroke-width=%221.7%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22%3E%3Cpath d=%22m6.5 9.5 5.5 5.5 5.5-5.5%22/%3E%3C/svg%3E");
   --mi-addressbook: url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22%23000%22 stroke-width=%221.7%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22%3E%3Crect x=%224.5%22 y=%223.5%22 width=%2215%22 height=%2217%22 rx=%222.4%22/%3E%3Ccircle cx=%2212%22 cy=%2210.2%22 r=%222.6%22/%3E%3Cpath d=%22M8.1 16.6c.8-1.9 2.2-2.8 3.9-2.8s3.1.9 3.9 2.8%22/%3E%3Cpath d=%22M4.5 7.5H3M4.5 12H3M4.5 16.5H3%22/%3E%3C/svg%3E");
   --mi-calendar: url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22%23000%22 stroke-width=%221.7%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22%3E%3Crect x=%223.5%22 y=%225%22 width=%2217%22 height=%2215.5%22 rx=%222.6%22/%3E%3Cpath d=%22M3.5 9.6h17%22/%3E%3Cpath d=%22M8 3.2v3.4M16 3.2v3.4%22/%3E%3Ccircle cx=%228%22 cy=%2213.2%22 r=%22.9%22 fill=%22%23000%22 stroke=%22none%22/%3E%3Ccircle cx=%2212%22 cy=%2213.2%22 r=%22.9%22 fill=%22%23000%22 stroke=%22none%22/%3E%3Ccircle cx=%2216%22 cy=%2213.2%22 r=%22.9%22 fill=%22%23000%22 stroke=%22none%22/%3E%3Ccircle cx=%228%22 cy=%2216.8%22 r=%22.9%22 fill=%22%23000%22 stroke=%22none%22/%3E%3Ccircle cx=%2212%22 cy=%2216.8%22 r=%22.9%22 fill=%22%23000%22 stroke=%22none%22/%3E%3C/svg%3E");
@@ -1749,15 +1751,18 @@ findbar .findbar-textbox:focus {
   color: color-mix(in srgb, var(--mt-text) 82%, transparent) !important;
 }
 
-/* Verschieben und Markieren: geteilter Knopf wie bei Apple (Symbol | Pfeil).
-   Thunderbirds eigener Pfeil (Hintergrundbild rechts + 20 px Abstand) entfällt. */
+/* Verschieben und Markieren: Thunderbirds eigener Pfeil (Hintergrundbild
+   rechts + 20 px Abstand) entfällt. */
 #unifiedToolbarContent li button[popup] {
   background-image: none !important;
   padding-inline: 8px !important;
 }
 
-/* Geteilter Knopf aus denselben Teilen wie die Mehrfach-Kapseln:
-   40 px Symbolbereich | derselbe Trennstrich | 28 px Pfeilbereich */
+/* Verschieben: ein Knopf wie bei Apple (Ordner und Pfeil ohne Trennstrich),
+   jeder Klick öffnet das Menü. Markieren: echter geteilter Knopf aus denselben
+   Teilen wie die Mehrfach-Kapseln – 40 px Stern | Trennstrich | 28 px Pfeil;
+   ein Klick auf den Stern setzt bzw. entfernt den Stern der gewählten Mail
+   (Erweiterung), der Pfeil öffnet das Menü */
 #unifiedToolbarContent li:is([item-id="move-to"], [item-id="mark-as"]) button {
   position: relative !important;
   width: 69px !important;
@@ -1766,11 +1771,16 @@ findbar .findbar-textbox:focus {
   justify-content: flex-start !important;
 }
 
+#unifiedToolbarContent li[item-id="move-to"] button {
+  width: 62px !important;
+  min-width: 62px !important;
+}
+
 #unifiedToolbarContent li:is([item-id="move-to"], [item-id="mark-as"]) button .button-icon {
   margin-inline-start: 9px !important;
 }
 
-#unifiedToolbarContent li:is([item-id="move-to"], [item-id="mark-as"]) button::before {
+#unifiedToolbarContent li[item-id="mark-as"] button::before {
   content: "" !important;
   position: absolute !important;
   inset-inline-start: 40px !important;
@@ -1791,6 +1801,39 @@ findbar .findbar-textbox:focus {
   background-color: currentColor !important;
   mask: var(--mi-chevron) center / 14px 14px no-repeat !important;
   pointer-events: none !important;
+}
+
+#unifiedToolbarContent li[item-id="move-to"] button::after {
+  inset-inline-start: 34px !important;
+  width: 26px !important;
+}
+
+/* Gewählte Mail mit Stern: Stern gefüllt in Orange wie Apple Mails Markierung */
+#unifiedToolbarContent li[item-id="mark-as"][mc-starred] button:not([disabled]) .button-icon {
+  mask-image: var(--mi-star-fill) !important;
+  background-color: var(--mt-star) !important;
+}
+
+/* Hervorhebung beim Überfahren nur für die Hälfte unter der Maus (mc-hot
+   setzt die Erweiterung) */
+#unifiedToolbarContent > li[item-id="mark-as"][mc-hot] button:hover:not([disabled]) {
+  background-color: transparent !important;
+}
+
+#unifiedToolbarContent > li[item-id="mark-as"][mc-hot="star"] button:hover:not([disabled]) {
+  background-image: linear-gradient(to right, var(--mt-control-hover) 40px, transparent 40px) !important;
+}
+
+#unifiedToolbarContent > li[item-id="mark-as"][mc-hot="menu"] button:hover:not([disabled]) {
+  background-image: linear-gradient(to right, transparent 41px, var(--mt-control-hover) 41px) !important;
+}
+
+#unifiedToolbarContent > li[item-id="mark-as"][mc-hot="star"] button:hover:not([disabled]):dir(rtl) {
+  background-image: linear-gradient(to left, var(--mt-control-hover) 40px, transparent 40px) !important;
+}
+
+#unifiedToolbarContent > li[item-id="mark-as"][mc-hot="menu"] button:hover:not([disabled]):dir(rtl) {
+  background-image: linear-gradient(to left, transparent 41px, var(--mt-control-hover) 41px) !important;
 }
 
 /* Feine Trennlinien zwischen den Knöpfen einer Kapsel */
@@ -1880,7 +1923,7 @@ findbar .findbar-textbox:focus {
 #unifiedToolbarContent li[item-id="delete"] button .button-icon { mask-image: var(--mi-trash) !important; }
 #unifiedToolbarContent li[item-id="junk"] button .button-icon { mask-image: var(--mi-junk) !important; }
 #unifiedToolbarContent li[item-id="move-to"] button .button-icon { mask-image: var(--mi-folder) !important; }
-#unifiedToolbarContent li[item-id="mark-as"] button .button-icon { mask-image: var(--mi-flag) !important; }
+#unifiedToolbarContent li[item-id="mark-as"] button .button-icon { mask-image: var(--mi-star) !important; }
 #unifiedToolbarContent li[item-id="create-contact"] button .button-icon { mask-image: var(--mi-new-contact) !important; }
 #unifiedToolbarContent li[item-id="create-address-book"] button .button-icon { mask-image: var(--mi-new-address-book) !important; }
 #unifiedToolbarContent li[item-id="create-list"] button .button-icon { mask-image: var(--mi-new-list) !important; }

@@ -33,14 +33,12 @@ ICONS = {
                  '<path d="m9.6 11.4 4.8 5.2M14.4 11.4l-4.8 5.2"/>'),
     "folder-menu": (34, '<path d="M3 7.8A2.3 2.3 0 0 1 5.3 5.5h3.9l2.1 2.1h7.4A2.3 2.3 0 0 1 21 9.9v7.8a2.3 2.3 0 0 1-2.3 2.3H5.3A2.3 2.3 0 0 1 3 17.7z"/>'
                         '<path d="M3 10.3h18"/><path d="m26 11 3 3 3-3"/>'),
-    "flag": (24, '<path d="M5.5 20.5V4.2"/><path d="M5.5 4.7c2.6-1.3 4.6-.9 6.7 0s4.2 1.3 7.3 0v9c-3.1 1.3-5.2.9-7.3 0s-4.1-1.3-6.7 0"/>'),
-    "flag-menu": (34, '<path d="M5.5 20.5V4.2"/><path d="M5.5 4.7c2.6-1.3 4.6-.9 6.7 0s4.2 1.3 7.3 0v9c-3.1 1.3-5.2.9-7.3 0s-4.1-1.3-6.7 0"/>'
-                      '<path d="m26 11 3 3 3-3"/>'),
+    # Stern („Starred“) im Stil von SF Symbols: Umriss, markiert gefüllt
+    "star": (24, '<path d="M12 3.8 9.71 9.24l-5.89.5 4.47 3.87-1.34 5.75L12 16.3l5.05 3.06-1.34-5.75 4.47-3.87-5.89-.5z"/>'),
+    "star-fill": (24, '<path d="M12 3.8 9.71 9.24l-5.89.5 4.47 3.87-1.34 5.75L12 16.3l5.05 3.06-1.34-5.75 4.47-3.87-5.89-.5z" fill="#000"/>'),
     # Geteilte Knöpfe wie Apple: Symbol | Trennlinie | Pfeil (Breite 46)
     "folder-split": (46, '<path d="M3 7.8A2.3 2.3 0 0 1 5.3 5.5h3.9l2.1 2.1h7.4A2.3 2.3 0 0 1 21 9.9v7.8a2.3 2.3 0 0 1-2.3 2.3H5.3A2.3 2.3 0 0 1 3 17.7z"/>'
                          '<path d="M3 10.3h18"/><path d="M30.5 6v12" stroke-width="1"/><path d="m36 10.5 3.5 3.5 3.5-3.5"/>'),
-    "flag-split": (46, '<path d="M5.5 20.5V4.2"/><path d="M5.5 4.7c2.6-1.3 4.6-.9 6.7 0s4.2 1.3 7.3 0v9c-3.1 1.3-5.2.9-7.3 0s-4.1-1.3-6.7 0"/>'
-                       '<path d="M30.5 6v12" stroke-width="1"/><path d="m36 10.5 3.5 3.5 3.5-3.5"/>'),
     # kleiner Pfeil für geteilte Knöpfe
     "chevron": (24, '<path d="m6.5 9.5 5.5 5.5 5.5-5.5"/>'),
     # Bereiche (Mail, Adressbuch, Kalender, Aufgaben, Chat, Einstellungen)
@@ -99,7 +97,7 @@ TOOLBAR = {
     "delete": "trash",
     "junk": "junk",
     "move-to": "folder",
-    "mark-as": "flag",
+    "mark-as": "star",
     # Adressbuch, Kalender, Aufgaben
     "create-contact": "new-contact",
     "create-address-book": "new-address-book",
@@ -150,15 +148,18 @@ def css():
   color: color-mix(in srgb, var(--mt-text) 82%, transparent) !important;
 }
 
-/* Verschieben und Markieren: geteilter Knopf wie bei Apple (Symbol | Pfeil).
-   Thunderbirds eigener Pfeil (Hintergrundbild rechts + 20 px Abstand) entfällt. */
+/* Verschieben und Markieren: Thunderbirds eigener Pfeil (Hintergrundbild
+   rechts + 20 px Abstand) entfällt. */
 #unifiedToolbarContent li button[popup] {
   background-image: none !important;
   padding-inline: 8px !important;
 }
 
-/* Geteilter Knopf aus denselben Teilen wie die Mehrfach-Kapseln:
-   40 px Symbolbereich | derselbe Trennstrich | 28 px Pfeilbereich */
+/* Verschieben: ein Knopf wie bei Apple (Ordner und Pfeil ohne Trennstrich),
+   jeder Klick öffnet das Menü. Markieren: echter geteilter Knopf aus denselben
+   Teilen wie die Mehrfach-Kapseln – 40 px Stern | Trennstrich | 28 px Pfeil;
+   ein Klick auf den Stern setzt bzw. entfernt den Stern der gewählten Mail
+   (Erweiterung), der Pfeil öffnet das Menü */
 #unifiedToolbarContent li:is([item-id="move-to"], [item-id="mark-as"]) button {
   position: relative !important;
   width: 69px !important;
@@ -167,11 +168,16 @@ def css():
   justify-content: flex-start !important;
 }
 
+#unifiedToolbarContent li[item-id="move-to"] button {
+  width: 62px !important;
+  min-width: 62px !important;
+}
+
 #unifiedToolbarContent li:is([item-id="move-to"], [item-id="mark-as"]) button .button-icon {
   margin-inline-start: 9px !important;
 }
 
-#unifiedToolbarContent li:is([item-id="move-to"], [item-id="mark-as"]) button::before {
+#unifiedToolbarContent li[item-id="mark-as"] button::before {
   content: "" !important;
   position: absolute !important;
   inset-inline-start: 40px !important;
@@ -192,6 +198,39 @@ def css():
   background-color: currentColor !important;
   mask: var(--mi-chevron) center / 14px 14px no-repeat !important;
   pointer-events: none !important;
+}
+
+#unifiedToolbarContent li[item-id="move-to"] button::after {
+  inset-inline-start: 34px !important;
+  width: 26px !important;
+}
+
+/* Gewählte Mail mit Stern: Stern gefüllt in Orange wie Apple Mails Markierung */
+#unifiedToolbarContent li[item-id="mark-as"][mc-starred] button:not([disabled]) .button-icon {
+  mask-image: var(--mi-star-fill) !important;
+  background-color: var(--mt-star) !important;
+}
+
+/* Hervorhebung beim Überfahren nur für die Hälfte unter der Maus (mc-hot
+   setzt die Erweiterung) */
+#unifiedToolbarContent > li[item-id="mark-as"][mc-hot] button:hover:not([disabled]) {
+  background-color: transparent !important;
+}
+
+#unifiedToolbarContent > li[item-id="mark-as"][mc-hot="star"] button:hover:not([disabled]) {
+  background-image: linear-gradient(to right, var(--mt-control-hover) 40px, transparent 40px) !important;
+}
+
+#unifiedToolbarContent > li[item-id="mark-as"][mc-hot="menu"] button:hover:not([disabled]) {
+  background-image: linear-gradient(to right, transparent 41px, var(--mt-control-hover) 41px) !important;
+}
+
+#unifiedToolbarContent > li[item-id="mark-as"][mc-hot="star"] button:hover:not([disabled]):dir(rtl) {
+  background-image: linear-gradient(to left, var(--mt-control-hover) 40px, transparent 40px) !important;
+}
+
+#unifiedToolbarContent > li[item-id="mark-as"][mc-hot="menu"] button:hover:not([disabled]):dir(rtl) {
+  background-image: linear-gradient(to left, transparent 41px, var(--mt-control-hover) 41px) !important;
 }
 
 /* Feine Trennlinien zwischen den Knöpfen einer Kapsel */

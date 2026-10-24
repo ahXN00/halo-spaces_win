@@ -8126,6 +8126,74 @@ class CardEnhancer {
       });
     };
 
+    // Markieren-Knopf der Symbolleiste als geteilter Stern-Knopf: ein Klick
+    // auf den Stern (die ersten 40 px) setzt bzw. entfernt den Stern
+    // („Starred“) der gewählten Mail(s) wie Apple Mails Markierung, der Pfeil
+    // rechts öffnet weiter Thunderbirds Menü. Mit der Tastatur bleibt es beim
+    // Menü. Der Knopf zeigt den Stern der gewählten Mail gefüllt (mc-starred)
+    // und hebt beim Überfahren nur die Hälfte unter der Maus hervor (mc-hot)
+    const STAR_PART = 40;
+    const hookStarButton = () => {
+      if (w.__mcStarHook === HOOK_OWNER) {
+        return;
+      }
+      w.__mcStarHook = HOOK_OWNER;
+      const markButton = target => target?.closest?.('#unifiedToolbarContent > li[item-id="mark-as"] button');
+      const onStar = (btn, event) => {
+        const r = btn.getBoundingClientRect();
+        const x = w.getComputedStyle(btn).direction == "rtl" ? r.right - event.clientX : event.clientX - r.left;
+        return x < STAR_PART;
+      };
+      const onClick = event => {
+        const btn = markButton(event.target);
+        if (!btn || btn.disabled || event.button != 0 || !event.detail || !onStar(btn, event)) {
+          return;
+        }
+        event.preventDefault();
+        event.stopPropagation();
+        w.goDoCommand("cmd_markAsFlagged");
+        this.updateStarButton(w);
+      };
+      const onMove = event => {
+        const btn = markButton(event.target);
+        const li = w.document.querySelector('#unifiedToolbarContent > li[item-id="mark-as"]');
+        if (!li) {
+          return;
+        }
+        if (!btn) {
+          li.removeAttribute("mc-hot");
+          return;
+        }
+        const part = onStar(btn, event) ? "star" : "menu";
+        if (li.getAttribute("mc-hot") != part) {
+          li.setAttribute("mc-hot", part);
+        }
+      };
+      // Stern an anderer Stelle geändert (Mailliste, Taste S, Kontextmenü)
+      const listener = {
+        onFolderPropertyFlagChanged: (hdr, property, oldFlag, newFlag) => {
+          if (property == "Flagged") {
+            this.updateStarButton(w);
+          }
+        },
+      };
+      w.addEventListener("click", onClick, true);
+      w.addEventListener("mousemove", onMove, true);
+      MailServices.mailSession.AddFolderListener(listener, Ci.nsIFolderListener.propertyFlagChanged);
+      const remove = () => MailServices.mailSession.RemoveFolderListener(listener);
+      w.addEventListener("unload", remove, { once: true });
+      this.restorers.push(() => {
+        w.removeEventListener("click", onClick, true);
+        w.removeEventListener("mousemove", onMove, true);
+        remove();
+        for (const li of w.document.querySelectorAll('#unifiedToolbarContent > li[item-id="mark-as"]')) {
+          li.removeAttribute("mc-starred");
+          li.removeAttribute("mc-hot");
+        }
+        delete w.__mcStarHook;
+      });
+    };
+
     // Titel und Anzahl über der Mailliste in der Toolbar-Zeile, rechts davon
     // Filter und „…“ in einer Kapsel – wie Apple Mail. Thunderbirds eigene
     // Kopfzeile in der Liste wird per CSS ausgeblendet. Der Filter zeigt nur
@@ -9255,6 +9323,8 @@ class CardEnhancer {
       hookSplitterReset(w.document);
       hookListHeader();
       this.updateListHeader(w);
+      hookStarButton();
+      this.updateStarButton(w);
       const tabmail = w.document.getElementById("tabmail");
       for (const tab of tabmail?.tabInfo || []) {
         const cw = tab.chromeBrowser?.contentWindow;
@@ -9478,6 +9548,20 @@ class CardEnhancer {
   }
 
   // Titel und Anzahl der Kopfzeile aus dem aktuellen Mail-Tab übernehmen
+  // Stern-Knopf der Symbolleiste: gefüllt, wenn die (erste) gewählte Mail
+  // im vorderen Tab einen Stern hat
+  updateStarButton(w) {
+    const li = w?.document?.querySelector('#unifiedToolbarContent > li[item-id="mark-as"]');
+    if (!li) {
+      return;
+    }
+    let starred = false;
+    try {
+      starred = !!w.document.getElementById("tabmail")?.currentTabInfo?.message?.isFlagged;
+    } catch {}
+    li.toggleAttribute("mc-starred", starred);
+  }
+
   updateListHeader(w) {
     const d = w.document;
     const box = d.getElementById("mcListHeader");
@@ -11588,6 +11672,19 @@ class CardEnhancer {
     safely("dialog box", () => shareDialogBox(win, { push: fn => this.addWinRestorer(win, fn) }));
     safely("view choice", () => this.hookViewChoice(doc));
     safely("unread filter", () => this.hookUnreadFilter(win));
+    safely("star button", () => {
+      // Stern-Knopf der Symbolleiste folgt der Auswahl („select“ der
+      // Mailliste steigt nicht auf – darum in der Capture-Phase)
+      const onSelect = () => this.updateStarButton(win.browsingContext?.topChromeWindow);
+      for (const type of ["select", "folderURIChanged"]) {
+        win.addEventListener(type, onSelect, true);
+      }
+      this.addWinRestorer(win, () => {
+        for (const type of ["select", "folderURIChanged"]) {
+          win.removeEventListener(type, onSelect, true);
+        }
+      });
+    });
     safely("conversation", () => this.hookConversation(win));
     safely("scroll watch", () => {
       const onScroll = () => (this.lastListScroll = Date.now());
