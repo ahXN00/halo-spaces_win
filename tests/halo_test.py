@@ -8081,6 +8081,31 @@ def run_checks(m, version, profile, results):
         return ok, f"{res}"
     check("Erweiterung: Aus- und Einschalten setzt Ordnernamen und Einfügungen zurück und hängt sie wieder an; Einfügungen einer älteren Fassung werden ersetzt", restart_cycle, results)
 
+    def send_progress():
+        # kein Fortschrittsfenster beim Senden; Ausschalten stellt den vorherigen
+        # Wert her (Standard bzw. vom Nutzer abgeschaltet), Einschalten setzt wieder aus
+        res = m.js(ENH_JS + '''
+          const P = "mailnews.show_send_progress", S = "extensions.mailcards.sendProgressSaved";
+          const restart = () => Cu.evalInSandbox("enhancer = new CardEnhancer({}); enhancer.start();", g);
+          const out = { on: Services.prefs.getBoolPref(P) };
+          enh.stop();
+          out.off = { value: Services.prefs.getBoolPref(P), user: Services.prefs.prefHasUserValue(P), saved: Services.prefs.prefHasUserValue(S) };
+          // vom Nutzer abgeschaltet: bleibt nach dem Ausschalten aus
+          Services.prefs.setBoolPref(P, false);
+          restart();
+          out.on2 = Services.prefs.getBoolPref(P);
+          Cu.evalInSandbox("enhancer", g).stop();
+          out.off2 = Services.prefs.getBoolPref(P);
+          Services.prefs.clearUserPref(P);
+          restart();
+          out.on3 = Services.prefs.getBoolPref(P);
+          await toMail();
+          return out;''')
+        ok = (res["on"] is False and res["off"] == {"value": True, "user": False, "saved": False}
+              and res["on2"] is False and res["off2"] is False and res["on3"] is False)
+        return ok, f"{res}"
+    check("Verfassen: kein Fortschrittsfenster beim Senden; Ausschalten stellt den vorherigen Wert wieder her", send_progress, results)
+
     def local_collapse():
         # „Auf meinem Mac“ klappt auch nach einer Suche zu: der eigene Suchordner
         # (mit Trefferzahl) zählt nicht als Inhalt, ein Ordner mit Mails schon

@@ -5120,6 +5120,26 @@ class CardEnhancer {
       Services.prefs.setBoolPref("gloda.show_as_list_by_default", true);
       Services.prefs.setBoolPref("extensions.mailcards.searchApplied", true);
     }
+    // Wie Apple Mail: kein Fenster „Nachricht wird gesendet“, das Senden läuft
+    // im Hintergrund, der Fortschritt steht nur in der Statusleiste. Fehler
+    // beim Senden zeigt Thunderbird davon unabhängig weiter als Dialog. Der
+    // vorherige Wert wird gemerkt und beim Ausschalten wiederhergestellt.
+    const SEND_PROGRESS_PREF = "mailnews.show_send_progress";
+    const SEND_PROGRESS_SAVED = "extensions.mailcards.sendProgressSaved";
+    if (!Services.prefs.prefHasUserValue(SEND_PROGRESS_SAVED)) {
+      Services.prefs.setBoolPref(SEND_PROGRESS_SAVED, Services.prefs.getBoolPref(SEND_PROGRESS_PREF, true));
+    }
+    Services.prefs.setBoolPref(SEND_PROGRESS_PREF, false);
+    this.restorers.push(() => {
+      if (!Services.prefs.prefHasUserValue(SEND_PROGRESS_SAVED)) {
+        return;
+      }
+      const was = Services.prefs.getBoolPref(SEND_PROGRESS_SAVED, true);
+      Services.prefs.clearUserPref(SEND_PROGRESS_SAVED);
+      if (was) {
+        Services.prefs.clearUserPref(SEND_PROGRESS_PREF);
+      }
+    });
     // Einmal nach der Erstinstallation begrüßen: was halo.spaces ändert und wo
     // die Einstellungen liegen. Windows/Linux: im selben Fenster der Hinweis,
     // dass halo.spaces für macOS gemacht ist (früher ein eigenes Fenster)
