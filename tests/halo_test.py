@@ -3702,6 +3702,32 @@ def run_checks(m, version, profile, results):
         return ok, f"{res}"
     check("Schnellfenster: ganztägig um 23 Uhr bleibt am angeklickten Tag, „+“ der Today-Pane um 23 Uhr beginnt morgen 0 Uhr", quick_late_allday, results)
 
+    def quick_dst():
+        # Ende der Sommerzeit (25.10.2026, in Europa doppelte Stunde 02:00–03:00): Dauer zählt als
+        # Wanduhrzeit – Vorbelegung 02:00–03:00, „für 2h“ 02:00–04:00, angelegt ebenso. Festes Datum,
+        # unabhängig vom Testzeitpunkt; ohne Zeitumstellung in der Systemzeitzone (CI: UTC) gilt dasselbe
+        res = m.js('''
+          const { ExtensionParent } = ChromeUtils.importESModule("resource://gre/modules/ExtensionParent.sys.mjs");
+          const enh = Cu.evalInSandbox("enhancer", ExtensionParent.GlobalManager.getExtension("%s").experimentAPIManager.global);
+          await toCalendar();
+          enh.openQuickCreate(w, "event", null, { start: new Date(2026, 9, 25, 2, 0), allDay: false });
+          const p = d.getElementById("mcQuickPanel"); const f = p.__mc;
+          f.calendar.value = testCalendar().id; f.calendar.dispatchEvent(new w.Event("change"));
+          const preset = [f.startTime.value, f.endDate.value, f.endTime.value].join(" ");
+          f.title.value = "Halo Umstellung 25.10.2026 für 2h"; f.title.dispatchEvent(new w.Event("input", { bubbles: true }));
+          const typed = [f.startDate.value, f.startTime.value, f.endDate.value, f.endTime.value].join(" ");
+          f.add.click();
+          let it = null;
+          for (let i = 0; i < 40 && !it; i++) { it = (await items("Halo Umstellung"))[0]; if (!it) await wait(100); }
+          await until(() => p.state == "closed", 3000);
+          const tz = cal.dtz.defaultTimezone;
+          const hm = dt => { const x = dt.getInTimezone(tz); return `${x.day}. ${x.hour}:${String(x.minute).padStart(2, "0")}`; };
+          return { preset, typed, item: it ? `${hm(it.startDate)} – ${hm(it.endDate)}` : null, tz: tz.tzid };''' % ADDON_ID)
+        ok = (res["preset"] == "02:00 2026-10-25 03:00" and res["typed"] == "2026-10-25 02:00 2026-10-25 04:00"
+              and res["item"] == "25. 2:00 – 25. 4:00")
+        return ok, f"{res}"
+    check("Schnellfenster: Dauer über die Zeitumstellung (25.10.2026 02:00 „für 2h“ → 02:00–04:00)", quick_dst, results)
+
     def quick_checks():
         # ganztägig mit Ende vor dem Beginn → ein Tag; Aufgabe mit Erinnerung bekommt eine Fälligkeit
         res = m.js('''

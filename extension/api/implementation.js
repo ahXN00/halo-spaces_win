@@ -9542,6 +9542,11 @@ class CardEnhancer {
       const [hh, mm] = (timeStr || "00:00").split(":").map(Number);
       return y ? new Date(y, m - 1, day, hh || 0, mm || 0) : null;
     };
+    // Dauer als Wanduhrzeit rechnen (Minuten auf die Uhrzeit, nicht Millisekunden):
+    // über die Zeitumstellung bleibt „2 Stunden ab 02:00“ dann 02:00–04:00, statt
+    // in der doppelten Stunde nur 02:00–03:00 anzuzeigen und anzulegen
+    const plusMinutes = (dt, min) => new Date(dt.getFullYear(), dt.getMonth(), dt.getDate(), dt.getHours(), dt.getMinutes() + min);
+    const wallMinutes = dt => Date.UTC(dt.getFullYear(), dt.getMonth(), dt.getDate(), dt.getHours(), dt.getMinutes()) / 60000;
     const fmtDate = new Intl.DateTimeFormat(locale, { day: "2-digit", month: "2-digit", year: "numeric" });
     const fmtTime = new Intl.DateTimeFormat(locale, { hour: "2-digit", minute: "2-digit" });
     const toCal = (js, dateOnly) => {
@@ -9714,7 +9719,7 @@ class CardEnhancer {
         const s = parse(f.startDate.value, f.startTime.value);
         const e = parse(f.endDate.value, f.endTime.value);
         if (s && e && lastStart) {
-          const moved = new Date(e.getTime() + (s - lastStart));
+          const moved = plusMinutes(e, wallMinutes(s) - wallMinutes(lastStart));
           f.endDate.value = dateValue(moved);
           f.endTime.value = timeValue(moved);
         }
@@ -9754,11 +9759,11 @@ class CardEnhancer {
         const def = panel.__mcDefaults;
         panel.__mcParsed = r.start ? r : null;
         let start = r.start || def.start;
-        let end = r.end || (r.allDay ? start : new Date(start.getTime() + 3600 * 1000));
+        let end = r.end || (r.allDay ? start : plusMinutes(start, 60));
         // nur Tag und Dauer erkannt: Uhrzeit wie vorbelegt, Ende nach der Dauer
         if (r.start && !r.allDay && !r.end && r.duration != null) {
           start = new Date(r.start.getFullYear(), r.start.getMonth(), r.start.getDate(), def.start.getHours(), def.start.getMinutes());
-          end = new Date(start.getTime() + r.duration * 60000);
+          end = plusMinutes(start, r.duration);
         }
         const allDay = r.start ? !!r.allDay : def.allDay;
         if (state.mode == "task") {
@@ -9850,7 +9855,7 @@ class CardEnhancer {
             const last = e && e >= s ? e : s;
             e = new Date(last.getFullYear(), last.getMonth(), last.getDate() + 1);
           } else if (!e || e <= s) {
-            e = new Date(s.getTime() + 3600 * 1000);
+            e = plusMinutes(s, 60);
           }
           item.startDate = toCal(s, f.allDay.checked);
           item.endDate = toCal(e, f.allDay.checked);
@@ -9957,7 +9962,7 @@ class CardEnhancer {
         ? new Date(preset.start.getFullYear(), preset.start.getMonth(), preset.start.getDate(), nextHour, 0)
         : new Date(preset.start);
     }
-    const end = new Date(start.getTime() + 3600 * 1000);
+    const end = plusMinutes(start, 60);
     if (preset?.allDay) {
       f.allDay.checked = true;
       root.toggleAttribute("data-allday", true);
