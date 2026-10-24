@@ -84,6 +84,7 @@ const DE = {
   "Installing …": "Wird installiert …",
   "Light": "Hell",
   "Light, dark or follow macOS": "Hell, dunkel oder wie macOS",
+  "Contacts": "Kontakte",
   "Merge Duplicate Contacts": "Doppelte Kontakte zusammenführen",
   "Message List Display Options": "Darstellung der Liste",
   "More Options…": "Mehr Optionen …",
@@ -268,6 +269,7 @@ const FR = {
   "Installing …": "Installation …",
   "Light": "Clair",
   "Light, dark or follow macOS": "Clair, sombre ou comme macOS",
+  "Contacts": "Contacts",
   "Merge Duplicate Contacts": "Fusionner les contacts en double",
   "Message List Display Options": "Options d’affichage de la liste",
   "More Options…": "Plus d’options…",
@@ -454,6 +456,7 @@ const ES = {
   "Installing …": "Instalando …",
   "Light": "Claro",
   "Light, dark or follow macOS": "Claro, oscuro o como macOS",
+  "Contacts": "Contactos",
   "Merge Duplicate Contacts": "Combinar contactos duplicados",
   "Message List Display Options": "Opciones de vista de la lista",
   "More Options…": "Más opciones…",
@@ -640,6 +643,7 @@ const IT = {
   "Installing …": "Installazione …",
   "Light": "Chiaro",
   "Light, dark or follow macOS": "Chiaro, scuro o come macOS",
+  "Contacts": "Contatti",
   "Merge Duplicate Contacts": "Unisci contatti duplicati",
   "Message List Display Options": "Opzioni di visualizzazione dell’elenco",
   "More Options…": "Altre opzioni…",
@@ -2042,6 +2046,38 @@ function relinkTaskTree(win, restorers) {
     proto.setTree = orig;
     delete proto.__mcRelink;
   });
+}
+
+// Adressbuch: Thunderbirds „Personal Address Book“ heißt wie in Apple Kontakte
+// „Contacts“ („Kontakte“) – einmalig und nur, solange der Name noch
+// Thunderbirds Vorgabe ist (ein selbst gewählter Name bleibt)
+const PAB_URI = "jsaddrbook://abook.sqlite";
+const PAB_NAME_PREF = "ldap_2.servers.pab.description";
+const PAB_RENAMED_PREF = "extensions.mailcards.pabRenamed";
+
+function renamePersonalBookOnce() {
+  if (Services.prefs.getBoolPref(PAB_RENAMED_PREF, false)) {
+    return;
+  }
+  try {
+    const book = MailServices.ab.getDirectory(PAB_URI);
+    if (!book) {
+      return;
+    }
+    let tbDefault = "";
+    try {
+      tbDefault = Services.strings
+        .createBundle("chrome://messenger/locale/addressbook/addressBook.properties")
+        .GetStringFromName(PAB_NAME_PREF);
+    } catch {}
+    if (!Services.prefs.prefHasUserValue(PAB_NAME_PREF) || (tbDefault && book.dirName == tbDefault)) {
+      book.dirName = tr("Contacts");
+      log("adressbuch: persönliches Adressbuch umbenannt", book.dirName);
+    }
+    Services.prefs.setBoolPref(PAB_RENAMED_PREF, true);
+  } catch (e) {
+    log("pab rename error", e);
+  }
 }
 
 // Adressbuch: „Collected Addresses“ (automatisch gesammelte Empfänger) nicht
@@ -4861,6 +4897,7 @@ class CardEnhancer {
     const updateTimer = setTimeout(() => this.autoUpdate(), 20000);
     this.restorers.push(() => clearTimeout(updateTimer));
     this.hookBirthdays();
+    renamePersonalBookOnce();
     // Fotos aus der macOS-Kontakte-App: kurz nach dem Start und dann stündlich
     MacPhotos.load();
     this.registerIconVars();

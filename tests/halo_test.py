@@ -4990,6 +4990,26 @@ def run_checks(m, version, profile, results):
         return ok, f"{res}"
     check("Adressbuch: Name des persönlichen Adressbuchs in „Eigenschaften“ sichtbar gesperrt, neues Adressbuch normal", pab_properties_locked, results)
 
+    def pab_renamed():
+        # „Personal Address Book“ heißt wie in Apple Kontakte „Contacts“ (in der
+        # Sprache der Oberfläche) – auch in der Seitenleiste des Adressbuchs
+        res = m.js(r"""
+          const { MailServices } = ChromeUtils.importESModule("resource:///modules/MailServices.sys.mjs");
+          const book = MailServices.ab.getDirectory("jsaddrbook://abook.sqlite");
+          tm.openTab("addressBookTab", {});
+          const ab = await until(() => tm.currentTabInfo.browser?.contentWindow?.booksList && tm.currentTabInfo.browser.contentWindow, 8000);
+          await wait(800);
+          const row = ab.document.querySelector(`#books > li[data-uid="${book.UID}"] .bookRow-name`);
+          const out = { name: book.dirName, row: row?.textContent, once: Services.prefs.getBoolPref("extensions.mailcards.pabRenamed", false),
+            lang: Services.locale.appLocaleAsBCP47 };
+          tm.closeTab(tm.currentTabInfo); await wait(300);
+          return out;""")
+        names = {"en": "Contacts", "de": "Kontakte", "fr": "Contacts", "es": "Contactos", "it": "Contatti"}
+        want = names.get(res["lang"].split("-")[0], "Contacts")
+        ok = res["name"] == want and res["row"] == want and res["once"]
+        return ok, f"{res}"
+    check("Adressbuch: persönliches Adressbuch heißt „Contacts“ wie in Apple Kontakte", pab_renamed, results)
+
     def contact_edit():
         # Kontakt bearbeiten wie Apple Kontakte: eine Schrift, Überschriften über den Feldern,
         # volle Breite; zuerst nur Vor-/Nachname, E-Mail, Telefon, Adressen und Ausgefülltes
