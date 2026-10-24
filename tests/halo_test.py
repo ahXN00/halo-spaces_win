@@ -4189,6 +4189,47 @@ def run_checks(m, version, profile, results):
         return ok, f"{res}"
     check("Leseansicht wie Apple: Absenderbild, Ordner, Verteiler-Hinweis statt List-ID", reading, results)
 
+    def header_account_dot():
+        # Mailkopf: Farbpunkt des Kontos links vom Ordnersymbol; Lokale Ordner
+        # ohne Punkt. Feed-Konto ohne Abos (kein Netzzugriff), danach entfernt
+        res = m.js(MESSAGE_JS + '''
+          const { ExtensionParent } = ChromeUtils.importESModule("resource://gre/modules/ExtensionParent.sys.mjs");
+          const color = Cu.evalInSandbox("accountColor", ExtensionParent.GlobalManager.getExtension("%s").experimentAPIManager.global);
+          const md = () => a3.messageBrowser.contentWindow.document;
+          const folderEl = () => md().querySelector("#mcHdrMeta .mc-hdr-folder");
+          await until(() => folderEl()?.textContent.includes("Lesen"), 5000);
+          const out = { localDot: !!folderEl()?.querySelector(".mc-hdr-acc") };
+          const srv = MailServices.accounts.createIncomingServer("nobody", "halo-kopf.invalid", "rss");
+          srv.prettyName = "Halo Kopf"; srv.doBiff = false;
+          const acc = MailServices.accounts.createAccount(); acc.incomingServer = srv;
+          try {
+            srv.rootFolder.createSubfolder("Kopfpunkt", null); await wait(800);
+            const g = srv.rootFolder.getChildNamed("Kopfpunkt");
+            g.QueryInterface(Ci.nsIMsgLocalMailFolder).addMessage(unescape(encodeURIComponent("From - Sat Oct 17 10:00:00 2026\\r\\nFrom: Anna Beispiel <anna@example.invalid>\\r\\nTo: Halo Test <halo@example.invalid>\\r\\nSubject: Kopfpunkt\\r\\nDate: Sat, 17 Oct 2026 09:41:00 +0200\\r\\nMessage-ID: <halo-kopfpunkt@example.invalid>\\r\\nContent-Type: text/plain; charset=UTF-8\\r\\n\\r\\nHallo\\r\\n")));
+            await wait(800);
+            a3.displayFolder(g.URI); await wait(800);
+            a3.threadTree.selectedIndex = 0;
+            const dot = await until(() => folderEl()?.textContent.includes("Kopfpunkt") && folderEl().querySelector(".mc-hdr-acc"), 6000);
+            out.want = color("Halo Kopf");
+            if (dot) {
+              const st = md().defaultView.getComputedStyle(dot);
+              out.color = dot.style.getPropertyValue("--mc-acc");
+              out.bg = st.backgroundColor; out.radius = st.borderRadius;
+              const d = dot.getBoundingClientRect(), t = folderEl().querySelector(".mc-hdr-folder-text").getBoundingClientRect();
+              out.size = [Math.round(d.width), Math.round(d.height)];
+              // Ordnersymbol (14 px) sitzt zwischen Punkt und Text
+              out.gap = Math.round(t.left - d.right);
+            }
+          } finally {
+            a3.displayFolder(f.URI); await wait(500);
+            MailServices.accounts.removeAccount(acc, true); await wait(800);
+          }
+          return out;''' % ADDON_ID)
+        ok = (not res["localDot"] and res.get("color") == res["want"] and res.get("size") == [8, 8]
+              and res.get("bg") not in (None, "", "rgba(0, 0, 0, 0)") and 14 <= res.get("gap", 0) <= 30)
+        return ok, f"{res}"
+    check("Mailkopf: Farbpunkt des Kontos vor dem Ordnersymbol, Lokale Ordner ohne Punkt", header_account_dot, results)
+
     def header_avatar_refresh():
         # Adressbuch-Änderung (Stern im Mailkopf, CardDAV): Thunderbird setzt sein
         # Bild neu (ein Buchstabe) – danach steht wieder das eigene Absenderbild

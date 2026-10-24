@@ -7640,6 +7640,18 @@ notification-message toolbarbutton.notification-button > .toolbarbutton-menubutt
   mask: var(--mi-folder) center / contain no-repeat !important;
 }
 
+/* Farbpunkt des Kontos links vom Ordnersymbol – wie in der Ordnerliste
+   (--mc-acc setzt die Erweiterung) */
+#mcHdrMeta .mc-hdr-acc {
+  order: -1 !important;
+  flex: none !important;
+  width: 8px !important;
+  height: 8px !important;
+  margin-inline-end: 2px !important;
+  border-radius: 50% !important;
+  background-color: var(--mc-acc) !important;
+}
+
 /* Name und Betreff laufen nicht unter Ordner und Uhrzeit */
 #messageHeader:has(#mcHdrMeta) #headerSenderToolbarContainer {
   /* Breite von Ordner + Uhrzeit misst die Erweiterung (--mc-meta-w) */

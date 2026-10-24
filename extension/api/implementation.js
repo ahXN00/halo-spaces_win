@@ -12470,6 +12470,26 @@ class CardEnhancer {
     }
     folderText.textContent = title;
     folderEl.hidden = !title;
+    // Farbpunkt des Kontos vor dem Ordnersymbol (wie in der Ordnerliste);
+    // Lokale Ordner ohne Punkt
+    let accColor = "";
+    try {
+      const server = hdr.folder?.server;
+      if (server && server.type != "none") {
+        accColor = accountColor(server.prettyName);
+      }
+    } catch {}
+    let accDot = folderEl.querySelector(".mc-hdr-acc");
+    if (accColor) {
+      if (!accDot) {
+        accDot = doc.createElementNS(X, "span");
+        accDot.className = "mc-hdr-acc";
+        folderEl.prepend(accDot);
+      }
+      accDot.style.setProperty("--mc-acc", accColor);
+    } else {
+      accDot?.remove();
+    }
     // genau so viel Platz rechts reservieren, wie Ordner und Uhrzeit brauchen
     const measure = () => header.style.setProperty("--mc-meta-w", `${Math.ceil(meta.getBoundingClientRect().width)}px`);
     measure();
