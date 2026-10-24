@@ -2987,6 +2987,12 @@ def calendar_checks(m, results):
             out.tabs = vis(id.getElementById("event-grid-tabs")); out.format = vis(id.getElementById("FormatToolbox"));
             out.notesBelow = R(id.getElementById("event-grid-tab-vbox")).top >= R(rows.at(-1)).bottom;
             out.title = csOf(id.getElementById("item-title")).fontSize;
+            // Datum/Uhrzeit schmal wie ihr Text, ohne Fläche und Pfeil; Kategorie bündig mit dem Text der übrigen Karten
+            const dml = id.querySelector("#event-starttime datepicker > menulist"), tml = id.querySelector("#event-starttime timepicker > menulist");
+            out.pickers = [Math.round(R(dml).width), Math.round(R(tml).width), rgba(csOf(dml).backgroundColor)[3],
+                           iw.getComputedStyle(dml.shadowRoot.querySelector("dropmarker")).visibility];
+            out.catLeft = Math.round(R(id.getElementById("item-categories-label")).left - R(id.getElementById("event-grid-location-row")).left);
+            out.locLeft = Math.round(R(id.getElementById("item-location")).left - R(id.getElementById("event-grid-location-row")).left);
           } finally { if (dw && !dw.closed) { dw.close(); await till(() => dw.closed, 4000); } }
           return out;""")
         if res.get("dialog") is False or res.get("apple") is False:
@@ -2995,9 +3001,11 @@ def calendar_checks(m, results):
               and same_color(res["stripe"] or "", "rgb(255, 149, 0)") and res["stripeSpan"] and all(0 <= v <= 10 for v in res["stripeSpan"])
               and res["placeholders"] == ["Add Location or Video Call", "Add Invitees", "Add Notes or URL"]
               and res["labels"] == [False, False, False] and res["timeLabel"] and not res["tabs"] and not res["format"]
-              and res["notesBelow"] and res["title"] == "17px")
+              and res["notesBelow"] and res["title"] == "17px"
+              and res["pickers"][0] <= 120 and res["pickers"][1] <= 100 and res["pickers"][2] == 0 and res["pickers"][3] == "hidden"
+              and abs(res["catLeft"] - res["locLeft"]) <= 4)
         return ok, f"{res}"
-    check("Termin-Dialog wie Apple Kalender: Karten Titel · Zeit · Ort · Teilnehmer · Kalender · Kategorie, Notiz unten, Streifen in der Kalenderfarbe, Platzhalter", event_apple_layout, results)
+    check("Termin-Dialog wie Apple Kalender: Karten Titel · Zeit · Ort · Teilnehmer · Kalender · Kategorie, Notiz unten, Streifen in der Kalenderfarbe, Platzhalter, Datum/Uhrzeit schmal ohne Kasten, Kategorie bündig", event_apple_layout, results)
 
     def attendees_dialog():
         # „Teilnehmer einladen“: Liste und Raster ohne harten Rahmen, Linien als Haarlinie, einfarbige Symbole,
@@ -3820,6 +3828,36 @@ def run_checks(m, version, profile, results):
         ok = opened and res["dialogs"] == 0 and ("14:" in res["line"] or "02:00 PM" in res["line"] or "2:00 PM" in res["line"])
         return ok, f"Fenster {res['state']} (gezeigt {res['shown']}×, zu nach {res['hiddenAfter']} ms), {res['line']}, große Dialoge {res['dialogs']}"
     check("Doppelklick im Kalender öffnet das Schnellfenster", double_click, results)
+
+    def duplicate_cards():
+        # dieselbe Mail (gleiche Message-ID) mehrfach (Gmail-Labels, Kopien): in der Konversation und als eigene Zeile
+        # direkt dahinter nur eine Karte, die Antwort darunter bleibt sichtbar
+        res = m.js(r"""
+          const { MailServices } = ChromeUtils.importESModule("resource:///modules/MailServices.sys.mjs");
+          try { MailServices.accounts.localFoldersServer; } catch { MailServices.accounts.createLocalMailAccount(); await wait(500); }
+          const root = MailServices.accounts.localFoldersServer.rootFolder;
+          if (!root.containsChildNamed("Doppelt")) { root.createSubfolder("Doppelt", null); await wait(800); }
+          const f = root.getChildNamed("Doppelt"); const lf = f.QueryInterface(Ci.nsIMsgLocalMailFolder);
+          if (!f.getTotalMessages(false)) {
+            const msg = (id, extra, min, subj) => `From - Sat Oct 17 10:00:00 2026\r\nFrom: Max Muster <max@example.invalid>\r\nSubject: ${subj}\r\nDate: Sat, 17 Oct 2026 10:${min}:00 +0200\r\nMessage-ID: <${id}@example.invalid>\r\n${extra}\r\nText\r\n`;
+            const re = "In-Reply-To: <halo-dup-1@example.invalid>\r\nReferences: <halo-dup-1@example.invalid>\r\n";
+            lf.addMessage(msg("halo-dup-1", "", "01", "Glasfaser"));
+            lf.addMessage(msg("halo-dup-1", "", "01", "Glasfaser"));
+            lf.addMessage(msg("halo-dup-2", re, "05", "Re: Glasfaser"));
+            lf.addMessage(msg("halo-dup-2", re, "05", "Re: Glasfaser"));
+            await wait(800);
+          }
+          Services.prefs.setIntPref("mail.threadpane.listview", 0);
+          const a3 = await toMail(); a3.displayFolder(f.URI); await wait(1200);
+          a3.gViewWrapper.showThreaded = true; await wait(600);
+          a3.gDBView.doCommand(Ci.nsMsgViewCommandType.expandAll); await wait(1200);
+          const rows = [...a3.document.querySelectorAll('#threadTree tr[is="thread-card"]')];
+          const shown = rows.filter(r => r.getBoundingClientRect().height > 0);
+          return { viewRows: a3.gDBView.rowCount, rows: rows.length, shown: shown.map(r => a3.gDBView.getMsgHdrAt(r._index)?.messageId),
+                   dup: rows.filter(r => r.hasAttribute("data-mc-dup")).length };""")
+        ok = res["viewRows"] == 4 and res["dup"] == 2 and sorted(res["shown"]) == ["halo-dup-1@example.invalid", "halo-dup-2@example.invalid"]
+        return ok, f"{res}"
+    check("Mailliste: dieselbe Mail mehrfach (in der Konversation oder direkt dahinter) nur einmal als Karte, Antwort bleibt", duplicate_cards, results)
 
     def hover_actions():
         res = m.js('''
@@ -4690,6 +4728,64 @@ def run_checks(m, version, profile, results):
                  res[p]["medianFrameMs"] <= min(res["idleFrameMs"], 17) * 1.5 + 2 for p in ("aus", "ein")) and res["end"] == res["start"]
         return ok, f"{res}"
     check("Today-Pane: Ein-/Ausblenden flüssig (kein Sprung)", today_animation, results)
+
+    def drag_hide():
+        # Trennlinien zuziehen: Kalender-Seitenleiste verschwindet schon beim Ziehen (ohne Animation) und kommt mit der
+        # alten Breite wieder; Mail ohne Thunderbirds blauen Balken an der zugeklappten Trennlinie; Today-Pane fest
+        # 280 px, nach rechts gezogen sofort aus, „+“ gleich weg (auch beim Klick auf den Knopf); Spaces-Knopf bleibt
+        # stehen und wechselt nur den Pfeil
+        V = lambda r: r["value"] if isinstance(r, dict) and "value" in r else r
+        def drag(x, y, dx, release=True):
+            steps = [{"type": "pointerMove", "x": x, "y": y, "origin": "viewport"}, {"type": "pointerDown", "button": 0}]
+            steps += [{"type": "pointerMove", "x": x + dx * i // 10, "y": y, "origin": "viewport", "duration": 15} for i in range(1, 11)]
+            m.cmd("WebDriver:PerformActions", {"actions": [{"type": "pointer", "id": "maus", "parameters": {"pointerType": "mouse"}, "actions": steps}]})
+        def release():
+            m.cmd("WebDriver:PerformActions", {"actions": [{"type": "pointer", "id": "maus", "parameters": {"pointerType": "mouse"}, "actions": [{"type": "pointerUp", "button": 0}]}]})
+            m.cmd("WebDriver:ReleaseActions", {})
+        out = {}
+        # Kalender
+        p = m.js(r"""w.resizeTo(1400, 900); await wait(500); await toCalendar(); await wait(1000);
+          const sb = d.getElementById("calSidebar"), sp = d.getElementById("calsidebar_splitter"); const r = sp.getBoundingClientRect();
+          return { x: Math.round(r.left + r.width / 2), y: Math.round(r.top + 300), w: Math.round(sb.getBoundingClientRect().width), hidden: sb.classList.contains("mc-side-hidden") };""")
+        if p.get("hidden"):
+            m.js('d.getElementById("spacesPinnedButton").click(); await wait(800); return 1;')
+        drag(p["x"], p["y"], -(p["w"] - 60))
+        out["calDuring"] = m.js('return d.getElementById("calSidebar").classList.contains("mc-side-hidden");')
+        release(); time.sleep(0.5)
+        out["calShown"] = m.js(r"""d.getElementById("spacesPinnedButton").click(); await wait(900);
+          const sb = d.getElementById("calSidebar"); return [sb.classList.contains("mc-side-hidden"), Math.round(sb.getBoundingClientRect().width)];""")
+        out["calWidth"] = p["w"]
+        # Mail: Balken an der zugeklappten Trennlinie
+        out["mailBar"] = m.js(r"""const a3 = await toMail(); const sp = a3.document.getElementById("folderPaneSplitter");
+          return a3.getComputedStyle(sp, "::after").display;""")
+        # Today-Pane
+        t = m.js(r"""await toMail(); await wait(500); const panel = d.getElementById("today-pane-panel");
+          if (!w.TodayPane?.isVisible) { d.getElementById("mcTodayToggle").click(); await wait(900); }
+          const sp = d.getElementById("today-splitter").getBoundingClientRect(); const row = d.getElementById("unifiedToolbarContainer");
+          return { x: Math.round(sp.left + sp.width / 2), y: Math.round(sp.top + 300), w: Math.round(panel.getBoundingClientRect().width), plus: row.hasAttribute("data-mc-tp-open") };""")
+        out["todayWidth"], out["plusBefore"] = t["w"], t["plus"]
+        drag(t["x"], t["y"], 80)
+        out["todayDuring"] = m.js('return [!!w.TodayPane?.isVisible, d.getElementById("unifiedToolbarContainer").hasAttribute("data-mc-tp-open")];')
+        release(); time.sleep(0.5)
+        out["todayClick"] = m.js(r"""const btn = d.getElementById("mcTodayToggle"), row = d.getElementById("unifiedToolbarContainer");
+          btn.click(); await wait(900); const open = [!!w.TodayPane?.isVisible, row.hasAttribute("data-mc-tp-open"), Math.round(d.getElementById("today-pane-panel").getBoundingClientRect().width)];
+          btn.click(); const right = row.hasAttribute("data-mc-tp-open"); await wait(900);
+          btn.click(); await wait(900); return { open, plusAtStart: right };""")
+        # Spaces-Knopf
+        out["spaces"] = m.js(r"""const b = d.getElementById("mcSpacesToggle"); const L = () => Math.round(b.getBoundingClientRect().left * 2) / 2;
+          const r = { before: [L(), b.hasAttribute("data-mc-hidden")] }; b.click(); await wait(20);
+          r.click = [L(), b.hasAttribute("data-mc-hidden")]; await wait(80); r.mid = L(); await wait(700);
+          r.after = [L(), b.hasAttribute("data-mc-hidden"), !!w.gSpacesToolbar.isHidden]; b.click(); await wait(20);
+          r.back = b.hasAttribute("data-mc-hidden"); await wait(800); r.end = [L(), !!w.gSpacesToolbar.isHidden]; return r;""")
+        c, s_ = out["todayClick"], out["spaces"]
+        ok = (out["calDuring"] is True and out["calShown"][0] is False and abs(out["calShown"][1] - out["calWidth"]) <= 2
+              and out["mailBar"] == "none"
+              and out["todayWidth"] == 280 and out["plusBefore"] and out["todayDuring"] == [False, False]
+              and c["open"] == [True, True, 280] and c["plusAtStart"] is False
+              and s_["before"][1] is False and s_["click"] == [s_["before"][0], True] and s_["mid"] == s_["before"][0]
+              and s_["after"] == [s_["before"][0], True, True] and s_["back"] is False and s_["end"] == [s_["before"][0], False])
+        return ok, f"{out}"
+    check("Trennlinien: Seitenleiste beim Zuziehen sofort weg, kein blauer Balken, Today-Pane fest 280 px und nach rechts gezogen sofort aus, „+“ gleich weg, Spaces-Knopf bleibt stehen", drag_hide, results)
 
     def sidebar_animation():
         # Seitenleiste ein-/ausblenden in Mail, Chat und Einstellungen gleich flüssig: Breite in vielen Zwischenschritten,
@@ -6236,8 +6332,72 @@ def run_checks(m, version, profile, results):
         return ok, f"{res}"
     check("Suche: im gewählten Ordner nur dort, in Sammelordnern global, keine Mails ohne den Begriff, Platzhalter je Ordner, Ordnerwechsel sucht weiter", search_scope, results)
 
+    def search_scroll():
+        # laufende Suche über viele Postfächer: beim Scrollen hält halo.spaces sie an (sonst kam jedes zweite Bild
+        # 50–70 ms zu spät), danach läuft sie weiter und findet alle Treffer
+        NF, NM = 24, 400
+        for start in range(0, NF, 4):
+            m.js(r"""
+              const { MailServices } = ChromeUtils.importESModule("resource:///modules/MailServices.sys.mjs");
+              try { MailServices.accounts.localFoldersServer; } catch { MailServices.accounts.createLocalMailAccount(); await wait(500); }
+              const root = MailServices.accounts.localFoldersServer.rootFolder;
+              const filler = "Lorem ipsum dolor sit amet, consectetur adipiscing elit. ".repeat(150);
+              for (let f = %d; f < %d; f++) {
+                if (!root.containsChildNamed("Viel" + f)) { root.createSubfolder("Viel" + f, null); await wait(300); }
+                const folder = root.getChildNamed("Viel" + f); if (folder.getTotalMessages(false) >= %d) continue;
+                const msgs = [];
+                for (let i = 0; i < %d; i++) { const k = f * %d + i;
+                  msgs.push(`From - Sat Oct 17 10:00:00 2026\r\nFrom: Shop <shop${k %% 30}@example.invalid>\r\nSubject: ${i %% 2 ? "Bestellung Quokka " + k : "Betreff " + k}\r\nDate: ${1 + k %% 28} Sep 2026 ${String(k %% 24).padStart(2, "0")}:${String(k %% 60).padStart(2, "0")}:00 +0200\r\nMessage-ID: <viel-${k}@example.invalid>\r\nContent-Type: text/plain; charset=UTF-8\r\n\r\n${filler}\r\n`); }
+                folder.QueryInterface(Ci.nsIMsgLocalMailFolder).addMessageBatch(msgs); await wait(200);
+              }
+              return 1;""" % (start, min(start + 4, NF), NM, NM, NM))
+        res = m.js(r"""
+          const { MailServices } = ChromeUtils.importESModule("resource:///modules/MailServices.sys.mjs");
+          const root = MailServices.accounts.localFoldersServer.rootFolder;
+          await wait(1500);
+          Services.prefs.setIntPref("mail.threadpane.listview", 0);
+          w.resizeTo(1500, 950); await wait(400);
+          const a3 = await toMail(); const tree = a3.threadTree; a3.displayFolder(root.URI); await wait(800);
+          const bar = d.querySelector("#unifiedToolbarContent global-search-bar");
+          const frame = () => new Promise(r => a3.requestAnimationFrame(r));
+          bar.dispatchEvent(new w.CustomEvent("search", { detail: "quokka", bubbles: true, composed: true }));
+          await until(() => a3.gViewWrapper?.searching && a3.gDBView?.rowCount > 0, 8000);
+          const out = { visibility: d.visibilityState, startRows: a3.gDBView?.rowCount, searching: !!a3.gViewWrapper?.searching };
+          // 1,5 s mit dem Mausrad scrollen: Trefferzahl steht still, Bilder im normalen Takt (Thunderbird meldet
+          // der Liste die Treffer erst am Ende der Suche – bis dahin bewegt sie sich nur im bekannten Bereich, das
+          // Mausrad kommt aber immer an)
+          const sc = tree.scrollable || tree;
+          const wheel = () => { sc.dispatchEvent(new a3.WheelEvent("wheel", { deltaY: 30, deltaMode: 0, bubbles: true, cancelable: true })); sc.scrollTop += 30; };
+          wheel(); await frame(); await frame();
+          const dts = []; let prev = performance.now(); const t0 = prev; const r0 = a3.gDBView.rowCount;
+          while (performance.now() - t0 < 1500) { wheel(); await frame(); const now = performance.now(); dts.push(now - prev); prev = now; }
+          dts.sort((x, y) => x - y);
+          out.duringScroll = [r0, a3.gDBView.rowCount]; out.frameMedian = Math.round(dts[dts.length >> 1]); out.slow = dts.filter(x => x > 40).length; out.frames = dts.length;
+          // losgelassen: die Suche läuft weiter bis zum Ende
+          await until(() => !a3.gViewWrapper?.searching, 25000); await wait(500);
+          out.end = a3.gDBView.rowCount; out.done = !a3.gViewWrapper?.searching;
+          return out;""")
+        # aufräumen: Suche beenden, die großen Ordner wieder löschen (sonst bremsen sie spätere Prüfungen)
+        m.js(r"""
+          const { MailServices } = ChromeUtils.importESModule("resource:///modules/MailServices.sys.mjs");
+          const root = MailServices.accounts.localFoldersServer.rootFolder;
+          const bar = d.querySelector("#unifiedToolbarContent global-search-bar");
+          bar.dispatchEvent(new w.CustomEvent("search", { detail: "", bubbles: true, composed: true })); await wait(1200);
+          const a3 = await toMail(); const inbox = root.getChildNamed("Inbox"); if (inbox) { a3.displayFolder(inbox.URI); await wait(600); }
+          for (const f of [...root.subFolders].filter(f => /^Viel\d+$/.test(f.name))) { try { root.propagateDelete(f, true); } catch {} }
+          await wait(1000); return 1;""")
+        if not res.get("searching"):
+            return True, f"Suche schon vor dem Scrollen fertig – übersprungen {res}"
+        if res.get("visibility") == "hidden":
+            return True, f"Testfenster verdeckt – übersprungen {res}"
+        # (Treffer mindestens die Hälfte: bei so erzeugten lokalen Mails liest die Textsuche teils in die nächste Mail hinein)
+        ok = (res["duringScroll"][0] == res["duringScroll"][1] and res["done"] and res["end"] >= NF * NM // 2
+              and res["frameMedian"] <= 25 and res["slow"] <= res["frames"] // 10)
+        return ok, f"{res}"
+    check("Suche: Scrollen während einer laufenden Suche flüssig (Suche wartet), danach alle Treffer", search_scroll, results)
+
     def settings_style():
-        # Einstellungen: Inhalt mittig (max. 800 px), Kästchen/Optionsfelder im macOS-Stil,
+        # Einstellungen: Inhalt linksbündig 28 px neben der Seitenleiste (max. 800 px), Kästchen/Optionsfelder im macOS-Stil,
         # Zahlenfeld ohne Systempfeile, Ansichtskacheln ohne Optionsfeld, Kontoeinstellungen als Karten
         res = m.js(r'''
           w.resizeTo(1500, 950); w.openPreferencesTab("paneAppearance"); await wait(2500);
@@ -6251,7 +6411,7 @@ def run_checks(m, version, profile, results):
           const legends = [...new Set([...cd.querySelectorAll("#paneDeck legend")].map(l => cs(l).fontSize))];
           cw.gotoPref("paneChat"); await wait(1200);
           const num = cd.querySelector("#paneDeck input[type=number]");
-          const out = { width: Math.round(deck.width), offset: Math.round((deck.left - box.left) - (box.right - deck.right)),
+          const out = { width: Math.round(deck.width), offset: Math.round(deck.left - box.left),
             checkbox: checked ? [cs(checked).appearance, cs(checked).borderTopLeftRadius] : null,
             radio: radio ? [cs(radio).appearance, cs(radio).borderTopLeftRadius] : null,
             tileCheck: tileCheck ? cs(tileCheck).display : null, number: num ? cs(num).appearance : null, legends };
@@ -6267,11 +6427,11 @@ def run_checks(m, version, profile, results):
           out.accountList = el ? [el.localName, el.ownerDocument.defaultView.getComputedStyle(el).borderTopLeftRadius] : null;
           tm.closeTab(tm.currentTabInfo);
           return out;''')
-        ok = (res["width"] <= 800 and abs(res["offset"]) <= 4 and res["checkbox"] == ["none", "4px"] and res["legends"] == ["13px"]
+        ok = (res["width"] <= 800 and res["offset"] == 28 and res["checkbox"] == ["none", "4px"] and res["legends"] == ["13px"]
               and res["radio"] and res["radio"][0] == "none" and res["tileCheck"] == "none" and res["number"] == "none" and res["numberLook"] == [True, True]
               and res["accountList"] in (["richlistbox", "12px"], ["input", "7px"]))
         return ok, f"{res}"
-    check("Einstellungen: Inhalt mittig, Kästchen und Optionsfelder wie macOS, Kacheln, Kontoeinstellungen", settings_style, results)
+    check("Einstellungen: Inhalt linksbündig neben der Seitenleiste, Kästchen und Optionsfelder wie macOS, Kacheln, Kontoeinstellungen", settings_style, results)
 
     def settings_cards():
         # Einstellungen: Grundschrift 13 px, Seitenleiste bündig, Listen mit Haarlinie, sicheres DNS als Karte,
@@ -6642,7 +6802,7 @@ def run_checks(m, version, profile, results):
 
     def pref_embedded_pages():
         # Kontoeinstellungen und Add-ons als Kategorien: Seitenleiste bleibt stehen (gleiche Breite), Inhalt rechts daneben,
-        # Kontoseite mittig wie die übrigen Einstellungen; Seitenleiste ausblenden zieht die Seite nach links
+        # Kontoseite 28 px neben der Seitenleiste wie die übrigen Einstellungen; Seitenleiste ausblenden zieht die Seite nach links
         res = m.js(PREFS_OPEN_JS + r"""
           const out = { general: { cat: R(pd.getElementById("pref-category-box")), content: R(pd.querySelector(".paneDeckContainer")) } };
           await pick("paneMcAccounts", 3500);
@@ -6667,12 +6827,12 @@ def run_checks(m, version, profile, results):
         right = g["cat"]["l"] + g["cat"]["w"]
         ok = (a["cat"] == g["cat"] and ad["cat"] == g["cat"] and res["back"]["cat"] == g["cat"]
               and a["hidden"] is False and a["page"]["l"] - res["general"]["cat"]["l"] >= 0 and a["inner"] and a["inner"].startswith("am-")
-              and a["gaps"] and abs(a["gaps"][0] - a["gaps"][1]) <= 2 and a["footer"] == "none"
+              and a["gaps"] and a["gaps"][0] == 28 and a["footer"] == "none"
               and ad["hidden"] is False and ad["accHidden"] is True and ad["view"] == "addons://list/extension" and ad["card"]
               and res["sideHidden"]["w"] > ad["page"]["w"] + 150 and res["sideShown"] == ad["page"]
               and res["back"]["acc"] is True and res["back"]["ad"] is True)
         return ok, f"Seitenleiste rechts bei {right} {res}"
-    check("Einstellungen: Kontoeinstellungen und Add-ons als Kategorien, Seitenleiste bleibt gleich breit, Kontoseite mittig, Ausblenden zieht mit", pref_embedded_pages, results)
+    check("Einstellungen: Kontoeinstellungen und Add-ons als Kategorien, Seitenleiste bleibt gleich breit, Kontoseite linksbündig, Ausblenden zieht mit", pref_embedded_pages, results)
 
     def pref_embedded_subnav():
         # keine zweite graue Leiste: Konten (mit Seiten des gewählten Kontos) bzw. Extensions/Themes … als eingerückte
@@ -6706,6 +6866,13 @@ def run_checks(m, version, profile, results):
           out.view = aw.gViewController?.currentViewId; out.add2 = list("paneMcAddons").filter(e => e[2]).map(e => e[1]);
           const main = ad.contentDocument.getElementById("main"), cat = pd.getElementById("pref-category-box").getBoundingClientRect();
           out.gaps = [Math.round(main.getBoundingClientRect().left), Math.round(ad.getBoundingClientRect().width - main.getBoundingClientRect().right)];
+          // erneuter Klick auf die gewählte Kategorie klappt die Unterpunkte zu und wieder auf; Wechsel öffnet sie
+          const tap = v => { const e = pd.getElementById("mcCat-" + v); e.dispatchEvent(new pw.MouseEvent("mousedown", { bubbles: true, button: 0 })); e.click(); };
+          const fold = [vis("paneMcAddons")];
+          tap("paneMcAddons"); await wait(300); fold.push(vis("paneMcAddons"));
+          tap("paneMcAddons"); await wait(300); fold.push(vis("paneMcAddons"));
+          tap("paneMcAddons"); await wait(300); await pick("paneMcAccounts", 1500); fold.push(vis("paneMcAccounts"));
+          out.fold = fold;
           aw.gViewController.loadView("addons://list/extension"); await wait(800);
           await pick("paneGeneral", 800); out.back = [vis("paneMcAccounts"), vis("paneMcAddons")];
           tm.closeTab(tm.currentTabInfo); await wait(400);
@@ -6718,9 +6885,10 @@ def run_checks(m, version, profile, results):
               and [e for e in acc2 if e[2]] == [[2, acc2[[i for i, e in enumerate(acc2) if e[0] == 2][1]][1], True]] and (res["inner"] or "").startswith("am-")
               and acc[-1][1].endswith("…") and res["popup"] == "open"
               and len(add) >= 3 and [e[1] for e in add if e[2]] and res["side"] == 0
-              and res["view"] == "addons://list/theme" and len(res["add2"]) == 1 and abs(res["gaps"][0] - res["gaps"][1]) <= 2)
+              and res["view"] == "addons://list/theme" and len(res["add2"]) == 1 and res["gaps"][0] == 28
+              and res["fold"] == [True, False, True, True])
         return ok, f"{res}"
-    check("Einstellungen: Konten und Add-on-Bereiche als Unterpunkte in der Seitenleiste statt zweiter grauer Leiste, Klick wählt, Konto hinzufügen öffnet das Menü", pref_embedded_subnav, results)
+    check("Einstellungen: Konten und Add-on-Bereiche als Unterpunkte in der Seitenleiste statt zweiter grauer Leiste, Klick wählt, erneuter Klick auf die Kategorie klappt sie zu und auf, Konto hinzufügen öffnet das Menü", pref_embedded_subnav, results)
 
     def account_wizards():
         # Konto-Assistenten (Feed, Newsgruppen, Chat): Knöpfe flach ohne Rahmen, 13 px, 28 px hoch und lesbar

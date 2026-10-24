@@ -22,6 +22,24 @@
   box-shadow: none !important;
 }
 
+/* Termin-Fenster wie Apple Kalender: Datum und Uhrzeit nur so breit wie ihr
+   Text (--mc-fit misst die Erweiterung im Format des Systems), Pfeil nur unter
+   dem Mauszeiger, beim Bearbeiten und bei offenem Popover (spaces.css) */
+:root[mc-apple-event] #event-grid :is(datepicker, timepicker) > menulist[editable]::part(text-input) {
+  width: var(--mc-fit, 10ch) !important;
+  min-width: 0 !important;
+  flex: none !important;
+  padding-inline: 0 !important;
+}
+
+:root[mc-apple-event] #event-grid :is(datepicker, timepicker) > menulist[editable]::part(dropmarker) {
+  visibility: hidden !important;
+}
+
+:root[mc-apple-event] #event-grid :is(datepicker, timepicker) > menulist[editable]:is(:hover, :focus-within, [open="true"]):not([disabled])::part(dropmarker) {
+  visibility: visible !important;
+}
+
 /* Termin-Dialog: Farbchips der gewählten Kategorien im Feld mit feinem Ring
    wie die Punkte im Menü (spaces.css) – helle bzw. dunkle Farben verschwanden */
 #item-categories::part(color) {

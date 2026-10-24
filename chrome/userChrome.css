@@ -192,6 +192,33 @@ unified-toolbar,
   box-shadow: none !important;
 }
 
+/* Windows: Menüleiste (Alt) als eigene, ruhige Leiste über die ganze Breite –
+   ohne den Grauton der Ordnerliste, Einträge als Kapseln wie die Toolbar */
+@media (-moz-platform: windows) {
+  #toolbar-menubar:not([inactive]) {
+    order: -1 !important; /* ganz oben im Fenster, über der Toolbar */
+    background: var(--mt-window) !important;
+    border-bottom: var(--mt-hairline) solid var(--mt-pane-line) !important;
+    padding: 3px 8px !important;
+    font-family: var(--mt-font) !important;
+  }
+
+  #mail-menubar > menu {
+    appearance: none !important;
+    margin: 0 1px !important;
+    padding: 3px 9px !important;
+    border-radius: 999px !important;
+    background: transparent !important;
+    color: var(--mt-text) !important;
+    font-size: 13px !important;
+  }
+
+  #mail-menubar > menu[_moz-menuactive],
+  #mail-menubar > menu[open] {
+    background: var(--mt-control-hover) !important;
+  }
+}
+
 /* Toolbar-Knöpfe als Kapseln */
 unified-toolbar button,
 .unified-toolbar-button,
@@ -652,6 +679,13 @@ hr[is="pane-splitter"],
   background: transparent !important;
   border: none !important;
   --splitter-color: transparent !important;
+}
+
+/* zugezogene Leiste ohne Thunderbirds blauen Balken an der Trennlinie (zeigt
+   er unter dem Mauszeiger und beim Ziehen – nach dem Zuziehen stand er links
+   neben der Mailliste) */
+hr[is="pane-splitter"]::after {
+  display: none !important;
 }
 
 /* ---------- Mailliste ---------- */
@@ -2116,7 +2150,10 @@ menupopup > .folderMenuItem:is([_moz-menuactive]:not([disabled]), [disabled]) {
   position: fixed !important;
   z-index: 3 !important;
   bottom: 8px !important;
-  inset-inline-start: 12px !important;
+  /* fest mittig unter der Leiste ((67 − 40) / 2), auch bei ausgeblendeter
+     Leiste und währenddessen – kein Gleiten, nur der Pfeil wechselt */
+  inset-inline-start: 13.5px !important;
+  transition: none !important;
   /* Kreis wie der Seitenleisten-Knopf oben: 40 × 38 px, grauer Hintergrund */
   width: 40px !important;
   height: 38px !important;
@@ -2131,13 +2168,6 @@ menupopup > .folderMenuItem:is([_moz-menuactive]:not([disabled]), [disabled]) {
   align-items: center !important;
   justify-content: center !important;
   appearance: none !important;
-}
-
-/* Bei sichtbarer Leiste sitzt der Knopf mittig unten in der Leiste
-   ((67 − 40) / 2 = 13,5 px), ausgeblendet 12 px vom Fensterrand. Während der
-   Animation gleitet er mit der Leistenbreite (0–67 px) zwischen beiden Plätzen. */
-#spacesToolbar:not([hidden]) ~ #mcSpacesToggle {
-  inset-inline-start: calc(9px + var(--spaces-total-width) * 0.06716) !important;
 }
 
 #mcSpacesToggle:hover {
@@ -2155,7 +2185,8 @@ menupopup > .folderMenuItem:is([_moz-menuactive]:not([disabled]), [disabled]) {
   mask: url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 16 16%22 fill=%22none%22 stroke=%22%23000%22 stroke-width=%221.1%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22%3E%3Cpath d=%22M2.5 2.5v11M13.5 8H5.2M8.6 4.6 5.2 8l3.4 3.4%22/%3E%3C/svg%3E") center / contain no-repeat !important;
 }
 
-#spacesToolbar[hidden] ~ #mcSpacesToggle::before {
+/* (data-mc-hidden setzt die Erweiterung gleich beim Klick) */
+#mcSpacesToggle[data-mc-hidden]::before {
   mask-image: url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 16 16%22 fill=%22none%22 stroke=%22%23000%22 stroke-width=%221.1%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22%3E%3Cpath d=%22M2.5 2.5v11M5 8h8.3M9.9 4.6 13.3 8l-3.4 3.4%22/%3E%3C/svg%3E") !important;
 }
 
@@ -4528,6 +4559,8 @@ calendar-event-box :is(.alarm-icons-box, .item-classification-icon, .item-recurr
 #today-splitter {
   border: none !important;
   background: transparent !important;
+  /* nur nach rechts (Ausblenden) – die Breite ist fest */
+  cursor: e-resize !important;
 }
 
 /* ---------- Adressbuch wie Apple Kontakte ---------- */
@@ -5413,13 +5446,13 @@ search-bar {
   grid-template-columns: 1fr !important;
 }
 
-/* Add-ons: eine Spalte und mittig wie die Einstellungen daneben */
+/* Add-ons: eine Spalte, links mit demselben Abstand wie die Einstellungen daneben */
 :root[mc-embedded] #full:has(> #sidebar > categories-box) {
   grid-template-columns: minmax(0, 1fr) !important;
 }
 
 :root[mc-embedded]:has(#sidebar > categories-box) {
-  --main-margin-start: auto !important;
+  --main-margin-start: 28px !important;
   --main-margin-end: auto !important;
   --page-main-content-width: 748px !important;
 }
@@ -5783,11 +5816,13 @@ search-bar {
   box-shadow: none !important;
 }
 
-/* Inhalt höchstens 800 px breit und mittig – lesbare Zeilen, keine
-   halbe Fensterbreite links */
+/* Inhalt höchstens 800 px breit und linksbündig wie in den
+   macOS-Systemeinstellungen: fester Abstand zur Seitenleiste (28 px Rand von
+   #preferencesContainer), keine leere Fläche dazwischen. Kontoeinstellungen,
+   Add-ons und die Seite halo.spaces beginnen an derselben Kante */
 #preferencesContainer .paneDeckContainer,
 #preferencesContainer .sticky-container {
-  margin-inline: auto !important;
+  margin-inline: 0 auto !important;
   inline-size: min(100%, 800px) !important;
 }
 
@@ -6113,10 +6148,10 @@ input[type="number"]:is(.size2, .size3, .size4, .size5)::-moz-number-spin-box {
   margin-block-end: 12px !important;
 }
 
-/* Inhalt der Kontoseiten mittig wie in den übrigen Einstellungen (dort höchstens
-   800 px in der Mitte) – sonst klebte er links an der Kontoliste */
+/* Inhalt der Kontoseiten linksbündig mit demselben Abstand zur Seitenleiste
+   wie die übrigen Einstellungen (28 px) */
 #containerBox {
-  margin-inline: auto !important;
+  margin-inline: 28px auto !important;
 }
 
 #containerBox > .dialogheader + separator.thin {
@@ -10709,8 +10744,14 @@ notification-message toolbarbutton.notification-button > .toolbarbutton-menubutt
 #calendar-task-details-container { min-width: 360px !important; }
 #preferencesContainer { min-width: 560px !important; }
 #conversationsBox { min-width: 420px !important; }
-/* nicht während der Ein-/Ausblend-Animation (data-mc-anim), sonst springt sie */
-#today-pane-panel:not([data-mc-anim]) { min-width: 240px !important; }
+/* Today-Pane fest 280 px breit (nicht von Hand veränderbar – die Trennlinie
+   nach rechts gezogen blendet sie aus); nicht während der Ein-/Ausblend-
+   Animation (data-mc-anim), sonst springt sie */
+#today-pane-panel:not([data-mc-anim]) {
+  width: 280px !important;
+  min-width: 280px !important;
+  max-width: 280px !important;
+}
 
 @media (min-resolution: 2dppx) {
   :root {
@@ -11111,6 +11152,49 @@ notification-message toolbarbutton.notification-button > .toolbarbutton-menubutt
   box-shadow: none !important;
   border: none !important;
   padding-inline: 0 !important;
+}
+
+/* Datum und Uhrzeit wie Apple Kalender: schmaler Text so breit wie der Inhalt
+   (--mc-fit setzt die Erweiterung), ohne Kasten und Pfeil – Fläche und Pfeil
+   nur unter dem Mauszeiger, beim Bearbeiten und bei offenem Popover.
+   „menulist[editable] input“ weiter oben gibt dem Textfeld 10 px Rand links */
+:root[mc-apple-event] #event-grid :is(datepicker, timepicker) > menulist {
+  width: auto !important;
+  min-width: 0 !important;
+  flex: none !important;
+  margin-inline-end: 4px !important;
+  padding-inline: 6px 4px !important;
+  border-radius: 6px !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  transition: none !important;
+}
+
+:root[mc-apple-event] #event-grid :is(datepicker, timepicker) > menulist:is(:hover, :focus-within, [open="true"]):not([disabled]) {
+  background: var(--mt-hover) !important;
+}
+
+/* (Breite des Textfelds und Pfeil liegen im Schatten-DOM: extension/parts.css) */
+:root[mc-apple-event] :is(datepicker, timepicker, datetimepicker) {
+  flex: none !important;
+  width: auto !important;
+}
+
+/* Kategorie: Beschriftung direkt am linken Rand der Karte wie der Text der
+   übrigen Karten (Ort, Teilnehmer, Kalender), nicht in der Spalte der
+   Zeitkarte – das wirkte wie ein Einzug */
+:root[mc-apple-event] #event-grid tr[data-mc-card="category"] > th {
+  flex: none !important;
+  padding-inline-end: 10px !important;
+  text-align: start !important;
+}
+
+:root[mc-apple-event] #event-grid tr[data-mc-card="category"] > th > hbox {
+  justify-content: flex-start !important;
+}
+
+:root[mc-apple-event] #event-grid tr[data-mc-card="category"] > th label {
+  color: var(--mt-text-tertiary) !important;
 }
 
 /* Titel groß und halbfett */

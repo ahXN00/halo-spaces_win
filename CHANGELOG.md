@@ -3,7 +3,14 @@
 Changes in this fork compared with [halo.spaces](https://github.com/sruf79/halo-spaces). Upstream's
 own release notes are on its [Releases](https://github.com/sruf79/halo-spaces/releases) page.
 
-## Unreleased: first Windows version (based on halo.spaces 3.3.0), 2026-10-24
+## Unreleased: merged halo.spaces 3.5.1, 2026-10-24
+
+### ✨ New features
+- **Merged upstream halo.spaces 3.5.1**
+- **Alt menu bar as a full-width strip at the top of the window**
+- **Option: all unified folders (Drafts, Trash, Spam …) in Favourites**
+
+## First Windows version (based on halo.spaces 3.3.0), 2026-10-24
 
 **Tested with Thunderbird 158 on Windows 11 at 125 % scaling: 197/197 checks pass in light and dark**
 

@@ -12,6 +12,8 @@ const SECTIONS = () => [
   [t("Mail"), [
     { key: "previewLines", type: "select", label: t("Preview lines in the message list"),
       hint: t("takes effect after a restart"), options: [0, 1, 2, 3, 4] },
+    { key: "allFavourites", label: t("All unified folders in Favourites"),
+      hint: t("Drafts, Trash, Junk, Archive … besides All Inboxes and All Sent") },
     { key: "hoverActions", label: t("Actions when hovering a message"),
       hint: t("Flag, archive, delete") },
     { key: "fullConversation", label: t("Show whole conversation"),
@@ -88,12 +90,10 @@ async function render() {
   const main = document.getElementById("settings");
   main.replaceChildren();
   // eingebettet als Kategorie in Thunderbirds Einstellungen: wie die übrigen
-  // Kategorien – große Überschrift, Abschnittstitel in der Karte, 800 px mittig
+  // Kategorien – jeder Abschnitt mit großer Überschrift über seiner Karte
+  // (wie „General“, „Language & Fonts“ …), links mit festem Abstand
   const inPrefs = new URLSearchParams(location.search).get("in") == "prefs";
   document.documentElement.classList.toggle("in-prefs", inPrefs);
-  if (inPrefs) {
-    main.append(el("h1", { textContent: "halo.spaces" }));
-  }
   for (const [title, rows] of SECTIONS()) {
     const section = el("section");
     for (const row of rows) {
@@ -139,13 +139,7 @@ async function render() {
       }
       section.append(el("div", { class: "row" }, text, control));
     }
-    const heading = el("h2", { textContent: title });
-    if (inPrefs) {
-      section.prepend(heading);
-      main.append(section);
-    } else {
-      main.append(heading, section);
-    }
+    main.append(el("h2", { textContent: title }), section);
   }
 }
 
