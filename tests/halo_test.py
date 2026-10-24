@@ -950,6 +950,38 @@ def maillist_checks(m, results):
         return ok, f"{res}"
     check("Mailliste: Ansicht und Layout als eine Auswahl (Karten, Tabelle klassisch), „breit“ nicht wählbar und umgestellt, ungültige Kombinationen ausgeglichen, ohne Listenkopf-Schalter", view_choice_menu, results)
 
+    def contact_photo_menu():
+        # Drei-Punkte-Menü: „Show Contact Photo“ zum Abhaken; aus: kein Bild, Text rückt an die Punkt-Spalte (16 px);
+        # wirkt sofort und bleibt als Einstellung; in der Tabelle ausgegraut
+        res = m.js(MAILLIST_JS + r"""
+          await showFolder(); await asCards(); await wait(500);
+          const PREF = "extensions.mailcards.contactPhotos";
+          const popup = ad.getElementById("threadPaneDisplayContext"), item = ad.getElementById("mcContactPhoto");
+          const open = async () => { popup.openPopup(ad.getElementById("threadTree"), "after_end"); await until(() => popup.state == "open", 3000); await wait(300);
+                                     const r = { checked: item?.hasAttribute("checked") && item.getAttribute("checked") != "false", disabled: !!item?.disabled };
+                                     popup.hidePopup(); await wait(300); return r; };
+          const look = () => { const r = cards().find(x => !props(x).includes("dummy")); if (!r) return null;
+            const av = r.querySelector(".mc-avatar"), box = r.querySelector(".card-container"), main = r.querySelector(".card-container > .thread-card-column:not(.read-status-column)");
+            return { avatar: av ? cs(av).display : null, indent: Math.round(main.getBoundingClientRect().left - box.getBoundingClientRect().left) }; };
+          const out = { label: item?.getAttribute("label"), sepBefore: item?.previousElementSibling?.localName,
+                        afterViews: item?.previousElementSibling?.previousElementSibling?.id };
+          try {
+            out.on = { ...(await open()), ...look() };
+            item.doCommand(); await wait(600);
+            out.off = { ...(await open()), ...look(), pref: Services.prefs.getBoolPref(PREF, true) };
+            await asTable(); out.table = await open(); await asCards();
+            item.doCommand(); await wait(600);
+            out.back = { ...look(), pref: Services.prefs.prefHasUserValue(PREF) };
+          } finally { Services.prefs.clearUserPref(PREF); await wait(300); }
+          return out;""")
+        on, off, back = res.get("on", {}), res.get("off", {}), res.get("back", {})
+        ok = (res["label"] == "Show Contact Photo" and res["sepBefore"] == "menuseparator" and res["afterViews"] == "mcViewChoiceClassic"
+              and on.get("checked") and not on.get("disabled") and on.get("avatar") == "flex" and on.get("indent", 0) - off.get("indent", 0) >= 40
+              and not off.get("checked") and off.get("avatar") == "none" and off.get("indent", 99) <= 30 and off.get("pref") is False
+              and res["table"]["disabled"] and back.get("avatar") == "flex" and back.get("pref") is False)
+        return ok, f"{res}"
+    check("Mailliste: Kontaktfoto im Drei-Punkte-Menü ein-/ausschaltbar (sofort, als Einstellung gespeichert, in der Tabelle ausgegraut)", contact_photo_menu, results)
+
     def thread_sender():
         # zugeklappt: Name und Bild der neuesten Mail (Carla), aufgeklappt die Wurzel (Ben)
         res = m.js(MAILLIST_JS + r"""

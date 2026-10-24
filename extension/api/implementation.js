@@ -185,6 +185,7 @@ const DE = {
   "You unsubscribed from this mailing list.": "Du hast diesen Verteiler abbestellt.",
   "Card View": "Kartenansicht",
   "Table View: Classic": "Tabelle: Klassisch",
+  "Show Contact Photo": "Kontaktfoto anzeigen",
   "Design without flicker at start": "Design ohne Aufblitzen beim Start",
   "writes a userChrome.css into your profile; from the next start": "schreibt eine userChrome.css ins Profil; ab dem nächsten Start",
   "Only messages from this folder – turn on Global Search to include your replies from Sent.": "Nur E-Mails aus diesem Ordner – mit eingeschalteter globaler Suche erscheinen auch deine Antworten aus „Gesendet“.",
@@ -367,6 +368,7 @@ const FR = {
   "You unsubscribed from this mailing list.": "Vous vous êtes désabonné de cette liste de diffusion.",
   "Card View": "Vue en cartes",
   "Table View: Classic": "Tableau : classique",
+  "Show Contact Photo": "Afficher la photo du contact",
   "Design without flicker at start": "Design sans clignotement au démarrage",
   "writes a userChrome.css into your profile; from the next start": "écrit un userChrome.css dans votre profil ; au prochain démarrage",
   "Only messages from this folder – turn on Global Search to include your replies from Sent.": "Seulement les messages de ce dossier – activez la recherche globale pour inclure vos réponses envoyées.",
@@ -549,6 +551,7 @@ const ES = {
   "You unsubscribed from this mailing list.": "Te has dado de baja de esta lista de correo.",
   "Card View": "Vista de tarjetas",
   "Table View: Classic": "Tabla: clásica",
+  "Show Contact Photo": "Mostrar foto del contacto",
   "Design without flicker at start": "Diseño sin parpadeo al iniciar",
   "writes a userChrome.css into your profile; from the next start": "escribe un userChrome.css en tu perfil; a partir del próximo inicio",
   "Only messages from this folder – turn on Global Search to include your replies from Sent.": "Solo mensajes de esta carpeta: activa la búsqueda global para incluir tus respuestas enviadas.",
@@ -731,6 +734,7 @@ const IT = {
   "You unsubscribed from this mailing list.": "Hai annullato l’iscrizione a questa lista.",
   "Card View": "Vista a schede",
   "Table View: Classic": "Tabella: classica",
+  "Show Contact Photo": "Mostra foto del contatto",
   "Design without flicker at start": "Design senza sfarfallio all’avvio",
   "writes a userChrome.css into your profile; from the next start": "scrive un userChrome.css nel profilo; dal prossimo avvio",
   "Only messages from this folder – turn on Global Search to include your replies from Sent.": "Solo messaggi di questa cartella – attiva la ricerca globale per includere le risposte inviate.",
@@ -772,6 +776,8 @@ function tr(english, vars = null) {
 const STYLE_ID = "mail-cards-style";
 const TOOLBAR_PREF = "extensions.mailcards.toolbarApplied";
 const PREVIEW_PREF = "extensions.mailcards.previewLines";
+// Kontaktfoto bzw. Initialen links in den Karten (Drei-Punkte-Menü über der Liste)
+const CONTACT_PHOTOS_PREF = "extensions.mailcards.contactPhotos";
 // Reihenfolge wie in der Apple-Mail-Toolbar: Abrufen, Verfassen |
 // Antworten, Allen antworten, Weiterleiten | Archiv, Löschen, Spam |
 // Verschieben | Markieren … Suchfeld ganz rechts.
@@ -5002,6 +5008,7 @@ class CardEnhancer {
     // (Standard 1 wie in Apple Mail, 0 = keine Vorschau).
     const lines = Services.prefs.getIntPref(PREVIEW_PREF, options.previewLines ?? 1);
     this.previewLines = Math.max(0, Math.min(4, lines));
+    this.contactPhotos = Services.prefs.getBoolPref(CONTACT_PHOTOS_PREF, true);
     this.windows = new Set();
     this.restorers = [];
     this.winRestorers = new WeakMap();
@@ -5137,6 +5144,10 @@ class CardEnhancer {
     const previewObs = { observe: () => this.applyPreviewLines() };
     Services.prefs.addObserver(PREVIEW_PREF, previewObs);
     this.restorers.push(() => Services.prefs.removeObserver(PREVIEW_PREF, previewObs));
+    // Kontaktfoto ein/aus (Drei-Punkte-Menü) ebenso
+    const photosObs = { observe: () => this.applyContactPhotos() };
+    Services.prefs.addObserver(CONTACT_PHOTOS_PREF, photosObs);
+    this.restorers.push(() => Services.prefs.removeObserver(CONTACT_PHOTOS_PREF, photosObs));
     // Ansicht und Layout der Mailliste nur in gültigen Kombinationen (Karten
     // vertikal, Tabelle klassisch) – beim Start bestehende Profile umstellen
     syncViewChoice(LISTVIEW_PREF);
@@ -11394,7 +11405,8 @@ class CardEnhancer {
 
   // Drei-Punkte-Menü über der Mailliste: Ansicht und Layout als eine Auswahl
   // (Kartenansicht, Tabelle klassisch) statt Tabelle/Karten;
-  // „Hide Message List Header“ ohne Wirkung (eigener Listenkopf) – ausgeblendet
+  // „Hide Message List Header“ ohne Wirkung (eigener Listenkopf) – ausgeblendet;
+  // darunter „Show Contact Photo“ zum Abhaken (nur Kartenansicht)
   hookViewChoice(doc) {
     const popup = doc.getElementById("threadPaneDisplayContext");
     if (!popup || ownedElement(doc, "mcViewChoiceCards")) {
@@ -11420,6 +11432,20 @@ class CardEnhancer {
     for (const el of tb) {
       el.hidden = true;
     }
+    const photoSep = doc.createXULElement("menuseparator");
+    photoSep.id = "mcContactPhotoSeparator";
+    const photo = doc.createXULElement("menuitem");
+    photo.id = "mcContactPhoto";
+    photo.setAttribute("type", "checkbox");
+    photo.setAttribute("label", tr("Show Contact Photo"));
+    photo.addEventListener("command", () => {
+      if (Services.prefs.getBoolPref(CONTACT_PHOTOS_PREF, true)) {
+        Services.prefs.setBoolPref(CONTACT_PHOTOS_PREF, false);
+      } else {
+        Services.prefs.clearUserPref(CONTACT_PHOTOS_PREF); // Standard: nichts im Profil speichern
+      }
+    });
+    items.at(-1)[1].after(photoSep, photo);
     const hideItem = popup.querySelector('menuitem[data-l10n-id="thread-pane-header-context-hide"]');
     const sep = doc.getElementById("separatorAfterSortOptions");
     for (const el of [hideItem, sep]) {
@@ -11435,11 +11461,15 @@ class CardEnhancer {
       for (const [key, item] of items) {
         item.toggleAttribute("checked", key == current);
       }
+      photo.toggleAttribute("checked", Services.prefs.getBoolPref(CONTACT_PHOTOS_PREF, true));
+      photo.disabled = current != "cards";
     };
     popup.addEventListener("popupshowing", onShowing);
     restorers.push(() => {
       popup.removeEventListener("popupshowing", onShowing);
       items.forEach(([, item]) => item.remove());
+      photoSep.remove();
+      photo.remove();
       for (const el of [...tb, hideItem, sep]) {
         if (el) {
           el.hidden = false;
@@ -11822,7 +11852,26 @@ class CardEnhancer {
   // Stylesheet der Kartenansicht samt Höhe der Vorschau
   cardStyle() {
     return CSS +
-      `#threadTree tr[is="thread-card"] .mc-preview { -webkit-line-clamp: ${this.previewLines}; min-height: ${this.previewLines * 16}px; }`;
+      `#threadTree tr[is="thread-card"] .mc-preview { -webkit-line-clamp: ${this.previewLines}; min-height: ${this.previewLines * 16}px; }` +
+      // ohne Kontaktfoto wie Apple Mail: Text direkt neben dem Ungelesen-Punkt
+      (this.contactPhotos ? "" : `
+#threadTree tr[is="thread-card"] .card-container { grid-template-columns: 16px minmax(0, 1fr) !important; }
+#threadTree tr[is="thread-card"] .mc-avatar { display: none !important; }`);
+  }
+
+  // Kontaktfoto ein-/ausgeschaltet: Stil in allen Mailansichten sofort tauschen
+  applyContactPhotos() {
+    const on = Services.prefs.getBoolPref(CONTACT_PHOTOS_PREF, true);
+    if (on == this.contactPhotos) {
+      return;
+    }
+    this.contactPhotos = on;
+    for (const win of this.windows) {
+      const style = win.document?.getElementById(STYLE_ID);
+      if (style) {
+        style.textContent = this.cardStyle();
+      }
+    }
   }
 
   // Vorschauzeilen geändert (Menü Ansicht): Stil, Kartenhöhe und Karten in
