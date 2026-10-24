@@ -7060,6 +7060,36 @@ def run_checks(m, version, profile, results):
         return ok, f"{res}"
     check("Einstellungen: eigene Kategorie „halo.spaces“ mit der Einstellungsseite der Erweiterung (Add-ons → Einstellungen bleibt)", pref_halo_category, results)
 
+    def options_page_slim():
+        # Einstellungsseite schlank: Breite der Mailliste und doppelte Kontakte nur in der Oberfläche,
+        # Design/Symbole/Protokoll unter „Fehlerbehebung“; options.js (Seite läuft entfernt) in einer
+        # Sandbox auswerten, Texte gegen die Übersetzungstabellen; Vorgaben im frischen Profil
+        res = m.js('''
+          const { ExtensionParent } = ChromeUtils.importESModule("resource://gre/modules/ExtensionParent.sys.mjs");
+          const ext = ExtensionParent.GlobalManager.getExtension("%s"), g = ext.experimentAPIManager.global;
+          const src = await (await fetch(ext.baseURL + "options/options.js")).text();
+          const sb = Cu.Sandbox(null);
+          sb.browser = Cu.cloneInto({ mailCards: {} }, sb);
+          Cu.evalInSandbox(src.replace(/\\nrender\\(\\);\\s*$/, "\\n"), sb);
+          const sections = JSON.parse(Cu.evalInSandbox("JSON.stringify(SECTIONS())", sb)).map(([title, rows]) => [title, rows.map(r => r.key)]);
+          const used = [...src.matchAll(/\\bt\\("((?:[^"\\\\]|\\\\.)*)"\\)/g)].map(x => JSON.parse('"' + x[1] + '"'));
+          const T = Cu.evalInSandbox("TRANSLATIONS", g), SETTINGS = Cu.evalInSandbox("SETTINGS", g);
+          const api = Cu.evalInSandbox("mailCards.prototype.getAPI({})", g).mailCards, st = await api.getSettings();
+          const gone = ["Message list width", "pixels; double-click the divider to reset", "Merge duplicate contacts", "display only", "Default"];
+          return { sections, missing: Object.entries(T).flatMap(([l, tab]) => used.filter(u => !(u in tab) && !["Mail", "Updates"].includes(u)).map(u => l + ":" + u)),
+                   leftover: Object.entries(T).flatMap(([l, tab]) => gone.filter(k => k in tab).map(k => l + ":" + k)),
+                   unknown: sections.flatMap(([, keys]) => keys).filter(k => !(k in SETTINGS)), inTable: ["listWidth", "hideDuplicateContacts"].filter(k => k in SETTINGS),
+                   emoji: st.calendarEmoji, emojiStored: Services.prefs.prefHasUserValue("extensions.mailcards.calendarEmoji"),
+                   width: Services.prefs.getIntPref("extensions.mailcards.listWidth", -1) > 0 || Cu.evalInSandbox("LIST_WIDTH_DEFAULT", g) > 0 };''' % ADDON_ID)
+        keys = [k for _, ks in res["sections"] for k in ks]
+        last = res["sections"][-1][1] if res["sections"] else []
+        ok = ("listWidth" not in keys and "hideDuplicateContacts" not in keys and "calendarEmoji" in keys and "macContactPhotos" in keys
+              and last == ["bundledTheme", "appleIcons", "debug"] and keys.count("bundledTheme") == 1 and keys.count("appleIcons") == 1
+              and not res["missing"] and not res["leftover"] and not res["unknown"] and not res["inTable"]
+              and res["emoji"] is True and not res["emojiStored"] and res["width"])
+        return ok, f"{res}"
+    check("Einstellungen: Seite ohne Breite der Mailliste und doppelte Kontakte, Design/Symbole/Protokoll unter „Fehlerbehebung“; Kalender-Emojis im frischen Profil an", options_page_slim, results)
+
     def early_theme():
         # Option „Design ohne Aufblitzen beim Start“ (Standard aus): schreibt das Design als userChrome.css ins Profil
         # (eigene Kopfzeile) und schaltet das Laden ein; aus: Datei weg, Einstellung zurück; eine eigene Datei bleibt
