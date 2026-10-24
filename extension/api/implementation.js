@@ -9612,6 +9612,7 @@ class CardEnhancer {
       return;
     }
     const ab = d.getElementById("tabmail")?.currentAbout3Pane;
+    this.syncQuickFilterToggle(w);
     if (!box || !ab?.document) {
       return;
     }
@@ -11602,6 +11603,27 @@ class CardEnhancer {
     return !!a3?.quickFilterBar?._filterer?.filterValues?.unread;
   }
 
+  // Thunderbirds Symbolleisten-Knopf „Schnellfilter“ schaltet den
+  // Ungelesen-Filter um – er soll ihn auch gedrückt zeigen. Thunderbird leitet
+  // das aus der nie sichtbaren Leiste ab und setzt es bei Ordnerwechsel,
+  // Auswahl und Tabwechsel selbst, daher jeweils kurz danach noch einmal
+  syncQuickFilterToggle(w) {
+    const d = w?.document;
+    const set = () => {
+      const ab = d?.getElementById("tabmail")?.currentAbout3Pane;
+      const on = String(!!ab?.document && this.unreadFilterOn(ab));
+      for (const b of d?.querySelectorAll('#unifiedToolbarContent button[is="quick-filter-bar-toggle"]') || []) {
+        if (b.getAttribute("aria-pressed") != on) {
+          b.setAttribute("aria-pressed", on);
+        }
+      }
+    };
+    try {
+      set();
+      w.setTimeout(set, 0);
+    } catch {}
+  }
+
   setUnreadFilter(a3, on) {
     const qfb = a3?.quickFilterBar;
     if (!qfb) {
@@ -11667,7 +11689,15 @@ class CardEnhancer {
     for (const name of ["cmd_showQuickFilterBar", "cmd_toggleQuickFilterBar"]) {
       win.top?.goUpdateCommand?.(name);
     }
+    const TOGGLE_EVENTS = ["folderURIChanged", "select", "qfbtoggle"];
+    const syncToggle = () => this.syncQuickFilterToggle(win.browsingContext?.topChromeWindow);
+    for (const type of TOGGLE_EVENTS) {
+      win.addEventListener(type, syncToggle);
+    }
     this.addWinRestorer(win, () => {
+      for (const type of TOGGLE_EVENTS) {
+        win.removeEventListener(type, syncToggle);
+      }
       if (this.unreadFilterOn(win)) {
         this.setUnreadFilter(win, false);
       }
@@ -12074,10 +12104,12 @@ class CardEnhancer {
   cardStyle() {
     return CSS +
       `#threadTree tr[is="thread-card"] .mc-preview { -webkit-line-clamp: ${this.previewLines}; min-height: ${this.previewLines * 16}px; }` +
-      // ohne Kontaktfoto wie Apple Mail: Text direkt neben dem Ungelesen-Punkt
+      // ohne Kontaktfoto wie Apple Mail: Text direkt neben dem Ungelesen-Punkt,
+      // Punkt bzw. Pfeil auf Höhe der Absenderzeile statt auf der Bildmitte
       (this.contactPhotos ? "" : `
 #threadTree tr[is="thread-card"] .card-container { grid-template-columns: 16px minmax(0, 1fr) !important; }
-#threadTree tr[is="thread-card"] .mc-avatar { display: none !important; }`);
+#threadTree tr[is="thread-card"] .mc-avatar { display: none !important; }
+#threadTree { --mc-status-top: 7px; }`);
   }
 
   // Kontaktfoto ein-/ausgeschaltet: Stil in allen Mailansichten sofort tauschen

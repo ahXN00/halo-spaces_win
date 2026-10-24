@@ -968,7 +968,11 @@ def maillist_checks(m, results):
                                      popup.hidePopup(); await wait(300); return r; };
           const look = () => { const r = cards().find(x => !props(x).includes("dummy")); if (!r) return null;
             const av = r.querySelector(".mc-avatar"), box = r.querySelector(".card-container"), main = r.querySelector(".card-container > .thread-card-column:not(.read-status-column)");
-            return { avatar: av ? cs(av).display : null, indent: Math.round(main.getBoundingClientRect().left - box.getBoundingClientRect().left) }; };
+            // senkrechte Mitte des Punkts (10 px) gegenüber der Absenderzeile
+            const sr = r.querySelector(".sender")?.getBoundingClientRect(), bt = box.getBoundingClientRect().top;
+            const dot = bt + parseFloat(cs(r.querySelector(".read-status")).top) + 5;
+            return { avatar: av ? cs(av).display : null, indent: Math.round(main.getBoundingClientRect().left - box.getBoundingClientRect().left),
+                     dotInSender: !!sr && dot >= sr.top && dot <= sr.bottom, dot: Math.round(dot - bt), sender: sr && [Math.round(sr.top - bt), Math.round(sr.bottom - bt)] }; };
           const out = { label: item?.getAttribute("label"), sepBefore: item?.previousElementSibling?.localName,
                         afterViews: item?.previousElementSibling?.previousElementSibling?.id };
           try {
@@ -983,10 +987,10 @@ def maillist_checks(m, results):
         on, off, back = res.get("on", {}), res.get("off", {}), res.get("back", {})
         ok = (res["label"] == "Show Contact Photo" and res["sepBefore"] == "menuseparator" and res["afterViews"] == "mcViewChoiceClassic"
               and on.get("checked") and not on.get("disabled") and on.get("avatar") == "flex" and on.get("indent", 0) - off.get("indent", 0) >= 40
-              and not off.get("checked") and off.get("avatar") == "none" and off.get("indent", 99) <= 30 and off.get("pref") is False
+              and not off.get("checked") and off.get("avatar") == "none" and off.get("indent", 99) <= 30 and off.get("pref") is False and off.get("dotInSender")
               and res["table"]["disabled"] and back.get("avatar") == "flex" and back.get("pref") is False)
         return ok, f"{res}"
-    check("Mailliste: Kontaktfoto im Drei-Punkte-Menü ein-/ausschaltbar (sofort, als Einstellung gespeichert, in der Tabelle ausgegraut)", contact_photo_menu, results)
+    check("Mailliste: Kontaktfoto im Drei-Punkte-Menü ein-/ausschaltbar (sofort, als Einstellung gespeichert, in der Tabelle ausgegraut, ohne Foto Punkt neben dem Absender)", contact_photo_menu, results)
 
     def thread_sender():
         # zugeklappt: Name und Bild der neuesten Mail (Carla), aufgeklappt die Wurzel (Ben)
@@ -1131,7 +1135,10 @@ def maillist_checks(m, results):
           const btn = d.querySelector("#mcListHeader .mc-lh-filter"), bar = ad.getElementById("quick-filter-bar");
           const shown = () => [...Array(a3.gDBView.rowCount).keys()].map(i => a3.gDBView.getMsgHdrAt(i)).filter(Boolean);
           const barVisible = () => !!bar && (!bar.hidden || cs(bar).display != "none");
-          const state = () => { const h = shown(); return { rows: h.length, unread: h.filter(x => !x.isRead).length, pressed: btn.getAttribute("aria-pressed"), bar: barVisible() }; };
+          // Thunderbirds Symbolleisten-Knopf „Schnellfilter“ (falls in der Symbolleiste) zeigt denselben Zustand
+          const tbBtn = () => d.querySelector('#unifiedToolbarContent button[is="quick-filter-bar-toggle"]');
+          const state = () => { const h = shown(); return { rows: h.length, unread: h.filter(x => !x.isRead).length, pressed: btn.getAttribute("aria-pressed"), bar: barVisible(),
+                                                           tb: tbBtn()?.getAttribute("aria-pressed") ?? null }; };
           const out = { unreadInFolder: list.getNumUnread(false), before: state() };
           try {
             btn.click(); await wait(1200); out.on = state();
@@ -1157,7 +1164,8 @@ def maillist_checks(m, results):
               and off["pressed"] == "false" and off["rows"] == b["rows"]
               and res["cmdOn"]["pressed"] == "true" and res["cmdOn"]["rows"] == n and res["cmdOff"]["rows"] == b["rows"]
               and not any(res[k]["bar"] for k in ("before", "on", "off", "cmdOn", "cmdOff", "show"))
-              and res["menus"] == [True, True])
+              and res["menus"] == [True, True]
+              and all(res[k]["tb"] in (None, res[k]["pressed"]) for k in ("before", "on", "otherFolder", "back", "off", "cmdOn", "cmdOff")))
         return ok, f"{res}"
     check("Mailliste: Filterknopf zeigt nur ungelesene Mails und wieder alle, bleibt beim Ordnerwechsel; Schnellfilter-Leiste erscheint nie", unread_filter, results)
 
