@@ -152,6 +152,9 @@ Thunderbird lehnt das Update ab. Vor einem Release die Versionshinweise im
 
 ## Konventionen
 
+- **Im Zweifel wie Apple:** Ist bei Design oder Verhalten etwas unklar, die
+  entsprechende Apple-App nachahmen (Mail, Kontakte, Kalender) – Aussehen,
+  Platzierung, Vorgaben und Bedienung – statt eigene Lösungen zu erfinden.
 - **Sprache:** Code-Kommentare, Commit-Nachrichten und Skriptausgaben auf
   Deutsch; `README.md` und Store-Texte auf Englisch (Store zusätzlich `listing-de.md`).
 - **Commit-Nachrichten:** ein Satz, Bereich vorneweg (`Mailkopf: …`,
