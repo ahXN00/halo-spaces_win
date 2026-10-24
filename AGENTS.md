@@ -82,11 +82,11 @@ Das betrifft das echte Profil des Nutzers – nur auf ausdrücklichen Wunsch.
 ## Testrechner (Mac mini)
 
 Ein Mac mini übernimmt die Tests rund um die Uhr (Anleitung: `tests/MAC-MINI.md`):
-eigener Standardbenutzer ohne echte Mails mit automatischer Anmeldung, erreichbar
+eigener Benutzer `neosky.cat` (Administrator) ohne echte Mails mit automatischer Anmeldung, erreichbar
 nur über Tailscale (keine Portfreigabe), Claude Code per SSH aus der Desktop-App.
 
 - `tests/mac-mini-setup.sh --check` prüft den Rechner (Ruhezustand, Thunderbird,
-  Python, Bildschirm, Rechte, Anmeldung, Tailscale, SSH, Runner, Windows-VM) und ändert
+  Python, gh, Bildschirm, Rechte, Anmeldung, Tailscale, SSH, Runner, Windows-VM) und ändert
   nichts; ohne `--check` richtet es ein, was ohne Passwort geht, und macht einen
   Probelauf.
 - Marionette-Ports: 2839 Standard, 2845 CI-Jobs `mac` und `windows`, ab 2850 für Läufe von Hand
@@ -200,7 +200,8 @@ SessionStart-Hook die offenen Einträge in jede Sitzung.
   Issues im Repo.
 - Titel auf Deutsch im Commit-Stil: `Bereich: kurze Beschreibung`
   (z. B. `Kalender: …`, `Mailliste: …`), Details in den Text.
-- Lokal: Zugriff über `gh` mit Scope `project`.
+- Lokal: Zugriff über `gh` mit Scope `project` (auf neon per Homebrew, siehe
+  `tests/MAC-MINI.md` Abschnitt 3; `mac-mini-setup.sh --check` prüft die Anmeldung).
 
 ```bash
 gh project item-list 1 --owner sruf79 --limit 200 --format json      # lesen

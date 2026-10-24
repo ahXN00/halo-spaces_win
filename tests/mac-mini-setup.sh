@@ -241,6 +241,29 @@ pruefe_werkzeuge() {
   else
     ok "Werkzeuge" "git, zip, curl"
   fi
+  [[ $(command -v python3) == /opt/homebrew/* ]] &&
+    hinweis "Python 3" "kommt aus Homebrew – Tests von Hand laufen dann mit einem anderen Python als der Runner"
+}
+
+# gh für die Aufgabenliste (optional, für die Tests nicht nötig). Auch ohne
+# Homebrew im PATH suchen: Skript und Runner lesen ~/.zprofile nicht.
+pruefe_gh() {
+  local gh=${commands[gh]:-/opt/homebrew/bin/gh} st
+  if [[ ! -x $gh ]]; then
+    hinweis "gh" "nicht installiert (nur für die Aufgabenliste nötig)"
+    tun "brew install gh && gh auth login --scopes project   (tests/MAC-MINI.md, Abschnitt 3)"
+    return
+  fi
+  st=$($gh auth status 2>&1)
+  if [[ $st != *"Logged in"* ]]; then
+    hinweis "gh" "nicht angemeldet"
+    tun "gh auth login --scopes project"
+  elif [[ $st != *"'project'"* ]]; then
+    hinweis "gh" "angemeldet, aber ohne Scope project (Aufgabenliste nicht lesbar)"
+    tun "gh auth refresh --scopes project"
+  else
+    ok "gh" "angemeldet mit Scope project"
+  fi
 }
 
 pruefe_bildschirm() {
@@ -559,6 +582,7 @@ pruefe_benutzer
 pruefe_ruhezustand
 pruefe_thunderbird
 pruefe_werkzeuge
+pruefe_gh
 pruefe_bildschirm
 pruefe_rechte
 pruefe_anmeldung

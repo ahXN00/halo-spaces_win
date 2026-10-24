@@ -46,7 +46,9 @@ aber nichts.
 ## 2. Testbenutzer
 
 Als Administrator anlegen: Systemeinstellungen → Benutzer:innen & Gruppen →
-Benutzer hinzufügen, Typ **Standard** (kein Administrator). Oder:
+Benutzer hinzufügen, Typ **Standard** (kein Administrator; auf neon ist der
+Testbenutzer `neosky.cat` Administrator – das geht auch, das Skript weist nur
+darauf hin). Oder:
 
 ```bash
 sudo sysadminctl -addUser halotest -fullName "halo Test" -password -
@@ -92,6 +94,20 @@ Bildschirmschoner schaltet `tests/mac-mini-setup.sh` im Testbenutzer aus.
   nicht selbst aktualisieren. Meldet das Skript eine veraltete Version, es
   wieder als Administrator ausführen.
 - **Python 3 und git:** `xcode-select --install` (im Fenster auf „Installieren“ klicken).
+- **Homebrew, gh, tmux, jq** (optional, für die Aufgabenliste und das Arbeiten per
+  SSH, z. B. vom iPhone):
+
+  ```bash
+  /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+  echo 'eval "$(/opt/homebrew/bin/brew shellenv)"' >> ~/.zprofile
+  eval "$(/opt/homebrew/bin/brew shellenv)"
+  brew install gh tmux jq
+  gh auth login --scopes project      # Code unter github.com/login/device eingeben
+  ```
+
+  Kein `python` und kein `git` über Homebrew: Sie lägen in Sitzungen vorn im
+  PATH, der Runner liest `~/.zprofile` aber nicht – Läufe von Hand und CI liefen
+  dann mit verschiedenem Python.
 - **Tailscale:** <https://tailscale.com/download/mac>, mit dem eigenen Konto
   anmelden, Start beim Anmelden einschalten.
 
