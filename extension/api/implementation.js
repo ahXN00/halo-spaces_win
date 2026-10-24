@@ -12990,6 +12990,14 @@ class CardEnhancer {
     if (!win || !header || doc.getElementById("mcHoverActions")) {
       return;
     }
+    // nicht in den Karten der Konversationsansicht: Thunderbirds Befehle
+    // wirken dort auf die Auswahl der Mailliste (Löschen träfe die gewählte
+    // Mail bzw. den ganzen Faden) oder sind mangels Auswahl gesperrt
+    try {
+      if (win.frameElement?.classList?.contains("mc-conv-browser")) {
+        return;
+      }
+    } catch {}
     const X = "http://www.w3.org/1999/xhtml";
     const box = doc.createElementNS(X, "div");
     box.id = "mcHoverActions";

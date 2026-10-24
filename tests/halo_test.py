@@ -1523,7 +1523,9 @@ def reading_checks(m, results):
             return { count: box.querySelector(".mc-conv-count")?.textContent, ids: cards.map(c => c.dataset.messageId.split("@")[0]), own: cards.map(c => c.classList.contains("mc-own")),
                      heights: cards.map(c => Math.round(c.querySelector(".mc-conv-browser")?.getBoundingClientRect().height || 0)),
                      text: cards.map(c => c.querySelector(".mc-conv-browser")?.contentDocument?.getElementById("messagepane")?.contentDocument?.querySelector(".moz-text-plain, .moz-text-flowed, pre")?.textContent.trim().slice(0, 12)),
-                     note: !!box.querySelector(".mc-conv-note") };
+                     note: !!box.querySelector(".mc-conv-note"),
+                     // keine Kapsel „Aktionen beim Überfahren“ in den Karten (Befehle wirkten auf die Listenauswahl)
+                     hover: cards.filter(c => c.querySelector(".mc-conv-browser")?.contentDocument?.getElementById("mcHoverActions")).length };
           };
           const out = {};
           // kein Aufblitzen: direkt nach dem Auswählen ist Thunderbirds Ansicht verdeckt, bis die Karten da sind
@@ -1551,9 +1553,10 @@ def reading_checks(m, results):
         ok = (s1.get("ids") == ["halo-konv-2", "halo-konv-1"] and s1.get("own") == [True, False] and all(h > 100 for h in s1.get("heights", [0]))
               and s1.get("count") == "2 messages" and (s1.get("text") or [None])[0] == "Text von Hal" and not s1.get("note")
               and th.get("ids") == ["halo-konv-4", "halo-konv-3"] and res.get("off") is False
+              and s1.get("hover") == 0 and th.get("hover") == 0
               and res.get("flash", {}).get("early") is False and res["flash"].get("single", 9999) <= 600)
         return ok, f"{res}"
-    check("Leseansicht: ganze Konversation (auch eigene Antwort aus „Gesendet“) als Karten, neueste oben, auch für zugeklappte Fäden; abschaltbar", conversation, results)
+    check("Leseansicht: ganze Konversation (auch eigene Antwort aus „Gesendet“) als Karten, neueste oben, auch für zugeklappte Fäden, ohne Kapsel beim Überfahren; abschaltbar", conversation, results)
 
 
 # Verfassen-Fenster und seine Dialoge: Test-Identität (example.invalid, kein Server), Fenster öffnen/schließen,

@@ -7778,7 +7778,9 @@ notification-message toolbarbutton.notification-button > .toolbarbutton-menubutt
 
 #mcHoverActions {
   position: absolute !important;
-  inset-inline-start: 50% !important;
+  /* left statt inset-inline-start: die Mitte hängt nicht von der
+     Schreibrichtung ab (rechts nach links stünde sie sonst daneben) */
+  left: 50% !important;
   bottom: 0 !important;
   transform: translate(-50%, 50%) !important;
   z-index: 5 !important;

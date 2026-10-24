@@ -751,57 +751,6 @@ hr[is="pane-splitter"]::after {
   fill: var(--mt-accent-text) !important;
 }
 
-/* Aktionen beim Überfahren: Kapsel deutlich abgehoben, Symbole in voller
-   Textfarbe (vorher grau auf fast gleichem Grund – schlecht zu sehen) */
-#threadTree tr[is="thread-card"] .mc-actions {
-  --mc-pill: #ffffff;
-  --mc-pill-icon: #1d1d1f;
-  --mc-pill-hover: rgba(0, 0, 0, 0.08);
-  background: var(--mc-pill) !important;
-  box-shadow: 0 0 0 0.5px rgba(0, 0, 0, 0.14), 0 2px 6px rgba(0, 0, 0, 0.16) !important;
-}
-
-@media (prefers-color-scheme: dark) {
-  #threadTree tr[is="thread-card"] .mc-actions {
-    --mc-pill: #5a5a5e;
-    --mc-pill-icon: #ffffff;
-    --mc-pill-hover: rgba(255, 255, 255, 0.16);
-    box-shadow: 0 0 0 0.5px rgba(255, 255, 255, 0.18), 0 2px 8px rgba(0, 0, 0, 0.5) !important;
-  }
-}
-
-#threadTree tr[is="thread-card"] .mc-actions .mc-action {
-  color: var(--mc-pill-icon) !important;
-}
-
-#threadTree tr[is="thread-card"] .mc-actions .mc-action:hover {
-  background: var(--mc-pill-hover) !important;
-}
-
-/* Aktionen beim Überfahren auf der ausgewählten Karte: sonst weiße Symbole
-   in der weißen Kapsel – hier durchscheinend auf der Akzentfarbe */
-#threadTree tr[is="thread-card"]:is(.selected, [aria-selected="true"]) .mc-actions {
-  background: color-mix(in srgb, var(--mt-accent-text) 20%, var(--mt-accent)) !important;
-  box-shadow: 0 0 0 0.5px color-mix(in srgb, var(--mt-accent-text) 35%, transparent) !important;
-}
-
-#threadTree tr[is="thread-card"]:is(.selected, [aria-selected="true"]) .mc-actions .mc-action {
-  color: var(--mt-accent-text) !important;
-}
-
-#threadTree tr[is="thread-card"]:is(.selected, [aria-selected="true"]) .mc-actions .mc-action:hover {
-  background: color-mix(in srgb, var(--mt-accent-text) 22%, transparent) !important;
-}
-
-/* ohne Fokus ist die Auswahl grau – dort die normale Kapsel */
-#threadTree:not(:focus-within) tr[is="thread-card"]:is(.selected, [aria-selected="true"]) .mc-actions {
-  background: var(--mc-pill) !important;
-}
-
-#threadTree:not(:focus-within) tr[is="thread-card"]:is(.selected, [aria-selected="true"]) .mc-actions .mc-action {
-  color: var(--mc-pill-icon) !important;
-}
-
 /* Tabellenansicht: wie Absender und Betreff in der Kartenansicht und der
    Spaltenkopf 13 px (Apple-Listenschrift; sonst erbt sie Thunderbirds Grundschrift) */
 #threadTree tr[is="thread-row"],
@@ -10763,7 +10712,9 @@ notification-message toolbarbutton.notification-button > .toolbarbutton-menubutt
 
 #mcHoverActions {
   position: absolute !important;
-  inset-inline-start: 50% !important;
+  /* left statt inset-inline-start: die Mitte hängt nicht von der
+     Schreibrichtung ab (rechts nach links stünde sie sonst daneben) */
+  left: 50% !important;
   bottom: 0 !important;
   transform: translate(-50%, 50%) !important;
   z-index: 5 !important;
