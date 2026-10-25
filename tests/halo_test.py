@@ -3770,8 +3770,9 @@ def run_checks(m, version, profile, results):
 
     def quick_dst():
         # Ende der Sommerzeit (25.10.2026, in Europa doppelte Stunde 02:00–03:00): Dauer zählt als
-        # Wanduhrzeit – Vorbelegung 02:00–03:00, „für 2h“ 02:00–04:00, angelegt ebenso. Festes Datum,
-        # unabhängig vom Testzeitpunkt; ohne Zeitumstellung in der Systemzeitzone (CI: UTC) gilt dasselbe
+        # echte Dauer wie in Apple Kalender; 02:00 zählt als zweite 02:00 (Winterzeit), wie der Kalender
+        # sie speichert – „für 2h“ sind 02:00–04:00 und 120 echte Minuten, angezeigt wie angelegt. Festes
+        # Datum, unabhängig vom Testzeitpunkt; ohne Zeitumstellung (CI: UTC) gilt dasselbe
         res = m.js('''
           const { ExtensionParent } = ChromeUtils.importESModule("resource://gre/modules/ExtensionParent.sys.mjs");
           const enh = Cu.evalInSandbox("enhancer", ExtensionParent.GlobalManager.getExtension("%s").experimentAPIManager.global);
@@ -3788,14 +3789,16 @@ def run_checks(m, version, profile, results):
           await until(() => p.state == "closed", 3000);
           const tz = cal.dtz.defaultTimezone;
           const hm = dt => { const x = dt.getInTimezone(tz); return `${x.day}. ${x.hour}:${String(x.minute).padStart(2, "0")}`; };
-          const out = { preset, typed, item: it ? `${hm(it.startDate)} – ${hm(it.endDate)}` : null, tz: tz.tzid };
+          const out = { preset, typed, item: it ? `${hm(it.startDate)} – ${hm(it.endDate)}` : null, tz: tz.tzid,
+                        minutes: it ? (it.endDate.nativeTime - it.startDate.nativeTime) / 60e6 : null,
+                      };
           // Termin wieder entfernen – sonst stört er spätere Prüfungen im Oktober 2026
           if (it) try { await testCalendar().deleteItem(it); } catch {}
           return out;''' % ADDON_ID)
         ok = (res["preset"] == "02:00 2026-10-25 03:00" and res["typed"] == "2026-10-25 02:00 2026-10-25 04:00"
-              and res["item"] == "25. 2:00 – 25. 4:00")
+              and res["item"] == "25. 2:00 – 25. 4:00" and res["minutes"] == 120)
         return ok, f"{res}"
-    check("Schnellfenster: Dauer über die Zeitumstellung (25.10.2026 02:00 „für 2h“ → 02:00–04:00)", quick_dst, results)
+    check("Schnellfenster: Dauer über die Zeitumstellung (25.10.2026 02:00 „für 2h“ → 120 echte Minuten)", quick_dst, results)
 
     def quick_checks():
         # ganztägig mit Ende vor dem Beginn → ein Tag; Aufgabe mit Erinnerung bekommt eine Fälligkeit
@@ -3911,7 +3914,8 @@ def run_checks(m, version, profile, results):
           const qp = d.getElementById("mcQuickPanel"); const t0 = Date.now(); w.__mcQp = { shown: 0, hiddenAfter: null };
           qp?.addEventListener("popupshown", () => { w.__mcQp.shown++; w.__mcQp.t = Date.now(); }, { once: true });
           qp?.addEventListener("popuphidden", () => { w.__mcQp.hiddenAfter = Date.now() - (w.__mcQp.t || t0); }, { once: true });
-          const r = col.getBoundingClientRect(); w.__mcColRight = Math.round(r.right + w.mozInnerScreenX);
+          const r = col.getBoundingClientRect(); w.__mcColRight = Math.round(r.right + w.mozInnerScreenX); w.__mcColLeft = Math.round(r.left + w.mozInnerScreenX);
+          w.__mcColLeftHalf = r.left + r.width / 2 < w.innerWidth / 2;
           return [Math.round(r.left + r.width / 2), Math.round(lbl.getBoundingClientRect().top + 8)];''')
         time.sleep(1.2)
         m.pointer([{"type": "pointerMove", "x": x, "y": y, "origin": "viewport"}, {"type": "pointerDown", "button": 0}, {"type": "pointerUp", "button": 0},
@@ -3919,7 +3923,7 @@ def run_checks(m, version, profile, results):
         res = m.js('''const p = await until(() => { const q = d.getElementById("mcQuickPanel"); return q?.state == "open" && q; }) || d.getElementById("mcQuickPanel");
           const r = { state: p?.state, line: p?.querySelector(".mc-qc-line1").textContent, shown: w.__mcQp?.shown || 0, hiddenAfter: w.__mcQp?.hiddenAfter ?? null,
             dialogs: [...Services.wm.getEnumerator(null)].filter(x => /calendar-event-dialog/.test(x.location.href)).length,
-            placed: p?.__mcPlaced, colRight: w.__mcColRight };
+            placed: p?.__mcPlaced, colRight: w.__mcColRight, colLeft: w.__mcColLeft, leftHalf: w.__mcColLeftHalf };
           p?.hidePopup();
           // falls doch ein Fenster aufging: schließen, sonst fehlt den folgenden Prüfungen der Fokus
           for (const x of [...Services.wm.getEnumerator(null)]) if (!x.location.href.includes("messenger.xhtml")) x.close();
@@ -3927,9 +3931,12 @@ def run_checks(m, version, profile, results):
         # „showing“ = geht gerade auf (in einem verdeckten Fenster bleibt die Animation dort stehen)
         # aufgegangen = jetzt offen oder zumindest einmal gezeigt (xvfb schließt es teils sofort)
         opened = res["state"] in ("open", "showing") or res["shown"] > 0
-        # zweite Tagesspalte (linke Hälfte): Fenster rechts neben der Spalte
+        # Fenster neben der Spalte, zur Fenstermitte hin (welche Spalte frei ist, hängt vom Wochentag ab)
         placed = res.get("placed") or {}
-        beside = placed.get("side") == "right" and placed.get("x", 0) >= res["colRight"]
+        if res.get("leftHalf"):
+            beside = placed.get("side") == "right" and placed.get("x", 0) >= res["colRight"]
+        else:
+            beside = placed.get("side") == "left" and placed.get("x", 0) < res["colLeft"]
         ok = opened and beside and res["dialogs"] == 0 and ("14:" in res["line"] or "02:00 PM" in res["line"] or "2:00 PM" in res["line"])
         return ok, (f"Fenster {res['state']} (gezeigt {res['shown']}×, zu nach {res['hiddenAfter']} ms), {res['line']}, große Dialoge {res['dialogs']}, "
                     f"Lage {placed} (Spalte endet bei {res['colRight']})")

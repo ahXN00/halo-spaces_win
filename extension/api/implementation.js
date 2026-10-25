@@ -9859,13 +9859,29 @@ class CardEnhancer {
     const parse = (dateStr, timeStr) => {
       const [y, m, day] = (dateStr || "").split("-").map(Number);
       const [hh, mm] = (timeStr || "00:00").split(":").map(Number);
-      return y ? new Date(y, m - 1, day, hh || 0, mm || 0) : null;
+      return y ? laterHour(new Date(y, m - 1, day, hh || 0, mm || 0)) : null;
     };
-    // Dauer als Wanduhrzeit rechnen (Minuten auf die Uhrzeit, nicht Millisekunden):
-    // über die Zeitumstellung bleibt „2 Stunden ab 02:00“ dann 02:00–04:00, statt
-    // in der doppelten Stunde nur 02:00–03:00 anzuzeigen und anzulegen
-    const plusMinutes = (dt, min) => new Date(dt.getFullYear(), dt.getMonth(), dt.getDate(), dt.getHours(), dt.getMinutes() + min);
-    const wallMinutes = dt => Date.UTC(dt.getFullYear(), dt.getMonth(), dt.getDate(), dt.getHours(), dt.getMinutes()) / 60000;
+    // Uhrzeit in der doppelten Stunde (Ende der Sommerzeit): die zweite, wie der
+    // Kalender selbst sie speichert (Wanduhrzeit mit Zeitzone) – sonst wäre der
+    // angelegte Termin eine Stunde kürzer als im Schnellfenster angezeigt
+    function laterHour(dt) {
+      const next = new Date(dt.getTime() + 3600000);
+      return next.getHours() == dt.getHours() && next.getMinutes() == dt.getMinutes() ? next : dt;
+    }
+    // Dauer als echte Dauer rechnen (wie Apple Kalender): „2 Stunden“ bleiben auch über
+    // die Zeitumstellung zwei echte Stunden. Weil die
+    // Felder nur Wanduhrzeit zeigen, merkt sich jedes Feldpaar den genauen Zeitpunkt
+    // (die doppelte Stunde wäre sonst mehrdeutig) und nutzt ihn, solange die Felder passen
+    const plusMinutes = (dt, min) => new Date(dt.getTime() + min * 60000);
+    const setWhen = (di, ti, dt) => {
+      di.value = dateValue(dt);
+      ti.value = timeValue(dt);
+      di.__mcExact = dt;
+    };
+    const when = (di, ti, time = ti.value) => {
+      const x = di.__mcExact;
+      return x && dateValue(x) == di.value && timeValue(x) == time ? x : parse(di.value, time);
+    };
     const fmtDate = new Intl.DateTimeFormat(locale, { day: "2-digit", month: "2-digit", year: "numeric" });
     const fmtTime = new Intl.DateTimeFormat(locale, { hour: "2-digit", minute: "2-digit" });
     const toCal = (js, dateOnly) => {
@@ -10035,12 +10051,10 @@ class CardEnhancer {
       // Beginn verschoben → Ende mitschieben (gleiche Dauer)
       let lastStart = null;
       const onStart = () => {
-        const s = parse(f.startDate.value, f.startTime.value);
-        const e = parse(f.endDate.value, f.endTime.value);
+        const s = when(f.startDate, f.startTime);
+        const e = when(f.endDate, f.endTime);
         if (s && e && lastStart) {
-          const moved = plusMinutes(e, wallMinutes(s) - wallMinutes(lastStart));
-          f.endDate.value = dateValue(moved);
-          f.endTime.value = timeValue(moved);
+          setWhen(f.endDate, f.endTime, new Date(e.getTime() + (s - lastStart)));
         }
         lastStart = s;
         updateSummary();
@@ -10081,7 +10095,10 @@ class CardEnhancer {
         let end = r.end || (r.allDay ? start : plusMinutes(start, 60));
         // nur Tag und Dauer erkannt: Uhrzeit wie vorbelegt, Ende nach der Dauer
         if (r.start && !r.allDay && !r.end && r.duration != null) {
-          start = new Date(r.start.getFullYear(), r.start.getMonth(), r.start.getDate(), def.start.getHours(), def.start.getMinutes());
+          start = laterHour(new Date(r.start.getFullYear(), r.start.getMonth(), r.start.getDate(), def.start.getHours(), def.start.getMinutes()));
+          end = plusMinutes(start, r.duration);
+        } else if (r.start && !r.allDay && r.duration != null) {
+          start = laterHour(r.start);
           end = plusMinutes(start, r.duration);
         }
         const allDay = r.start ? !!r.allDay : def.allDay;
@@ -10095,11 +10112,10 @@ class CardEnhancer {
         } else {
           f.allDay.checked = allDay;
           root.toggleAttribute("data-allday", allDay);
-          f.startDate.value = dateValue(start);
-          f.startTime.value = timeValue(r.start && !r.allDay ? start : def.start);
-          f.endDate.value = dateValue(allDay ? start : end);
-          f.endTime.value = timeValue(r.start && !r.allDay ? end : def.end);
-          panel.__mcSetLastStart(parse(f.startDate.value, f.startTime.value));
+          const timed = r.start && !r.allDay;
+          setWhen(f.startDate, f.startTime, timed || !r.start ? start : laterHour(new Date(start.getFullYear(), start.getMonth(), start.getDate(), def.start.getHours(), def.start.getMinutes())));
+          setWhen(f.endDate, f.endTime, timed ? end : allDay ? new Date(start.getFullYear(), start.getMonth(), start.getDate(), def.end.getHours(), def.end.getMinutes()) : def.end);
+          panel.__mcSetLastStart(when(f.startDate, f.startTime));
         }
         updateSummary();
       };
@@ -10167,8 +10183,8 @@ class CardEnhancer {
         } else {
           item = new CalEvent();
           item.title = (panel.__mcParsed?.title || f.title.value).trim() || tr("New Event");
-          let s = parse(f.startDate.value, f.allDay.checked ? "00:00" : f.startTime.value) || new Date();
-          let e = parse(f.endDate.value, f.allDay.checked ? "00:00" : f.endTime.value);
+          let s = when(f.startDate, f.startTime, f.allDay.checked ? "00:00" : f.startTime.value) || new Date();
+          let e = when(f.endDate, f.endTime, f.allDay.checked ? "00:00" : f.endTime.value);
           if (f.allDay.checked) {
             // Ende vor dem Beginn: ein Tag am Beginn
             const last = e && e >= s ? e : s;
@@ -10281,15 +10297,14 @@ class CardEnhancer {
         ? new Date(preset.start.getFullYear(), preset.start.getMonth(), preset.start.getDate(), nextHour, 0)
         : new Date(preset.start);
     }
+    start = laterHour(start);
     const end = plusMinutes(start, 60);
     if (preset?.allDay) {
       f.allDay.checked = true;
       root.toggleAttribute("data-allday", true);
     }
-    f.startDate.value = dateValue(start);
-    f.startTime.value = timeValue(start);
-    f.endDate.value = dateValue(end);
-    f.endTime.value = timeValue(end);
+    setWhen(f.startDate, f.startTime, start);
+    setWhen(f.endDate, f.endTime, end);
     f.dueDate.value = dateValue(start);
     f.dueTime.value = timeValue(start);
     panel.__mcSetLastStart(start);
