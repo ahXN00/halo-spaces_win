@@ -5088,36 +5088,37 @@ def run_checks(m, version, profile, results):
     check("Kontextmenüs: ohne „In neuem Tab/Fenster öffnen“, ohne doppelte Trennlinien", no_new_tab_items, results)
 
     def task_filter_menu():
-        # Aufgaben: Filter als Menü hinter einem Knopf wie „Quick Filter“ (links vom Suchfeld) statt Liste in der Seitenleiste
+        # Aufgaben: Filter als Menü hinter dem Filter-Knopf im Listenkopf (neben „…“) statt Liste in der Seitenleiste
         res = m.js(r"""
           tm.openTab("tasks", {}); await wait(1500);
           const group = d.getElementById("task-tree-filtergroup"), before = group.value;
-          const btn = d.querySelector("#mcTaskFilter > button"), popup = d.getElementById("mcTaskFilterPopup");
+          const btn = d.querySelector("#mcListHeader .mc-lh-filter"), popup = d.getElementById("mcTaskFilterPopup");
           const vis = el => !!el && el.getBoundingClientRect().width > 0;
           const out = { button: vis(btn), sidebarList: vis(d.getElementById("task-filtertree-pane")) || vis(d.getElementById("task-tree-filter-header")),
-                        leftOfSearch: btn && Math.round(d.querySelector('#unifiedToolbarContent > li[item-id="search-bar"]').getBoundingClientRect().left - btn.getBoundingClientRect().right) };
+                        leftOfMore: btn && Math.round(d.querySelector("#mcListHeader .mc-lh-more").getBoundingClientRect().left - btn.getBoundingClientRect().right) };
           btn?.click(); await until(() => popup?.state == "open", 2000); await wait(300);
           const entries = [...(popup?.children || [])].filter(i => i.getAttribute("name") == "mctaskfilter");
           out.items = entries.length; out.checked = entries.filter(i => i.getAttribute("checked") == "true").length;
           const today = entries.find(i => /today/i.test(i.getAttribute("label")));
           popup?.activateItem?.(today) ?? today?.doCommand(); await wait(500); popup?.hidePopup(); await wait(200);
           const tree = d.getElementById("calendar-task-tree");
-          out.value = group.value; out.tree = tree.getAttribute("filterValue"); out.active = btn?.hasAttribute("active");
+          out.value = group.value; out.tree = tree.getAttribute("filterValue"); out.active = btn?.getAttribute("aria-pressed") == "true";
           // zurück über das Menü – die Liste muss dem Filter folgen
           btn?.click(); await until(() => popup?.state == "open", 2000); await wait(200);
           const curItem = [...popup.children].find(i => /current/i.test(i.getAttribute("label")));
           popup?.activateItem?.(curItem) ?? curItem?.doCommand(); await wait(500); popup?.hidePopup(); await wait(200);
-          out.back = [group.value, tree.getAttribute("filterValue")]; out.activeCurrent = btn?.hasAttribute("active");
+          out.back = [group.value, tree.getAttribute("filterValue")]; out.activeCurrent = btn?.getAttribute("aria-pressed") == "true";
+          out.title = d.querySelector("#mcListHeader .mc-lh-title").textContent;
           if (before && before != "throughcurrent") w.taskViewUpdate(before);
           for (const t of [...tm.tabInfo].slice(1)) tm.closeTab(t);
-          await toMail(); out.inMail = vis(btn);
+          await toMail(); out.inMail = !!d.getElementById("mcTaskFilterPopup") && d.getElementById("mcTaskFilterPopup").state == "open";
           return out;""")
-        ok = (res["button"] and not res["sidebarList"] and res["leftOfSearch"] is not None and 0 <= res["leftOfSearch"] <= 16
+        ok = (res["button"] and not res["sidebarList"] and res["leftOfMore"] is not None and -1 <= res["leftOfMore"] <= 2
               and res["items"] == 8 and res["checked"] == 1 and res["value"] == "throughtoday" and res["tree"] == "throughtoday" and res["active"]
               and res["back"] == ["throughcurrent", "throughcurrent"] and not res["activeCurrent"]
               and not res["inMail"])
         return ok, f"{res}"
-    check("Aufgaben: Filter als Menü hinter einem Knopf wie „Quick Filter“ statt Liste in der Seitenleiste", task_filter_menu, results)
+    check("Aufgaben: Filter als Menü hinter dem Filter-Knopf im Listenkopf (wie in der Mail) statt Liste in der Seitenleiste", task_filter_menu, results)
 
     def today_plus_event():
         # „+“ ganz rechts → „New Event“: Schnellfenster ganz auf dem Bildschirm
@@ -6451,7 +6452,7 @@ def run_checks(m, version, profile, results):
           "Menüs wie macOS, Detailansicht mit Haarlinien ohne Doppellinie, Einstellungen ohne eigene Fläche", addons_manager, results)
 
     def tasks_view():
-        # Leeranzeige, iCloud-Platzhalter ausgeblendet, Hinweis neben dem Plus, Kapsel-Knöpfe
+        # Leeranzeige, iCloud-Platzhalter ausgeblendet, Hinweis unter dem Titel im Listenkopf, Kapsel-Knöpfe
         res = m.js(r'''
           w.resizeTo(1500, 900);
           const c = testCalendar();
@@ -6483,15 +6484,16 @@ def run_checks(m, version, profile, results):
           comp.defaultCalendar = ro; await wait(800);
           const plus = [...d.querySelectorAll("#unifiedToolbarContent > li:not([hidden])")].find(li => li.getBoundingClientRect().width > 30 && !["search-bar", "spacer"].includes(li.getAttribute("item-id")));
           const pr = plus?.getBoundingClientRect(), fr = field.getBoundingClientRect();
-          out.hint = { readOnly: field.readOnly, dy: pr ? Math.round((fr.top + fr.height / 2) - (pr.top + pr.height / 2)) : null, dx: pr ? Math.round(fr.left - pr.right) : null };
+          await wait(300);
+          out.hint = { readOnly: field.readOnly, fieldW: Math.round(fr.width), header: d.querySelector("#mcListHeader .mc-lh-count").textContent, value: field.value };
           comp.defaultCalendar = before; await wait(500);
           for (const it of [phSaved, todoSaved]) { try { await c.deleteItem(it); } catch {} }
           return out;''')
         h = res.get("hint", {})
         ok = (res["emptyAtStart"] and res["placeholderRows"] == 0 and res["emptyWithPlaceholder"] and res["rows"] == 1 and not res["emptyWithTask"]
-              and res["button"][0] == "999px" and h.get("readOnly") and h.get("dy") is not None and abs(h["dy"]) <= 3 and 0 <= h["dx"] <= 20)
+              and res["button"][0] == "999px" and h.get("readOnly") and h.get("fieldW") == 0 and bool(h.get("value")) and h["value"] in h.get("header", ""))
         return ok, f"{res}"
-    check("Aufgaben: Leeranzeige, iCloud-Platzhalter ausgeblendet, Hinweis neben dem Plus, Kapseln", tasks_view, results)
+    check("Aufgaben: Leeranzeige, iCloud-Platzhalter ausgeblendet, Hinweis unter dem Titel im Listenkopf, Kapseln", tasks_view, results)
 
     def inline_prompt():
         # Nachfragen als Kachel im Fenster (oben wie ein macOS-Sheet) statt als eigenes Fenster. Marionette bricht eine
@@ -6585,7 +6587,7 @@ def run_checks(m, version, profile, results):
           tm.openTab("tasks", {}); await wait(1500);
           const tree = d.getElementById("calendar-task-tree"), det = d.getElementById("calendar-task-details-container");
           await until(() => tree.mTreeView.rowCount > 0, 4000); tree.mTreeView.selection?.select(0); await wait(600);
-          const btn = d.querySelector("#mcTaskFilter > button"), popup = d.getElementById("mcTaskFilterPopup");
+          const btn = d.querySelector("#mcListHeader .mc-lh-more"), popup = d.getElementById("mcTaskFilterPopup");
           const pick = async view => { btn.click(); await until(() => popup.state == "open", 2000); await wait(200);
             const it = popup.querySelector(`menuitem[data-view="${view}"]`); popup.activateItem?.(it) ?? it.doCommand(); await wait(600); popup.hidePopup(); await wait(200); };
           const cols = () => [...tree.querySelectorAll("treecol[itemproperty]")].filter(c => !c.hidden).map(c => c.getAttribute("itemproperty"));
@@ -6593,7 +6595,7 @@ def run_checks(m, version, profile, results):
             return { right: r.left >= t.right - 1 && Math.abs(r.top - t.top) < 40, below: r.top >= t.bottom - 1, detW: Math.round(r.width) }; };
           const out = { start: Services.prefs.getCharPref("extensions.mailcards.taskView", "list") };
           btn.click(); await until(() => popup.state == "open", 2000); await wait(200);
-          out.menu = [...popup.children].slice(0, 3).map(i => i.localName == "menuseparator" ? "-" : i.dataset.view || i.getAttribute("label"));
+          out.menu = [...popup.children].map(i => i.localName == "menuseparator" ? "-" : i.dataset.view || i.getAttribute("label"));
           popup.hidePopup(); await wait(200);
           await pick("table"); out.table = { cols: cols(), ...geo(), side: d.documentElement.hasAttribute("mc-task-side") };
           await pick("list"); out.list = { cols: cols(), ...geo(), side: d.documentElement.hasAttribute("mc-task-side") };
@@ -6607,13 +6609,13 @@ def run_checks(m, version, profile, results):
           for (const t of [...tm.tabInfo].slice(1)) tm.closeTab(t);
           return out;""")
         t, l, n = res["table"], res["list"], res["narrow"]
-        ok = (res["menu"] == ["list", "table", "-"]
+        ok = (res["menu"] == ["list", "table"]
               and not t["side"] and t["below"] and "priority" in t["cols"]
               and l["side"] and l["right"] and l["cols"] == ["completed", "title", "dueDate"] and l["detW"] >= 300
               and (n["side"] == (n["boxW"] >= 760)) and (n["side"] or n["below"]) and res["wideAgain"]
               and res["tableAgain"] == t["cols"])
         return ok, f"{res}"
-    check("Aufgaben: Listenansicht mit Details rechts und wenigen Spalten, Tabellenansicht wie bisher, Wahl im Filtermenü, schmal Details unten", task_view_choice, results)
+    check("Aufgaben: Kartenansicht mit Details rechts, Tabellenansicht wie bisher, Wahl über „…“ im Listenkopf, schmal Details unten", task_view_choice, results)
 
     def alarm_dialog():
         # Erinnerung wie in Apple Kalender: Kalendersymbol mit Monat und Tag, keine graue Kachel, „Alle“-Knöpfe nur bei mehreren
@@ -6696,9 +6698,10 @@ def run_checks(m, version, profile, results):
             // „Erledigt“: Menüteil schmal, Pfeil als Maske
             const cap = d.getElementById("task-actions-markcompleted");
             const dm = cap?.querySelector(".toolbarbutton-menubutton-dropmarker");
+            out.dmInfo = dm ? { rects: dm.getClientRects().length, w: Math.round(dm.getBoundingClientRect().width), cap: Math.round(cap.getBoundingClientRect().width) } : "fehlt";
             if (dm && vis(dm)) { const a = cap.getBoundingClientRect(), r = dm.getBoundingClientRect();
-              out.marker = { w: Math.round(r.width * 10) / 10, mask: csOf(dm).maskImage.slice(0, 12), gap: Math.round((a.right - r.right) * 10) / 10,
-                            dy: Math.round(((r.top + r.bottom) - (a.top + a.bottom)) / 2 * 10) / 10 }; }
+              out.marker = { w: Math.round(r.width * 10) / 10, mask: csOf(dm, "::after").maskImage.slice(0, 12), gap: Math.round((a.right - r.right) * 10) / 10,
+                            dy: Math.round(((r.top + r.bottom) - (a.top + a.bottom)) / 2 * 10) / 10, line: csOf(dm).borderInlineStartWidth }; }
             // ausgewählt mit Fokus: Zeilenrand links wie die Zeilenfläche daneben (kein Fokusrechteck)
             const tc = tree.querySelector("treechildren"), tr = tc.getBoundingClientRect(), rh = tree.rowHeight || 40;
             const top = tr.top + (row - tree.getFirstVisibleRow()) * rh;
@@ -6725,7 +6728,8 @@ def run_checks(m, version, profile, results):
                    and same_color(desc.get("color", ""), "rgb(245, 245, 247)" if res["dark"] else "rgb(29, 29, 31)"))
         ok_head = (len(res["heads"]) >= 3 and all(s == "none" for s in res["heads"]) and res.get("picker") in (None, "none")
                    and same_color(res["headLine"][0], res["headLine"][1]))
-        ok_marker = bool(mk) and mk["w"] <= 12 and mk["mask"].startswith("url(") and 8 <= mk["gap"] <= 16 and abs(mk["dy"]) <= 1.5
+        # „Erledigt“ als geteilter Knopf wie „Markieren“ in der Mail: Haken | Trennstrich | 28 px Pfeil am rechten Rand
+        ok_marker = bool(mk) and mk["w"] == 28 and mk["mask"].startswith("url(") and abs(mk["gap"]) <= 1 and abs(mk["dy"]) <= 1.5 and mk["line"] == "1px"
         e = res.get("edge") or []
         diff = lambda a, b: max(abs(x - y) for x, y in zip(a, b))
         # Rand nur mit fokussiertem Fenster sichtbar (parallele Läufe nehmen den Fokus) – sonst nur die Regel prüfen
@@ -6733,7 +6737,7 @@ def run_checks(m, version, profile, results):
         ok_red = res.get("red", "").upper() == ("#FF6961" if res["dark"] else "#FF3B30") and res.get("redPx", 0) >= 10
         ok = ok_desc and ok_head and ok_marker and ok_focus and ok_red
         return ok, f"desc={ok_desc} kopf={ok_head} pfeil={ok_marker} fokus={ok_focus} rot={ok_red} {res}"
-    check("Aufgaben: Beschreibung 13 px ohne Rand und dunkel lesbar, Spaltenköpfe ohne zweiten Strich, „Erledigt“ mit schmalem Pfeil, überfällig rot, kein Fokusrechteck", tasks_details, results)
+    check("Aufgaben: Beschreibung 13 px ohne Rand und dunkel lesbar, Spaltenköpfe ohne zweiten Strich, „Erledigt“ als geteilter Knopf, überfällig rot, kein Fokusrechteck", tasks_details, results)
 
     def task_cards():
         # Kartenansicht der Aufgaben wie die Mail-Karten: Menü heißt „Card View“, Karten mit Radius und Trennlinie wie die
@@ -6775,6 +6779,7 @@ def run_checks(m, version, profile, results):
             out.completed = !!(await c.getItem(saved.id))?.isCompleted;
             // Menü: „Card View“ statt „List View“
             const popup = d.getElementById("mcTaskFilterPopup");
+            if (popup) popup.dataset.kind = "view";
             popup?.dispatchEvent(new w.Event("popupshowing"));
             out.menu = popup ? [...popup.querySelectorAll("menuitem[data-view]")].map(i => i.getAttribute("label")) : null;
             Services.prefs.setCharPref("extensions.mailcards.taskView", "table"); await pause(600);
@@ -6792,6 +6797,52 @@ def run_checks(m, version, profile, results):
               and res.get("table") == {"cards": False, "tree": True})
         return ok, f"{res}"
     check("Aufgaben: Kartenansicht wie die Mail-Karten (rund, zweizeilig, Auswahl in Akzentfarbe, Kreis hakt ab), Tabelle zeigt Thunderbirds Liste", task_cards, results)
+
+    def task_header():
+        # Aufgaben wie die Mail: Filter- und „…“-Knopf an derselben Stelle wie über der Mailliste, Titel = Filter, Anzahl;
+        # Aktionen (Kategorie, Erledigt, Priorität, Löschen) oben in der Toolbar-Zeile als Symbole ohne Text, mit Tooltip
+        res = m.js(CAL_CHECK_JS + r"""
+          w.resizeTo(1500, 900); await pause(600);
+          const c = testCalendar();
+          const { CalTodo } = ChromeUtils.importESModule("resource:///modules/CalTodo.sys.mjs");
+          const todo = new CalTodo(); todo.title = "Halo Kopfaufgabe"; todo.calendar = c; const saved = await c.addItem(todo);
+          const R = e => { const r = e?.getBoundingClientRect(); return r && r.width ? { l: Math.round(r.left), t: Math.round(r.top), w: Math.round(r.width), b: Math.round(r.bottom) } : null; };
+          const out = {};
+          try {
+            await toMail(); await pause(1200);
+            const box = d.getElementById("mcListHeader");
+            out.mail = { filter: R(box.querySelector(".mc-lh-filter")), more: R(box.querySelector(".mc-lh-more")) };
+            tm.openTab("tasks", {}); await pause(1500);
+            const tree = d.getElementById("calendar-task-tree");
+            const i = await till(() => { const k = tree.mTaskArray.findIndex(t => t.title == "Halo Kopfaufgabe"); return k >= 0 ? k + 1 : 0; }, 5000) - 1;
+            tree.focus(); tree.view.selection.select(i); await pause(1200);
+            out.tasks = { filter: R(box.querySelector(".mc-lh-filter")), more: R(box.querySelector(".mc-lh-more")),
+                          title: box.querySelector(".mc-lh-title").textContent, count: box.querySelector(".mc-lh-count").textContent };
+            const row = d.getElementById("unifiedToolbarContainer").getBoundingClientRect();
+            const bar = d.getElementById("task-actions-toolbar");
+            out.actions = [...bar.children].filter(b => b.getBoundingClientRect().width).map(b => {
+              const r = b.getBoundingClientRect(), txt = b.querySelector(".toolbarbutton-text");
+              return { id: b.id, inRow: r.top >= row.top - 1 && r.bottom <= row.bottom + 1, text: !!txt && txt.getBoundingClientRect().width > 0,
+                       icon: csOf(b.id == "task-actions-markcompleted" ? b.querySelector(".toolbarbutton-menubutton-button") : b, "::before").maskImage.includes("mailcards/icons"),
+                       tip: !!(b.getAttribute("tooltiptext") || b.getAttribute("label")) }; });
+            // „…“ öffnet die Ansichten, Filter-Knopf die Filter
+            box.querySelector(".mc-lh-more").click(); const pop = d.getElementById("mcTaskFilterPopup"); await till(() => pop.state == "open", 3000);
+            out.viewMenu = [...pop.querySelectorAll("menuitem")].map(x => x.getAttribute("label")); pop.hidePopup(); await pause(300);
+            box.querySelector(".mc-lh-filter").click(); await till(() => pop.state == "open", 3000);
+            out.filterMenu = pop.querySelectorAll("menuitem").length; pop.hidePopup(); await pause(300);
+          } finally {
+            try { await c.deleteItem(saved); } catch {}
+            for (const t of [...tm.tabInfo].slice(1)) tm.closeTab(t);
+          }
+          return out;""")
+        mf, tf = (res.get("mail") or {}), (res.get("tasks") or {})
+        same = all(mf.get(k) and tf.get(k) and abs(mf[k]["l"] - tf[k]["l"]) <= 2 and abs(mf[k]["t"] - tf[k]["t"]) <= 1 for k in ("filter", "more"))
+        acts = res.get("actions") or []
+        ok = (same and re.match(r"\d+ tasks?\b", tf.get("count", "")) and len(acts) == 4
+              and all(a["inRow"] and not a["text"] and a["icon"] and a["tip"] for a in acts)
+              and res.get("viewMenu") == ["Card View", "Table View"] and res.get("filterMenu", 0) >= 5)
+        return ok, f"{res}"
+    check("Aufgaben: Filter und „…“ an derselben Stelle wie in der Mail, Aktionen oben in der Toolbar als Symbole ohne Text", task_header, results)
 
     def tables_like_mail():
         # Tabellenansichten in Adressbuch und Aufgaben wie die Mail-Tabelle: gleiche Schrift, Zeilen- und Kopfhöhe,
@@ -6836,7 +6887,7 @@ def run_checks(m, version, profile, results):
           for (const t of ["Halo Tabelle 1", "Halo Tabelle 2", "Halo Tabelle 3"]) { const x = new CalTodo(); x.title = t; x.calendar = c; saved.push(await c.addItem(x)); }
           tm.openTab("tasks", {}); await wait(1500);
           const tree = d.getElementById("calendar-task-tree");
-          const btn = d.querySelector("#mcTaskFilter > button"), popup = d.getElementById("mcTaskFilterPopup");
+          const btn = d.querySelector("#mcListHeader .mc-lh-more"), popup = d.getElementById("mcTaskFilterPopup");
           const pick = async view => { btn.click(); await until(() => popup.state == "open", 2000); await wait(200);
             const it = popup.querySelector(`menuitem[data-view="${view}"]`); popup.activateItem?.(it) ?? it.doCommand(); await wait(600); popup.hidePopup(); await wait(200); };
           const start = Services.prefs.getCharPref("extensions.mailcards.taskView", "list");
@@ -7011,14 +7062,18 @@ def run_checks(m, version, profile, results):
             comp.defaultCalendar = ro; await pause(900);
             const sb = d.querySelector('#unifiedToolbarContent > li[item-id="search-bar"]:not([hidden])')?.getBoundingClientRect();
             const fr = field.getBoundingClientRect();
-            out.narrow = { readOnly: field.readOnly, right: Math.round(fr.right), search: sb?.width ? Math.round(sb.left) : null, width: Math.round(fr.width) };
+            const cnt = d.querySelector("#mcListHeader .mc-lh-count");
+            out.narrow = { readOnly: field.readOnly, fieldW: Math.round(fr.width), search: sb?.width ? Math.round(sb.left) : null,
+                           header: cnt.textContent, value: field.value, headerRight: Math.round(cnt.getBoundingClientRect().right) };
           } finally { comp.defaultCalendar = before; w.resizeTo(1500, 900); await pause(800); }
           return out;''')
         h, n = res.get("hint", {}), res.get("narrow", {})
         ok_hint = h.get("shows") and h.get("attr") and same_color(h.get("color", ""), h.get("tertiary", "x"))
-        ok_narrow = n.get("readOnly") and n.get("search") is not None and n["right"] <= n["search"] - 8 and n["width"] > 40
+        # Hinweis jetzt unter dem Titel im Listenkopf (wie Apple Erinnerungen), nicht mehr in der Toolbar-Zeile
+        ok_narrow = (n.get("readOnly") and n.get("search") is not None and n["fieldW"] == 0 and bool(n.get("value"))
+                     and n["value"] in n.get("header", "") and n["headerRight"] <= n["search"])
         return bool(ok_hint and ok_narrow), f"{res}"
-    check("Aufgaben: Eingabehinweis grau auch nach Kalenderwechsel, Hinweis „schreibgeschützt“ im schmalen Fenster vor dem Suchfeld", tasks_hint, results)
+    check("Aufgaben: Eingabehinweis grau auch nach Kalenderwechsel, Hinweis „schreibgeschützt“ unter dem Titel im Listenkopf", tasks_hint, results)
 
     def task_dialog():
         # Aufgaben-Dialog (calendar-task-dialog-inner) im selben Stil wie der Termin-Dialog: Felder grau ohne Rahmen, 32 px,

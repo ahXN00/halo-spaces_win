@@ -219,6 +219,10 @@ const DE = {
   "Show all keyboard shortcuts of Thunderbird": "Alle Tastaturkurzbefehle von Thunderbird zeigen",
   "Dark backgrounds for messages": "Dunkle Hintergründe für Nachrichten",
   "in dark mode, like Apple Mail – Thunderbird recolours HTML messages carefully, images stay as they are": "im Dunkelmodus, wie Apple Mail – Thunderbird färbt HTML-Mails behutsam um, Bilder bleiben unverändert",
+  "{n} task": "{n} Aufgabe",
+  "{n} tasks": "{n} Aufgaben",
+  "Tasks": "Aufgaben",
+  "Task List Display Options": "Darstellung der Aufgabenliste",
 };
 const FR = {
   "Install version {v}": "Installer la version {v}",
@@ -409,6 +413,10 @@ const FR = {
   "Show all keyboard shortcuts of Thunderbird": "Afficher tous les raccourcis clavier de Thunderbird",
   "Dark backgrounds for messages": "Fonds sombres pour les messages",
   "in dark mode, like Apple Mail – Thunderbird recolours HTML messages carefully, images stay as they are": "en mode sombre, comme Apple Mail – Thunderbird recolore prudemment les messages HTML, les images restent inchangées",
+  "{n} task": "{n} tâche",
+  "{n} tasks": "{n} tâches",
+  "Tasks": "Tâches",
+  "Task List Display Options": "Options d’affichage de la liste des tâches",
 };
 const ES = {
   "Install version {v}": "Instalar la versión {v}",
@@ -599,6 +607,10 @@ const ES = {
   "Show all keyboard shortcuts of Thunderbird": "Mostrar todos los atajos de teclado de Thunderbird",
   "Dark backgrounds for messages": "Fondos oscuros para los mensajes",
   "in dark mode, like Apple Mail – Thunderbird recolours HTML messages carefully, images stay as they are": "en modo oscuro, como Apple Mail – Thunderbird cambia con cuidado los colores de los mensajes HTML, las imágenes no cambian",
+  "{n} task": "{n} tarea",
+  "{n} tasks": "{n} tareas",
+  "Tasks": "Tareas",
+  "Task List Display Options": "Opciones de visualización de la lista de tareas",
 };
 const IT = {
   "Install version {v}": "Installa la versione {v}",
@@ -789,6 +801,10 @@ const IT = {
   "Show all keyboard shortcuts of Thunderbird": "Mostra tutte le scorciatoie da tastiera di Thunderbird",
   "Dark backgrounds for messages": "Sfondi scuri per i messaggi",
   "in dark mode, like Apple Mail – Thunderbird recolours HTML messages carefully, images stay as they are": "in modalità scura, come Apple Mail – Thunderbird ricolora con cura i messaggi HTML, le immagini restano invariate",
+  "{n} task": "{n} attività",
+  "{n} tasks": "{n} attività",
+  "Tasks": "Attività",
+  "Task List Display Options": "Opzioni di visualizzazione dell’elenco attività",
 };
 const TRANSLATIONS = { de: DE, fr: FR, es: ES, it: IT };
 // tr("+{n} more", { n: 3 }) – Platzhalter in geschweiften Klammern
@@ -2117,16 +2133,26 @@ function hookTaskView(win, restorers) {
       log("task view error", e);
     }
   };
-  // Breite der Details merken, wenn der Teiler in der Listenansicht gezogen wurde
+  // Breite der Details merken, wenn der Teiler in der Kartenansicht gezogen
+  // wurde; die neue Listenbreite gilt dann wie im Adressbuch auch für die Mail
+  // (__mcDragged liest die Ausrichtung der Toolbar)
+  const onDown = () => (details.__mcDragging = true);
   const onUp = () => win.setTimeout(() => {
+    if (!details.__mcDragging) {
+      return;
+    }
+    delete details.__mcDragging;
     if (doc.documentElement.hasAttribute("mc-task-side")) {
       const wd = Math.round(details.getBoundingClientRect().width);
       if (wd >= 300) {
         Services.prefs.setIntPref(TASK_DETAILS_WIDTH_PREF, wd);
+        details.__mcDragged = true;
       }
     }
   }, 0);
+  splitter.addEventListener("mousedown", onDown);
   splitter.addEventListener("mouseup", onUp);
+  win.addEventListener("mouseup", onUp, true);
   const ro = new win.ResizeObserver(() => apply());
   ro.observe(details.parentElement);
   const prefObs = () => apply();
@@ -2134,7 +2160,9 @@ function hookTaskView(win, restorers) {
   apply();
   restorers?.push(() => {
     ro.disconnect();
+    splitter.removeEventListener("mousedown", onDown);
     splitter.removeEventListener("mouseup", onUp);
+    win.removeEventListener("mouseup", onUp, true);
     Services.prefs.removeObserver(TASK_VIEW_PREF, prefObs);
     delete splitter.__mcTaskView;
     // Tabelle wiederherstellen (Spalten, Details unten), die Wahl bleibt gemerkt
@@ -2245,6 +2273,7 @@ function hookTaskCards(win, restorers) {
     });
     list.replaceChildren(...cards);
     list.toggleAttribute("data-focused", doc.activeElement == tree);
+    enhancer?.updateListHeader?.(win); // Anzahl im Listenkopf
   };
   const schedule = () => {
     if (!pending) {
@@ -2328,6 +2357,10 @@ function hookTaskCards(win, restorers) {
   });
   const prefObs = () => schedule();
   Services.prefs.addObserver(TASK_VIEW_PREF, prefObs);
+  // Hinweis „schreibgeschützt“ wechselt mit dem Standardkalender → Listenkopf neu
+  const field = doc.getElementById("view-task-edit-field");
+  const fieldMo = field ? new win.MutationObserver(() => enhancer?.updateListHeader?.(win)) : null;
+  fieldMo?.observe(field, { attributes: true, attributeFilter: ["readonly", "aria-disabled", "value", "placeholder"] });
   // (Mitternacht: „Heute“/„Morgen“ und überfällig neu)
   const timer = win.setInterval(schedule, 10 * 60 * 1000);
   schedule();
@@ -2339,6 +2372,7 @@ function hookTaskCards(win, restorers) {
     tree.removeEventListener("focus", onFocus);
     tree.removeEventListener("blur", onFocus);
     Services.prefs.removeObserver(TASK_VIEW_PREF, prefObs);
+    fieldMo?.disconnect();
     win.clearInterval(timer);
     list.remove();
   });
@@ -6200,7 +6234,7 @@ class CardEnhancer {
       // erste Knöpfe in jedem Bereich an derselben Stelle wie in der Mail
       // (Kalender und Aufgaben: „+“ wie in Apple Kalender gleich rechts der
       // Seitenleiste)
-      const ownEdge = tab.mode.name == "calendar" || tab.mode.name == "tasks";
+      const ownEdge = tab.mode.name == "calendar";
       if (this.mcButtonsLeft && !ownEdge) {
         edge = this.mcButtonsLeft;
       }
@@ -6296,6 +6330,57 @@ class CardEnhancer {
           setBarVar(d, "--mc-ab-list-right", `${Math.round(shift + cr.right - rowLeft)}px`);
         }
       }
+      // Aufgaben wie die Mail: Kartenliste so breit wie die Mailliste (die Details
+      // rechts nehmen den Rest), darüber Titel/Anzahl, Filter und „…“; die Knöpfe
+      // beginnen rechts der Liste
+      if (tab.mode.name == "tasks") {
+        const side = d.documentElement.hasAttribute("mc-task-side");
+        const details = d.getElementById("calendar-task-details-container");
+        const taskList = d.documentElement.hasAttribute("mc-task-list") ? d.getElementById("mcTaskCards") : d.getElementById("calendar-task-tree");
+        if (details?.__mcDragged) {
+          // von Hand gezogen: diese Listenbreite gilt jetzt auch für Mail und Adressbuch
+          delete details.__mcDragged;
+          const lr0 = taskList?.getBoundingClientRect();
+          if (lr0?.width) {
+            this.mcListWidth = Math.round(lr0.width);
+            this.mcButtonsLeft = lr0.right + 6;
+            this.mcListPending = true;
+          }
+        }
+        if (side && details && this.mcButtonsLeft && !details.__mcDragging) {
+          const dr = details.getBoundingClientRect();
+          const lr = taskList?.getBoundingClientRect();
+          // rechte Kante des Inhaltsbereichs (nicht der Details oder ihres Rahmens –
+          // die wachsen mit der neuen Breite, das schaukelte sich auf)
+          const tp = d.getElementById("today-pane-panel")?.getBoundingClientRect();
+          const right = Math.min(d.getElementById("tabmail-container")?.getBoundingClientRect().right || Infinity,
+            tp?.width ? tp.left : Infinity, w.innerWidth);
+          if (dr.width && lr?.width && right) {
+            const splitW = Math.max(0, dr.left - lr.right);
+            const want = Math.round(right - (this.mcButtonsLeft - 6) - splitW);
+            const max = Math.round(right - lr.left - splitW - 280); // Liste mindestens 280 px
+            const width = Math.max(360, Math.min(want, max));
+            if (Math.abs(dr.width - width) >= 1) {
+              details.style.width = `${width}px`;
+            }
+          }
+        }
+        const lr = taskList?.getBoundingClientRect();
+        if (side && lr?.width) {
+          edge = Math.max(edge, lr.right + 6);
+          setBarVar(d, "--mc-task-list-right", `${Math.round(lr.right - rowLeft)}px`);
+        } else {
+          setBarVar(d, "--mc-task-list-right", `${Math.round(edge - 6 - rowLeft)}px`);
+        }
+        d.documentElement.toggleAttribute("mc-task-table", !side);
+        // Aktionsknöpfe gleich rechts vom „+“
+        const plus = [...d.querySelectorAll('#unifiedToolbarContent > li:is([item-id="new-task"], [item-id="new-event"])')]
+          .find(li => li.getBoundingClientRect().width);
+        const pr = plus?.querySelector("button")?.getBoundingClientRect();
+        if (pr?.width) {
+          setVar(d.getElementById("task-actions-toolbar"), "--mc-ta-left", `${Math.round(pr.right + 8)}px`);
+        }
+      }
       const toggle = d.getElementById("spacesPinnedButton")?.getBoundingClientRect();
       if (toggle?.width) {
         edge = Math.max(edge, toggle.right + 12);
@@ -6319,7 +6404,7 @@ class CardEnhancer {
       const rr = row.getBoundingClientRect();
       // nur an den Leisten, die in die Toolbar-Zeile verlegt werden
       const rowVar = (name, value) => {
-        for (const id of ["chat-view-toolbox", "viewToggle", "task-addition-box"]) {
+        for (const id of ["chat-view-toolbox", "viewToggle", "task-addition-box", "task-actions-toolbar"]) {
           setVar(d.getElementById(id), name, value);
         }
       };
@@ -6335,6 +6420,11 @@ class CardEnhancer {
       const sb = d.querySelector('#unifiedToolbarContent > li[item-id="search-bar"]:not([hidden])')?.getBoundingClientRect();
       if (sb?.width) {
         rowVar("--mc-search-left", `${Math.round(sb.left)}px`);
+        // Aufgaben: der Hinweis endet vor den Aktionsknöpfen (stehen vor dem Suchfeld)
+        const ta = tab.mode.name == "tasks" ? d.getElementById("task-actions-toolbar")?.getBoundingClientRect() : null;
+        if (ta?.width) {
+          setVar(d.getElementById("task-addition-box"), "--mc-search-left", `${Math.round(ta.left)}px`);
+        }
       }
       rowVar("--mc-row-top", `${Math.round(rr.top)}px`);
       rowVar("--mc-row-h", `${Math.round(rr.height)}px`);
@@ -8015,58 +8105,47 @@ class CardEnhancer {
     // Die Auswahl klickt Thunderbirds eigene Liste (Filterlogik und Speicherung
     // bleiben); der Knopf ist in Akzentfarbe, solange ein anderer Filter als
     // „Current Tasks“ gilt
+    // Aufgaben: Filter („Current Tasks“, „Today“ …) und Ansicht (Karten/Tabelle)
+    // wie in der Mail über der Liste – Filter-Knopf und „…“ im Listenkopf
+    // (#mcListHeader). Die Filter-Auswahl klickt Thunderbirds eigene Liste
+    // (Filterlogik und Speicherung bleiben); der Filter-Knopf ist getönt, solange
+    // ein anderer Filter als „Current Tasks“ gilt
     const hookTaskFilter = () => {
       const d = w.document;
       const group = d.getElementById("task-tree-filtergroup");
-      const content = d.getElementById("unifiedToolbarContent");
-      const search = content?.querySelector(':scope > li[item-id="search-bar"]');
-      if (!group || !search) {
+      if (!group || d.getElementById("mcTaskFilterPopup")?.__mcOwner === HOOK_OWNER) {
         return;
       }
-      let li = d.getElementById("mcTaskFilter");
-      if (li && li.__mcOwner !== HOOK_OWNER) {
-        li.remove();
-        li = null;
-      }
-      if (li) {
-        if (li.nextElementSibling != search) {
-          search.before(li); // Leiste neu aufgebaut (Anpassen)
-        }
-        return;
-      }
-      const X = "http://www.w3.org/1999/xhtml";
-      li = d.createElementNS(X, "li");
-      li.id = "mcTaskFilter";
-      li.__mcOwner = HOOK_OWNER;
-      const btn = d.createElementNS(X, "button");
-      btn.className = "mc-task-filter-button";
-      btn.title = tr("Filter Tasks");
-      li.append(btn);
-      search.before(li);
-      let popup = d.getElementById("mcTaskFilterPopup");
-      popup?.remove();
-      popup = d.createXULElement("menupopup");
+      d.getElementById("mcTaskFilterPopup")?.remove();
+      d.getElementById("mcTaskFilter")?.remove(); // (Knopf der Toolbar früherer Fassungen)
+      const popup = d.createXULElement("menupopup");
       popup.id = "mcTaskFilterPopup";
+      popup.__mcOwner = HOOK_OWNER;
       (d.getElementById("mainPopupSet") || d.querySelector("popupset") || d.documentElement).append(popup);
-      const sync = () => btn.toggleAttribute("active", (group.value || "throughcurrent") != "throughcurrent");
+      const sync = () => {
+        this.updateListHeader(w);
+      };
       popup.addEventListener("popupshowing", event => {
         if (event.target != popup) {
           return;
         }
-        // „list“ bleibt der gespeicherte Wert (Kompatibilität), heißt aber wie in der Mail „Kartenansicht“
-        const views = [["list", "Card View"], ["table", "Table View"]].map(([key, label]) => {
-          const item = d.createXULElement("menuitem");
-          item.setAttribute("type", "radio");
-          item.setAttribute("name", "mctaskview");
-          item.setAttribute("label", tr(label));
-          item.dataset.view = key;
-          if (taskView() == key) {
-            item.setAttribute("checked", "true");
-          }
-          item.addEventListener("command", () => setTaskView(w, key));
-          return item;
-        });
-        popup.replaceChildren(...views, d.createXULElement("menuseparator"), ...[...group.querySelectorAll("radio")].map(radio => {
+        if (popup.dataset.kind == "view") {
+          // „list“ bleibt der gespeicherte Wert (Kompatibilität), heißt aber wie in der Mail „Kartenansicht“
+          popup.replaceChildren(...[["list", "Card View"], ["table", "Table View"]].map(([key, label]) => {
+            const item = d.createXULElement("menuitem");
+            item.setAttribute("type", "radio");
+            item.setAttribute("name", "mctaskview");
+            item.setAttribute("label", tr(label));
+            item.dataset.view = key;
+            if (taskView() == key) {
+              item.setAttribute("checked", "true");
+            }
+            item.addEventListener("command", () => setTaskView(w, key));
+            return item;
+          }));
+          return;
+        }
+        popup.replaceChildren(...[...group.querySelectorAll("radio")].map(radio => {
           const item = d.createXULElement("menuitem");
           item.setAttribute("type", "radio");
           item.setAttribute("name", "mctaskfilter");
@@ -8088,15 +8167,10 @@ class CardEnhancer {
           return item;
         }));
       });
-      btn.addEventListener("click", () => {
-        const r = btn.getBoundingClientRect();
-        popup.openPopupAtScreen(w.mozInnerScreenX + r.left, w.mozInnerScreenY + r.bottom + 4, false);
-      });
       group.addEventListener("command", sync);
       group.addEventListener("select", sync);
       sync();
       this.restorers.push(() => {
-        li.remove();
         popup.remove();
         group.removeEventListener("command", sync);
         group.removeEventListener("select", sync);
@@ -8758,13 +8832,31 @@ class CardEnhancer {
       tools.append(filter, more);
       box.append(text, tools);
       const ab = () => d.getElementById("tabmail")?.currentAbout3Pane;
+      const taskPopup = (button, kind) => {
+        const popup = d.getElementById("mcTaskFilterPopup");
+        if (!popup) {
+          return false;
+        }
+        popup.dataset.kind = kind;
+        const r = button.getBoundingClientRect();
+        popup.openPopupAtScreen(w.mozInnerScreenX + r.left, w.mozInnerScreenY + r.bottom + 4, false);
+        return true;
+      };
+      const inTasks = () => d.getElementById("tabmail")?.currentTabInfo?.mode?.name == "tasks";
       filter.addEventListener("click", () => {
+        if (inTasks()) {
+          taskPopup(filter, "filter");
+          return;
+        }
         const a3 = ab();
         if (a3) {
           this.setUnreadFilter(a3, !this.unreadFilterOn(a3));
         }
       });
       more.addEventListener("click", () => {
+        if (inTasks() && taskPopup(more, "view")) {
+          return;
+        }
         const cw = abWindow();
         const popup = cw
           ? cw.document.getElementById("sortContext")
@@ -10152,6 +10244,10 @@ class CardEnhancer {
       this.updateAbHeader(box, tab.browser?.contentWindow);
       return;
     }
+    if (box && tab?.mode?.name == "tasks") {
+      this.updateTaskHeader(w, box);
+      return;
+    }
     const ab = d.getElementById("tabmail")?.currentAbout3Pane;
     this.syncQuickFilterToggle(w);
     if (!box || !ab?.document) {
@@ -10162,6 +10258,10 @@ class CardEnhancer {
       const on = this.unreadFilterOn(ab);
       filter.setAttribute("aria-pressed", String(on));
       filter.title = tr(on ? "Show All Messages" : "Show Only Unread Messages");
+    }
+    const more = box.querySelector(".mc-lh-more");
+    if (more) {
+      more.title = tr("Message List Display Options"); // (Aufgaben setzen einen eigenen Titel)
     }
     const title = box.querySelector(".mc-lh-title");
     const count = box.querySelector(".mc-lh-count");
@@ -10183,6 +10283,35 @@ class CardEnhancer {
         : "";
     } catch (e) {
       log("list header error", e);
+    }
+  }
+
+  // Kopfzeile über der Aufgabenliste: gewählter Filter („Current Tasks“ …) und
+  // Anzahl der Aufgaben; Filter-Knopf getönt, wenn nicht der Standardfilter gilt
+  updateTaskHeader(w, box) {
+    const d = w.document;
+    const group = d.getElementById("task-tree-filtergroup");
+    const tree = d.getElementById("calendar-task-tree");
+    const radio = group && ([...group.querySelectorAll("radio")].find(r => r.selected || r.value == group.value));
+    box.querySelector(".mc-lh-title").textContent = radio?.label || radio?.getAttribute("label") || tr("Tasks");
+    const n = tree?.mTaskArray?.length || 0;
+    let count = tr(n == 1 ? "{n} task" : "{n} tasks", { n: n.toLocaleString(Services.locale.appLocaleAsBCP47) });
+    // Hinweis „bitte einen beschreibbaren Kalender wählen“ unter dem Titel (wie Apple
+    // Erinnerungen) statt neben dem „+“ – dort stehen jetzt die Aktionen
+    const field = d.getElementById("view-task-edit-field");
+    if (field?.readOnly && field.value) {
+      count += " · " + field.value;
+    }
+    box.querySelector(".mc-lh-count").textContent = count;
+    const filter = box.querySelector(".mc-lh-filter");
+    const on = (group?.value || "throughcurrent") != "throughcurrent";
+    filter?.setAttribute("aria-pressed", String(on));
+    if (filter) {
+      filter.title = tr("Filter Tasks");
+    }
+    const more = box.querySelector(".mc-lh-more");
+    if (more) {
+      more.title = tr("Task List Display Options");
     }
   }
 

@@ -1301,9 +1301,14 @@ calendar-event-box :is(.alarm-icons-box, .item-classification-icon, .item-recurr
   stroke: var(--mt-accent-text) !important;
 }
 
-/* Hinweis „Bitte einen Kalender wählen, der Aufgaben unterstützt“ oben in
-   der Toolbar-Zeile neben dem Plus statt als eigene Zeile darunter
+/* Hinweis „Bitte einen Kalender wählen, der Aufgaben unterstützt“: im
+   Aufgaben-Bereich unter dem Titel im Listenkopf (Erweiterung), das Feld
+   selbst entfällt; sonst (Today-Pane) oben in der Toolbar-Zeile neben dem Plus
    (--mc-tab-left, --mc-row-top/-h misst die Erweiterung) */
+:root[mc-tab="tasks"] #view-task-edit-field:is([readonly], [aria-disabled="true"]) {
+  display: none !important;
+}
+
 #view-task-edit-field:is([readonly], [aria-disabled="true"]) {
   position: fixed !important;
   z-index: 3 !important;
@@ -1429,7 +1434,10 @@ calendar-event-box :is(.alarm-icons-box, .item-classification-icon, .item-recurr
 
 :root[mc-task-list] #mcTaskCards {
   display: block;
-  flex: 1 1 auto;
+  /* Grundbreite 0 und keine Inhaltsbreite: lange Titel (einzeilig) sollen die
+     Liste nicht breiter machen – sonst ragte der ganze Bereich über den Rand */
+  flex: 1 1 0;
+  contain: inline-size;
   min-height: 0;
   min-width: 360px;
   overflow-y: auto;
@@ -8717,50 +8725,143 @@ notification-message toolbarbutton.notification-button > .toolbarbutton-menubutt
   display: none !important;
 }
 
-/* ---------- Aufgaben: Filter als Menü hinter einem Knopf (wie „Quick Filter“) ----------
-   Den Knopf links vom Suchfeld setzt die Erweiterung (#mcTaskFilter); die Liste
+/* ---------- Aufgaben: Kopf über der Liste wie in der Mail ----------
+   Titel (gewählter Filter) und Anzahl links, Filter und „…“ (Karten/Tabelle)
+   in der Kapsel rechts – an derselben Stelle wie über der Mailliste
+   (#mcListHeader, --mc-task-list-right setzt die Erweiterung). Die Liste
    „Filter Tasks“ in der Seitenleiste entfällt */
-#mcTaskFilter {
-  display: none !important;
-}
-
-:root[mc-tab="tasks"] #mcTaskFilter {
+:root[mc-tab="tasks"] #mcListHeader {
+  --mc-lh-start: max(calc(var(--mc-side-right, 0px) + 16px), var(--mc-tl-header, 136px)) !important;
+  position: absolute !important;
+  top: 0 !important;
+  bottom: 1px !important;
+  inset-inline-start: var(--mc-lh-start) !important;
+  width: calc(var(--mc-task-list-right, 0px) - var(--mc-lh-start) - 8px) !important;
+  min-width: 0 !important;
   display: flex !important;
   align-items: center !important;
-  margin-inline-end: 8px !important;
+  gap: 8px !important;
+  z-index: 1 !important;
 }
 
-#mcTaskFilter > .mc-task-filter-button {
-  appearance: none !important;
-  width: 40px !important;
+/* feine Linie an der rechten Kante der Kartenliste, wie über der Mailliste */
+:root[mc-tab="tasks"][mc-task-list]:not([mc-task-table]) #unifiedToolbarContainer::before {
+  content: "" !important;
+  position: absolute !important;
+  inset-inline-start: var(--mc-task-list-right, -10px) !important;
+  top: 0 !important;
+  bottom: 0 !important;
+  width: 1px !important;
+  background: var(--mt-pane-line) !important;
+}
+
+/* ---------- Aufgaben: Aktionen (Kategorie, Erledigt, Priorität, Löschen) ----------
+   wie die Knöpfe über der Mail oben in der Toolbar-Zeile – nur Symbole in
+   einer Kapsel gleich rechts vom „+“ (--mc-row-top/-h, --mc-ta-left setzt die
+   Erweiterung; das „+“ hält dafür Platz frei); der Name steht im Tooltip */
+:root[mc-tab="tasks"]:has(#calendar-task-details-container:not([hidden])) #unifiedToolbarContent > li:is([item-id="new-task"], [item-id="new-event"]):not([hidden]) {
+  margin-inline-end: 196px !important;
+}
+
+:root[mc-tab="tasks"] #task-actions-toolbar {
+  position: fixed !important;
+  z-index: 3 !important;
+  top: calc(var(--mc-row-top, 0px) + (var(--mc-row-h, 50px) - 38px) / 2) !important;
+  inset-inline-start: var(--mc-ta-left, 50vw) !important;
   height: 38px !important;
   margin: 0 !important;
   padding: 0 !important;
-  border: none !important;
+  gap: 0 !important;
   border-radius: 999px !important;
   background: var(--mt-control) !important;
+}
+
+:root[mc-tab="tasks"] #task-actions-toolbar > toolbarbutton {
+  position: relative !important;
+  width: 40px !important;
+  min-width: 40px !important;
+  height: 38px !important;
+  min-height: 38px !important;
+  padding: 0 !important;
+  gap: 0 !important;
+  background: transparent !important;
   color: color-mix(in srgb, var(--mt-text) 82%, transparent) !important;
-  display: flex !important;
-  align-items: center !important;
   justify-content: center !important;
 }
 
-#mcTaskFilter > .mc-task-filter-button:hover {
+:root[mc-tab="tasks"] #task-actions-toolbar > toolbarbutton:hover:not([disabled]) {
   background: var(--mt-control-hover) !important;
   color: var(--mt-text) !important;
 }
 
-#mcTaskFilter > .mc-task-filter-button[active] {
-  background: color-mix(in srgb, var(--mt-accent) 18%, transparent) !important;
-  color: var(--mt-accent) !important;
+:root[mc-tab="tasks"] #task-actions-toolbar > toolbarbutton :is(.toolbarbutton-text, .toolbarbutton-icon, .toolbarbutton-menu-dropmarker),
+:root[mc-tab="tasks"] #task-actions-toolbar > toolbarbutton > dropmarker:not(.toolbarbutton-menubutton-dropmarker) {
+  display: none !important;
 }
 
-#mcTaskFilter > .mc-task-filter-button::before {
+:root[mc-tab="tasks"] #task-actions-toolbar > toolbarbutton::before,
+:root[mc-tab="tasks"] #task-actions-markcompleted .toolbarbutton-menubutton-button::before {
   content: "" !important;
   width: 22px !important;
   height: 22px !important;
   background-color: currentColor !important;
-  mask: var(--mi-filter) center / contain no-repeat !important;
+  mask: var(--mc-ta-icon) center / contain no-repeat !important;
+}
+
+#task-actions-category { --mc-ta-icon: url("resource://mailcards/icons/tag.svg"); }
+#task-actions-markcompleted { --mc-ta-icon: url("resource://mailcards/icons/task-done.svg"); }
+#task-actions-priority { --mc-ta-icon: url("resource://mailcards/icons/priority.svg"); }
+#calendar-delete-task-button { --mc-ta-icon: url("resource://mailcards/icons/trash.svg"); }
+
+/* Erledigt: geteilter Knopf wie „Markieren“ in der Mail – Haken | Pfeil */
+:root[mc-tab="tasks"] #task-actions-toolbar > #task-actions-markcompleted {
+  width: 68px !important;
+  min-width: 68px !important;
+}
+
+:root[mc-tab="tasks"] #task-actions-toolbar > #task-actions-markcompleted::before {
+  display: none !important;
+}
+
+:root[mc-tab="tasks"] #task-actions-markcompleted .toolbarbutton-menubutton-button {
+  width: 40px !important;
+  height: 38px !important;
+  justify-content: center !important;
+}
+
+:root[mc-tab="tasks"] #task-actions-markcompleted .toolbarbutton-menubutton-button > :is(.toolbarbutton-text, .toolbarbutton-icon) {
+  display: none !important;
+}
+
+:root[mc-tab="tasks"] #task-actions-markcompleted .toolbarbutton-menubutton-dropmarker {
+  width: 28px !important;
+  height: 38px !important;
+  margin: 0 !important;
+  border-inline-start: 1px solid var(--mt-pane-line) !important;
+  opacity: 1 !important;
+  mask: none !important;
+  background: none !important;
+  position: relative !important;
+}
+
+:root[mc-tab="tasks"] #task-actions-markcompleted .toolbarbutton-menubutton-dropmarker::after {
+  content: "" !important;
+  position: absolute !important;
+  inset: 0 !important;
+  background-color: currentColor !important;
+  mask: var(--mi-chevron) center / 14px 14px no-repeat !important;
+}
+
+:root[mc-tab="tasks"] #task-actions-toolbar > toolbarbutton[disabled] {
+  opacity: 0.4 !important;
+}
+
+/* die Zeile, in der die Knöpfe vorher standen, entfällt */
+:root[mc-tab="tasks"] #task-actions-toolbox,
+:root[mc-tab="tasks"] #other-actions-box {
+  min-height: 0 !important;
+  height: 0 !important;
+  overflow: visible !important;
 }
 
 :root[mc-tab="tasks"] :is(#task-tree-filter-header, #task-filtertree-pane) {
