@@ -11088,10 +11088,18 @@ notification-message toolbarbutton.notification-button > .toolbarbutton-menubutt
   background-size: 90px 100%, 90px 100% !important;
 }
 
-/* gewählte Zeit: Akzent statt Pink (#f045a5) */
-#calendar-event-dialog-attendees-v2 :is(#event-bar-top, #event-bar-bottom) {
-  border-color: var(--mt-accent) !important;
+/* gewählte Zeit: Akzent statt Pink (#f045a5), nur über dem Zeitraster – der
+   Teil im Kopf mit Datum und Uhrzeiten bleibt unsichtbar (dort weiter ziehbar),
+   unten ein ringsum geschlossener Rahmen wie in Apple Kalender */
+#calendar-event-dialog-attendees-v2 #event-bar-bottom {
+  border: 1px solid var(--mt-accent) !important;
+  border-radius: 4px !important;
   background-color: color-mix(in srgb, var(--mt-accent) 22%, transparent) !important;
+}
+
+#calendar-event-dialog-attendees-v2 #event-bar-top {
+  border-color: transparent !important;
+  background-color: transparent !important;
 }
 
 /* Belegt/Vorläufig/Abwesend/Unbekannt: abgerundete Balken; Legende ohne Rahmen */

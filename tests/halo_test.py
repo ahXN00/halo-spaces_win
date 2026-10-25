@@ -3159,7 +3159,10 @@ def calendar_checks(m, results):
             const bar = ad.getElementById("event-bar-top"), legend = ad.querySelector('.legend[status="BUSY"]'), role = ad.querySelector("event-attendee .role-icon, .role-icon");
             out.list = { border: csOf(list).borderTopWidth, radius: csOf(list).borderTopLeftRadius, lines: csOf(list).backgroundImage.slice(0, 30) };
             out.grid = { border: csOf(grid).borderTopWidth, lines: csOf(inner).backgroundImage.includes("threedshadow") ? "alt" : csOf(inner).backgroundImage.slice(0, 30) };
-            out.bar = { border: csOf(bar).borderTopColor, accent: colorOf(ad, "var(--mt-accent)") };
+            const low = ad.getElementById("event-bar-bottom"), head = ad.getElementById("day-header-outer");
+            // Rahmen der gewählten Zeit nur über dem Raster, nicht im Kopf mit den Uhrzeiten
+            out.bar = { border: csOf(low).borderTopColor, accent: colorOf(ad, "var(--mt-accent)"), topVisible: csOf(bar).borderTopColor != "rgba(0, 0, 0, 0)" || csOf(bar).backgroundColor != "rgba(0, 0, 0, 0)",
+                        below: Math.round(low.getBoundingClientRect().top) >= Math.round(head.getBoundingClientRect().bottom) - 1, topWidth: csOf(low).borderTopWidth };
             out.legend = { border: csOf(legend).borderTopWidth, radius: csOf(legend).borderTopLeftRadius, w: csOf(legend).width, h: csOf(legend).height };
             // Beschriftungen der Legenden (Rolle, Art, Status) alle in derselben grauen Schrift
             out.labelColors = [...new Set([...ad.querySelectorAll("table:has(:is(.legend, .role-icon, .usertype-icon)) td")]
@@ -3177,7 +3180,7 @@ def calendar_checks(m, results):
         # wie Apple Kalender: Liste ohne Zeilenlinien, Raster nur mit senkrechten Stundenlinien, Legende als Farbpunkte
         ok = (res["list"]["border"] == "0px" and res["list"]["radius"] == "8px" and res["list"]["lines"] == "none"
               and res["grid"]["border"] == "0px" and res["grid"]["lines"].startswith("linear-gradient") and not res["grid"]["rows"]
-              and same_color(res["bar"]["border"], res["bar"]["accent"])
+              and same_color(res["bar"]["border"], res["bar"]["accent"]) and not res["bar"]["topVisible"] and res["bar"]["below"] and res["bar"]["topWidth"] == "1px"
               and res["legend"]["border"] == "0px" and res["legend"]["radius"] == "50%" and res["legend"]["w"] == res["legend"]["h"]
               and len(res["labelColors"]) == 1
               and res["icon"] and "mailcards/icons/user.svg" in res["icon"] and res["combined"])
