@@ -9299,7 +9299,7 @@ body {
   --ab-pane-min-width: 160px !important;
   /* Kontaktdetails: Rasterspalte und Mindestbreite (#detailsPane unten) gleich,
      sonst schiebt der Teiler die Details über den Fensterrand hinaus */
-  --ab-details-pane-min-width: 560px !important;
+  --ab-details-pane-min-width: 480px !important;
 }
 
 /* Adressbuchliste ausgeblendet: ihre Spalte im Raster entfällt ganz, die
@@ -10967,7 +10967,9 @@ notification-message toolbarbutton.notification-button > .toolbarbutton-menubutt
    grauer Balken über die Kontaktliste) */
 #booksPane:not(.mc-side-anim) { min-width: 160px !important; }
 #cardsPane { min-width: 280px !important; }
-#detailsPane { min-width: 560px !important; }
+/* (Kontaktdetails so schmal wie die Leseansicht der Mail: mit Today-Pane passen
+   Bücherliste, Kontaktliste in Mail-Breite und Details sonst nicht nebeneinander) */
+#detailsPane { min-width: 480px !important; }
 #calendarDisplayBox { min-width: 560px !important; }
 #calendar-task-tree { min-width: 360px !important; }
 #calendar-task-details-container { min-width: 360px !important; }

@@ -5253,6 +5253,7 @@ class CardEnhancer {
     const existing = ["searchApplied", "toolbarApplied", "rowcountApplied"]
       .some(name => Services.prefs.getBoolPref(`extensions.mailcards.${name}`, false));
     const firstInstall = !existing && !Services.prefs.getBoolPref(WELCOME_PREF, false);
+    this.firstInstall = firstInstall;
     if (existing && !Services.prefs.getBoolPref(WELCOME_PREF, false)) {
       // Bestandsnutzer nach einem Update nicht begrüßen (und keine Plattform-Notiz mehr)
       Services.prefs.setBoolPref(WELCOME_PREF, true);
@@ -7900,6 +7901,7 @@ class CardEnhancer {
       } catch (e) {
         log("layout menu error", e);
       }
+      this.todayPaneEverywhere(w);
       this.hideTodayPaneInChatOnce(w);
       styleContentPages();
       applySideState();
@@ -11244,12 +11246,56 @@ class CardEnhancer {
     popup.addEventListener("popupshown", match);
   }
 
+  // Today-Pane in allen Bereichen außer dem Kalender (der zeigt den Tag selbst):
+  // Thunderbird kennt sie nur in Mail, Aufgaben, Chat und Termin-Tabs –
+  // Adressbuch, Einstellungen und übrige Tabs (Modus „special“) kommen dazu,
+  // auch für ihre Teile (Minimonat, Termine, Aufgaben). Nach der
+  // Erstinstallation einmal überall eingeblendet; danach gilt die eigene Wahl
+  todayPaneEverywhere(w) {
+    const d = w.document;
+    const panel = d.getElementById("today-pane-panel");
+    if (!panel || panel.__mcEverywhere) {
+      return;
+    }
+    panel.__mcEverywhere = true;
+    for (const box of [panel, ...panel.querySelectorAll("[mode]")]) {
+      const modes = box.getAttribute("mode").split(",");
+      const widths = (box.getAttribute("modewidths") || "").split(",");
+      const pairs = modes.map((m, i) => [m, widths[i] || "200"]).filter(([m]) => !(box == panel && m == "calendar"));
+      if (modes.includes("mail") && !modes.includes("special")) {
+        pairs.push(["special", widths[modes.indexOf("mail")] || "200"]);
+      }
+      box.setAttribute("mode", pairs.map(([m]) => m).join(","));
+      if (box.hasAttribute("modewidths")) {
+        box.setAttribute("modewidths", pairs.map(([, v]) => v).join(","));
+      }
+    }
+    const PREF = "extensions.mailcards.todayPaneEverywhere";
+    if (this.firstInstall && !Services.prefs.getBoolPref(PREF, false)) {
+      panel.setAttribute("collapsedinmodes", ","); // (Thunderbirds Zeichen für „nirgends zu“)
+      Services.xulStore.persist(panel, "collapsedinmodes");
+      Services.prefs.setBoolPref(PREF, true);
+    }
+    // Ansicht für den aktuellen Bereich neu bestimmen (Thunderbird tut das sonst
+    // erst beim nächsten Bereichswechsel)
+    try {
+      panel.setVisible(panel.isVisible(w.gCurrentMode), false, true);
+    } catch (e) {
+      log("today pane modes error", e);
+    }
+  }
+
   // Heute-Leiste (Aufgaben/Termine rechts) gehört nicht in den Chat – wie in
   // Apples Nachrichten-App. Einmalig für den Chat-Bereich ausblenden; danach
   // gilt wieder, was man selbst einstellt.
   hideTodayPaneInChatOnce(w) {
     const PREF = "extensions.mailcards.todayPaneChatHidden";
     if (Services.prefs.getBoolPref(PREF, false)) {
+      return;
+    }
+    // neu installiert: Today-Pane überall außer im Kalender (todayPaneEverywhere)
+    if (this.firstInstall) {
+      Services.prefs.setBoolPref(PREF, true);
       return;
     }
     const pane = w.document.getElementById("today-pane-panel");

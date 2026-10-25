@@ -3643,6 +3643,29 @@ def run_checks(m, version, profile, results):
         return ok, f"{res}"
     check("Begrüßung: einmal nach der Erstinstallation (Optionen unter Einstellungen → halo.spaces, Win/Linux mit Plattform-Hinweis), Theme bleibt System", welcome, results)
 
+    def today_everywhere():
+        # Today-Pane in allen Bereichen außer dem Kalender, nach der Erstinstallation überall eingeblendet
+        # (frisches Testprofil = Erstinstallation); im Kalender aus und ihr Schalter dort gesperrt
+        res = m.js(r"""
+          const panel = d.getElementById("today-pane-panel"), cmd = d.getElementById("calendar_toggle_todaypane_command");
+          const shown = () => !!panel && !panel.collapsed && panel.getBoundingClientRect().width > 0;
+          const out = { modes: panel.getAttribute("mode"), collapsed: panel.getAttribute("collapsedinmodes"),
+                        pref: Services.prefs.getBoolPref("extensions.mailcards.todayPaneEverywhere", false) };
+          await toMail(); await wait(800); out.mail = shown();
+          tm.openTab("tasks", {}); await wait(1200); out.tasks = shown();
+          tm.openTab("addressBookTab", {}); await wait(2000); out.addressbook = [shown(), w.gCurrentMode];
+          w.openPreferencesTab("paneGeneral"); await wait(2000); out.settings = shown();
+          tm.openTab("chat", {}); await wait(1500); out.chat = shown();
+          await toCalendar(); await wait(1200); out.calendar = [shown(), !!cmd?.disabled];
+          for (const t of [...tm.tabInfo].slice(1)) tm.closeTab(t);
+          await toMail(); await wait(600);
+          return out;""")
+        ok = (res["pref"] and "special" in res["modes"] and "calendar" not in res["modes"].split(",")
+              and res["mail"] and res["tasks"] and res["addressbook"][0] and res["settings"] and res["chat"]
+              and res["calendar"] == [False, True])
+        return ok, f"{res}"
+    check("Today-Pane: in Mail, Aufgaben, Adressbuch, Einstellungen und Chat, nicht im Kalender; nach der Installation eingeblendet", today_everywhere, results)
+
     # Vorbereitung: Fenstergröße, Testkalender, Fenster ohne Dialoge
     m.js("""
       for (const x of [...Services.wm.getEnumerator(null)]) if (!x.location.href.includes("messenger.xhtml")) x.close();
