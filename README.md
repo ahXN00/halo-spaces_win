@@ -41,28 +41,27 @@ Features
 
 Personal data in the screenshots is blurred.
 
-3.6.0 Release Notes
+3.7.0 Release Notes
 --------
-- **Hover actions like Apple Mail**: moving the pointer over an open message shows a small capsule on the line below the header – Delete | Reply, Reply All, Forward. Always on; the capsule in the message list cards is gone
-- **Star button**: the flag button in the toolbar is now a split star button like Apple Mail – click the star to star or unstar the message, the arrow opens the menu as before. The Move button shows folder and arrow without a divider
-- **Unread filter**: the filter button above the message list now shows only unread mail, the next click shows all again; Thunderbird's Quick Filter bar is gone
-- **Faster search**: hits from Thunderbird's index (Gloda) appear right away, matches in subject, sender and recipients follow at once, the message text is searched in the background and only adds new hits – no duplicate rows, the list stays where you scrolled
-- **View menu**: preview lines (none to 4) are now under View, like Apple Mail; the "…" menu above the message list gets "Show Contact Photo". "Table View: Wide" is gone – it broke the layout; whoever used it lands in the classic table
-- **Sending like Apple Mail**: the compose window closes right away and the message goes out in the background – no progress window. If sending fails, a message says so and offers to show the Outbox
-- **Sidebars**: one divider for every space and the Today pane – drag it wider (up to 360 px, like the calendar; Mail can be widened again), drag it under the threshold to hide the sidebar and back in the same motion to show it again, or pull a hidden sidebar back out from the window edge. No animation
-- **Contacts like Apple Contacts**: the personal address book is called "Contacts", is hidden while it is empty (show it from the "…" menu) and the address book always opens with the last selected contact
-- **Calendar**: the quick event window opens next to the day or time you double-clicked, on the side facing the middle; context menus of events show no keyboard shortcuts; "for 2h" on the night clocks go back now really lasts two hours. Birthdays are a calendar in the calendar list – show or hide it with its checkbox
-- **Tables**: the contact and task tables look like the mail table (font, row height, header, stripes, selection)
-- **Message header**: the account's colour dot stands in front of the folder name, like in the folder list
-- **Spaces button**: the Show/Hide Spaces button shows the space colours
-- **Settings → halo.spaces** shows only what can't be set directly in the window; design, icons and logging are grouped under "Troubleshooting". Locked fields in dialogs (e.g. the name of the personal address book) now look locked
+- **Undo Send like Apple Mail**: after sending, the compose window disappears and "Undo Send" waits at the bottom for 10 seconds (Settings → halo.spaces: off, 10, 20 or 30 s) – one click brings the message back
+- **Send Later**: a small arrow next to the Send button – tonight at 9 PM, tomorrow at 8 AM or a time of your choice. The message waits in Drafts and goes out on time while Thunderbird is running
+- **Remind Me**: right-click a message → Remind Me (in an hour, tonight, tomorrow, next week). It moves to a "Remind Me" mailbox and comes back unread at that time, with a notification
+- **Follow Up**: when a message you sent got no reply after 3 days, a quiet note above the Inbox offers to follow up
+- **Quick Reply**: a reply field right below the message – type, press ⌘↩ (Ctrl+↩) and it is sent; "More …" opens the full reply window with your text
+- **Tasks like Mail**: tasks show as cards like mail cards (two lines, rounded, selection in the accent colour); filter and "…" sit above the list exactly where they are in Mail; Category, Mark Completed, Priority and Delete are icon buttons in the toolbar
+- **Today pane everywhere** but in the calendar – mail, tasks, contacts, chat and settings – and shown after installing. Optional: the sun next to its title shows the current weather (Open-Meteo, a city or your location; off by default)
+- **Dark mode**: new setting "Dark backgrounds for messages" for Thunderbird's own recolouring of HTML mail; wide newsletters are scaled down to the reading width instead of being cut off; printed messages get a calm Apple Mail style header
+- **Motion**: cards slide away when archived or deleted, new mail slides in, unread counts pop, calendar views fade in – all off with the system's "Reduce motion"
+- **Accessibility**: right-to-left languages lay out the toolbar row mirrored; Windows high contrast uses the system colours
+- **Fixes**: event windows no longer jump after opening; week and day view show the same coloured bar as the month view; sidebars no longer stutter at the end of their animation; "for 2h" across the clock change lasts 120 minutes again; background sending no longer leaves mail in the Outbox; Settings search finds halo.spaces options; a link to Thunderbird's keyboard shortcuts in Settings → General; "Invite Attendees" without hard lines
 
 See [Releases](https://github.com/sruf79/halo-spaces/releases) for all versions.
 
 Credits
 --------
 halo.spaces uses the coffee cup from [Noto Emoji](https://github.com/googlefonts/noto-emoji)
-(© Google LLC, Apache License 2.0) – see `extension/about/NOTICE.txt`.
+(© Google LLC, Apache License 2.0) – see `extension/about/NOTICE.txt`. The optional weather
+in the Today pane uses data from [Open-Meteo.com](https://open-meteo.com/) (CC BY 4.0).
 The layout of this page follows [FluentBird](https://github.com/Deathbyteacup/fluentbird) by Danny King.
 
 ---------------------------------------------------------------
