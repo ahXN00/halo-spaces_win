@@ -5479,6 +5479,20 @@ def run_checks(m, version, profile, results):
             out.normal = await del();
             await toCalendar(); w.switchToView("day"); await wait(500); w.switchToView("week"); await wait(50);
             out.view = getComputedStyle(d.getElementById("week-view")).animationName;
+            // neue Mail gleitet oben ein, Ungelesen-Zahl des Ordners hüpft
+            await toMail(); a3.displayFolder(f.URI); await wait(900);
+            lf.addMessage(`From: Halo <h@example.invalid>
+Subject: Bewegung neu
+Date: Sun, 25 Oct 2026 23:59:00 +0100
+Message-ID: <halo-move-new-${Date.now()}@example.invalid>
+
+Neu
+`);
+            let arrived = 0, popped = 0;
+            for (let t = 0; t < 1500 && !(arrived && popped); t += 30) { await wait(30);
+              arrived ||= [...a3.document.querySelectorAll('#threadTree tr[is="thread-card"] .card-container')].filter(c => c.getAnimations().length).length;
+              popped ||= [...a3.document.querySelectorAll("#folderTree .unread-count")].filter(c => c.getAnimations().length).length; }
+            out.arrival = { arrived, popped };
             Services.prefs.setIntPref("ui.prefersReducedMotion", 1); await wait(500);
             await toMail(); a3.displayFolder(f.URI); await wait(900);
             out.reduced = await del();
@@ -5491,10 +5505,10 @@ def run_checks(m, version, profile, results):
         hidden = res.get("visibility") == "hidden"
         dur = lambda t: float(t.rstrip("ms")) / (1000 if t.endswith("ms") else 1) if t else 0
         ok = (n.get("during") and (n.get("anims") == 1 or hidden) and n.get("after") and n.get("leftover") == 0 and 0.05 <= dur(n.get("transition")) <= 0.25
-              and res.get("view") == "mc-view-in"
+              and res.get("view") == "mc-view-in" and (hidden or (res.get("arrival", {}).get("arrived") and res["arrival"].get("popped")))
               and r.get("anims") in (0, -1) and r.get("after") and r.get("transition") == "0.001s")
         return ok, f"{res}"
-    check("Bewegung: Karte gleitet beim Löschen weg, Kalenderansicht blendet ein, Listen mit kurzem Übergang; „Bewegung reduzieren“ sofort", motion, results)
+    check("Bewegung: Karte gleitet beim Löschen weg, neue Mail gleitet ein, Ungelesen-Zahl hüpft, Kalenderansicht blendet ein; „Bewegung reduzieren“ sofort", motion, results)
 
     def rtl_and_contrast():
         # Rechts-nach-links (Pseudosprache „bidi“, neues Fenster): Listenkopf über der Mailliste, Seitenleisten-Knopf

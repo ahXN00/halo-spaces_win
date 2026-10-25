@@ -12503,6 +12503,55 @@ class CardEnhancer {
     });
   }
 
+  // Neue Mails gleiten oben in die Kartenliste ein, eine geänderte
+  // Ungelesen-Zahl in der Ordnerliste „hüpft“ kurz (wie Apple Mail). Beides nur
+  // für sichtbare Elemente und nicht bei „Bewegung reduzieren“
+  hookArrivals(win) {
+    const doc = win.document;
+    const tree = doc.getElementById("folderTree");
+    if (!tree || tree.__mcArrivals) {
+      return;
+    }
+    tree.__mcArrivals = true;
+    const pop = el => el.animate([{ transform: "scale(1.25)" }, { transform: "none" }], { duration: 220, easing: "ease-out" });
+    const mo = new win.MutationObserver(records => {
+      if (motionMs(220) <= 1) {
+        return;
+      }
+      const seen = new Set();
+      for (const rec of records) {
+        const badge = rec.target.nodeType == 1 ? rec.target.closest?.(".unread-count") : rec.target.parentElement?.closest(".unread-count");
+        if (badge && !seen.has(badge) && badge.getClientRects().length && /\d/.test(badge.textContent)) {
+          seen.add(badge);
+          pop(badge);
+        }
+      }
+    });
+    mo.observe(tree, { subtree: true, characterData: true, childList: true });
+    const listener = {
+      msgAdded: hdr => {
+        if (hdr.folder != win.gFolder || motionMs(250) <= 1) {
+          return;
+        }
+        win.setTimeout(() => {
+          try {
+            const i = win.gDBView?.findIndexOfMsgHdr(hdr, false);
+            const row = i >= 0 ? win.threadTree?.getRowAtIndex?.(i) : null;
+            row?.querySelector(".card-container")?.animate(
+              [{ opacity: 0, transform: "translateY(-12px)" }, { opacity: 1, transform: "none" }],
+              { duration: 250, easing: "ease-out" });
+          } catch {}
+        }, 60);
+      },
+    };
+    MailServices.mfn.addListener(listener, MailServices.mfn.msgAdded);
+    this.addWinRestorer(win, () => {
+      mo.disconnect();
+      MailServices.mfn.removeListener(listener);
+      delete tree.__mcArrivals;
+    });
+  }
+
   // Schnellfilter-Leiste nie zeigen: Thunderbirds Befehle dafür (Knopf in
   // der Symbolleiste, Menü, ⇧⌘K) schalten stattdessen den Filter um bzw.
   // setzen den Cursor ins Suchfeld; „Zurücksetzen“ (z. B. beim Springen zu
@@ -12608,6 +12657,7 @@ class CardEnhancer {
     safely("view choice", () => this.hookViewChoice(doc));
     safely("unread filter", () => this.hookUnreadFilter(win));
     safely("card exit", () => this.hookCardExit(win));
+    safely("arrivals", () => this.hookArrivals(win));
     safely("star button", () => {
       // Stern-Knopf der Symbolleiste folgt der Auswahl („select“ der
       // Mailliste steigt nicht auf – darum in der Capture-Phase)
