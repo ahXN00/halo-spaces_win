@@ -63,3 +63,4 @@ Build instructions (source code upload):
 The only generated file is extension/theme.css: chrome/merge_spaces.py inserts chrome/spaces.css into chrome/userChrome.css, which build.sh copies to extension/theme.css. For the store package build.sh removes update_url from the manifest and adds strict_max_version from store/max-version.
 
 Test: install (no restart needed; Thunderbird's default theme "System theme – auto"). An automated test runs in a fresh temporary profile: python3 tests/halo_test.py
+- optional weather in the Today pane (off by default: extensions.mailcards.weather): HTTPS requests through the same fetchWithTimeout to api.open-meteo.com (current weather code, day/night, temperature for coordinates rounded to 2 decimals) and, only when the user enters a city, to geocoding-api.open-meteo.com; without a city, navigator.geolocation of the main window (the operating system asks for permission). At most every 30 minutes; the last reading is kept in a pref

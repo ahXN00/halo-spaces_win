@@ -376,7 +376,7 @@ def run_in_vm(args, xpi):
     before = theme = None
     try:
         os.makedirs(os.path.join(run, "tests"))
-        for f in ("halo_test.py", "perf.js", "win-display.ps1"):
+        for f in ("halo_test.py", "testserver.py", "perf.js", "win-display.ps1"):
             shutil.copy(os.path.join(ROOT, "tests", f), os.path.join(run, "tests", f))
         # manifest.json und Stilblätter (z. B. options/options.css) lesen einzelne Prüfungen direkt
         shutil.copytree(os.path.join(ROOT, "extension"), os.path.join(run, "extension"))
@@ -3376,6 +3376,45 @@ def calendar_checks(m, results):
         return ok, f"{res}"
     check("Wiederholung: Vorschau-Monate mit Haarlinie und 10 px Radius, ohne Fläche, Belegt-Punkte bleiben; „Repeat“ mittig zur Liste, Zahlenfeld 28 px", recurrence_preview, results)
 
+    def today_weather():
+        # Wetter in der Today-Pane (Option, aus): Stadt → Koordinaten (gerundet) → Symbol und Temperatur im Tooltip;
+        # ohne Stadt der Standort, verweigert → Hinweis und Sonne; aus → wieder die Sonne. Open-Meteo nachgestellt (kein Netz)
+        res = m.js(CAL_CHECK_JS + r"""
+          const { ExtensionParent } = ChromeUtils.importESModule("resource://gre/modules/ExtensionParent.sys.mjs");
+          const g = ExtensionParent.GlobalManager.getExtension("%s").experimentAPIManager.global;
+          const api = Cu.evalInSandbox("mailCards.prototype.getAPI({})", g).mailCards;
+          const title = d.getElementById("mcTodayTitle");
+          const out = { start: { attr: title.dataset.weather || null, setting: (await api.getSettings()).weather } };
+          Cu.evalInSandbox(`globalThis.__mcRealFetch = fetchWithTimeout; globalThis.__mcUrls = [];
+            fetchWithTimeout = async (win, url) => { __mcUrls.push(url);
+              const body = url.includes("geocoding") ? { results: [{ name: "Wien", country: "Österreich", latitude: 48.20849, longitude: 16.37208 }] }
+                : { current: { weather_code: 61, is_day: 1, temperature_2m: 12.3 } };
+              return { ok: true, status: 200, text: async () => JSON.stringify(body) }; };
+            globalThis.__mcRealLocate = Weather.locate; Weather.locate = async () => ({ error: "denied" });`, g);
+          try {
+            await api.setSetting("weatherPlace", "Wien"); await api.setSetting("weather", true); await pause(400);
+            const st = await api.getSettings();
+            out.city = { attr: title.dataset.weather, tip: title.getAttribute("title"), status: st.weatherStatus,
+                         mask: w.getComputedStyle(title, "::after").maskImage.slice(0, 80), urls: Cu.evalInSandbox("JSON.stringify(__mcUrls)", g) };
+            await api.setSetting("weatherPlace", ""); await pause(400);
+            out.located = { attr: title.dataset.weather || null, status: (await api.getSettings()).weatherStatus };
+            await api.setSetting("weather", false); await pause(300);
+            out.off = { attr: title.dataset.weather || null, tip: title.getAttribute("title") };
+          } finally {
+            Cu.evalInSandbox("fetchWithTimeout = __mcRealFetch; Weather.locate = __mcRealLocate;", g);
+            for (const p of ["weather", "weatherPlace", "weatherState"]) Services.prefs.clearUserPref("extensions.mailcards." + p);
+          }
+          return out;""" % ADDON_ID)
+        c, l, o = res.get("city") or {}, res.get("located") or {}, res.get("off") or {}
+        urls = json.loads(c.get("urls") or "[]")
+        ok = (res["start"] == {"attr": None, "setting": False}
+              and c.get("attr") == "rain" and c.get("tip") == "Wien, Österreich: 12 °C" and "Wien" in (c.get("status") or "")
+              and "weather/rain.svg" in c.get("mask", "") and any("latitude=48.21&longitude=16.37" in u for u in urls)
+              and l.get("attr") is None and "System Settings" in (l.get("status") or "")
+              and o == {"attr": None, "tip": None})
+        return ok, f"{res}"
+    check("Today-Pane: Wetter (Option) – Stadt → Symbol und Temperatur, Standort verweigert → Hinweis und Sonne, aus → Sonne", today_weather, results)
+
     def agenda_days():
         # Today-Pane: Tagesspalte (ca. 38 px) eines Tags mit nur einem Eintrag ragte bis auf 2–6 px an den nächsten Tag
         res = m.js(CAL_CHECK_JS + r"""
@@ -3724,6 +3763,365 @@ def same_color(a, b, tol=2):
 
 
 SCREEN_W = 99999
+
+
+SERVER_ACCOUNT_JS = r"""
+  const { MailServices } = ChromeUtils.importESModule("resource:///modules/MailServices.sys.mjs");
+  const existing = MailServices.accounts.accounts.find(a => a.incomingServer?.hostName == "127.0.0.1" && a.incomingServer.port == %(imap)d);
+  if (existing) return existing.key;
+  // wie der Konto-Assistent: „Lokale Ordner“ mit Postausgang gehören dazu (ohne sie sendet Thunderbird nicht im Hintergrund)
+  try { MailServices.accounts.localFoldersServer; } catch { MailServices.accounts.createLocalMailAccount(); await wait(500); }
+  const server = MailServices.accounts.createIncomingServer("halo", "127.0.0.1", "imap");
+  server.port = %(imap)d;
+  server.socketType = Ci.nsMsgSocketType.plain;
+  server.authMethod = Ci.nsMsgAuthMethod.passwordCleartext;
+  server.password = "halo-test";
+  server.prettyName = "Halo Testkonto";
+  const outgoing = MailServices.outgoingServer || MailServices.smtp;
+  const smtp = outgoing.createServer("smtp");
+  const sm = smtp.QueryInterface ? smtp.QueryInterface(Ci.nsISmtpServer) : smtp;
+  sm.hostname = "127.0.0.1"; sm.port = %(smtp)d; smtp.authMethod = Ci.nsMsgAuthMethod.none; smtp.socketType = Ci.nsMsgSocketType.plain;
+  const id = MailServices.accounts.createIdentity();
+  id.email = "halo@example.invalid"; id.fullName = "Halo Test"; id.smtpServerKey = smtp.key;
+  const account = MailServices.accounts.createAccount();
+  account.addIdentity(id); account.incomingServer = server;
+  return account.key;"""
+
+
+def server_checks(m, results):
+    """Konto mit lokalem Server (tests/testserver.py, nur 127.0.0.1): IMAP-Ordner und Abrufen, Senden über SMTP,
+    Fehler beim Senden, Abonnieren-Dialog, falsches Passwort – Oberflächen, die ohne Konto nie erscheinen.
+    Läuft am Ende, damit das Konto die übrigen Prüfungen nicht verändert."""
+    sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+    from testserver import MailServers
+    servers = MailServers()
+    servers.imap.add("INBOX", "From: Anna Beispiel <anna@example.invalid>\nTo: Halo Test <halo@example.invalid>\nSubject: Willkommen im Testkonto\n"
+                     "Date: Sat, 24 Oct 2026 09:00:00 +0200\nMessage-ID: <srv-1@example.invalid>\n\nErste Mail vom Testserver.\n")
+    try:
+        key = m.js(SERVER_ACCOUNT_JS % {"imap": servers.imap_port, "smtp": servers.smtp_port})
+
+        def account_folders():
+            # Konto erscheint in der Ordnerliste mit seinen Ordnern, die Mail im Posteingang kommt an
+            res = m.js(r"""
+              const { MailServices } = ChromeUtils.importESModule("resource:///modules/MailServices.sys.mjs");
+              const acc = MailServices.accounts.getAccount("%s"), root = acc.incomingServer.rootFolder;
+              const a3 = await toMail();
+              const inbox = await until(() => root.getFolderWithFlags(Ci.nsMsgFolderFlags.Inbox), 10000);
+              a3.displayFolder(inbox.URI);
+              await until(() => a3.gDBView?.rowCount > 0, 15000);
+              return { folders: root.subFolders.map(f => f.name).sort(), rows: a3.gDBView?.rowCount || 0,
+                       subject: a3.gDBView?.rowCount ? a3.gDBView.getMsgHdrAt(0).mime2DecodedSubject : null,
+                       inTree: !!a3.document.querySelector(`#folderTree li[data-server-key="${acc.incomingServer.key}"], #folderTree li[data-folder-uri^="${root.URI}"]`) };""" % key)
+            ok = res["rows"] >= 1 and res["subject"] == "Willkommen im Testkonto" and "Sent" in str(res["folders"]) and res["inTree"]
+            return ok, f"{res}"
+        check("Testkonto: IMAP-Ordner in der Ordnerliste, Mail im Posteingang", account_folders, results)
+
+        def get_new():
+            # neue Mail auf dem Server → „Abrufen“ in der Toolbar holt sie; das Menü am Knopf ist im halo-Stil
+            servers.imap.add("INBOX", "From: Ben <ben@example.invalid>\nTo: Halo Test <halo@example.invalid>\nSubject: Nachzuegler\n"
+                             "Date: Sat, 24 Oct 2026 10:00:00 +0200\nMessage-ID: <srv-2@example.invalid>\n\nZweite Mail.\n")
+            res = m.js(r"""
+              const a3 = await toMail();
+              const li = [...d.querySelectorAll('#unifiedToolbarContent li[item-id="get-messages"]')].find(l => l.getBoundingClientRect().width);
+              const btn = li?.querySelector("button");
+              btn?.click();
+              const found = await until(() => { for (let i = 0; i < (a3.gDBView?.rowCount || 0); i++) if (a3.gDBView.getMsgHdrAt(i).mime2DecodedSubject == "Nachzuegler") return true; return false; }, 15000);
+              return { button: !!btn, found, folder: a3.gFolder?.URI, rows: a3.gDBView?.rowCount };""")
+            return res["button"] and res["found"], f"{res} IMAP: {servers.imap.log[-8:]}"
+        check("Testkonto: „Abrufen“ holt neue Mail vom Server", get_new, results)
+
+        def send_smtp():
+            # Verfassen und Senden: Fenster schließt sofort, die Mail kommt beim SMTP-Server an
+            before = len(servers.smtp.sent)
+            res = m.js(r"""
+              const { MailServices } = ChromeUtils.importESModule("resource:///modules/MailServices.sys.mjs");
+              const acc = MailServices.accounts.getAccount("%s");
+              const params = Cc["@mozilla.org/messengercompose/composeparams;1"].createInstance(Ci.nsIMsgComposeParams);
+              const fields = Cc["@mozilla.org/messengercompose/composefields;1"].createInstance(Ci.nsIMsgCompFields);
+              Services.prefs.setIntPref("extensions.mailcards.undoSend", 0);
+              fields.to = "ziel@example.invalid"; fields.subject = "Halo Sendeprobe"; fields.body = "Hallo vom Test.";
+              params.type = Ci.nsIMsgCompType.New; params.format = Ci.nsIMsgCompFormat.PlainText; params.composeFields = fields; params.identity = acc.defaultIdentity;
+              MailServices.compose.OpenComposeWindowWithParams(null, params);
+              const cw = await until(() => [...Services.wm.getEnumerator("msgcompose")].find(x => x.document.readyState == "complete" && x.gMsgCompose), 10000);
+              await wait(1500);
+              cw.goDoCommand("cmd_sendNow");
+              const closed = await until(() => cw.closed, 10000);
+              return { closed: !!closed };""" % key)
+            for _ in range(40):
+                if len(servers.smtp.sent) > before:
+                    break
+                time.sleep(0.5)
+            got = servers.smtp.sent[before:] if len(servers.smtp.sent) > before else []
+            ok = res["closed"] and len(got) == 1 and "Halo Sendeprobe" in got[0][2] and "ziel@example.invalid" in got[0][1][0]
+            return ok, f"{res} gesendet: {[(g[0], g[1]) for g in got]}"
+        check("Testkonto: Senden über SMTP – Fenster schließt, Mail kommt beim Server an", send_smtp, results)
+
+        def undo_send():
+            # Senden rückgängig: Fenster verschwindet sofort, unten „Senden rückgängig“, nichts geht hinaus; rückgängig →
+            # Fenster wieder da; erneut senden → nach der Wartezeit beim Server, Fenster zu (Wartezeit hier 2 s)
+            before = len(servers.smtp.sent)
+            res = m.js(r"""
+              const { MailServices } = ChromeUtils.importESModule("resource:///modules/MailServices.sys.mjs");
+              const acc = MailServices.accounts.getAccount("%s");
+              Services.prefs.setIntPref("extensions.mailcards.undoSend", 2);
+              const params = Cc["@mozilla.org/messengercompose/composeparams;1"].createInstance(Ci.nsIMsgComposeParams);
+              const fields = Cc["@mozilla.org/messengercompose/composefields;1"].createInstance(Ci.nsIMsgCompFields);
+              fields.to = "ziel@example.invalid"; fields.subject = "Halo Rueckholprobe"; fields.body = "Noch nicht senden.";
+              params.type = Ci.nsIMsgCompType.New; params.format = Ci.nsIMsgCompFormat.PlainText; params.composeFields = fields; params.identity = acc.defaultIdentity;
+              MailServices.compose.OpenComposeWindowWithParams(null, params);
+              const cw = await until(() => [...Services.wm.getEnumerator("msgcompose")].find(x => x.document.readyState == "complete" && x.gMsgCompose), 10000);
+              await wait(1500);
+              const visible = () => !cw.document.hidden;
+              const out = {};
+              cw.goDoCommand("cmd_sendNow");
+              const bar = await until(() => d.getElementById("mcUndoSend"), 4000);
+              await until(() => cw.document.hidden, 2000);
+              out.held = { visible: visible(), closed: cw.closed, bar: bar?.textContent };
+              bar?.querySelector(".mc-us-undo").click(); await until(() => !cw.document.hidden, 2000);
+              out.undone = { visible: visible(), closed: cw.closed, bar: !!d.getElementById("mcUndoSend") };
+              w.__mcUndoWin = cw;
+              return out;""" % key)
+            time.sleep(3)
+            after_undo = len(servers.smtp.sent) - before
+            res2 = m.js(r"""
+              const cw = w.__mcUndoWin; delete w.__mcUndoWin;
+              cw.goDoCommand("cmd_sendNow");
+              const closed = await until(() => cw.closed, 15000);
+              Services.prefs.clearUserPref("extensions.mailcards.undoSend");
+              return { closed: !!closed, bar: !!d.getElementById("mcUndoSend") };""")
+            for _ in range(20):
+                if len(servers.smtp.sent) > before:
+                    break
+                time.sleep(0.5)
+            got = [g for g in servers.smtp.sent[before:] if "Halo Rueckholprobe" in g[2]]
+            h, u = res.get("held") or {}, res.get("undone") or {}
+            ok = (h.get("visible") is False and not h.get("closed") and "Undo Send" in (h.get("bar") or "")
+                  and u == {"visible": True, "closed": False, "bar": False} and after_undo == 0
+                  and res2["closed"] and not res2["bar"] and len(got) == 1)
+            return ok, f"{res} nach Rückgängig gesendet: {after_undo} {res2} danach gesendet: {len(got)}"
+        check("Testkonto: Senden rückgängig – Fenster weg, Hinweis unten, rückgängig holt es zurück, danach gesendet", undo_send, results)
+
+        def quick_reply():
+            # Schnellantwort unter der Mail: Feld „Reply to Anna Beispiel …“, Text + ⌘↩ sendet ohne Fenster an den Absender,
+            # Betreff „Re: …“ mit In-Reply-To, die Mail gilt danach als beantwortet; Entwürfe ohne Feld
+            before = len(servers.smtp.sent)
+            res = m.js(r"""
+              const { MailServices } = ChromeUtils.importESModule("resource:///modules/MailServices.sys.mjs");
+              const acc = MailServices.accounts.getAccount("%s"), root = acc.incomingServer.rootFolder;
+              const inbox = root.getFolderWithFlags(Ci.nsMsgFolderFlags.Inbox);
+              const a3 = await toMail(); a3.displayFolder(inbox.URI); await until(() => a3.gDBView?.rowCount > 0, 10000);
+              let i = 0; for (; i < a3.gDBView.rowCount; i++) if (a3.gDBView.getMsgHdrAt(i).mime2DecodedSubject == "Willkommen im Testkonto") break;
+              a3.threadTree.selectedIndex = i; await wait(1500);
+              const md = a3.messageBrowser.contentDocument;
+              const bar = await until(() => md.getElementById("mcQuickReply"), 5000);
+              if (!bar) return { bar: false };
+              const field = bar.querySelector(".mc-qr-field");
+              const out = { placeholder: field.placeholder, sendHidden: md.defaultView.getComputedStyle(bar.querySelector(".mc-qr-send")).display };
+              field.value = "Danke, angekommen!"; field.dispatchEvent(new md.defaultView.Event("input", { bubbles: true }));
+              out.sendShown = md.defaultView.getComputedStyle(bar.querySelector(".mc-qr-send")).display;
+              field.dispatchEvent(new md.defaultView.KeyboardEvent("keydown", { key: "Enter", metaKey: true, ctrlKey: true, bubbles: true }));
+              const hdr = a3.gDBView.getMsgHdrAt(i);
+              out.replied = !!(await until(() => hdr.flags & Ci.nsMsgMessageFlags.Replied, 15000));
+              out.after = { value: field.value, placeholder: field.placeholder };
+              // Entwurf: kein Feld
+              const drafts = root.getFolderWithFlags(Ci.nsMsgFolderFlags.Drafts);
+              a3.displayFolder(drafts.URI); await wait(1200);
+              out.inDrafts = a3.gDBView.rowCount ? "?" : "leer";
+              a3.displayFolder(inbox.URI); await wait(800);
+              return out;""" % key)
+            for _ in range(30):
+                if len(servers.smtp.sent) > before:
+                    break
+                time.sleep(0.5)
+            got = servers.smtp.sent[before:]
+            data = got[0][2] if got else ""
+            ok = (res.get("placeholder") == "Reply to Anna Beispiel …" and res.get("sendHidden") == "none" and res.get("sendShown") != "none"
+                  and res.get("replied") and res.get("after", {}).get("value") == "" and len(got) == 1
+                  and "anna@example.invalid" in got[0][1][0] and "Subject: Re: Willkommen im Testkonto" in data
+                  and "In-Reply-To: <srv-1@example.invalid>" in data and "Danke, angekommen!" in data)
+            return ok, f"{res} gesendet: {[(g[1], g[2][:300]) for g in got]}"
+        check("Testkonto: Schnellantwort unter der Mail sendet ohne Fenster an den Absender, Mail gilt als beantwortet", quick_reply, results)
+
+        def send_later():
+            # Später senden: Pfeil neben „Senden“ mit „Morgen …“ und „Später senden …“; geplante Mail liegt als Entwurf mit
+            # X-Halo-Send-At, wird zur Zeit in den Postausgang geschoben und gesendet (Zeit hier: in 3 s)
+            before = len(servers.smtp.sent)
+            res = m.js(r"""
+              const { MailServices } = ChromeUtils.importESModule("resource:///modules/MailServices.sys.mjs");
+              const { ExtensionParent } = ChromeUtils.importESModule("resource://gre/modules/ExtensionParent.sys.mjs");
+              const g = ExtensionParent.GlobalManager.getExtension("%s").experimentAPIManager.global;
+              const SL = Cu.evalInSandbox("SendLater", g);
+              const acc = MailServices.accounts.getAccount("%s");
+              Services.prefs.setIntPref("extensions.mailcards.undoSend", 0);
+              const params = Cc["@mozilla.org/messengercompose/composeparams;1"].createInstance(Ci.nsIMsgComposeParams);
+              const fields = Cc["@mozilla.org/messengercompose/composefields;1"].createInstance(Ci.nsIMsgCompFields);
+              fields.to = "ziel@example.invalid"; fields.subject = "Halo Spaeter"; fields.body = "Kommt gleich.";
+              params.type = Ci.nsIMsgCompType.New; params.format = Ci.nsIMsgCompFormat.PlainText; params.composeFields = fields; params.identity = acc.defaultIdentity;
+              MailServices.compose.OpenComposeWindowWithParams(null, params);
+              const cw = await until(() => [...Services.wm.getEnumerator("msgcompose")].find(x => x.document.readyState == "complete" && x.gMsgCompose), 10000);
+              await wait(1500);
+              const btn = cw.document.getElementById("mcSendLater"), popup = cw.document.getElementById("mcSendLaterPopup");
+              const out = { button: !!btn && btn.getBoundingClientRect().width > 0 };
+              popup.dispatchEvent(new cw.Event("popupshowing"));
+              out.menu = [...popup.querySelectorAll("menuitem")].map(i => i.getAttribute("label"));
+              SL.schedule(cw, new Date(Date.now() + 3000));
+              out.closed = !!(await until(() => cw.closed, 10000));
+              const drafts = await acc.defaultIdentity.getOrCreateDraftsFolderAsync();
+              out.draftsFolder = drafts?.prettyName;
+              await wait(500);
+              let found = null;
+              for (let t = 0; t < 30 && !found; t++) { try { drafts.updateFolder(null); } catch {}; await wait(300);
+                found = [...drafts.msgDatabase.enumerateMessages()].find(h => h.mime2DecodedSubject == "Halo Spaeter"); }
+              out.draft = found ? { at: !!Number(found.getStringProperty("x-halo-send-at")) } : null;
+              await wait(3500);
+              await SL.check(true);
+              Services.prefs.clearUserPref("extensions.mailcards.undoSend");
+              return out;""" % (ADDON_ID, key))
+            for _ in range(40):
+                if any("Halo Spaeter" in g[2] for g in servers.smtp.sent[before:]):
+                    break
+                time.sleep(0.5)
+            got = [g for g in servers.smtp.sent[before:] if "Halo Spaeter" in g[2]]
+            ok = (res.get("button") and len(res.get("menu", [])) >= 3 and res["menu"][0] == "Send Now" and res["menu"][-1] == "Send Later …"
+                  and res.get("closed") and res.get("draft") == {"at": True} and len(got) == 1)
+            return ok, f"{res} gesendet: {len(got)}"
+        check("Testkonto: Später senden – Menü am Senden-Knopf, geplante Mail als Entwurf, zur Zeit gesendet", send_later, results)
+
+        def remind_me():
+            # Erinnern: Kontextmenü „Remind Me“ mit Zeiten; die Mail wandert in den Ordner „Remind Me“ des Kontos und kommt
+            # zur Zeit ungelesen in den Posteingang zurück (Zeit hier: in 2 s)
+            servers.imap.add("INBOX", "From: Clara <clara@example.invalid>\nTo: Halo Test <halo@example.invalid>\nSubject: Bitte morgen ansehen\n"
+                             "Date: Sat, 24 Oct 2026 11:00:00 +0200\nMessage-ID: <srv-remind@example.invalid>\n\nErinnerungsprobe.\n", flags=["\\Seen"])
+            res = m.js(r"""
+              const { MailServices } = ChromeUtils.importESModule("resource:///modules/MailServices.sys.mjs");
+              const { ExtensionParent } = ChromeUtils.importESModule("resource://gre/modules/ExtensionParent.sys.mjs");
+              const g = ExtensionParent.GlobalManager.getExtension("%s").experimentAPIManager.global;
+              const R = Cu.evalInSandbox("Remind", g);
+              const acc = MailServices.accounts.getAccount("%s"), root = acc.incomingServer.rootFolder;
+              const inbox = root.getFolderWithFlags(Ci.nsMsgFolderFlags.Inbox);
+              const a3 = await toMail(); a3.displayFolder(inbox.URI);
+              const find = () => { for (let i = 0; i < (a3.gDBView?.rowCount || 0); i++) if (a3.gDBView.getMsgHdrAt(i).mime2DecodedSubject == "Bitte morgen ansehen") return i; return -1; };
+              await until(() => { inbox.updateFolder(a3.msgWindow); return find() >= 0; }, 15000);
+              a3.threadTree.selectedIndex = find(); await wait(800);
+              const popup = a3.document.getElementById("mailContext");
+              popup.dispatchEvent(new a3.Event("popupshowing"));
+              const menu = a3.document.getElementById("mcRemindMenu");
+              const out = { menu: !!menu && !menu.hidden };
+              const inner = menu?.menupopup || menu?.querySelector("menupopup");
+              inner?.dispatchEvent(new a3.Event("popupshowing"));
+              out.items = inner ? inner.querySelectorAll("menuitem").length : 0;
+              const hdr = a3.gDBView.getMsgHdrAt(find());
+              await R.remind([hdr], new Date(Date.now() + 2000));
+              const box = await until(() => root.containsChildNamed("Remind Me") && root.getChildNamed("Remind Me"), 8000);
+              out.moved = !!(await until(() => { try { box.updateFolder(null); } catch {} return box?.msgDatabase?.getMsgHdrForMessageID("srv-remind@example.invalid"); }, 10000));
+              out.gone = find() < 0;
+              await wait(2500);
+              await R.check();
+              const back = await until(() => { inbox.updateFolder(a3.msgWindow); return inbox.msgDatabase.getMsgHdrForMessageID("srv-remind@example.invalid"); }, 15000);
+              out.back = !!back; out.unread = back ? !back.isRead : null;
+              out.left = R.list().length;
+              return out;""" % (ADDON_ID, key))
+            ok = res.get("menu") and res.get("items", 0) >= 3 and res.get("moved") and res.get("back") and res.get("unread") and res.get("left") == 0
+            return ok, f"{res}"
+        check("Testkonto: Erinnern – Mail in „Remind Me“, kommt zur Zeit ungelesen zurück", remind_me, results)
+
+        def follow_up():
+            # Nachfassen: eigene Mail von vor 5 Tagen ohne Antwort → Hinweis über dem Posteingang mit „Follow Up“; ✕ blendet aus
+            five = time.strftime("%a, %d %b %Y 09:00:00 +0000", time.gmtime(time.time() - 5 * 86400))
+            servers.imap.add("Sent", f"From: Halo Test <halo@example.invalid>\nTo: Kunde <kunde@example.invalid>\nSubject: Angebot Fenster\n"
+                             f"Date: {five}\nMessage-ID: <srv-follow@example.invalid>\n\nWie besprochen.\n", flags=["\\Seen"])
+            res = m.js(r"""
+              const { MailServices } = ChromeUtils.importESModule("resource:///modules/MailServices.sys.mjs");
+              const { ExtensionParent } = ChromeUtils.importESModule("resource://gre/modules/ExtensionParent.sys.mjs");
+              const g = ExtensionParent.GlobalManager.getExtension("%s").experimentAPIManager.global;
+              const FU = Cu.evalInSandbox("FollowUp", g);
+              const acc = MailServices.accounts.getAccount("%s"), root = acc.incomingServer.rootFolder;
+              const sent = root.getFolderWithFlags(Ci.nsMsgFolderFlags.SentMail), inbox = root.getFolderWithFlags(Ci.nsMsgFolderFlags.Inbox);
+              const a3 = await toMail();
+              a3.displayFolder(sent.URI);
+              await until(() => { sent.updateFolder(a3.msgWindow); return sent.msgDatabase.getMsgHdrForMessageID("srv-follow@example.invalid"); }, 15000);
+              FU.cache = null;
+              a3.displayFolder(inbox.URI); await wait(1200);
+              const bar = await until(() => a3.document.getElementById("mcFollowUp"), 5000);
+              const out = { bar: bar?.textContent || null };
+              bar?.querySelector(".mc-fu-close").click(); await wait(300);
+              out.afterDismiss = !!a3.document.getElementById("mcFollowUp") && a3.document.getElementById("mcFollowUp").textContent.includes("Angebot Fenster");
+              Services.prefs.clearUserPref("extensions.mailcards.followUpDismissed"); FU.cache = null;
+              return out;""" % (ADDON_ID, key))
+            ok = "Angebot Fenster" in (res.get("bar") or "") and "Follow Up" in (res.get("bar") or "") and not res.get("afterDismiss")
+            return ok, f"{res}"
+        check("Testkonto: Nachfassen – Hinweis über dem Posteingang zu eigener Mail ohne Antwort, ✕ blendet aus", follow_up, results)
+
+        def subscribe_dialog():
+            # Abonnieren-Dialog (nur mit IMAP-Konto): öffnet, zeigt den nicht abonnierten Ordner „Projekte“, ohne harte Rahmen
+            res = m.js(r"""
+              const { MailServices } = ChromeUtils.importESModule("resource:///modules/MailServices.sys.mjs");
+              const acc = MailServices.accounts.getAccount("%s");
+              const a3 = await toMail();
+              w.openDialog("chrome://messenger/content/subscribe.xhtml", "_blank", "chrome,modal=no,titlebar,resizable=yes",
+                { folder: acc.incomingServer.rootFolder, okCallback() {} });
+              const dw = await until(() => [...Services.wm.getEnumerator(null)].find(x => /subscribe\.xhtml/.test(x.location.href) && x.document.readyState == "complete"), 8000);
+              if (!dw) return { open: false };
+              const rows = await until(() => { const t = dw.document.getElementById("subscribeTree");
+                const names = [...(t?.querySelectorAll("tr[id^='subscribeTree-row']") || [])].map(r => r.textContent.trim()); return names.includes("Projekte") && names; }, 10000);
+              const tree = dw.document.getElementById("subscribeTree");
+              const out = { open: true, rows: rows || [], border: tree ? dw.getComputedStyle(tree).borderTopColor : null, bw: tree ? dw.getComputedStyle(tree).borderTopWidth : null };
+              dw.close();
+              return out;""" % key)
+            ok = res.get("open") and "Projekte" in res.get("rows", []) and float((res.get("bw") or "0px")[:-2]) <= 1
+            return ok, f"{res}"
+        check("Testkonto: Abonnieren-Dialog zeigt die Ordner des Servers, ohne harten Rahmen", subscribe_dialog, results)
+
+        def send_error():
+            # Server lehnt ab → halo.spaces meldet den Fehler als Dialog mit „Postausgang zeigen“ (statt nur in der
+            # Aktivitätsanzeige). Der Dialog selbst unterbräche Marionette – mitgeschnitten wird sein Aufruf
+            servers.smtp.fail_next = 1
+            res = m.js(r"""
+              const { MailServices } = ChromeUtils.importESModule("resource:///modules/MailServices.sys.mjs");
+              const { ExtensionParent } = ChromeUtils.importESModule("resource://gre/modules/ExtensionParent.sys.mjs");
+              const g = ExtensionParent.GlobalManager.getExtension("%s").experimentAPIManager.global;
+              const enh = Cu.evalInSandbox("enhancer", g);
+              const calls = []; const orig = enh.showSendError;
+              enh.showSendError = async (hdr, message) => { calls.push({ subject: hdr?.mime2DecodedSubject || null, message: String(message || "").slice(0, 120) }); };
+              const acc = MailServices.accounts.getAccount("%s");
+              try {
+                Services.prefs.setIntPref("extensions.mailcards.undoSend", 0);
+                const params = Cc["@mozilla.org/messengercompose/composeparams;1"].createInstance(Ci.nsIMsgComposeParams);
+                const fields = Cc["@mozilla.org/messengercompose/composefields;1"].createInstance(Ci.nsIMsgCompFields);
+                fields.to = "ziel@example.invalid"; fields.subject = "Halo Fehlerprobe"; fields.body = "Wird abgelehnt.";
+                params.type = Ci.nsIMsgCompType.New; params.format = Ci.nsIMsgCompFormat.PlainText; params.composeFields = fields; params.identity = acc.defaultIdentity;
+                MailServices.compose.OpenComposeWindowWithParams(null, params);
+                const cw = await until(() => [...Services.wm.getEnumerator("msgcompose")].find(x => x.document.readyState == "complete" && x.gMsgCompose), 10000);
+                await wait(1500); cw.goDoCommand("cmd_sendNow");
+                await until(() => cw.closed, 10000);
+                await until(() => calls.length, 15000);
+                const outbox = MailServices.accounts.localFoldersServer.rootFolder.getFolderWithFlags(Ci.nsMsgFolderFlags.Queue);
+                return { calls, kept: outbox?.getTotalMessages(false) || 0 };
+              } finally {
+                enh.showSendError = orig;
+                Services.prefs.clearUserPref("extensions.mailcards.undoSend");
+              }""" % (ADDON_ID, key))
+            c = (res.get("calls") or [{}])[0]
+            ok = c.get("subject") == "Halo Fehlerprobe" and res.get("kept", 0) >= 1
+            # Postausgang wieder leeren (die abgelehnte Mail bliebe sonst für die folgenden Prüfungen liegen)
+            m.js(r"""
+              const { MailServices } = ChromeUtils.importESModule("resource:///modules/MailServices.sys.mjs");
+              const outbox = MailServices.accounts.localFoldersServer.rootFolder.getFolderWithFlags(Ci.nsMsgFolderFlags.Queue);
+              const hdrs = outbox ? [...outbox.msgDatabase.enumerateMessages()] : [];
+              if (hdrs.length) outbox.deleteMessages(hdrs, null, true, false, null, false);
+              return 1;""")
+            return ok, f"{res}"
+        check("Testkonto: abgelehnte Mail → Fehler-Dialog (mit „Postausgang zeigen“), Mail bleibt im Postausgang", send_error, results)
+    finally:
+        try:
+            m.js(r"""
+              const { MailServices } = ChromeUtils.importESModule("resource:///modules/MailServices.sys.mjs");
+              for (const x of [...Services.wm.getEnumerator(null)]) if (!x.location.href.includes("messenger.xhtml")) x.close();
+              Services.io.offline = true; await wait(300); Services.io.offline = false;
+              return 1;""")
+        except Exception:
+            pass
+        servers.close()
 
 
 def run_checks(m, version, profile, results):
@@ -4960,7 +5358,7 @@ def run_checks(m, version, profile, results):
         # auf einem schmalen Bildschirm (Windows-VM: 1024 px) begrenzt halo.spaces die Mindestbreite auf den Bildschirm –
         # passt das Adressbuch dann nicht ganz hinein, ist das kein Fehler
         ab_ok = res["addressbook"]["inside"] or res["addressbook"]["window"] >= SCREEN_W - 2
-        ok = res["chat"]["window"] < 1400 and res["chat"]["inside"] and ab_ok and res["addressbook"]["min"] >= 560 and all(v["pane"] is not None and v["pane"] >= v["min"] - 1 and v["window"] > 600 for v in res.values())
+        ok = res["chat"]["window"] < 1400 and res["chat"]["inside"] and ab_ok and res["addressbook"]["min"] >= 480 and all(v["pane"] is not None and v["pane"] >= v["min"] - 1 and v["window"] > 600 for v in res.values())
         return ok, f"{res}"
     check("Mindestbreiten: Fenster wird nicht schmaler als die Bereiche", min_widths, results)
 
@@ -4992,12 +5390,14 @@ def run_checks(m, version, profile, results):
             const r = dp.getBoundingClientRect();
             out.pane = Math.round(r.width); out.min = parseFloat(ab.getComputedStyle(dp).minWidth);
             out.inside = r.right <= ab.innerWidth + 1; out.window = w.outerWidth;
+            out.today = w.TodayPane?.isVisible ? Math.round(d.getElementById("today-pane-panel").getBoundingClientRect().width) : 0;
           } finally {
             tm.closeTab(tab); w.resizeTo(1500, 900); await wait(800);
             MailServices.ab.deleteAddressBook(empty.URI); await wait(300);
           }
           return out;""")
-        ok = (res["hidden"] and res["narrow"] < 1450 and res["pane"] >= res["min"] - 1 and res["min"] >= 560
+        # (mit Today-Pane – seit sie auch im Adressbuch steht – entsprechend breiter)
+        ok = (res["hidden"] and res["narrow"] < 1450 + res.get("today", 0) and res["pane"] >= res["min"] - 1 and res["min"] >= 480
               and (res["inside"] or res["window"] >= SCREEN_W - 2) and res["window"] > 600)
         return ok, f"{res}"
     check("Adressbuch ohne Auswahl: Fenster lässt sich verkleinern, Details danach mindestens so breit wie vorgegeben", ab_min_width_unselected, results)
@@ -8961,6 +9361,8 @@ Neu
         ok = res["search"] and res["onlySearch"] is True and res["withHits"] is True and res["withMail"] is False and res["foreign"] is False
         return ok, f"{res}"
     check("Ordnerliste: „Auf meinem Mac“ klappt trotz Suchordner mit Treffern zu, mit eigenen Mails nicht", local_collapse, results)
+
+    server_checks(m, results)
 
     def errors():
         res = m.js("""

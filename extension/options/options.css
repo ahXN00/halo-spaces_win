@@ -87,6 +87,22 @@ section {
   color: var(--text-secondary);
 }
 
+/* Ortsfeld fürs Wetter: so breit wie ein Suchfeld, Ergebnis darunter in Akzentfarbe */
+.row input.place {
+  flex: none;
+  width: 180px;
+  padding: 4px 8px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+}
+
+.row .hint.status:not(:empty) {
+  color: AccentColor;
+}
+
 /* Treffer aus der Suche der Einstellungen: kurz in Akzentfarbe getönt */
 .row.found {
   animation: found 2s ease-out;

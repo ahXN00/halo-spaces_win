@@ -2529,6 +2529,186 @@ unified-toolbar {
   display: none !important;
 }
 
+/* ---------- Schnellantwort unter der Mail ----------
+   (#mcQuickReply, setzt die Erweiterung): ein rundes Feld „Antworten an …“
+   über die Breite der Mail, „Mehr …“ und der Senden-Pfeil erscheinen, sobald
+   etwas dasteht; Haarlinie darüber wie zwischen Kopf und Text */
+#mcQuickReply {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+  padding: 10px 20px 12px;
+  border-top: var(--mt-hairline) solid var(--mt-pane-line);
+  background: var(--mt-window);
+}
+
+#mcQuickReply .mc-qr-field {
+  flex: 1;
+  min-height: 32px;
+  box-sizing: border-box;
+  padding: 6px 14px;
+  border: var(--mt-hairline) solid var(--mt-separator);
+  border-radius: 16px;
+  background: var(--mt-control);
+  color: var(--mt-text);
+  font: 13px/18px var(--mt-font);
+  resize: none;
+  outline: none;
+}
+
+#mcQuickReply .mc-qr-field:focus {
+  border-color: var(--mt-accent);
+  background: var(--mt-window);
+}
+
+#mcQuickReply .mc-qr-field::placeholder {
+  color: var(--mt-text-tertiary);
+}
+
+#mcQuickReply :is(.mc-qr-more, .mc-qr-send) {
+  display: none;
+  appearance: none;
+  flex: none;
+  height: 32px;
+  border: none;
+  border-radius: 999px;
+  font: 13px var(--mt-font);
+}
+
+#mcQuickReply[data-text] :is(.mc-qr-more, .mc-qr-send) {
+  display: block;
+}
+
+#mcQuickReply .mc-qr-more {
+  padding: 0 12px;
+  background: var(--mt-control);
+  color: var(--mt-text);
+}
+
+#mcQuickReply .mc-qr-send {
+  width: 32px;
+  background: var(--mt-accent) no-repeat center / 16px;
+  color: var(--mt-accent-text);
+  position: relative;
+}
+
+#mcQuickReply .mc-qr-send::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-color: var(--mt-accent-text);
+  mask: url("resource://mailcards/icons/send-up.svg") center / 16px no-repeat;
+}
+
+#mcQuickReply[data-busy] .mc-qr-send {
+  opacity: 0.5;
+}
+
+/* ---------- Nachfassen (wie „Follow Up“ in Apple Mail) ----------
+   Hinweis über der Mailliste im Posteingang (#mcFollowUp, setzt die
+   Erweiterung): eigene Mail ohne Antwort, „Nachfassen“ und ✕ */
+#mcFollowUp {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 6px 8px 2px;
+  padding: 8px 8px 8px 12px;
+  border-radius: var(--mt-radius-row, 10px);
+  background: color-mix(in srgb, var(--mt-accent) 10%, var(--mt-window));
+  font: 12px var(--mt-font);
+  color: var(--mt-text);
+}
+
+#mcFollowUp .mc-fu-text {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+#mcFollowUp .mc-fu-go {
+  appearance: none;
+  flex: none;
+  height: 24px;
+  padding: 0 10px;
+  border: none;
+  border-radius: 999px;
+  background: var(--mt-accent);
+  color: var(--mt-accent-text);
+  font: inherit;
+  font-weight: 600;
+}
+
+#mcFollowUp .mc-fu-close {
+  appearance: none;
+  flex: none;
+  width: 22px;
+  height: 22px;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--mt-text-secondary);
+  position: relative;
+}
+
+#mcFollowUp .mc-fu-close::before {
+  content: "✕";
+  font-size: 11px;
+}
+
+#mcFollowUp .mc-fu-close:hover {
+  background: var(--mt-control-hover);
+}
+
+/* ---------- Senden rückgängig (wie Apple Mail) ----------
+   Hinweis unten links über der Seitenleiste, solange eine Mail wartet
+   (#mcUndoSend, setzt die Erweiterung): „Wird gesendet …“ und der Knopf
+   in Akzentfarbe; gleitet kurz herein */
+#mcUndoSend {
+  position: fixed;
+  z-index: 20;
+  inset-inline-start: calc(var(--mc-spaces-w, 66px) + 12px);
+  bottom: 36px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  max-width: 340px;
+  padding: 6px 6px 6px 14px;
+  border-radius: 999px;
+  background: var(--mt-popover-bg, var(--mt-window));
+  box-shadow: 0 0 0 0.5px var(--mt-tooltip-border, rgba(0, 0, 0, 0.15)), 0 6px 20px rgba(0, 0, 0, 0.18);
+  font: 13px var(--mt-font);
+  color: var(--mt-text);
+  animation: mc-undo-in 180ms ease-out;
+}
+
+@keyframes mc-undo-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+}
+
+#mcUndoSend .mc-us-text {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+#mcUndoSend .mc-us-undo {
+  appearance: none;
+  flex: none;
+  height: 28px;
+  padding: 0 12px;
+  border: none;
+  border-radius: 999px;
+  background: var(--mt-accent);
+  color: var(--mt-accent-text);
+  font: inherit;
+  font-weight: 600;
+}
+
 /* ---------- Toolbar anpassen ----------
    Thunderbird blendet dabei nur die eigene Toolbar, Bereiche-Leiste und
    Fensterinhalt aus und lässt die Zeile auf 22 px schrumpfen – unsere
@@ -10091,6 +10271,34 @@ body:has(> #accountTreeBox.mc-side-hidden) {
   height: 20px;
   background-color: #FF9500;
   mask: url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22%23000%22 stroke-width=%221.8%22 stroke-linecap=%22round%22%3E%3Ccircle cx=%2212%22 cy=%2212%22 r=%224%22/%3E%3Cpath d=%22M12 2.8v2.2M12 19v2.2M2.8 12h2.2M19 12h2.2M5.5 5.5l1.6 1.6M16.9 16.9l1.6 1.6M5.5 18.5l1.6-1.6M16.9 7.1l1.6-1.6%22/%3E%3C/svg%3E") center / contain no-repeat;
+}
+
+/* Wetter statt der festen Sonne (Option; data-weather setzt die Erweiterung):
+   Symbole im Stil der Sonne, je eine kräftige Systemfarbe, dunkel die
+   helleren Varianten (Indigo sonst zu wenig Kontrast) */
+#mcTodayTitle[data-weather]::after {
+  mask-image: var(--mc-weather) !important;
+  background-color: var(--mc-weather-color) !important;
+}
+
+#mcTodayTitle[data-weather="clear-day"] { --mc-weather: url("resource://mailcards/icons/weather/clear-day.svg"); --mc-weather-color: #FF9500; }
+#mcTodayTitle[data-weather="clear-night"] { --mc-weather: url("resource://mailcards/icons/weather/clear-night.svg"); --mc-weather-color: #FFCC00; }
+#mcTodayTitle[data-weather="partly-day"] { --mc-weather: url("resource://mailcards/icons/weather/partly-day.svg"); --mc-weather-color: #FF9500; }
+#mcTodayTitle[data-weather="partly-night"] { --mc-weather: url("resource://mailcards/icons/weather/partly-night.svg"); --mc-weather-color: #FFCC00; }
+#mcTodayTitle[data-weather="cloudy"] { --mc-weather: url("resource://mailcards/icons/weather/cloudy.svg"); --mc-weather-color: #5856D6; }
+#mcTodayTitle[data-weather="fog"] { --mc-weather: url("resource://mailcards/icons/weather/fog.svg"); --mc-weather-color: #5856D6; }
+#mcTodayTitle[data-weather="rain"] { --mc-weather: url("resource://mailcards/icons/weather/rain.svg"); --mc-weather-color: #007AFF; }
+#mcTodayTitle[data-weather="snow"] { --mc-weather: url("resource://mailcards/icons/weather/snow.svg"); --mc-weather-color: #32ADE6; }
+#mcTodayTitle[data-weather="thunder"] { --mc-weather: url("resource://mailcards/icons/weather/thunder.svg"); --mc-weather-color: #FFCC00; }
+
+@media (prefers-color-scheme: dark) {
+  #mcTodayTitle[data-weather="cloudy"],
+  #mcTodayTitle[data-weather="fog"] { --mc-weather-color: #7D7AFF; }
+  #mcTodayTitle[data-weather="rain"] { --mc-weather-color: #0A84FF; }
+  #mcTodayTitle[data-weather="snow"] { --mc-weather-color: #64D2FF; }
+  #mcTodayTitle[data-weather^="clear-night"],
+  #mcTodayTitle[data-weather="partly-night"],
+  #mcTodayTitle[data-weather="thunder"] { --mc-weather-color: #FFD60A; }
 }
 
 #mcTodayTitle:-moz-window-inactive {

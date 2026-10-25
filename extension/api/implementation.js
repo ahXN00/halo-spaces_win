@@ -223,6 +223,52 @@ const DE = {
   "{n} tasks": "{n} Aufgaben",
   "Tasks": "Aufgaben",
   "Task List Display Options": "Darstellung der Aufgabenliste",
+  "Weather in the Today Pane": "Wetter in der Today-Pane",
+  "the symbol next to the title shows the current weather – asks open-meteo.com about every 30 minutes; off: the sun stays, no outside requests": "das Symbol neben dem Titel zeigt das aktuelle Wetter – fragt etwa alle 30 Minuten bei open-meteo.com nach; aus: die Sonne bleibt, keine Anfragen nach außen",
+  "Place for the weather": "Ort für das Wetter",
+  "a city – empty: your current location (the system asks for permission once)": "eine Stadt – leer: dein aktueller Standort (das System fragt einmal nach der Erlaubnis)",
+  "Current location": "Aktueller Standort",
+  "Location access is off – allow it in System Settings or enter a city": "Ortung ist aus – in den Systemeinstellungen erlauben oder eine Stadt eingeben",
+  "Location unavailable – enter a city": "Standort nicht verfügbar – bitte eine Stadt eingeben",
+  "City not found": "Stadt nicht gefunden",
+  "Weather in the Today Pane?": "Wetter in der Today-Pane?",
+  "The symbol next to the title then shows the weather – asks open-meteo.com about every 30 minutes.": "Das Symbol neben dem Titel zeigt dann das Wetter – fragt etwa alle 30 Minuten bei open-meteo.com nach.",
+  "Current Location": "Aktueller Standort",
+  "City …": "Stadt …",
+  "No": "Nein",
+  "e.g. Vienna": "z. B. Wien",
+  "OK": "OK",
+  "Open System Settings": "Systemeinstellungen öffnen",
+  "Locating …": "Standort wird ermittelt …",
+  "Searching …": "Suche …",
+  "Weather data: Open-Meteo.com, CC BY 4.0": "Wetterdaten: Open-Meteo.com, CC BY 4.0",
+  "Undo Send": "Senden rückgängig",
+  "Sending {n} messages …": "{n} Nachrichten werden gesendet …",
+  "Sending “{s}” …": "„{s}“ wird gesendet …",
+  "Sending …": "Wird gesendet …",
+  "Off": "Aus",
+  "seconds": "Sekunden",
+  "like Apple Mail: the message waits this long and can still be taken back": "wie Apple Mail: die Nachricht wartet so lange und lässt sich noch zurückholen",
+  "More …": "Mehr …",
+  "Send": "Senden",
+  "Reply to {name} …": "Antworten an {name} …",
+  "Reply sent": "Antwort gesendet",
+  "Send Later": "Später senden",
+  "Send Now": "Jetzt senden",
+  "Send {time} Tonight": "Heute um {time} senden",
+  "Send {time} Tomorrow": "Morgen um {time} senden",
+  "Send Later …": "Später senden …",
+  "Schedule": "Planen",
+  "Remind Me": "Erinnern",
+  "Remind Me in 1 Hour": "In 1 Stunde erinnern",
+  "Remind Me Tonight": "Heute Abend erinnern",
+  "Remind Me Tomorrow": "Morgen erinnern",
+  "Remind Me Next Week": "Nächste Woche erinnern",
+  "Reminder": "Erinnerung",
+  "(no subject)": "(kein Betreff)",
+  "Follow Up": "Nachfassen",
+  "Dismiss": "Ausblenden",
+  "No reply for {d} days: “{s}” to {to}": "Seit {d} Tagen keine Antwort: „{s}“ an {to}",
 };
 const FR = {
   "Install version {v}": "Installer la version {v}",
@@ -417,6 +463,52 @@ const FR = {
   "{n} tasks": "{n} tâches",
   "Tasks": "Tâches",
   "Task List Display Options": "Options d’affichage de la liste des tâches",
+  "Weather in the Today Pane": "Météo dans le panneau Aujourd’hui",
+  "the symbol next to the title shows the current weather – asks open-meteo.com about every 30 minutes; off: the sun stays, no outside requests": "le symbole à côté du titre montre la météo actuelle – interroge open-meteo.com environ toutes les 30 minutes ; désactivé : le soleil reste, aucune requête externe",
+  "Place for the weather": "Lieu pour la météo",
+  "a city – empty: your current location (the system asks for permission once)": "une ville – vide : votre position actuelle (le système demande une fois l’autorisation)",
+  "Current location": "Position actuelle",
+  "Location access is off – allow it in System Settings or enter a city": "La localisation est désactivée – autorisez-la dans les réglages du système ou saisissez une ville",
+  "Location unavailable – enter a city": "Position indisponible – saisissez une ville",
+  "City not found": "Ville introuvable",
+  "Weather in the Today Pane?": "Météo dans le panneau Aujourd’hui ?",
+  "The symbol next to the title then shows the weather – asks open-meteo.com about every 30 minutes.": "Le symbole à côté du titre affiche alors la météo – interroge open-meteo.com environ toutes les 30 minutes.",
+  "Current Location": "Position actuelle",
+  "City …": "Ville …",
+  "No": "Non",
+  "e.g. Vienna": "p. ex. Vienne",
+  "OK": "OK",
+  "Open System Settings": "Ouvrir les réglages du système",
+  "Locating …": "Localisation …",
+  "Searching …": "Recherche …",
+  "Weather data: Open-Meteo.com, CC BY 4.0": "Données météo : Open-Meteo.com, CC BY 4.0",
+  "Undo Send": "Annuler l’envoi",
+  "Sending {n} messages …": "Envoi de {n} messages …",
+  "Sending “{s}” …": "Envoi de « {s} » …",
+  "Sending …": "Envoi …",
+  "Off": "Désactivé",
+  "seconds": "secondes",
+  "like Apple Mail: the message waits this long and can still be taken back": "comme Apple Mail : le message attend ce délai et peut encore être repris",
+  "More …": "Plus …",
+  "Send": "Envoyer",
+  "Reply to {name} …": "Répondre à {name} …",
+  "Reply sent": "Réponse envoyée",
+  "Send Later": "Envoyer plus tard",
+  "Send Now": "Envoyer maintenant",
+  "Send {time} Tonight": "Envoyer ce soir à {time}",
+  "Send {time} Tomorrow": "Envoyer demain à {time}",
+  "Send Later …": "Envoyer plus tard …",
+  "Schedule": "Planifier",
+  "Remind Me": "Me le rappeler",
+  "Remind Me in 1 Hour": "Rappeler dans 1 heure",
+  "Remind Me Tonight": "Rappeler ce soir",
+  "Remind Me Tomorrow": "Rappeler demain",
+  "Remind Me Next Week": "Rappeler la semaine prochaine",
+  "Reminder": "Rappel",
+  "(no subject)": "(sans objet)",
+  "Follow Up": "Relancer",
+  "Dismiss": "Masquer",
+  "No reply for {d} days: “{s}” to {to}": "Pas de réponse depuis {d} jours : « {s} » à {to}",
 };
 const ES = {
   "Install version {v}": "Instalar la versión {v}",
@@ -611,6 +703,52 @@ const ES = {
   "{n} tasks": "{n} tareas",
   "Tasks": "Tareas",
   "Task List Display Options": "Opciones de visualización de la lista de tareas",
+  "Weather in the Today Pane": "Tiempo en el panel Hoy",
+  "the symbol next to the title shows the current weather – asks open-meteo.com about every 30 minutes; off: the sun stays, no outside requests": "el símbolo junto al título muestra el tiempo actual – consulta open-meteo.com cada 30 minutos aprox.; desactivado: queda el sol, sin consultas externas",
+  "Place for the weather": "Lugar para el tiempo",
+  "a city – empty: your current location (the system asks for permission once)": "una ciudad – vacío: tu ubicación actual (el sistema pide permiso una vez)",
+  "Current location": "Ubicación actual",
+  "Location access is off – allow it in System Settings or enter a city": "La ubicación está desactivada – permítela en los ajustes del sistema o escribe una ciudad",
+  "Location unavailable – enter a city": "Ubicación no disponible – escribe una ciudad",
+  "City not found": "Ciudad no encontrada",
+  "Weather in the Today Pane?": "¿Tiempo en el panel Hoy?",
+  "The symbol next to the title then shows the weather – asks open-meteo.com about every 30 minutes.": "El símbolo junto al título muestra entonces el tiempo – consulta open-meteo.com cada 30 minutos aprox.",
+  "Current Location": "Ubicación actual",
+  "City …": "Ciudad …",
+  "No": "No",
+  "e.g. Vienna": "p. ej. Viena",
+  "OK": "OK",
+  "Open System Settings": "Abrir ajustes del sistema",
+  "Locating …": "Localizando …",
+  "Searching …": "Buscando …",
+  "Weather data: Open-Meteo.com, CC BY 4.0": "Datos meteorológicos: Open-Meteo.com, CC BY 4.0",
+  "Undo Send": "Deshacer envío",
+  "Sending {n} messages …": "Enviando {n} mensajes …",
+  "Sending “{s}” …": "Enviando «{s}» …",
+  "Sending …": "Enviando …",
+  "Off": "Desactivado",
+  "seconds": "segundos",
+  "like Apple Mail: the message waits this long and can still be taken back": "como Apple Mail: el mensaje espera este tiempo y aún se puede recuperar",
+  "More …": "Más …",
+  "Send": "Enviar",
+  "Reply to {name} …": "Responder a {name} …",
+  "Reply sent": "Respuesta enviada",
+  "Send Later": "Enviar más tarde",
+  "Send Now": "Enviar ahora",
+  "Send {time} Tonight": "Enviar esta noche a las {time}",
+  "Send {time} Tomorrow": "Enviar mañana a las {time}",
+  "Send Later …": "Enviar más tarde …",
+  "Schedule": "Programar",
+  "Remind Me": "Recordármelo",
+  "Remind Me in 1 Hour": "Recordar en 1 hora",
+  "Remind Me Tonight": "Recordar esta noche",
+  "Remind Me Tomorrow": "Recordar mañana",
+  "Remind Me Next Week": "Recordar la próxima semana",
+  "Reminder": "Recordatorio",
+  "(no subject)": "(sin asunto)",
+  "Follow Up": "Hacer seguimiento",
+  "Dismiss": "Descartar",
+  "No reply for {d} days: “{s}” to {to}": "Sin respuesta desde hace {d} días: «{s}» a {to}",
 };
 const IT = {
   "Install version {v}": "Installa la versione {v}",
@@ -805,6 +943,52 @@ const IT = {
   "{n} tasks": "{n} attività",
   "Tasks": "Attività",
   "Task List Display Options": "Opzioni di visualizzazione dell’elenco attività",
+  "Weather in the Today Pane": "Meteo nel pannello Oggi",
+  "the symbol next to the title shows the current weather – asks open-meteo.com about every 30 minutes; off: the sun stays, no outside requests": "il simbolo accanto al titolo mostra il meteo attuale – interroga open-meteo.com circa ogni 30 minuti; disattivato: resta il sole, nessuna richiesta esterna",
+  "Place for the weather": "Luogo per il meteo",
+  "a city – empty: your current location (the system asks for permission once)": "una città – vuoto: la tua posizione attuale (il sistema chiede il permesso una volta)",
+  "Current location": "Posizione attuale",
+  "Location access is off – allow it in System Settings or enter a city": "La localizzazione è disattivata – consentila nelle impostazioni di sistema o inserisci una città",
+  "Location unavailable – enter a city": "Posizione non disponibile – inserisci una città",
+  "City not found": "Città non trovata",
+  "Weather in the Today Pane?": "Meteo nel pannello Oggi?",
+  "The symbol next to the title then shows the weather – asks open-meteo.com about every 30 minutes.": "Il simbolo accanto al titolo mostra allora il meteo – interroga open-meteo.com circa ogni 30 minuti.",
+  "Current Location": "Posizione attuale",
+  "City …": "Città …",
+  "No": "No",
+  "e.g. Vienna": "es. Vienna",
+  "OK": "OK",
+  "Open System Settings": "Apri impostazioni di sistema",
+  "Locating …": "Localizzazione …",
+  "Searching …": "Ricerca …",
+  "Weather data: Open-Meteo.com, CC BY 4.0": "Dati meteo: Open-Meteo.com, CC BY 4.0",
+  "Undo Send": "Annulla invio",
+  "Sending {n} messages …": "Invio di {n} messaggi …",
+  "Sending “{s}” …": "Invio di «{s}» …",
+  "Sending …": "Invio …",
+  "Off": "Disattivato",
+  "seconds": "secondi",
+  "like Apple Mail: the message waits this long and can still be taken back": "come Apple Mail: il messaggio attende questo tempo e può ancora essere ritirato",
+  "More …": "Altro …",
+  "Send": "Invia",
+  "Reply to {name} …": "Rispondi a {name} …",
+  "Reply sent": "Risposta inviata",
+  "Send Later": "Invia più tardi",
+  "Send Now": "Invia ora",
+  "Send {time} Tonight": "Invia stasera alle {time}",
+  "Send {time} Tomorrow": "Invia domani alle {time}",
+  "Send Later …": "Invia più tardi …",
+  "Schedule": "Pianifica",
+  "Remind Me": "Ricordamelo",
+  "Remind Me in 1 Hour": "Ricorda tra 1 ora",
+  "Remind Me Tonight": "Ricorda stasera",
+  "Remind Me Tomorrow": "Ricorda domani",
+  "Remind Me Next Week": "Ricorda la prossima settimana",
+  "Reminder": "Promemoria",
+  "(no subject)": "(nessun oggetto)",
+  "Follow Up": "Sollecita",
+  "Dismiss": "Ignora",
+  "No reply for {d} days: “{s}” to {to}": "Nessuna risposta da {d} giorni: «{s}» a {to}",
 };
 const TRANSLATIONS = { de: DE, fr: FR, es: ES, it: IT };
 // tr("+{n} more", { n: 3 }) – Platzhalter in geschweiften Klammern
@@ -1664,6 +1848,851 @@ function motionMs(ms) {
   } catch {}
   return ms;
 }
+
+// ---------- Senden rückgängig (wie Apple Mail) ----------
+// Beim Senden verschwindet das Verfassen-Fenster sofort, unten im Hauptfenster
+// steht „Senden rückgängig“. Erst nach der Wartezeit (Einstellung, Standard
+// 10 s, 0 = aus) geht die Mail wirklich hinaus; „rückgängig“ zeigt das Fenster
+// wieder. Eingehängt wird am cancelable Ereignis „compose-send-message“ –
+// Thunderbird hat dann alle Rückfragen (Betreff, Anhang …) schon hinter sich;
+// gesendet wird danach mit CompleteGenericSendMessage ohne neue Rückfragen.
+// Beendet man Thunderbird währenddessen, gehen wartende Mails vorher hinaus.
+const UNDO_SEND_PREF = "extensions.mailcards.undoSend";
+const UNDO_SEND_CHOICES = [0, 10, 20, 30];
+const UndoSend = {
+  pending: new Map(), // Verfassen-Fenster → { msgType, timer, until }
+  delay() {
+    return Math.max(0, Services.prefs.getIntPref(UNDO_SEND_PREF, 10));
+  },
+  // im Verfassen-Fenster
+  hook(win, cleanups) {
+    if (win.__mcUndoSend) {
+      return;
+    }
+    win.__mcUndoSend = true;
+    const onSend = event => {
+      const msgType = event.detail?.msgType;
+      const sending = msgType == Ci.nsIMsgCompDeliverMode.Now || msgType == Ci.nsIMsgCompDeliverMode.Background;
+      if (!sending || win.__mcSendNow || !this.delay() || Services.io.offline || typeof win.CompleteGenericSendMessage != "function") {
+        return;
+      }
+      event.preventDefault(); // Thunderbird bricht ab wie bei „Abbrechen“, das Fenster bleibt
+      this.hold(win, msgType);
+    };
+    win.addEventListener("compose-send-message", onSend, true);
+    cleanups?.add(() => win.removeEventListener("compose-send-message", onSend, true));
+  },
+  setVisible(win, visible) {
+    try {
+      win.docShell.treeOwner.QueryInterface(Ci.nsIInterfaceRequestor).getInterface(Ci.nsIAppWindow)
+        .QueryInterface(Ci.nsIBaseWindow).visibility = visible;
+    } catch (e) {
+      log("undo send visibility error", e);
+    }
+  },
+  hold(win, msgType) {
+    const ms = this.delay() * 1000;
+    this.setVisible(win, false);
+    const entry = { msgType, until: Date.now() + ms };
+    entry.timer = win.setTimeout(() => this.send(win), ms);
+    this.pending.set(win, entry);
+    this.observeQuit();
+    this.render();
+  },
+  async send(win) {
+    const entry = this.pending.get(win);
+    if (!entry) {
+      return;
+    }
+    win.clearTimeout(entry.timer);
+    this.pending.delete(win);
+    this.render();
+    if (win.closed) {
+      return;
+    }
+    win.__mcSendNow = true;
+    try {
+      await win.CompleteGenericSendMessage(entry.msgType);
+    } catch (e) {
+      log("undo send error", e);
+      this.setVisible(win, true);
+    } finally {
+      win.__mcSendNow = false;
+    }
+  },
+  undo(win) {
+    const entry = this.pending.get(win);
+    if (!entry) {
+      return;
+    }
+    win.clearTimeout(entry.timer);
+    this.pending.delete(win);
+    this.render();
+    if (!win.closed) {
+      this.setVisible(win, true);
+      win.focus();
+    }
+  },
+  // Thunderbird wird beendet: wartende Mails jetzt senden, danach beenden
+  observeQuit() {
+    if (this.quitObserver) {
+      return;
+    }
+    this.quitObserver = {
+      observe: async subject => {
+        if (!this.pending.size) {
+          return;
+        }
+        subject.QueryInterface(Ci.nsISupportsPRBool).data = true;
+        await Promise.all([...this.pending.keys()].map(w => this.send(w)));
+        Services.tm.dispatchToMainThread(() => Services.startup.quit(Ci.nsIAppStartup.eAttemptQuit));
+      },
+    };
+    Services.obs.addObserver(this.quitObserver, "quit-application-requested");
+    enhancer?.restorers.push(() => {
+      Services.obs.removeObserver(this.quitObserver, "quit-application-requested");
+      this.quitObserver = null;
+      for (const w of [...this.pending.keys()]) {
+        this.send(w);
+      }
+    });
+  },
+  // Hinweis unten im Hauptfenster: „Wird gesendet … Senden rückgängig“
+  render() {
+    for (const main of Services.wm.getEnumerator("mail:3pane")) {
+      const d = main.document;
+      let bar = d.getElementById("mcUndoSend");
+      const last = [...this.pending.entries()].pop();
+      if (!last) {
+        bar?.remove();
+        continue;
+      }
+      const [cw] = last;
+      if (!bar) {
+        bar = d.createElementNS("http://www.w3.org/1999/xhtml", "div");
+        bar.id = "mcUndoSend";
+        bar.setAttribute("role", "status");
+        const text = d.createElementNS("http://www.w3.org/1999/xhtml", "span");
+        text.className = "mc-us-text";
+        const btn = d.createElementNS("http://www.w3.org/1999/xhtml", "button");
+        btn.className = "mc-us-undo";
+        btn.textContent = tr("Undo Send");
+        bar.append(text, btn);
+        d.documentElement.append(bar);
+      }
+      const subject = cw.document?.getElementById("msgSubject")?.value?.trim();
+      bar.querySelector(".mc-us-text").textContent = this.pending.size > 1
+        ? tr("Sending {n} messages …", { n: this.pending.size })
+        : subject ? tr("Sending “{s}” …", { s: subject }) : tr("Sending …");
+      bar.querySelector(".mc-us-undo").onclick = () => this.undo(cw);
+    }
+  },
+};
+
+// ---------- Später senden (wie Apple Mail) ----------
+// Pfeil neben „Senden“ im Verfassen-Fenster: „Heute 21:00“, „Morgen 8:00“
+// oder eine eigene Zeit. Die Mail wird als Entwurf mit der Kopfzeile
+// X-Halo-Send-At gespeichert (in der Datenbank über mailnews.customDBHeaders
+// lesbar); halo.spaces sieht jede halbe Minute in den Entwürfen nach und
+// schiebt fällige Mails in den Postausgang, Thunderbird sendet sie dann.
+// Läuft Thunderbird zur Zeit nicht, geht die Mail beim nächsten Start hinaus.
+const SEND_AT = "x-halo-send-at";
+const SendLater = {
+  timer: null,
+  ensureHeaderIndexed() {
+    const have = Services.prefs.getCharPref("mailnews.customDBHeaders", "").toLowerCase().split(/\s+/).filter(Boolean);
+    if (!have.includes(SEND_AT)) {
+      Services.prefs.setCharPref("mailnews.customDBHeaders", [...have, SEND_AT].join(" "));
+    }
+  },
+  // im Verfassen-Fenster: Pfeil mit Menü neben „Senden“
+  hook(win, cleanups) {
+    const doc = win.document;
+    const send = doc.getElementById("button-send");
+    if (!send || doc.getElementById("mcSendLater")) {
+      return;
+    }
+    const btn = doc.createXULElement("toolbarbutton");
+    btn.id = "mcSendLater";
+    btn.className = "toolbarbutton-1";
+    btn.setAttribute("type", "menu");
+    btn.setAttribute("tooltiptext", tr("Send Later"));
+    const popup = doc.createXULElement("menupopup");
+    popup.id = "mcSendLaterPopup";
+    btn.append(popup);
+    send.after(btn);
+    const item = (label, fn) => {
+      const it = doc.createXULElement("menuitem");
+      it.setAttribute("label", label);
+      it.addEventListener("command", fn);
+      return it;
+    };
+    const fmt = new Intl.DateTimeFormat(Services.locale.appLocaleAsBCP47, { hour: "2-digit", minute: "2-digit" });
+    popup.addEventListener("popupshowing", event => {
+      if (event.target != popup) {
+        return;
+      }
+      const now = new Date();
+      const tonight = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 21, 0);
+      const tomorrow = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1, 8, 0);
+      const items = [item(tr("Send Now"), () => win.goDoCommand("cmd_sendButton"))];
+      if (now < tonight - 5 * 60 * 1000) {
+        items.push(item(tr("Send {time} Tonight", { time: fmt.format(tonight) }), () => this.schedule(win, tonight)));
+      }
+      items.push(item(tr("Send {time} Tomorrow", { time: fmt.format(tomorrow) }), () => this.schedule(win, tomorrow)));
+      items.push(doc.createXULElement("menuseparator"));
+      items.push(item(tr("Send Later …"), () => this.askTime(win, btn)));
+      popup.replaceChildren(...items);
+    });
+    cleanups?.add(() => btn.remove());
+  },
+  // eigene Zeit: kleines Popover mit Datum und Uhrzeit
+  askTime(win, anchor) {
+    const doc = win.document;
+    const X = "http://www.w3.org/1999/xhtml";
+    let panel = doc.getElementById("mcSendLaterPanel");
+    if (!panel) {
+      panel = doc.createXULElement("panel");
+      panel.id = "mcSendLaterPanel";
+      panel.setAttribute("type", "arrow");
+      const box = doc.createElementNS(X, "div");
+      box.className = "mc-sl-box";
+      const title = doc.createElementNS(X, "div");
+      title.className = "mc-sl-title";
+      title.textContent = tr("Send Later");
+      const input = doc.createElementNS(X, "input");
+      input.type = "datetime-local";
+      input.className = "mc-sl-when";
+      const ok = doc.createElementNS(X, "button");
+      ok.className = "mc-sl-ok";
+      ok.textContent = tr("Schedule");
+      box.append(title, input, ok);
+      panel.append(box);
+      doc.documentElement.append(panel);
+      ok.addEventListener("click", () => {
+        const when = input.value ? new Date(input.value) : null;
+        if (when && when > new Date()) {
+          panel.hidePopup();
+          this.schedule(win, when);
+        }
+      });
+    }
+    const input = panel.querySelector(".mc-sl-when");
+    const pad = n => String(n).padStart(2, "0");
+    const t = new Date(Date.now() + 60 * 60 * 1000);
+    input.value = `${t.getFullYear()}-${pad(t.getMonth() + 1)}-${pad(t.getDate())}T${pad(t.getHours())}:00`;
+    panel.openPopup(anchor, "after_end", 0, 4);
+  },
+  async schedule(win, when) {
+    try {
+      win.gMsgCompose.compFields.setHeader("X-Halo-Send-At", String(when.getTime()));
+      await win.GenericSendMessage(Ci.nsIMsgCompDeliverMode.SaveAsDraft);
+      for (let i = 0; i < 100 && win.gSaveOperationInProgress; i++) {
+        await new Promise(r => win.setTimeout(r, 100));
+      }
+      win.close();
+      this.check(true);
+    } catch (e) {
+      log("send later error", e);
+    }
+  },
+  start() {
+    this.ensureHeaderIndexed();
+    const win = Services.wm.getMostRecentWindow("mail:3pane");
+    if (this.timer) {
+      return;
+    }
+    if (!win) {
+      setTimeout(() => this.start(), 3000); // Hauptfenster noch nicht offen
+      return;
+    }
+    this.timer = win.setInterval(() => this.check(), 30 * 1000);
+    win.setTimeout(() => this.check(true), 5000);
+    enhancer?.restorers.push(() => {
+      win.clearInterval(this.timer);
+      this.timer = null;
+    });
+  },
+  async draftFolders() {
+    const out = new Set();
+    for (const id of MailServices.accounts.allIdentities) {
+      try {
+        // ab Thunderbird 14x: getOrCreateDraftsFolderAsync (draftFolder gibt es nicht mehr)
+        const f = typeof id.getOrCreateDraftsFolderAsync == "function" ? await id.getOrCreateDraftsFolderAsync()
+          : id.draftFolder && MailServices.folderLookup.getFolderForURL(id.draftFolder);
+        if (f) {
+          out.add(f);
+        }
+      } catch {}
+    }
+    try {
+      const local = MailServices.accounts.localFoldersServer.rootFolder.getFolderWithFlags(Ci.nsMsgFolderFlags.Drafts);
+      if (local) {
+        out.add(local);
+      }
+    } catch {}
+    return [...out];
+  },
+  // fällige Entwürfe in den Postausgang, dann senden; update: Ordner vom Server auffrischen
+  async check(update = false) {
+    if (this.busy || Services.io.offline) {
+      return;
+    }
+    this.busy = true;
+    try {
+      const now = Date.now();
+      let moved = 0;
+      for (const folder of await this.draftFolders()) {
+        if (update && folder.server?.type == "imap") {
+          try {
+            folder.updateFolder(null);
+            await new Promise(r => setTimeout(r, 1500));
+          } catch {}
+        }
+        let db;
+        try {
+          db = folder.msgDatabase;
+        } catch {
+          continue;
+        }
+        const due = [];
+        for (const hdr of db.enumerateMessages()) {
+          const at = Number(hdr.getStringProperty(SEND_AT));
+          if (at && at <= now && !(hdr.flags & Ci.nsMsgMessageFlags.Expunged)) {
+            due.push(hdr);
+          }
+        }
+        if (!due.length) {
+          continue;
+        }
+        const outbox = this.outbox();
+        if (!outbox) {
+          break;
+        }
+        await new Promise(resolve => {
+          MailServices.copy.copyMessages(folder, due, outbox, true, {
+            QueryInterface: ChromeUtils.generateQI(["nsIMsgCopyServiceListener"]),
+            onStartCopy() {},
+            onProgress() {},
+            setMessageKey() {},
+            getMessageId() {
+              return null;
+            },
+            onStopCopy: () => resolve(),
+          }, null, false);
+        });
+        moved += due.length;
+      }
+      if (moved) {
+        Services.wm.getMostRecentWindow("mail:3pane")?.SendUnsentMessages?.();
+      }
+    } catch (e) {
+      log("send later check error", e);
+    } finally {
+      this.busy = false;
+    }
+  },
+  outbox() {
+    const root = MailServices.accounts.localFoldersServer?.rootFolder;
+    let box = root?.getFolderWithFlags(Ci.nsMsgFolderFlags.Queue);
+    if (!box && root) {
+      try {
+        box = root.createLocalSubfolder("Unsent Messages");
+        box.setFlag(Ci.nsMsgFolderFlags.Queue);
+      } catch {}
+    }
+    return box;
+  },
+};
+
+// ---------- Erinnern (wie „Remind Me“ in Apple Mail) ----------
+// Kontextmenü der Mailliste → Erinnern: in 1 Stunde, heute Abend, morgen,
+// nächste Woche. Die Mail wandert in den Ordner „Erinnern“ ihres Kontos (auf
+// dem Server – so gilt es auch für andere Geräte) und kommt zur Zeit
+// ungelesen in ihren Ordner zurück, mit einer Mitteilung. Gemerkt wird je
+// Message-ID (überlebt das Verschieben): Zeit, Herkunfts- und Zielordner.
+const REMIND_PREF = "extensions.mailcards.reminders";
+const Remind = {
+  timer: null,
+  list() {
+    try {
+      const v = JSON.parse(Services.prefs.getStringPref(REMIND_PREF, "[]"));
+      return Array.isArray(v) ? v : [];
+    } catch {
+      return [];
+    }
+  },
+  save(list) {
+    Services.prefs.setStringPref(REMIND_PREF, JSON.stringify(list.slice(-500)));
+  },
+  choices() {
+    const now = new Date();
+    const at = (d, h) => new Date(now.getFullYear(), now.getMonth(), now.getDate() + d, h, 0);
+    const out = [["Remind Me in 1 Hour", new Date(now.getTime() + 60 * 60 * 1000)]];
+    if (now.getHours() < 20) {
+      out.push(["Remind Me Tonight", at(0, 21)]);
+    }
+    out.push(["Remind Me Tomorrow", at(1, 8)]);
+    const toMonday = ((8 - now.getDay()) % 7) || 7;
+    out.push(["Remind Me Next Week", at(toMonday, 8)]);
+    return out;
+  },
+  // Ordner „Erinnern“ des Kontos, bei Bedarf angelegt (IMAP legt ihn
+  // asynchron auf dem Server an – kurz darauf warten)
+  async folderFor(hdr) {
+    const root = hdr.folder.server.rootFolder;
+    const name = tr("Remind Me");
+    const get = () => (root.containsChildNamed(name) ? root.getChildNamed(name) : null);
+    if (!get()) {
+      root.createSubfolder(name, null);
+      for (let i = 0; i < 50 && !get(); i++) {
+        await new Promise(r => setTimeout(r, 100));
+      }
+    }
+    return get();
+  },
+  move(src, hdrs, dest) {
+    return new Promise(resolve => {
+      MailServices.copy.copyMessages(src, hdrs, dest, true, {
+        QueryInterface: ChromeUtils.generateQI(["nsIMsgCopyServiceListener"]),
+        onStartCopy() {},
+        onProgress() {},
+        setMessageKey() {},
+        getMessageId() {
+          return null;
+        },
+        onStopCopy: () => resolve(),
+      }, null, false);
+    });
+  },
+  async remind(hdrs, when) {
+    const list = this.list().filter(e => !hdrs.some(h => h.messageId == e.id));
+    const bySrc = new Map();
+    for (const hdr of hdrs) {
+      const dest = await this.folderFor(hdr);
+      if (!dest || dest == hdr.folder) {
+        continue;
+      }
+      list.push({ id: hdr.messageId, at: when.getTime(), back: hdr.folder.URI, folder: dest.URI, subject: hdr.mime2DecodedSubject || "" });
+      const key = hdr.folder.URI + " " + dest.URI;
+      if (!bySrc.has(key)) {
+        bySrc.set(key, { src: hdr.folder, dest, hdrs: [] });
+      }
+      bySrc.get(key).hdrs.push(hdr);
+    }
+    this.save(list);
+    for (const { src, dest, hdrs: group } of bySrc.values()) {
+      await this.move(src, group, dest);
+    }
+  },
+  start() {
+    const win = Services.wm.getMostRecentWindow("mail:3pane");
+    if (this.timer) {
+      return;
+    }
+    if (!win) {
+      setTimeout(() => this.start(), 3000);
+      return;
+    }
+    this.timer = win.setInterval(() => this.check(), 30 * 1000);
+    win.setTimeout(() => this.check(), 6000);
+    enhancer?.restorers.push(() => {
+      win.clearInterval(this.timer);
+      this.timer = null;
+    });
+  },
+  async check() {
+    if (this.busy) {
+      return;
+    }
+    this.busy = true;
+    try {
+      const now = Date.now();
+      const list = this.list();
+      const due = list.filter(e => e.at <= now);
+      if (!due.length) {
+        return;
+      }
+      const rest = list.filter(e => e.at > now);
+      for (const e of due) {
+        let folder, back;
+        try {
+          folder = MailServices.folderLookup.getFolderForURL(e.folder);
+          back = MailServices.folderLookup.getFolderForURL(e.back);
+        } catch {}
+        const hdr = folder?.msgDatabase?.getMsgHdrForMessageID(e.id);
+        if (!hdr || !back) {
+          // noch nicht da (Server) – höchstens einen Tag lang weiter versuchen
+          if (now - e.at < 24 * 60 * 60 * 1000) {
+            rest.push(e);
+          }
+          continue;
+        }
+        // zurück: ungelesen wie eine neue Mail (vorher markieren – der Server
+        // übernimmt die Markierung beim Kopieren)
+        folder.markMessagesRead([hdr], false);
+        await new Promise(r => setTimeout(r, 500));
+        await this.move(folder, [hdr], back);
+        this.notify(e);
+      }
+      this.save(rest);
+    } catch (err) {
+      log("remind check error", err);
+    } finally {
+      this.busy = false;
+    }
+  },
+  notify(entry) {
+    try {
+      const alerts = Cc["@mozilla.org/alerts-service;1"].getService(Ci.nsIAlertsService);
+      const alert = Cc["@mozilla.org/alert-notification;1"].createInstance(Ci.nsIAlertNotification);
+      alert.init("halo-remind-" + entry.id, "", tr("Reminder"), entry.subject || tr("(no subject)"), false, "", null, null, null, null, false, false);
+      alerts.showAlert(alert, null);
+    } catch (e) {
+      debugLog("remind alert", String(e).slice(0, 120));
+    }
+  },
+  // Kontextmenü der Mailliste: Untermenü „Erinnern“ nach „Markieren“
+  hookMenu(doc) {
+    const popup = doc.getElementById("mailContext");
+    const mark = doc.getElementById("mailContext-mark");
+    if (!popup || !mark || doc.getElementById("mcRemindMenu")) {
+      return;
+    }
+    const win = doc.defaultView;
+    const menu = doc.createXULElement("menu");
+    menu.id = "mcRemindMenu";
+    menu.setAttribute("label", tr("Remind Me"));
+    const inner = doc.createXULElement("menupopup");
+    menu.append(inner);
+    mark.after(menu);
+    const fmt = new Intl.DateTimeFormat(Services.locale.appLocaleAsBCP47, { weekday: "short", hour: "2-digit", minute: "2-digit" });
+    inner.addEventListener("popupshowing", event => {
+      if (event.target != inner) {
+        return;
+      }
+      inner.replaceChildren(...this.choices().map(([label, when]) => {
+        const it = doc.createXULElement("menuitem");
+        it.setAttribute("label", `${tr(label)} (${fmt.format(when)})`);
+        it.addEventListener("command", () => {
+          const hdrs = win.gDBView?.getSelectedMsgHdrs?.() || [];
+          this.remind([...hdrs], when).catch(e => log("remind error", e));
+        });
+        return it;
+      }));
+    });
+    // nur bei Mails, die man verschieben kann (nicht in Entwürfen/Postausgang)
+    const onShow = event => {
+      if (event.target != popup) {
+        return;
+      }
+      const hdrs = win.gDBView?.getSelectedMsgHdrs?.() || [];
+      const F = Ci.nsMsgFolderFlags;
+      menu.hidden = !hdrs.length || [...hdrs].some(h => !h.folder || h.folder.isSpecialFolder(F.Drafts | F.Queue | F.Templates, true) || h.folder.server?.type == "nntp");
+    };
+    popup.addEventListener("popupshowing", onShow);
+    this.start();
+    enhancer?.addWinRestorer(win, () => {
+      popup.removeEventListener("popupshowing", onShow);
+      menu.remove();
+    });
+  },
+};
+
+// ---------- Nachfassen (wie „Follow Up“ in Apple Mail) ----------
+// Eigene Mails, auf die nach 3 Tagen (bis 14) noch keine Antwort kam, zeigt
+// halo.spaces als Hinweis über dem Posteingang: „Keine Antwort: „Betreff“ an
+// Anna“ – „Nachfassen“ öffnet die Antwort an dieselben Empfänger, ✕ blendet
+// ihn für diese Mail aus. Geantwortet = irgendeine Mail in einem Posteingang
+// der letzten 30 Tage verweist auf sie (References/In-Reply-To).
+const FOLLOWUP_DISMISSED_PREF = "extensions.mailcards.followUpDismissed";
+const FollowUp = {
+  cache: null,
+  dismissed() {
+    try {
+      return new Set(JSON.parse(Services.prefs.getStringPref(FOLLOWUP_DISMISSED_PREF, "[]")));
+    } catch {
+      return new Set();
+    }
+  },
+  dismiss(id) {
+    const set = [...this.dismissed(), id].slice(-300);
+    Services.prefs.setStringPref(FOLLOWUP_DISMISSED_PREF, JSON.stringify(set));
+    this.cache = null;
+  },
+  // die neueste unbeantwortete eigene Mail (oder null); höchstens alle 10 Minuten neu
+  candidate() {
+    if (this.cache && Date.now() - this.cache.time < 10 * 60 * 1000) {
+      return this.cache.hdr;
+    }
+    const F = Ci.nsMsgFolderFlags;
+    const now = Date.now() * 1000; // PRTime
+    const DAY = 24 * 60 * 60 * 1000 * 1000;
+    const answered = new Set();
+    const mine = new Set([...MailServices.accounts.allIdentities].map(i => (i.email || "").toLowerCase()).filter(Boolean));
+    const sent = [];
+    for (const server of MailServices.accounts.allServers) {
+      let root;
+      try {
+        root = server.rootFolder;
+      } catch {
+        continue;
+      }
+      for (const folder of root.descendants) {
+        const inbox = folder.getFlag(F.Inbox), isSent = folder.getFlag(F.SentMail);
+        if (!inbox && !isSent) {
+          continue;
+        }
+        let db;
+        try {
+          db = folder.msgDatabase;
+        } catch {
+          continue;
+        }
+        for (const hdr of db.enumerateMessages()) {
+          if (inbox && now - hdr.date < 30 * DAY) {
+            for (let i = 0; i < hdr.numReferences; i++) {
+              answered.add(hdr.getStringReference(i));
+            }
+          } else if (isSent && now - hdr.date >= 3 * DAY && now - hdr.date <= 14 * DAY) {
+            sent.push(hdr);
+          }
+        }
+      }
+    }
+    const dismissed = this.dismissed();
+    const others = h => (h.recipients + "," + h.ccList).toLowerCase().split(",").some(a => {
+      const m = a.match(/[^<\s"]+@[^>\s"]+/);
+      return m && !mine.has(m[0]);
+    });
+    const open = sent.filter(h => !answered.has(h.messageId) && !dismissed.has(h.messageId) &&
+      !(h.flags & Ci.nsMsgMessageFlags.Replied) && others(h)).sort((a, b) => b.date - a.date);
+    this.cache = { time: Date.now(), hdr: open[0] || null };
+    return this.cache.hdr;
+  },
+  // Hinweis über der Mailliste, nur im Posteingang bzw. allen Posteingängen
+  render(a3) {
+    const doc = a3?.document;
+    const pane = doc?.getElementById("threadPane");
+    const tree = doc?.getElementById("threadTree");
+    if (!pane || !tree) {
+      return;
+    }
+    let bar = doc.getElementById("mcFollowUp");
+    const folder = a3.gFolder;
+    const inbox = !!folder && (folder.getFlag(Ci.nsMsgFolderFlags.Inbox) ||
+      (folder.getFlag(Ci.nsMsgFolderFlags.Virtual) && /inbox/i.test(folder.URI)));
+    let hdr = null;
+    try {
+      hdr = inbox && Services.prefs.getBoolPref("extensions.mailcards.followUp", true) ? this.candidate() : null;
+    } catch (e) {
+      log("follow up error", e);
+    }
+    if (!hdr) {
+      bar?.remove();
+      return;
+    }
+    const X = "http://www.w3.org/1999/xhtml";
+    if (!bar) {
+      bar = doc.createElementNS(X, "div");
+      bar.id = "mcFollowUp";
+      const text = doc.createElementNS(X, "span");
+      text.className = "mc-fu-text";
+      const go = doc.createElementNS(X, "button");
+      go.className = "mc-fu-go";
+      go.textContent = tr("Follow Up");
+      const close = doc.createElementNS(X, "button");
+      close.className = "mc-fu-close";
+      close.title = tr("Dismiss");
+      close.setAttribute("aria-label", tr("Dismiss"));
+      bar.append(text, go, close);
+      tree.before(bar);
+    }
+    let to = "";
+    try {
+      const p = MailServices.headerParser.parseDecodedHeader(hdr.mime2DecodedRecipients || hdr.recipients)[0];
+      to = p?.name || p?.email || "";
+    } catch {}
+    const days = Math.floor((Date.now() * 1000 - hdr.date) / (24 * 60 * 60 * 1e6));
+    bar.querySelector(".mc-fu-text").textContent = tr("No reply for {d} days: “{s}” to {to}", { d: days, s: hdr.mime2DecodedSubject || "", to });
+    bar.querySelector(".mc-fu-go").onclick = () => {
+      const uri = hdr.folder.getUriForMsg(hdr);
+      MailServices.compose.OpenComposeWindow(null, hdr, uri, Ci.nsIMsgCompType.ReplyAll, Ci.nsIMsgCompFormat.Default, null, null, a3.msgWindow);
+      this.dismiss(hdr.messageId);
+      this.render(a3);
+    };
+    bar.querySelector(".mc-fu-close").onclick = () => {
+      this.dismiss(hdr.messageId);
+      this.render(a3);
+    };
+  },
+  hook(a3) {
+    if (a3.__mcFollowUp) {
+      return;
+    }
+    a3.__mcFollowUp = true;
+    const update = () => a3.setTimeout(() => this.render(a3), 0);
+    a3.addEventListener("folderURIChanged", update);
+    update();
+    enhancer?.addWinRestorer(a3, () => {
+      a3.removeEventListener("folderURIChanged", update);
+      a3.document.getElementById("mcFollowUp")?.remove();
+      delete a3.__mcFollowUp;
+    });
+  },
+};
+
+// ---------- Wetter in der Today-Pane (Option, Standard aus) ----------
+// Das Symbol neben dem Titel zeigt das aktuelle Wetter statt der festen Sonne.
+// Quelle: Open-Meteo (ohne Schlüssel, CC BY 4.0), höchstens alle 30 Minuten,
+// der letzte Wert bleibt gespeichert; ohne Netz bleibt die Sonne. Ort: eine
+// Stadt (einmal über die Geocoding-API von Open-Meteo in Koordinaten
+// übersetzt) oder – ohne Stadt – der aktuelle Standort des Systems (macOS
+// fragt einmal nach den Ortungsdiensten). Koordinaten auf 2 Nachkommastellen
+// (etwa 1 km) gerundet, bevor sie das Gerät verlassen.
+const WEATHER_PREF = "extensions.mailcards.weather";
+const WEATHER_PLACE_PREF = "extensions.mailcards.weatherPlace";
+const WEATHER_STATE_PREF = "extensions.mailcards.weatherState"; // JSON: Ort, Koordinaten, letzter Wert, Status
+const WEATHER_EVERY = 30 * 60 * 1000;
+const Weather = {
+  titles: new Set(),
+  timer: null,
+  observer: null,
+  state() {
+    try {
+      return JSON.parse(Services.prefs.getStringPref(WEATHER_STATE_PREF, "{}")) || {};
+    } catch {
+      return {};
+    }
+  },
+  save(state) {
+    Services.prefs.setStringPref(WEATHER_STATE_PREF, JSON.stringify(state));
+  },
+  enabled() {
+    return Services.prefs.getBoolPref(WEATHER_PREF, false);
+  },
+  // WMO-Wettercode → Symbol
+  kind(code, isDay) {
+    if (code <= 1) return isDay ? "clear-day" : "clear-night";
+    if (code == 2) return isDay ? "partly-day" : "partly-night";
+    if (code == 3) return "cloudy";
+    if (code == 45 || code == 48) return "fog";
+    if ((code >= 71 && code <= 77) || code == 85 || code == 86) return "snow";
+    if (code >= 95) return "thunder";
+    if ((code >= 51 && code <= 67) || (code >= 80 && code <= 82)) return "rain";
+    return isDay ? "clear-day" : "clear-night";
+  },
+  attach(win, title) {
+    this.titles.add(title);
+    win.addEventListener("unload", () => this.titles.delete(title), { once: true });
+    if (!this.observer) {
+      this.observer = { observe: () => this.refresh(true) };
+      Services.prefs.addObserver(WEATHER_PREF, this.observer);
+      Services.prefs.addObserver(WEATHER_PLACE_PREF, this.observer);
+      this.timer = Services.wm.getMostRecentWindow("mail:3pane")?.setInterval(() => this.refresh(), 5 * 60 * 1000);
+      enhancer?.restorers.push(() => this.stop());
+    }
+    this.show();
+    this.refresh();
+  },
+  stop() {
+    if (this.observer) {
+      Services.prefs.removeObserver(WEATHER_PREF, this.observer);
+      Services.prefs.removeObserver(WEATHER_PLACE_PREF, this.observer);
+      this.observer = null;
+    }
+    for (const w of Services.wm.getEnumerator("mail:3pane")) {
+      w.clearInterval(this.timer);
+    }
+    for (const t of this.titles) {
+      t.removeAttribute("data-weather");
+      t.removeAttribute("title");
+    }
+    this.titles.clear();
+  },
+  // gespeicherten Wert an alle Titel
+  show() {
+    const st = this.state();
+    const on = this.enabled() && st.kind;
+    for (const t of this.titles) {
+      if (on) {
+        t.dataset.weather = st.kind;
+        t.title = st.temp != null ? `${st.place ? st.place + ": " : ""}${Math.round(st.temp)} °C` : st.place || "";
+      } else {
+        t.removeAttribute("data-weather");
+        t.removeAttribute("title");
+      }
+    }
+  },
+  // Standort des Systems (CoreLocation, Windows-Standort, GeoClue)
+  locate(win) {
+    return new Promise(resolve => {
+      const geo = win?.navigator?.geolocation;
+      if (!geo) {
+        resolve({ error: "unavailable" });
+        return;
+      }
+      geo.getCurrentPosition(
+        pos => resolve({ lat: pos.coords.latitude, lon: pos.coords.longitude }),
+        err => resolve({ error: err?.code == 1 ? "denied" : "unavailable" }),
+        { timeout: 15000, maximumAge: 60 * 60 * 1000 });
+    });
+  },
+  async geocode(win, name) {
+    const lang = Services.locale.appLocaleAsBCP47.split("-")[0];
+    const url = `https://geocoding-api.open-meteo.com/v1/search?count=1&format=json&language=${encodeURIComponent(lang)}&name=${encodeURIComponent(name)}`;
+    const res = await fetchWithTimeout(win, url, { max: 64 * 1024 });
+    const hit = JSON.parse(await res.text())?.results?.[0];
+    return hit ? { lat: hit.latitude, lon: hit.longitude, place: [hit.name, hit.country].filter(Boolean).join(", ") } : null;
+  },
+  async refresh(force = false) {
+    const win = Services.wm.getMostRecentWindow("mail:3pane");
+    if (!this.enabled() || !win || this.busy) {
+      this.show();
+      return;
+    }
+    const st = this.state();
+    const wanted = Services.prefs.getStringPref(WEATHER_PLACE_PREF, "").trim();
+    if (!force && st.time && Date.now() - st.time < WEATHER_EVERY && st.for == wanted) {
+      this.show();
+      return;
+    }
+    this.busy = true;
+    try {
+      let where = null;
+      if (wanted) {
+        where = st.for == wanted && st.lat != null ? { lat: st.lat, lon: st.lon, place: st.place } : await this.geocode(win, wanted);
+        if (!where) {
+          this.save({ ...st, for: wanted, status: "notfound", time: Date.now(), kind: null });
+          this.show();
+          return;
+        }
+      } else {
+        where = await this.locate(win);
+        if (where.error) {
+          this.save({ ...st, for: wanted, status: where.error, time: Date.now(), kind: null, place: null });
+          this.show();
+          return;
+        }
+        where.place = null;
+      }
+      const lat = Math.round(where.lat * 100) / 100, lon = Math.round(where.lon * 100) / 100;
+      const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=weather_code,is_day,temperature_2m&timezone=auto`;
+      const res = await fetchWithTimeout(win, url, { max: 64 * 1024 });
+      const cur = JSON.parse(await res.text())?.current;
+      if (!res.ok || !cur) {
+        throw new Error(`weather ${res.status}`);
+      }
+      this.save({ for: wanted, lat, lon, place: where.place, status: "ok", time: Date.now(),
+                  kind: this.kind(cur.weather_code, cur.is_day), temp: cur.temperature_2m, code: cur.weather_code });
+    } catch (e) {
+      log("weather error", String(e).slice(0, 120));
+    } finally {
+      this.busy = false;
+    }
+    this.show();
+  },
+};
 
 // Breite Newsletter (feste 600–700 px) wie Apple Mail auf die Lesebreite
 // verkleinern statt sie rechts abzuschneiden: der Mailtext bekommt einen Zoom,
@@ -5653,6 +6682,8 @@ class CardEnhancer {
       });
     }
     this.sendErrors();
+    this.flushOutbox();
+    SendLater.start();
     // Einmal nach der Erstinstallation begrüßen: was halo.spaces ändert und wo
     // die Einstellungen liegen. Windows/Linux: im selben Fenster der Hinweis,
     // dass halo.spaces für macOS gemacht ist (früher ein eigenes Fenster)
@@ -5832,6 +6863,12 @@ class CardEnhancer {
           hookComposeApple(w, composeCleanups);
         } catch (e) {
           log("compose apple error", e);
+        }
+        try {
+          UndoSend.hook(w, composeCleanups);
+          SendLater.hook(w, composeCleanups);
+        } catch (e) {
+          log("undo send hook error", e);
         }
         try {
           installDialogBox(w, { push: fn => composeCleanups.add(fn) });
@@ -8666,6 +9703,8 @@ class CardEnhancer {
       title.textContent = tr("Today Pane");
       top.append(title);
       row?.prepend(top);
+      // Wetter statt der festen Sonne (Option, Standard aus)
+      Weather.attach(w, title);
       (row || d.body).append(btn);
       // „+“ oben rechts in der Today-Pane, gleiche Größe und Höhe wie der
       // Today-Knopf – fragt nach Termin oder Aufgabe (statt unten unter der Liste)
@@ -12089,6 +13128,26 @@ class CardEnhancer {
       themeSwitched,
       openSettings: () => openHaloSettings(w),
       sendFeedback: () => this.sendFeedback(),
+      // Begrüßung: Wetter in der Today-Pane gleich einrichten (dieselben Prefs
+      // wie die Einstellungsseite); Ergebnis als Zeile: Ort/Temperatur oder Hinweis
+      setWeather: async (on, place = "") => {
+        Services.prefs.setStringPref(WEATHER_PLACE_PREF, place);
+        Services.prefs.setBoolPref(WEATHER_PREF, on);
+        if (!on) {
+          return { ok: true, text: "" };
+        }
+        await Weather.refresh(true);
+        const st = Weather.state();
+        return st.status == "ok"
+          ? { ok: true, text: (st.place || tr("Current location")) + (st.temp != null ? ` · ${Math.round(st.temp)} °C` : "") }
+          : { ok: false, status: st.status, text: st.status == "denied" ? tr("Location access is off – allow it in System Settings or enter a city")
+            : st.status == "notfound" ? tr("City not found") : tr("Location unavailable – enter a city") };
+      },
+      // Systemeinstellung der Ortung (macOS, Windows; Linux: kein einheitlicher Ort)
+      locationSettingsURL: Services.appinfo.OS == "Darwin" ? "x-apple.systempreferences:com.apple.preference.security?Privacy_LocationServices"
+        : Services.appinfo.OS == "WINNT" ? "ms-settings:privacy-location" : null,
+      openURL: url => Cc["@mozilla.org/uriloader/external-protocol-service;1"].getService(Ci.nsIExternalProtocolService)
+        .loadURI(Services.io.newURI(url), Services.scriptSecurityManager.getSystemPrincipal()),
       // im Standardbrowser öffnen (loadURI braucht seit Thunderbird 140 einen
       // Principal und tat ohne ihn nichts)
       donate: () => {
@@ -12118,6 +13177,94 @@ class CardEnhancer {
       }
     };
     w.setTimeout(wire, 30);
+  }
+
+  // Begrüßung: „Wetter in der Today-Pane?“ – Aktueller Standort / Stadt / Nein.
+  // Standort: gleich orten (macOS fragt dabei nach den Ortungsdiensten); gesperrt
+  // oder ohne Ergebnis → Hinweis mit Knopf zur Systemeinstellung und Stadtfeld
+  wireWelcomeWeather(hw, api) {
+    const doc = hw.document;
+    const note = doc.getElementById("platform-note");
+    if (!note || doc.getElementById("weather")) {
+      return;
+    }
+    const el = (tag, cls, text) => {
+      const e = doc.createElement(tag);
+      if (cls) e.className = cls;
+      if (text != null) e.textContent = text;
+      return e;
+    };
+    const box = el("section", "weather");
+    box.id = "weather";
+    const question = el("p", "q", tr("Weather in the Today Pane?"));
+    const hint = el("p", "small", tr("The symbol next to the title then shows the weather – asks open-meteo.com about every 30 minutes."));
+    const choices = el("div", "choices");
+    const here = el("button", "capsule", tr("Current Location"));
+    const city = el("button", "capsule", tr("City …"));
+    const no = el("button", "capsule", tr("No"));
+    choices.append(here, city, no);
+    const cityRow = el("div", "city");
+    cityRow.hidden = true;
+    const input = el("input");
+    input.type = "text";
+    input.placeholder = tr("e.g. Vienna");
+    const ok = el("button", "capsule", tr("OK"));
+    cityRow.append(input, ok);
+    const status = el("p", "small status");
+    const settingsBtn = el("button", "capsule", tr("Open System Settings"));
+    settingsBtn.hidden = true;
+    box.append(question, hint, choices, cityRow, status, settingsBtn);
+    note.after(box);
+    const resize = () => {
+      const need = doc.documentElement.scrollHeight - hw.innerHeight;
+      if (need > 0) {
+        hw.resizeBy(0, need);
+      }
+    };
+    const pick = button => {
+      for (const b of choices.children) {
+        b.classList.toggle("chosen", b == button);
+      }
+    };
+    const result = r => {
+      status.textContent = r.text;
+      status.classList.toggle("bad", !r.ok);
+      settingsBtn.hidden = !(r.status == "denied" && api.locationSettingsURL);
+      if (!r.ok) {
+        cityRow.hidden = false;
+        pick(city);
+      }
+      resize();
+    };
+    here.addEventListener("click", async () => {
+      pick(here);
+      cityRow.hidden = true;
+      status.textContent = tr("Locating …");
+      result(await api.setWeather(true, ""));
+    });
+    city.addEventListener("click", () => {
+      pick(city);
+      cityRow.hidden = false;
+      input.focus();
+      resize();
+    });
+    const useCity = async () => {
+      if (input.value.trim()) {
+        status.textContent = tr("Searching …");
+        result(await api.setWeather(true, input.value.trim()));
+      }
+    };
+    ok.addEventListener("click", useCity);
+    input.addEventListener("keydown", e => e.key == "Enter" && useCity());
+    no.addEventListener("click", async () => {
+      pick(no);
+      cityRow.hidden = true;
+      settingsBtn.hidden = true;
+      status.textContent = "";
+      await api.setWeather(false);
+      resize();
+    });
+    settingsBtn.addEventListener("click", () => api.openURL(api.locationSettingsURL));
   }
 
   // Texte setzen und Knöpfe verbinden (aus der Erweiterung heraus)
@@ -12150,6 +13297,9 @@ class CardEnhancer {
         return p;
       }));
       note.hidden = false;
+    }
+    if (api.welcome) {
+      this.wireWelcomeWeather(hw, api);
     }
     if (api.welcome) {
       // Begrüßung: nur „Einstellungen öffnen“ (hervorgehoben) und „Weiter“
@@ -12403,6 +13553,29 @@ class CardEnhancer {
       set();
       w.setTimeout(set, 0);
     } catch {}
+  }
+
+  // Senden im Hintergrund: Thunderbird legt die Mail in den Postausgang und
+  // sendet sie selbst – aber nur, wenn es beim Start schon einen Postausgang
+  // gab (sonst blieb sie liegen). Darum nach jedem Senden kurz nachsehen und
+  // den Postausgang selbst leeren, falls Thunderbird nicht schon dabei ist.
+  flushOutbox() {
+    const observer = {
+      observe: () => setTimeout(() => {
+        try {
+          const sl = Cc["@mozilla.org/messengercompose/sendlater;1"].getService(Ci.nsIMsgSendLater);
+          const outbox = MailServices.accounts.localFoldersServer?.rootFolder?.getFolderWithFlags(Ci.nsMsgFolderFlags.Queue);
+          if (Services.prefs.getBoolPref("mailnews.sendInBackground", false) && !Services.io.offline &&
+              outbox?.getTotalMessages(false) && !sl.sendingMessages) {
+            Services.wm.getMostRecentWindow("mail:3pane")?.SendUnsentMessages?.();
+          }
+        } catch (e) {
+          log("flush outbox error", e);
+        }
+      }, 2000),
+    };
+    Services.obs.addObserver(observer, "mail:composeSendProgressStop");
+    this.restorers.push(() => Services.obs.removeObserver(observer, "mail:composeSendProgressStop"));
   }
 
   // Senden im Hintergrund: scheitert eine Mail aus dem Postausgang, wie Apple
@@ -12667,6 +13840,8 @@ class CardEnhancer {
     safely("view choice", () => this.hookViewChoice(doc));
     safely("unread filter", () => this.hookUnreadFilter(win));
     safely("card exit", () => this.hookCardExit(win));
+    safely("remind menu", () => Remind.hookMenu(win.document));
+    safely("follow up", () => FollowUp.hook(win));
     safely("arrivals", () => this.hookArrivals(win));
     safely("star button", () => {
       // Stern-Knopf der Symbolleiste folgt der Auswahl („select“ der
@@ -13873,6 +15048,7 @@ class CardEnhancer {
         this.fillAvatar(box, hdr);
         if (!same) {
           this.decorateHeader(doc, hdr);
+          this.quickReply(doc, hdr);
         }
       } catch (e) {
         log("header avatar error", e);
@@ -14047,6 +15223,149 @@ class CardEnhancer {
         n.shadowRoot?.querySelector("style.mc-layout")?.remove();
       }
     });
+  }
+
+  // Schnellantwort unter der Mail: ein Textfeld „Antworten an Anna …“; ⌘↩
+  // bzw. Strg+↩ oder der Pfeil sendet die Antwort an den Absender (Betreff
+  // „Re:“, mit Bezug auf die Mail, die danach als beantwortet gilt) ohne
+  // Verfassen-Fenster; „Mehr …“ öffnet das normale Antwortfenster mit dem
+  // Geschriebenen. Nicht bei Entwürfen, Vorlagen, Postausgang und eigenen
+  // gesendeten Mails; Einstellung extensions.mailcards.quickReply
+  quickReply(doc, hdr) {
+    const win = doc.defaultView;
+    const box = doc.getElementById("messagepanebox");
+    let bar = doc.getElementById("mcQuickReply");
+    const F = Ci.nsMsgFolderFlags;
+    const skip = !Services.prefs.getBoolPref("extensions.mailcards.quickReply", true) || !hdr?.folder ||
+      hdr.folder.isSpecialFolder(F.Drafts | F.Templates | F.Queue | F.SentMail, true) || hdr.folder.server?.type == "rss";
+    if (skip || !box) {
+      bar?.remove();
+      return;
+    }
+    const X = "http://www.w3.org/1999/xhtml";
+    if (!bar) {
+      bar = doc.createElementNS(X, "div");
+      bar.id = "mcQuickReply";
+      const field = doc.createElementNS(X, "textarea");
+      field.className = "mc-qr-field";
+      field.rows = 1;
+      const more = doc.createElementNS(X, "button");
+      more.className = "mc-qr-more";
+      more.textContent = tr("More …");
+      const send = doc.createElementNS(X, "button");
+      send.className = "mc-qr-send";
+      send.title = tr("Send");
+      send.setAttribute("aria-label", tr("Send"));
+      bar.append(field, more, send);
+      box.append(bar);
+      // wächst mit dem Text bis 6 Zeilen
+      const grow = () => {
+        field.style.height = "auto";
+        field.style.height = `${Math.min(field.scrollHeight, 6 * 18 + 12)}px`;
+        bar.toggleAttribute("data-text", !!field.value.trim());
+      };
+      field.addEventListener("input", grow);
+      field.addEventListener("keydown", event => {
+        if (event.key == "Enter" && (event.metaKey || event.ctrlKey)) {
+          event.preventDefault();
+          send.click();
+        }
+      });
+      send.addEventListener("click", () => this.sendQuickReply(doc, bar).catch(e => log("quick reply error", e)));
+      more.addEventListener("click", () => {
+        const text = field.value;
+        const current = win.gMessage;
+        if (!current) {
+          return;
+        }
+        const uri = current.folder.getUriForMsg(current);
+        // normales Antworten; der Text kommt an den Anfang, sobald der Editor bereit ist
+        const known = new Set(Services.wm.getEnumerator("msgcompose"));
+        MailServices.compose.OpenComposeWindow(null, current, uri, Ci.nsIMsgCompType.ReplyToSender, Ci.nsIMsgCompFormat.Default, null, null, win.msgWindow);
+        if (text.trim()) {
+          let tries = 0;
+          const attach = () => {
+            const cw = [...Services.wm.getEnumerator("msgcompose")].find(x => !known.has(x));
+            if (!cw) {
+              if (tries++ < 100) {
+                win.setTimeout(attach, 100);
+              }
+              return;
+            }
+            cw.addEventListener("compose-editor-ready", () => {
+              try {
+                const editor = cw.GetCurrentEditor();
+                editor.beginningOfDocument();
+                editor.insertText(text);
+                editor.insertLineBreak?.();
+              } catch (e) {
+                log("quick reply more error", e);
+              }
+            }, { once: true });
+          };
+          attach();
+        }
+        field.value = "";
+        grow();
+      });
+    }
+    const field = bar.querySelector(".mc-qr-field");
+    const name = (hdr.mime2DecodedAuthor || hdr.author || "").replace(/\s*<.*$/, "").replace(/^"|"$/g, "") || hdr.author;
+    field.placeholder = tr("Reply to {name} …", { name });
+    if (bar.dataset.for != hdr.messageId) {
+      field.value = "";
+      field.style.height = "";
+      bar.removeAttribute("data-text");
+      bar.removeAttribute("data-sent");
+    }
+    bar.dataset.for = hdr.messageId;
+  }
+
+  async sendQuickReply(doc, bar) {
+    const win = doc.defaultView;
+    const hdr = win.gMessage;
+    const field = bar.querySelector(".mc-qr-field");
+    const text = field.value.trim();
+    if (!hdr || !text || bar.hasAttribute("data-busy")) {
+      return;
+    }
+    const { MailUtils } = ChromeUtils.importESModule("resource:///modules/MailUtils.sys.mjs");
+    const [identity] = MailUtils.getIdentityForHeader(hdr);
+    if (!identity) {
+      return;
+    }
+    const fields = Cc["@mozilla.org/messengercompose/composefields;1"].createInstance(Ci.nsIMsgCompFields);
+    const replyTo = hdr.getStringProperty("replyTo") || hdr.author;
+    fields.to = replyTo;
+    fields.from = identity.fullName ? `${identity.fullName} <${identity.email}>` : identity.email;
+    const subject = hdr.mime2DecodedSubject || "";
+    fields.subject = /^re:/i.test(subject) ? subject : `Re: ${subject}`;
+    fields.body = text + "\n";
+    fields.forcePlainText = true;
+    fields.useMultipartAlternative = false;
+    const refs = hdr.numReferences ? [...Array(hdr.numReferences).keys()].map(i => `<${hdr.getStringReference(i)}>`) : [];
+    fields.references = [...refs, `<${hdr.messageId}>`].join(" ");
+    fields.setHeader("In-Reply-To", `<${hdr.messageId}>`);
+    const params = Cc["@mozilla.org/messengercompose/composeparams;1"].createInstance(Ci.nsIMsgComposeParams);
+    params.type = Ci.nsIMsgCompType.ReplyToSender;
+    params.format = Ci.nsIMsgCompFormat.PlainText;
+    params.identity = identity;
+    params.originalMsgURI = hdr.folder.getUriForMsg(hdr);
+    params.composeFields = fields;
+    const compose = Cc["@mozilla.org/messengercompose/compose;1"].createInstance(Ci.nsIMsgCompose);
+    compose.initialize(params, null, null);
+    const account = MailServices.accounts.getAccount(hdr.accountKey) || MailServices.accounts.findAccountForServer(hdr.folder.server);
+    bar.setAttribute("data-busy", "");
+    try {
+      await compose.sendMsg(Services.io.offline ? Ci.nsIMsgCompDeliverMode.Later : Ci.nsIMsgCompDeliverMode.Now, identity, account?.key || "", null, null);
+      field.value = "";
+      field.style.height = "";
+      bar.removeAttribute("data-text");
+      bar.setAttribute("data-sent", "");
+      field.placeholder = tr("Reply sent");
+    } finally {
+      bar.removeAttribute("data-busy");
+    }
   }
 
   // Mailkopf wie Apple Mail: oben rechts Ordner und Uhrzeit, darüber bei
@@ -14498,6 +15817,9 @@ const SETTINGS = {
   // Thunderbirds eigene Umfärbung von HTML-Mails im Dunkelmodus (ab Thunderbird 13x);
   // ihr Schalter im Mailkopf ist ausgeblendet, eingestellt wird hier wie in Apple Mail
   darkMessages: ["mail.dark-reader.enabled", "bool", true],
+  undoSend: [UNDO_SEND_PREF, "int", 10],
+  weather: [WEATHER_PREF, "bool", false],
+  weatherPlace: [WEATHER_PLACE_PREF, "string", ""],
 };
 // Voraussetzungen einzelner Optionen (needs in options/sections.js)
 function settingNeeds() {
@@ -14530,6 +15852,13 @@ this.mailCards = class extends ExtensionCommon.ExtensionAPI {
           }
           // wie im Hilfe-Fenster: eingerichtete Fotos gelten auch ohne Pref als an
           out.macContactPhotos = await MacPhotos.enabled();
+          // Wetter: Ort und Zustand für die Zeile unter dem Ortsfeld
+          const ws = Weather.state();
+          out.weatherStatus = !out.weather ? "" : ws.status == "ok"
+            ? (ws.place || tr("Current location")) + (ws.temp != null ? ` · ${Math.round(ws.temp)} °C` : "")
+            : ws.status == "denied" ? tr("Location access is off – allow it in System Settings or enter a city")
+            : ws.status == "unavailable" ? tr("Location unavailable – enter a city")
+            : ws.status == "notfound" ? tr("City not found") : "";
           return out;
         },
         async setSetting(key, value) {
@@ -14547,9 +15876,17 @@ this.mailCards = class extends ExtensionCommon.ExtensionAPI {
           } else if (type == "int") {
             const n = Math.round(Number(value));
             if (!Number.isFinite(n)) throw new Error("not a number");
-            Services.prefs.setIntPref(pref, Math.max(0, Math.min(4, n))); // derzeit keine Zahl-Einstellung
+            if (key == "undoSend") {
+              if (!UNDO_SEND_CHOICES.includes(n)) throw new Error("not a choice");
+              Services.prefs.setIntPref(pref, n);
+            } else {
+              Services.prefs.setIntPref(pref, Math.max(0, Math.min(4, n)));
+            }
           } else {
             Services.prefs.setStringPref(pref, String(value).slice(0, 10000));
+          }
+          if (key == "weather" || key == "weatherPlace") {
+            await Weather.refresh(true); // Zeile unter dem Ortsfeld gleich mit Ergebnis
           }
           if (key == "macContactPhotos") {
             if (value) {

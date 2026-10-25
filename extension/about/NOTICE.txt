@@ -5,3 +5,10 @@ Copyright 2013 Google LLC, https://github.com/googlefonts/noto-emoji
 Noto Emoji image resources are licensed under the Apache License,
 Version 2.0 (https://www.apache.org/licenses/LICENSE-2.0). The image is
 used unmodified apart from removing editor metadata.
+
+Weather (optional, Today pane)
+
+Weather data by Open-Meteo.com (https://open-meteo.com/), licensed under
+Creative Commons Attribution 4.0 International (CC BY 4.0,
+https://creativecommons.org/licenses/by/4.0/). The weather symbols in
+extension/icons/weather are drawn for halo.spaces.

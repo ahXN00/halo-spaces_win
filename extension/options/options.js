@@ -54,9 +54,24 @@ async function render() {
       };
       let control;
       if (row.type == "select") {
-        control = el("select", { id }, ...row.options.map(o => el("option", { value: String(o), textContent: String(o) })));
+        control = el("select", { id }, ...row.options.map(o => el("option", { value: String(o),
+          textContent: row.labels?.[o] ?? (row.unit ? `${o} ${row.unit}` : String(o)) })));
         control.value = String(settings[row.key]);
         control.addEventListener("change", () => save(Number(control.value)));
+      } else if (row.type == "place") {
+        // Ort fürs Wetter: Eingabe, darunter das Ergebnis (Ort und Temperatur bzw. Hinweis)
+        const input = el("input", { id, type: "text", value: settings[row.key] || "", placeholder: row.placeholder || "", spellcheck: false, class: "place" });
+        const status = el("span", { class: "hint status", textContent: settings.weatherStatus || "" });
+        let timer = null;
+        input.addEventListener("input", () => {
+          clearTimeout(timer);
+          timer = setTimeout(async () => {
+            await save(input.value.trim());
+            status.textContent = (await api.getSettings()).weatherStatus || "";
+          }, 800);
+        });
+        text.append(status);
+        control = input;
       } else if (row.type == "textarea") {
         const area = el("textarea", { id, value: settings[row.key], placeholder: row.placeholder, spellcheck: false });
         let timer = null;
