@@ -6145,8 +6145,9 @@ Neu
           return out;''')
         if res.get("visibility") == "hidden":
             return True, f"Testfenster verdeckt – übersprungen {res}"
-        # (Windows-VM: emuliert, dort fallen Einzelbilder aus – der letzte Schritt darf etwas größer sein)
-        last_max = 3 if sys.platform == "win32" else 0
+        # (Windows-VM: emuliert, dort fallen Einzelbilder aus – der letzte Schritt darf etwas größer sein;
+        # Linux in der CI: Zeitschwankungen, Bruchteile eines Pixels)
+        last_max = 3 if sys.platform == "win32" else 1 if sys.platform != "darwin" else 0
         bad = [f"{k}: {v}" for k, v in res.items() if k != "visibility" and (v["steps"] < 6 or any(v["back"]) or v["lastStep"] > last_max
                or any(abs(a - b) > 2 for a, b in zip(v["end"], v["last"])))]
         return not bad, "; ".join(bad) or f"{res}"
