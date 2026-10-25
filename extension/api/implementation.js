@@ -204,7 +204,6 @@ const DE = {
   "Filter Tasks": "Aufgaben filtern",
   "Choose…": "Auswählen …",
   "Zoom": "Zoomen",
-  "List View": "Listenansicht",
   "Table View": "Tabellenansicht",
   "Dialogs inside the window": "Dialoge im Fenster",
   "questions appear as a sheet at the top of the window, dialogs without title bar; for newly opened windows": "Nachfragen erscheinen als Kachel oben im Fenster, Dialoge ohne Titelleiste; für neu geöffnete Fenster",
@@ -395,7 +394,6 @@ const FR = {
   "Filter Tasks": "Filtrer les tâches",
   "Choose…": "Choisir…",
   "Zoom": "Zoom",
-  "List View": "Vue liste",
   "Table View": "Vue tableau",
   "Dialogs inside the window": "Dialogues dans la fenêtre",
   "questions appear as a sheet at the top of the window, dialogs without title bar; for newly opened windows": "les questions s’affichent en haut de la fenêtre, dialogues sans barre de titre ; pour les fenêtres nouvellement ouvertes",
@@ -586,7 +584,6 @@ const ES = {
   "Filter Tasks": "Filtrar tareas",
   "Choose…": "Elegir…",
   "Zoom": "Zoom",
-  "List View": "Vista de lista",
   "Table View": "Vista de tabla",
   "Dialogs inside the window": "Diálogos dentro de la ventana",
   "questions appear as a sheet at the top of the window, dialogs without title bar; for newly opened windows": "las preguntas aparecen arriba en la ventana, diálogos sin barra de título; para ventanas nuevas",
@@ -777,7 +774,6 @@ const IT = {
   "Filter Tasks": "Filtra attività",
   "Choose…": "Scegli…",
   "Zoom": "Zoom",
-  "List View": "Vista elenco",
   "Table View": "Vista tabella",
   "Dialogs inside the window": "Finestre di dialogo nella finestra",
   "questions appear as a sheet at the top of the window, dialogs without title bar; for newly opened windows": "le domande appaiono in alto nella finestra, finestre di dialogo senza barra del titolo; per le finestre aperte di nuovo",
@@ -2143,6 +2139,208 @@ function hookTaskView(win, restorers) {
     delete splitter.__mcTaskView;
     // Tabelle wiederherstellen (Spalten, Details unten), die Wahl bleibt gemerkt
     applyTaskView(win, "table");
+  });
+}
+
+// Kartenansicht der Aufgaben wie die Mail-Karten: Thunderbirds Liste (XUL-Baum)
+// kann keine zweizeiligen, runden Zeilen – darüber liegt deshalb eine eigene
+// Liste aus Karten (Kreis + Titel, darunter Fälligkeit, Kalender, Kategorien).
+// Auswahl, Tastatur, Kontextmenü und Befehle bleiben bei Thunderbirds Liste
+// (sie behält den Fokus und liegt unsichtbar darunter); die Karten zeigen nur
+// deren Inhalt und Auswahl und geben Klicks an sie weiter.
+function hookTaskCards(win, restorers) {
+  const doc = win.document;
+  const tree = doc.getElementById("calendar-task-tree");
+  const box = tree?.parentElement;
+  if (!tree || !box || doc.getElementById("mcTaskCards")) {
+    return;
+  }
+  const { cal } = ChromeUtils.importESModule("resource:///modules/calendar/calUtils.sys.mjs");
+  const X = "http://www.w3.org/1999/xhtml";
+  const el = (tag, cls, text) => {
+    const e = doc.createElementNS(X, tag);
+    if (cls) {
+      e.className = cls;
+    }
+    if (text != null) {
+      e.textContent = text;
+    }
+    return e;
+  };
+  const list = el("div");
+  list.id = "mcTaskCards";
+  list.setAttribute("role", "presentation");
+  tree.before(list);
+  const locale = Services.locale.appLocaleAsBCP47;
+  const fmtDay = new Intl.DateTimeFormat(locale, { day: "numeric", month: "short" });
+  const fmtDayYear = new Intl.DateTimeFormat(locale, { day: "numeric", month: "short", year: "numeric" });
+  const fmtTime = new Intl.DateTimeFormat(locale, { hour: "2-digit", minute: "2-digit" });
+  const rel = new Intl.RelativeTimeFormat(locale, { numeric: "auto" });
+  const dayStart = d => new Date(d.getFullYear(), d.getMonth(), d.getDate());
+  // Fälligkeit wie in Apple Erinnerungen: „Heute, 14:00“, „Morgen“, „3. Nov.“
+  const dueText = task => {
+    const due = task.dueDate;
+    if (!due?.isValid) {
+      return null;
+    }
+    const js = cal.dtz.dateTimeToJsDate(due.isDate ? due : due.getInTimezone(cal.dtz.defaultTimezone));
+    const now = new Date();
+    const days = Math.round((dayStart(js) - dayStart(now)) / 86400000);
+    let text = Math.abs(days) <= 1 ? rel.format(days, "day") : (js.getFullYear() == now.getFullYear() ? fmtDay : fmtDayYear).format(js);
+    text = text.charAt(0).toLocaleUpperCase(locale) + text.slice(1);
+    if (!due.isDate) {
+      text += ", " + fmtTime.format(js);
+    }
+    return { text, overdue: !task.isCompleted && (due.isDate ? days < 0 : js < now) };
+  };
+  const color = calendar => {
+    try {
+      return calendar.getProperty("color") || "#007AFF";
+    } catch {
+      return "#007AFF";
+    }
+  };
+  let pending = false;
+  const render = () => {
+    pending = false;
+    if (!list.isConnected || !doc.documentElement.hasAttribute("mc-task-list")) {
+      return;
+    }
+    const tasks = tree.mTaskArray || [];
+    const sel = tree.view?.selection;
+    const cards = tasks.map((task, i) => {
+      const card = el("div", "mc-tc");
+      card.dataset.index = i;
+      card.toggleAttribute("data-completed", !!task.isCompleted);
+      if (sel?.isSelected(i)) {
+        card.setAttribute("aria-selected", "true");
+      }
+      const check = el("span", "mc-tc-check");
+      check.style.setProperty("--mc-tc-color", color(task.calendar));
+      const body = el("div", "mc-tc-body");
+      const line1 = el("div", "mc-tc-title");
+      // Priorität wie Apple: „!!!“ hoch, „!!“ mittel, „!“ niedrig vor dem Titel
+      const prio = task.priority;
+      if (prio >= 1 && prio <= 9) {
+        line1.append(el("span", "mc-tc-prio", prio <= 4 ? "!!!" : prio == 5 ? "!!" : "!"));
+      }
+      line1.append(task.title || "");
+      const line2 = el("div", "mc-tc-meta");
+      const due = dueText(task);
+      if (due) {
+        const d = el("span", "mc-tc-due", due.text);
+        d.toggleAttribute("data-overdue", due.overdue);
+        line2.append(d);
+      }
+      const calName = el("span", "mc-tc-cal", task.calendar?.name || "");
+      calName.style.setProperty("--mc-tc-color", color(task.calendar));
+      line2.append(calName);
+      const cats = task.getCategories?.() || [];
+      if (cats.length) {
+        line2.append(el("span", "mc-tc-cats", cats.join(", ")));
+      }
+      body.append(line1, line2);
+      card.append(check, body);
+      return card;
+    });
+    list.replaceChildren(...cards);
+    list.toggleAttribute("data-focused", doc.activeElement == tree);
+  };
+  const schedule = () => {
+    if (!pending) {
+      pending = true;
+      win.requestAnimationFrame(render);
+    }
+  };
+  // Thunderbird meldet Änderungen der Liste über diese Methoden des Baums
+  const wrapped = [];
+  for (const name of ["invalidate", "invalidateRow", "invalidateRange", "rowCountChanged"]) {
+    const orig = tree[name];
+    if (typeof orig != "function") {
+      continue;
+    }
+    tree[name] = function (...args) {
+      schedule();
+      return orig.apply(this, args);
+    };
+    wrapped.push([name, orig]);
+  }
+  const onSelect = () => {
+    const sel = tree.view?.selection;
+    for (const card of list.children) {
+      card.toggleAttribute("aria-selected", !!sel?.isSelected(+card.dataset.index));
+    }
+    list.querySelector(`.mc-tc[data-index="${tree.currentIndex}"]`)?.scrollIntoView({ block: "nearest" });
+  };
+  const onFocus = () => list.toggleAttribute("data-focused", doc.activeElement == tree);
+  tree.addEventListener("select", onSelect);
+  tree.addEventListener("focus", onFocus);
+  tree.addEventListener("blur", onFocus);
+  const indexOf = event => {
+    const card = event.target.closest?.(".mc-tc");
+    return card ? +card.dataset.index : -1;
+  };
+  list.addEventListener("mousedown", event => {
+    const i = indexOf(event);
+    const sel = tree.view?.selection;
+    if (!sel) {
+      return;
+    }
+    event.preventDefault();
+    tree.focus();
+    if (i < 0) {
+      sel.clearSelection();
+      return;
+    }
+    // Kreis: erledigt / offen (wie Thunderbirds Spalte „Erledigt“)
+    if (event.button == 0 && event.target.closest(".mc-tc-check")) {
+      tree.mTreeView?.cycleCell(i, { element: tree.querySelector("[itemproperty='completed']") });
+      return;
+    }
+    if (event.button == 2 && sel.isSelected(i)) {
+      return;
+    }
+    if (event.shiftKey) {
+      sel.rangedSelect(tree.currentIndex >= 0 ? tree.currentIndex : i, i, event.metaKey || event.ctrlKey);
+    } else if (event.metaKey || event.ctrlKey) {
+      sel.toggleSelect(i);
+    } else {
+      sel.select(i);
+    }
+    tree.currentIndex = i;
+  });
+  list.addEventListener("dblclick", event => {
+    const i = indexOf(event);
+    if (event.button != 0 || event.target.closest(".mc-tc-check")) {
+      return;
+    }
+    const initialDate = cal.dtz.getDefaultStartDate(tree.getInitialDate?.());
+    if (i >= 0) {
+      win.modifyEventWithDialog?.(tree.mTaskArray[i], true, initialDate);
+    } else {
+      win.createTodoWithDialog?.(null, null, null, null, initialDate);
+    }
+  });
+  list.addEventListener("contextmenu", event => {
+    event.preventDefault();
+    const menu = doc.getElementById(tree.getAttribute("context") || "taskitem-context-menu");
+    menu?.openPopupAtScreen(event.screenX, event.screenY, true, event);
+  });
+  const prefObs = () => schedule();
+  Services.prefs.addObserver(TASK_VIEW_PREF, prefObs);
+  // (Mitternacht: „Heute“/„Morgen“ und überfällig neu)
+  const timer = win.setInterval(schedule, 10 * 60 * 1000);
+  schedule();
+  restorers?.push(() => {
+    for (const [name, orig] of wrapped) {
+      tree[name] = orig;
+    }
+    tree.removeEventListener("select", onSelect);
+    tree.removeEventListener("focus", onFocus);
+    tree.removeEventListener("blur", onFocus);
+    Services.prefs.removeObserver(TASK_VIEW_PREF, prefObs);
+    win.clearInterval(timer);
+    list.remove();
   });
 }
 
@@ -6071,7 +6269,7 @@ class CardEnhancer {
         // rechte Kante der Kontaktliste dort, wo in der Mail die Mailliste endet –
         // auch bei ausgeblendeter Adressbuchliste (die Liste wird dann breiter)
         const cl = cards?.getBoundingClientRect();
-        if (this.mcButtonsLeft && shared && "width" in shared && !shared.__mcDragging && cl &&
+        if (this.mcButtonsLeft && shared && "width" in shared && !shared.__mcDragging && cl && !el.__mcShowing &&
             !el.ownerDocument.body.classList.contains("layout-table")) {
           // … aber nie so breit, dass die Kontaktdetails unter ihre Mindestbreite
           // kämen (mit Today-Pane ist das Adressbuch enger als die Mail – sonst
@@ -7282,6 +7480,19 @@ class CardEnhancer {
         el.style.setProperty("max-width", `${v}px`, "important");
         gridBody?.style.setProperty("--booksSplitter-width", `${v}px`);
       };
+      // Adressbuch: beim Ausblenden die Breite der Kontaktliste merken; beim
+      // Einblenden behält sie gleich wieder diese Breite (wie die Mailliste) und
+      // die Details geben den Platz ab – sonst schrumpfte die Liste erst nach und
+      // nach und drückte die Bücherliste unter ihre Breite (unter Windows sichtbar)
+      const shared = gridBody?.querySelector("#sharedSplitter");
+      const cardsPane = gridBody?.querySelector("#cardsPane");
+      if (gridBody && !show && cardsPane) {
+        el.__mcCardsWidth = Math.round(cardsPane.getBoundingClientRect().width);
+      }
+      if (gridBody && show && shared && el.__mcCardsWidth && "width" in shared) {
+        shared.width = el.__mcCardsWidth;
+        el.__mcShowing = true;
+      }
       if (show) {
         setW(0);
       }
@@ -7318,6 +7529,7 @@ class CardEnhancer {
         }
         el.classList.remove("mc-side-anim");
         el.__mcAnimating = false;
+        delete el.__mcShowing;
         updateSideEdge();
         sidebarTip?.();
         placeSideGrip();
@@ -7841,7 +8053,8 @@ class CardEnhancer {
         if (event.target != popup) {
           return;
         }
-        const views = [["list", "List View"], ["table", "Table View"]].map(([key, label]) => {
+        // „list“ bleibt der gespeicherte Wert (Kompatibilität), heißt aber wie in der Mail „Kartenansicht“
+        const views = [["list", "Card View"], ["table", "Table View"]].map(([key, label]) => {
           const item = d.createXULElement("menuitem");
           item.setAttribute("type", "radio");
           item.setAttribute("name", "mctaskview");
@@ -7958,6 +8171,7 @@ class CardEnhancer {
         hookTaskFilter();
         relinkTaskTree(w, this.restorers);
         hookTaskView(w, this.restorers);
+        hookTaskCards(w, this.restorers);
       } catch (e) {
         log("task filter error", e);
       }

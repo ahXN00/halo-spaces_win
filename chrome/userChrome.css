@@ -4353,6 +4353,146 @@ calendar-event-box :is(.alarm-icons-box, .item-classification-icon, .item-recurr
   background: transparent !important;
 }
 
+/* Kartenansicht der Aufgaben (Erweiterung: mc-task-list, #mcTaskCards) wie die
+   Mail-Karten: abgerundet, feine Trennlinie, zweizeilig – Kreis in der
+   Kalenderfarbe und Titel, darunter Fälligkeit (überfällig rot), Kalender mit
+   Farbpunkt und Kategorien; Auswahl in Akzentfarbe, solange die Liste den
+   Fokus hat. Thunderbirds Liste bleibt fokussierbar unsichtbar darunter
+   (Tastatur, Befehle, Kontextmenü) */
+#mcTaskCards {
+  display: none;
+}
+
+:root[mc-task-list] #mcTaskCards {
+  display: block;
+  flex: 1 1 auto;
+  min-height: 0;
+  min-width: 360px;
+  overflow-y: auto;
+  padding-block: 4px;
+  font-family: var(--mt-font);
+  -moz-user-select: none;
+  user-select: none;
+}
+
+:root[mc-task-list] #calendar-task-tree {
+  position: absolute !important;
+  width: 1px !important;
+  min-width: 0 !important;
+  height: 1px !important;
+  min-height: 0 !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+}
+
+.mc-tc {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin-inline: 8px;
+  padding: 9px 10px;
+  border-radius: var(--mt-radius-row);
+  box-shadow: inset 0 -0.5px 0 var(--mt-separator);
+}
+
+.mc-tc:hover {
+  background: var(--mt-hover);
+}
+
+.mc-tc[aria-selected] {
+  background: var(--mt-selected-unfocused);
+  box-shadow: none;
+}
+
+#mcTaskCards[data-focused] .mc-tc[aria-selected] {
+  background: var(--mt-accent);
+}
+
+#mcTaskCards[data-focused] .mc-tc[aria-selected] :is(.mc-tc-title, .mc-tc-meta, .mc-tc-due, .mc-tc-prio) {
+  color: var(--mt-accent-text) !important;
+}
+
+.mc-tc-check {
+  flex: none;
+  box-sizing: border-box;
+  width: 18px;
+  height: 18px;
+  margin-top: 1px;
+  border: 1.5px solid color-mix(in srgb, var(--mc-tc-color) 75%, var(--mt-text-tertiary));
+  border-radius: 50%;
+}
+
+.mc-tc[data-completed] .mc-tc-check {
+  border-color: var(--mc-tc-color);
+  background: var(--mc-tc-color) url("chrome://messenger/skin/overrides/check.svg") center / 11px no-repeat;
+  -moz-context-properties: fill;
+  fill: white;
+}
+
+#mcTaskCards[data-focused] .mc-tc[aria-selected] .mc-tc-check {
+  border-color: var(--mt-accent-text);
+}
+
+.mc-tc-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.mc-tc-title {
+  overflow: hidden;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 18px;
+  color: var(--mt-text);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.mc-tc[data-completed] .mc-tc-title {
+  font-weight: 400;
+  color: var(--mt-text-tertiary);
+}
+
+.mc-tc-prio {
+  margin-inline-end: 4px;
+  color: var(--mt-accent);
+}
+
+.mc-tc-meta {
+  display: flex;
+  gap: 8px;
+  overflow: hidden;
+  margin-top: 1px;
+  font-size: 12px;
+  line-height: 16px;
+  color: var(--mt-text-tertiary);
+  white-space: nowrap;
+}
+
+.mc-tc-meta > * {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.mc-tc-due {
+  flex: none;
+}
+
+.mc-tc-due[data-overdue] {
+  color: #FF3B30;
+}
+
+.mc-tc-cal::before {
+  content: "";
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  margin-inline-end: 4px;
+  border-radius: 50%;
+  background: var(--mc-tc-color);
+  vertical-align: 1px;
+}
+
 /* Tabellenansicht der Aufgaben (Erweiterung: ohne mc-task-list) wie die
    Mail-Tabelle: Zeilen 28 px mit feiner Trennlinie, jede zweite Zeile leicht
    getönt, Spaltenkopf 30 px in 13 px, Auswahl mit Fokus in Akzentfarbe

@@ -6662,6 +6662,9 @@ def run_checks(m, version, profile, results):
         res = m.js(CAL_CHECK_JS + r'''
           w.resizeTo(1500, 900);
           const c = testCalendar();
+          // Thunderbirds Liste selbst ist nur in der Tabellenansicht zu sehen (Kartenansicht: eigene Karten)
+          const viewBefore = Services.prefs.getCharPref("extensions.mailcards.taskView", "");
+          Services.prefs.setCharPref("extensions.mailcards.taskView", "table");
           tm.openTab("tasks", {}); await pause(1500);
           const { CalTodo } = ChromeUtils.importESModule("resource:///modules/CalTodo.sys.mjs");
           const tree = d.getElementById("calendar-task-tree");
@@ -6709,7 +6712,10 @@ def run_checks(m, version, profile, results):
             const px2 = await pixels({ left: tr.left, top, width: Math.min(tr.width, 700), height: rh });
             let redPx = 0; for (let x = 0; x < Math.min(tr.width, 700); x++) for (let y = 4; y < rh - 4; y++) { const [r, g, bb] = px2(x, y); if (r > 200 && g < 120 && bb < 120) redPx++; }
             out.redPx = redPx;
-          } finally { try { await c.deleteItem(saved); } catch {} }
+          } finally {
+            try { await c.deleteItem(saved); } catch {}
+            if (viewBefore) Services.prefs.setCharPref("extensions.mailcards.taskView", viewBefore); else Services.prefs.clearUserPref("extensions.mailcards.taskView");
+          }
           return out;''')
         if res.get("row", -1) < 0:
             return False, f"Aufgabe nicht in der Liste {res}"
@@ -6728,6 +6734,64 @@ def run_checks(m, version, profile, results):
         ok = ok_desc and ok_head and ok_marker and ok_focus and ok_red
         return ok, f"desc={ok_desc} kopf={ok_head} pfeil={ok_marker} fokus={ok_focus} rot={ok_red} {res}"
     check("Aufgaben: Beschreibung 13 px ohne Rand und dunkel lesbar, Spaltenköpfe ohne zweiten Strich, „Erledigt“ mit schmalem Pfeil, überfällig rot, kein Fokusrechteck", tasks_details, results)
+
+    def task_cards():
+        # Kartenansicht der Aufgaben wie die Mail-Karten: Menü heißt „Card View“, Karten mit Radius und Trennlinie wie die
+        # Mailkarten, zweizeilig (Titel, darunter Fälligkeit und Kalender), Auswahl in Akzentfarbe; Klick wählt in
+        # Thunderbirds Liste (Details rechts), Kreis hakt ab; Tabellenansicht zeigt wieder Thunderbirds Liste
+        res = m.js(CAL_CHECK_JS + r"""
+          w.resizeTo(1500, 900);
+          const c = testCalendar();
+          const { CalTodo } = ChromeUtils.importESModule("resource:///modules/CalTodo.sys.mjs");
+          Services.prefs.clearUserPref("extensions.mailcards.taskView");
+          const todo = new CalTodo(); todo.title = "Halo Kartenaufgabe"; todo.calendar = c; todo.priority = 1;
+          const due = cal.dtz.now(); due.day += 1; due.isDate = true; todo.dueDate = due;
+          const saved = await c.addItem(todo);
+          const out = {};
+          try {
+            tm.openTab("tasks", {}); await pause(1500);
+            const tree = d.getElementById("calendar-task-tree"), list = d.getElementById("mcTaskCards");
+            const card = await till(() => [...(list?.children || [])].find(k => /Halo Kartenaufgabe/.test(k.textContent)), 6000);
+            out.card = !!card;
+            if (!card) return out;
+            tree.view.selection.clearSelection(); await pause(300);
+            const cs = csOf(card), r = card.getBoundingClientRect();
+            out.look = { radius: cs.borderTopLeftRadius, shadow: cs.boxShadow.includes("inset"), h: Math.round(r.height),
+                         lines: card.querySelectorAll(".mc-tc-title, .mc-tc-meta").length, prio: card.querySelector(".mc-tc-prio")?.textContent,
+                         meta: card.querySelector(".mc-tc-meta")?.textContent, treeShown: tree.getBoundingClientRect().height > 2 };
+            out.mailRadius = csOf(d.documentElement).getPropertyValue("--mt-radius-row").trim();
+            // Klick auf die Karte: Thunderbirds Liste wählt die Aufgabe, Details zeigen sie
+            const rect = card.getBoundingClientRect();
+            card.querySelector(".mc-tc-title").dispatchEvent(new w.MouseEvent("mousedown", { bubbles: true, button: 0, clientX: rect.left + 60, clientY: rect.top + 10 }));
+            await pause(600);
+            const sel = [...list.children].find(k => k.hasAttribute("aria-selected"));
+            out.selected = { task: tree.currentTask?.title, card: sel?.textContent.includes("Halo Kartenaufgabe"), bg: sel && csOf(sel).backgroundColor,
+                             accent: colorOf(d, "var(--mt-accent)"), focused: list.hasAttribute("data-focused"),
+                             details: d.getElementById("calendar-task-details-title")?.textContent };
+            // Kreis: erledigt
+            const check = card.querySelector(".mc-tc-check"), cr = check.getBoundingClientRect();
+            check.dispatchEvent(new w.MouseEvent("mousedown", { bubbles: true, button: 0, clientX: cr.left + 5, clientY: cr.top + 5 }));
+            await till(async () => (await c.getItem(saved.id))?.isCompleted, 4000); await pause(500);
+            out.completed = !!(await c.getItem(saved.id))?.isCompleted;
+            // Menü: „Card View“ statt „List View“
+            const popup = d.getElementById("mcTaskFilterPopup");
+            popup?.dispatchEvent(new w.Event("popupshowing"));
+            out.menu = popup ? [...popup.querySelectorAll("menuitem[data-view]")].map(i => i.getAttribute("label")) : null;
+            Services.prefs.setCharPref("extensions.mailcards.taskView", "table"); await pause(600);
+            out.table = { cards: list.getBoundingClientRect().height > 0, tree: tree.getBoundingClientRect().height > 50 };
+          } finally {
+            Services.prefs.clearUserPref("extensions.mailcards.taskView");
+            try { await c.deleteItem(saved); } catch {}
+            for (const t of [...tm.tabInfo].slice(1)) tm.closeTab(t);
+          }
+          return out;""")
+        lk, sl = res.get("look") or {}, res.get("selected") or {}
+        ok = (res.get("card") and lk.get("radius") == res.get("mailRadius") and lk.get("shadow") and lk.get("lines") == 2 and lk.get("prio") == "!!!"
+              and not lk.get("treeShown") and sl.get("task") == "Halo Kartenaufgabe" and sl.get("card") and sl.get("focused")
+              and same_color(sl.get("bg", ""), sl.get("accent", "")) and res.get("completed") and (res.get("menu") or [None])[0] == "Card View"
+              and res.get("table") == {"cards": False, "tree": True})
+        return ok, f"{res}"
+    check("Aufgaben: Kartenansicht wie die Mail-Karten (rund, zweizeilig, Auswahl in Akzentfarbe, Kreis hakt ab), Tabelle zeigt Thunderbirds Liste", task_cards, results)
 
     def tables_like_mail():
         # Tabellenansichten in Adressbuch und Aufgaben wie die Mail-Tabelle: gleiche Schrift, Zeilen- und Kopfhöhe,
