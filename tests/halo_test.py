@@ -7249,8 +7249,12 @@ Neu
           const tree = d.getElementById("calendar-task-tree"), det = d.getElementById("calendar-task-details-container");
           await until(() => tree.mTreeView.rowCount > 0, 4000); tree.mTreeView.selection?.select(0); await wait(600);
           const btn = d.querySelector("#mcListHeader .mc-lh-more"), popup = d.getElementById("mcTaskFilterPopup");
-          const pick = async view => { btn.click(); await until(() => popup.state == "open", 2000); await wait(200);
-            const it = popup.querySelector(`menuitem[data-view="${view}"]`); popup.activateItem?.(it) ?? it.doCommand(); await wait(600); popup.hidePopup(); await wait(200); };
+          // (unter Linux/xvfb ohne Fenstermanager geht das Menü teils nicht ganz auf – dann über die Einstellung;
+          // activateItem auf einem nicht offenen Menü kehrte dort nie zurück)
+          const pick = async view => { btn.click(); const opened = await until(() => popup.state == "open", 2000); await wait(200);
+            const it = popup.querySelector(`menuitem[data-view="${view}"]`);
+            if (opened && it) it.doCommand(); else Services.prefs.setCharPref("extensions.mailcards.taskView", view);
+            await wait(600); popup.hidePopup(); await wait(200); };
           const cols = () => [...tree.querySelectorAll("treecol[itemproperty]")].filter(c => !c.hidden).map(c => c.getAttribute("itemproperty"));
           const geo = () => { const t = tree.getBoundingClientRect(), r = det.getBoundingClientRect();
             return { right: r.left >= t.right - 1 && Math.abs(r.top - t.top) < 40, below: r.top >= t.bottom - 1, detW: Math.round(r.width) }; };
@@ -7549,8 +7553,12 @@ Neu
           tm.openTab("tasks", {}); await wait(1500);
           const tree = d.getElementById("calendar-task-tree");
           const btn = d.querySelector("#mcListHeader .mc-lh-more"), popup = d.getElementById("mcTaskFilterPopup");
-          const pick = async view => { btn.click(); await until(() => popup.state == "open", 2000); await wait(200);
-            const it = popup.querySelector(`menuitem[data-view="${view}"]`); popup.activateItem?.(it) ?? it.doCommand(); await wait(600); popup.hidePopup(); await wait(200); };
+          // (unter Linux/xvfb ohne Fenstermanager geht das Menü teils nicht ganz auf – dann über die Einstellung;
+          // activateItem auf einem nicht offenen Menü kehrte dort nie zurück)
+          const pick = async view => { btn.click(); const opened = await until(() => popup.state == "open", 2000); await wait(200);
+            const it = popup.querySelector(`menuitem[data-view="${view}"]`);
+            if (opened && it) it.doCommand(); else Services.prefs.setCharPref("extensions.mailcards.taskView", view);
+            await wait(600); popup.hidePopup(); await wait(200); };
           const start = Services.prefs.getCharPref("extensions.mailcards.taskView", "list");
           const pixels = async r => { const cv = d.createElementNS("http://www.w3.org/1999/xhtml", "canvas");
             cv.width = Math.round(r.width); cv.height = Math.round(r.height); const ctx = cv.getContext("2d");
