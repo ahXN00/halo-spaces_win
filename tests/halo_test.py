@@ -3881,7 +3881,7 @@ def server_checks(m, results):
               Services.console.registerListener(cl);
               cw.goDoCommand("cmd_sendNow");
               const bar = await until(() => d.getElementById("mcUndoSend"), 4000);
-              // (Windows meldet das versteckte Fenster nicht über document.hidden – nur kurz warten)
+              // (Windows und Linux ohne Fenstermanager melden das versteckte Fenster nicht – nur kurz warten)
               await until(() => cw.document.hidden, 1200);
               out.held = { visible: visible(), closed: cw.closed, bar: bar?.textContent };
               Services.console.unregisterListener(cl); out.errs = out.errs.filter(e => !/editorContent|security/i.test(e)).slice(0, 6);
@@ -3903,7 +3903,7 @@ def server_checks(m, results):
                 time.sleep(0.5)
             got = [g for g in servers.smtp.sent[before:] if "Halo Rueckholprobe" in g[2]]
             h, u = res.get("held") or {}, res.get("undone") or {}
-            ok = ((h.get("visible") is False or sys.platform == "win32") and not h.get("closed") and "Undo Send" in (h.get("bar") or "")
+            ok = ((h.get("visible") is False or sys.platform != "darwin") and not h.get("closed") and "Undo Send" in (h.get("bar") or "")
                   and u == {"visible": True, "closed": False, "bar": False} and after_undo == 0
                   and res2["closed"] and not res2["bar"] and len(got) == 1)
             return ok, f"{res} nach Rückgängig gesendet: {after_undo} {res2} danach gesendet: {len(got)}"
