@@ -1262,7 +1262,7 @@ function hookPrefCategories(cw, restorers = null) {
   const sidebar = doc.getElementById("pref-category-box");
   // (Browser verhalten sich wie Bilder: Breite und Höhe ausdrücklich, Abstände allein dehnen sie nicht)
   const place = () => {
-    const x = Math.max(0, Math.round(sidebar?.getBoundingClientRect().right || 0));
+    const x = Math.max(0, Math.round(rectOf(sidebar)?.right || 0));
     for (const browserEl of overlays.values()) {
       browserEl.style.insetInlineStart = `${x}px`;
       browserEl.style.width = `${Math.max(0, host.clientWidth - x)}px`;
@@ -5203,6 +5203,26 @@ function calendarNote(calendar) {
 function barTarget(doc) {
   return doc.getElementById("unifiedToolbarContainer") || doc.documentElement;
 }
+// Rechteck in Schreibrichtung: bei Rechts-nach-links-Sprachen gespiegelt
+// (left = Abstand vom rechten Fensterrand), damit die Positionsrechnungen der
+// Toolbar-Zeile für beide Richtungen gelten – die Werte landen in
+// inset-inline-start & Co., die sich selbst spiegeln
+function rectOf(el) {
+  if (!el) {
+    return undefined;
+  }
+  const r = el.getBoundingClientRect();
+  const doc = el.ownerDocument;
+  if (doc.__mcRtl === undefined) {
+    doc.__mcRtl = doc.defaultView?.getComputedStyle(doc.documentElement).direction == "rtl";
+  }
+  if (!doc.__mcRtl) {
+    return r;
+  }
+  const W = doc.documentElement.clientWidth;
+  return { left: W - r.right, right: W - r.left, x: W - r.right, top: r.top, bottom: r.bottom, y: r.y, width: r.width, height: r.height };
+}
+
 function setBarVar(doc, name, value) {
   setVar(barTarget(doc), name, value);
 }
@@ -6216,24 +6236,24 @@ class CardEnhancer {
         // Platz in diesem Tab)
         const content = row && d.getElementById("unifiedToolbarContent");
         const first = content?.querySelector(':scope > li[item-id="spacer"]') || content;
-        const pinned = d.getElementById("spacesPinnedButton")?.getBoundingClientRect();
+        const pinned = rectOf(d.getElementById("spacesPinnedButton"));
         if (first && pinned?.width) {
-          const start = first.getBoundingClientRect().left;
+          const start = rectOf(first).left;
           setBarVar(d, "--mc-tab-offset", `${Math.max(0, Math.round(pinned.right + 12 - start))}px`);
         }
         return;
       }
       const inContent = el.ownerDocument != d;
-      const shift = inContent ? tab.browser.getBoundingClientRect().left : 0;
-      const r = el.getBoundingClientRect();
-      const rowLeft = row.getBoundingClientRect().left;
+      const shift = inContent ? rectOf(tab.browser).left : 0;
+      const r = rectOf(el);
+      const rowLeft = rectOf(row).left;
       const right = r.width ? shift + r.right - rowLeft : 0;
       setBarVar(d, "--mc-side-right", `${Math.max(0, Math.round(right))}px`);
       // Statusleiste wie in der Mail: Inhalt (Online-Symbol …) beginnt rechts der
       // Seitenleiste dieses Bereichs statt am Fensterrand
       const status = d.getElementById("status-bar");
       if (status && tab.mode.name != "mail3PaneTab") {
-        const sl = status.getBoundingClientRect().left;
+        const sl = rectOf(status).left;
         setVar(status, "--mc-status-side", `${Math.max(0, Math.round(r.width ? shift + r.right - sl : 0))}px`);
       }
       updateStatusMin();
@@ -6242,7 +6262,7 @@ class CardEnhancer {
       // über der geöffneten Nachricht –, sonst neben der Seitenleiste.
       const content = d.getElementById("unifiedToolbarContent");
       // Bezug: erster Abstandhalter (davor liegen ausgeblendete Knöpfe anderer Bereiche)
-      const start = (content?.querySelector(':scope > li[item-id="spacer"]') || content)?.getBoundingClientRect().left ?? rowLeft;
+      const start = rectOf(content?.querySelector(':scope > li[item-id="spacer"]') || content)?.left ?? rowLeft;
       let edge = shift + (r.width ? r.right : 0) + 12;
       // erste Knöpfe in jedem Bereich an derselben Stelle wie in der Mail
       // (Kalender und Aufgaben: „+“ wie in Apple Kalender gleich rechts der
@@ -6278,11 +6298,11 @@ class CardEnhancer {
           shared.__mcHooked = true;
           const origUpdate = shared._updateSize;
           shared._updateSize = function (size) {
-            const c = cards?.getBoundingClientRect();
-            const b = tab.browser?.getBoundingClientRect();
+            const c = rectOf(cards);
+            const b = rectOf(tab.browser);
             // (ohne Wert – beim Loslassen – nur die tatsächliche Größe übernehmen)
             if (typeof size == "number" && c && b) {
-              const maxRight = row.getBoundingClientRect().right - toolbarNeed(d);
+              const maxRight = rectOf(row).right - toolbarNeed(d);
               // nur am Wachsen hindern – nie unter die jetzige Breite drücken,
               // sonst springen Liste und Kontaktfoto beim Anfassen des Teilers
               size = Math.min(size, Math.max(160, Math.round(c.width), maxRight - (b.left + c.left)));
@@ -6295,8 +6315,8 @@ class CardEnhancer {
               return;
             }
             shared.__mcDragging = false;
-            const c = cards?.getBoundingClientRect();
-            const b = tab.browser?.getBoundingClientRect();
+            const c = rectOf(cards);
+            const b = rectOf(tab.browser);
             if (c?.width && b) {
               this.mcListWidth = Math.round(c.width);
               this.mcButtonsLeft = b.left + c.right + 6;
@@ -6315,7 +6335,7 @@ class CardEnhancer {
         }
         // rechte Kante der Kontaktliste dort, wo in der Mail die Mailliste endet –
         // auch bei ausgeblendeter Adressbuchliste (die Liste wird dann breiter)
-        const cl = cards?.getBoundingClientRect();
+        const cl = rectOf(cards);
         if (this.mcButtonsLeft && shared && "width" in shared && !shared.__mcDragging && cl && !el.__mcShowing &&
             !el.ownerDocument.body.classList.contains("layout-table")) {
           // … aber nie so breit, dass die Kontaktdetails unter ihre Mindestbreite
@@ -6329,7 +6349,7 @@ class CardEnhancer {
             shared.width = want;
           }
         }
-        const cr = cards?.getBoundingClientRect();
+        const cr = rectOf(cards);
         // Tabellenansicht: die Liste reicht bis zum Fensterrand – Knöpfe und
         // Suche bleiben an ihrem Platz, die Kopfzeile endet davor, und die
         // Trennlinie entfällt (keine Spaltenkante darunter)
@@ -6353,7 +6373,7 @@ class CardEnhancer {
         if (details?.__mcDragged) {
           // von Hand gezogen: diese Listenbreite gilt jetzt auch für Mail und Adressbuch
           delete details.__mcDragged;
-          const lr0 = taskList?.getBoundingClientRect();
+          const lr0 = rectOf(taskList);
           if (lr0?.width) {
             this.mcListWidth = Math.round(lr0.width);
             this.mcButtonsLeft = lr0.right + 6;
@@ -6361,12 +6381,12 @@ class CardEnhancer {
           }
         }
         if (side && details && this.mcButtonsLeft && !details.__mcDragging) {
-          const dr = details.getBoundingClientRect();
-          const lr = taskList?.getBoundingClientRect();
+          const dr = rectOf(details);
+          const lr = rectOf(taskList);
           // rechte Kante des Inhaltsbereichs (nicht der Details oder ihres Rahmens –
           // die wachsen mit der neuen Breite, das schaukelte sich auf)
-          const tp = d.getElementById("today-pane-panel")?.getBoundingClientRect();
-          const right = Math.min(d.getElementById("tabmail-container")?.getBoundingClientRect().right || Infinity,
+          const tp = rectOf(d.getElementById("today-pane-panel"));
+          const right = Math.min(rectOf(d.getElementById("tabmail-container"))?.right || Infinity,
             tp?.width ? tp.left : Infinity, w.innerWidth);
           if (dr.width && lr?.width && right) {
             const splitW = Math.max(0, dr.left - lr.right);
@@ -6378,7 +6398,7 @@ class CardEnhancer {
             }
           }
         }
-        const lr = taskList?.getBoundingClientRect();
+        const lr = rectOf(taskList);
         if (side && lr?.width) {
           edge = Math.max(edge, lr.right + 6);
           setBarVar(d, "--mc-task-list-right", `${Math.round(lr.right - rowLeft)}px`);
@@ -6388,13 +6408,13 @@ class CardEnhancer {
         d.documentElement.toggleAttribute("mc-task-table", !side);
         // Aktionsknöpfe gleich rechts vom „+“
         const plus = [...d.querySelectorAll('#unifiedToolbarContent > li:is([item-id="new-task"], [item-id="new-event"])')]
-          .find(li => li.getBoundingClientRect().width);
-        const pr = plus?.querySelector("button")?.getBoundingClientRect();
+          .find(li => rectOf(li).width);
+        const pr = rectOf(plus?.querySelector("button"));
         if (pr?.width) {
           setVar(d.getElementById("task-actions-toolbar"), "--mc-ta-left", `${Math.round(pr.right + 8)}px`);
         }
       }
-      const toggle = d.getElementById("spacesPinnedButton")?.getBoundingClientRect();
+      const toggle = rectOf(d.getElementById("spacesPinnedButton"));
       if (toggle?.width) {
         edge = Math.max(edge, toggle.right + 12);
       }
@@ -6403,8 +6423,8 @@ class CardEnhancer {
       // die Kontaktspalte), zuletzt die Suche bis 40 px kürzen (das Suchfeld
       // steht rechtsbündig, seine rechte Kante bleibt beim Kürzen stehen)
       if (tab.mode.name == "chat") {
-        const tb = d.getElementById("chat-view-toolbox")?.getBoundingClientRect();
-        const s = d.querySelector('#unifiedToolbarContent > li[item-id="search-bar"]')?.getBoundingClientRect();
+        const tb = rectOf(d.getElementById("chat-view-toolbox"));
+        const s = rectOf(d.querySelector('#unifiedToolbarContent > li[item-id="search-bar"]'));
         if (tb?.width && s?.width) {
           const sideEdge = Math.max(shift + (r.width ? r.right : 0) + 12, toggle?.width ? toggle.right + 12 : 0);
           edge = Math.max(sideEdge, Math.min(edge, s.right - 12 - 160 - tb.width));
@@ -6414,7 +6434,7 @@ class CardEnhancer {
       setBarVar(d, "--mc-tab-offset", `${Math.max(0, Math.round(edge - start))}px`);
       // dieselbe Kante im Fenster und die Toolbar-Zeile – für Leisten, die
       // in diese Zeile verlegt werden (Chat)
-      const rr = row.getBoundingClientRect();
+      const rr = rectOf(row);
       // nur an den Leisten, die in die Toolbar-Zeile verlegt werden
       const rowVar = (name, value) => {
         for (const id of ["chat-view-toolbox", "viewToggle", "task-addition-box", "task-actions-toolbar"]) {
@@ -6430,11 +6450,11 @@ class CardEnhancer {
       rowVar("--mc-tab-left", `${Math.round(edge)}px`);
       // linke Kante des Suchfelds: der Hinweis „schreibgeschützter Kalender“
       // in der Toolbar-Zeile endet davor
-      const sb = d.querySelector('#unifiedToolbarContent > li[item-id="search-bar"]:not([hidden])')?.getBoundingClientRect();
+      const sb = rectOf(d.querySelector('#unifiedToolbarContent > li[item-id="search-bar"]:not([hidden])'));
       if (sb?.width) {
         rowVar("--mc-search-left", `${Math.round(sb.left)}px`);
         // Aufgaben: der Hinweis endet vor den Aktionsknöpfen (stehen vor dem Suchfeld)
-        const ta = tab.mode.name == "tasks" ? d.getElementById("task-actions-toolbar")?.getBoundingClientRect() : null;
+        const ta = tab.mode.name == "tasks" ? rectOf(d.getElementById("task-actions-toolbar")) : null;
         if (ta?.width) {
           setVar(d.getElementById("task-addition-box"), "--mc-search-left", `${Math.round(ta.left)}px`);
         }
@@ -6446,9 +6466,9 @@ class CardEnhancer {
         setVar(toggle2, "--mc-toggle-half", `${Math.ceil(toggle2.offsetWidth / 2)}px`);
         // Suchfeld im Kalender nie unter der mittigen Umschaltung (Windows:
         // Fenstertasten und ≡-Menü nehmen rechts Platz weg)
-        const search = d.querySelector('#unifiedToolbarContent > li[item-id="search-bar"]')?.getBoundingClientRect();
+        const search = rectOf(d.querySelector('#unifiedToolbarContent > li[item-id="search-bar"]'));
         if (search?.width) {
-          const tr = toggle2.getBoundingClientRect();
+          const tr = rectOf(toggle2);
           setBarVar(d, "--mc-cal-search-max", `${Math.max(40, Math.floor(search.right - tr.right - 12))}px`);
         }
       }
@@ -11277,12 +11297,12 @@ class CardEnhancer {
       if (!pane || !browserEl || !row || !win.document.body.classList.contains("layout-vertical")) {
         return 0;
       }
-      const msgRight = browserEl.getBoundingClientRect().left + pane.getBoundingClientRect().right;
-      const want = toolbarNeed(top.document, true) - (row.getBoundingClientRect().right - msgRight);
+      const msgRight = rectOf(browserEl).left + rectOf(pane).right;
+      const want = toolbarNeed(top.document, true) - (rectOf(row).right - msgRight);
       // die Liste selbst nie schmaler als ihre Mindestbreite (CSS) machen
-      const list = threadPane.getBoundingClientRect();
+      const list = rectOf(threadPane);
       const listMin = parseFloat(win.getComputedStyle(threadPane).minWidth) || 240;
-      const room = pane.getBoundingClientRect().right - list.left - listMin;
+      const room = rectOf(pane).right - list.left - listMin;
       return Math.max(0, Math.min(want, room));
     };
     const msgSplitter = win.document.getElementById("messagePaneSplitter");
@@ -11370,23 +11390,23 @@ class CardEnhancer {
       fixFolderLock();
       // im Adressbuch neu gezogene Listenbreite übernehmen
       if (this.mcListPending && msgSplitter && !msgSplitter.isCollapsed && msgSplitter.resizeElement?.id == "messagePane") {
-        const listNow = threadPane.getBoundingClientRect().width;
+        const listNow = rectOf(threadPane).width;
         const pane = win.document.getElementById("messagePane");
         if (listNow > 1 && this.mcButtonsLeft) {
           this.mcListPending = false;
           // rechte Listenkante auf die im Adressbuch gezogene Stelle
-          const browserLeft = win.browsingContext.embedderElement.getBoundingClientRect().left;
-          const diff = browserLeft + threadPane.getBoundingClientRect().right - (this.mcButtonsLeft - 6);
+          const browserLeft = rectOf(win.browsingContext.embedderElement).left;
+          const diff = browserLeft + rectOf(threadPane).right - (this.mcButtonsLeft - 6);
           if (Math.abs(diff) >= 1) {
             Services.prefs.setIntPref(LIST_WIDTH_PREF, Math.max(200, Math.round(listNow - diff)));
-            msgSplitter.width = Math.max(minMessageWidth(), Math.round(pane.getBoundingClientRect().width + diff));
+            msgSplitter.width = Math.max(minMessageWidth(), Math.round(rectOf(pane).width + diff));
           }
         }
       }
       // Ohne sichtbare Mailliste (z. B. Kontoübersicht) bleiben die Knöpfe
       // dort, wo sie in der Mailansicht zuletzt standen.
-      const listRect = threadPane.getBoundingClientRect();
-      const folderRect = win.document.getElementById("folderPane")?.getBoundingClientRect();
+      const listRect = rectOf(threadPane);
+      const folderRect = rectOf(win.document.getElementById("folderPane"));
       let listRight;
       if (listRect.width > 1) {
         listRight = listRect.right;
@@ -11394,7 +11414,7 @@ class CardEnhancer {
       } else {
         listRight = (folderRect?.right || 0) + (this.lastListRight ?? 0);
       }
-      const paneRight = browserEl.getBoundingClientRect().left + listRight;
+      const paneRight = rectOf(browserEl).left + listRight;
       // für die übrigen Bereiche merken: dort beginnen die Knöpfe an derselben
       // Stelle, und die Kontaktliste im Adressbuch ist so breit wie die Mailliste
       this.mcButtonsLeft = paneRight + 6;
@@ -11403,11 +11423,11 @@ class CardEnhancer {
       }
       // Bezug ist der Anfang des ersten Abstandhalters (die Toolbar hat
       // eigenen Innenabstand); +6 px wie der Einzug in Apple Mail.
-      const start = (content.querySelector(':scope > li[item-id="spacer"]') || content).getBoundingClientRect().left;
+      const start = rectOf((content.querySelector(':scope > li[item-id="spacer"]') || content)).left;
       let offset = Math.max(0, Math.round(paneRight - start + 6));
       // nie links vom Seitenleisten-Knopf beginnen
       const toggle = top.document.getElementById("spacesPinnedButton");
-      const tb = toggle?.getBoundingClientRect();
+      const tb = rectOf(toggle);
       if (tb && tb.width) {
         offset = Math.max(offset, Math.round(tb.right - start + 12));
       }
@@ -11422,8 +11442,8 @@ class CardEnhancer {
         // passt, wenn die Knöpfe an der Listenkante beginnen und das Suchfeld
         // noch mindestens 160 px breit ist (sonst lieber Knöpfe ausblenden)
         const search = content.querySelector(':scope > li[item-id="search-bar"]');
-        squeezeToolbar(top.document, () => (!firstSpacer || firstSpacer.getBoundingClientRect().right >= start + offset - 2) &&
-          (!search || search.getBoundingClientRect().width >= 159));
+        squeezeToolbar(top.document, () => (!firstSpacer || rectOf(firstSpacer).right >= start + offset - 2) &&
+          (!search || rectOf(search).width >= 159));
       }
       // Suchfeld in jedem Bereich gleich breit (333 px wie Apple Mail): fehlt
       // dafür Platz, wird zuerst der Abstand nach „Verfassen“ kleiner (69 → 12 px)
@@ -11431,11 +11451,11 @@ class CardEnhancer {
       const search = content.querySelector(':scope > li[item-id="search-bar"]');
       // (nicht während einer Ein-/Ausblend-Animation – das kostet pro Bild ein
       // komplettes Neuberechnen; am Ende wird einmal gemessen)
-      if (!animating && write && search && write.getBoundingClientRect().width) {
+      if (!animating && write && search && rectOf(write).width) {
         const spacer = search.previousElementSibling;
         const gap = parseFloat(top.getComputedStyle(write).marginInlineEnd) || 0;
-        const spare = (spacer?.getAttribute("item-id") == "spacer" ? spacer.getBoundingClientRect().width : 0) -
-          (333 - search.getBoundingClientRect().width);
+        const spare = (spacer?.getAttribute("item-id") == "spacer" ? rectOf(spacer).width : 0) -
+          (333 - rectOf(search).width);
         const next = Math.max(12, Math.min(69, Math.round(gap + spare)));
         if (Math.abs(next - gap) >= 1) {
           setBarVar(top.document, "--mc-write-gap", `${next}px`);
@@ -11446,9 +11466,9 @@ class CardEnhancer {
       const folderPane = win.document.getElementById("folderPane");
       const row = top.document.getElementById("unifiedToolbarContainer");
       if (folderPane && row) {
-        const fr = folderPane.getBoundingClientRect();
+        const fr = rectOf(folderPane);
         const right = fr.width
-          ? browserEl.getBoundingClientRect().left + fr.right - row.getBoundingClientRect().left
+          ? rectOf(browserEl).left + fr.right - rectOf(row).left
           : 0;
         setBarVar(top.document, "--mc-sidebar-right", `${Math.max(0, Math.round(right))}px`
         );
@@ -11456,8 +11476,8 @@ class CardEnhancer {
         // Ist das Fenster für alle Knöpfe zu schmal, schrumpft der Einzug davor –
         // die Kopfzeile über der Liste endet dann vor dem ersten Knopf
         const firstSpacer = content.querySelector(':scope > li[item-id="spacer"]');
-        const buttonsStart = firstSpacer ? firstSpacer.getBoundingClientRect().right : paneRight;
-        const rowLeft = row.getBoundingClientRect().left;
+        const buttonsStart = firstSpacer ? rectOf(firstSpacer).right : paneRight;
+        const rowLeft = rectOf(row).left;
         // Trennlinie an der echten Kante der Mailliste; reicht der Platz nicht
         // und die Knöpfe beginnen schon links davon, entfällt sie in der
         // Toolbar-Zeile (statt versetzt quer durch die Knöpfe zu laufen)
@@ -11472,14 +11492,14 @@ class CardEnhancer {
         // Bereiche-Leiste) – dort dieselben Kanten, um den Versatz korrigiert.
         const tabs = top.document.getElementById("tabs-toolbar");
         if (tabs) {
-          const shift = tabs.getBoundingClientRect().left - row.getBoundingClientRect().left;
+          const shift = rectOf(tabs).left - rectOf(row).left;
           setVar(tabs, "--mc-sidebar-right", `${Math.max(0, Math.round(right - shift))}px`);
           setVar(tabs, "--mc-list-right", `${Math.round((listRight - shift) * dpr) / dpr}px`);
         }
         // Statusleiste ebenso: Seitenleisten-Grau läuft unten bis zum Fensterrand
         const status = top.document.getElementById("status-bar");
         if (status) {
-          const shift = status.getBoundingClientRect().left - row.getBoundingClientRect().left;
+          const shift = rectOf(status).left - rectOf(row).left;
           setVar(status, "--mc-sidebar-right", `${Math.max(0, Math.round(right - shift))}px`);
         }
       }

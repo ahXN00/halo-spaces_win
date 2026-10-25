@@ -5496,6 +5496,38 @@ def run_checks(m, version, profile, results):
         return ok, f"{res}"
     check("Bewegung: Karte gleitet beim Löschen weg, Kalenderansicht blendet ein, Listen mit kurzem Übergang; „Bewegung reduzieren“ sofort", motion, results)
 
+    def rtl_and_contrast():
+        # Rechts-nach-links (Pseudosprache „bidi“, neues Fenster): Listenkopf über der Mailliste, Seitenleisten-Knopf
+        # neben der Bereiche-Leiste rechts, Knöpfe über der Leseansicht links – gespiegelt wie die Fenster selbst;
+        # Kontrastdesign (Windows): eigene Regeln vorhanden (auf dem Mac nicht einschaltbar)
+        res = m.js(r"""
+          Services.prefs.setStringPref("intl.l10n.pseudo", "bidi"); await wait(1500);
+          const nw = w.open("chrome://messenger/content/messenger.xhtml", "_blank", "chrome,all,dialog=no");
+          const out = {};
+          try {
+            await until(() => nw.document?.readyState == "complete" && nw.document.getElementById("tabmail")?.currentAbout3Pane?.document?.getElementById("threadPane"), 15000);
+            nw.resizeTo(1500, 900); await wait(4000);
+            const nd = nw.document, a3 = nd.getElementById("tabmail").currentAbout3Pane, off = a3.browsingContext.embedderElement.getBoundingClientRect();
+            const R = e => { const r = e?.getBoundingClientRect(); return r && r.width ? { l: Math.round(r.left), r: Math.round(r.right) } : null; };
+            const shift = (r) => r && { l: Math.round(r.l + off.left), r: Math.round(r.r + off.left) };
+            out.dir = nw.getComputedStyle(nd.documentElement).direction;
+            out.list = shift(R(a3.document.getElementById("threadPane"))); out.msg = shift(R(a3.document.getElementById("messagePane")));
+            out.header = R(nd.getElementById("mcListHeader")); out.toggle = R(nd.getElementById("spacesPinnedButton"));
+            out.spaces = R(nd.getElementById("spacesToolbar"));
+            out.write = R(nd.querySelector('#unifiedToolbarContent > li[item-id="write-message"]'));
+          } finally {
+            Services.prefs.clearUserPref("intl.l10n.pseudo"); nw.close(); await wait(800);
+          }
+          out.forcedRules = /@media \(forced-colors: active\)/.test(await (await fetch("resource://mailcards/theme.css")).text());
+          return out;""")
+        L, H, T, S, Wr = res.get("list"), res.get("header"), res.get("toggle"), res.get("spaces"), res.get("write")
+        ok = (res.get("dir") == "rtl" and L and H and T and S and Wr and res.get("forcedRules")
+              and L["l"] - 2 <= H["l"] and H["r"] <= L["r"] + 2          # Kopf über der Liste
+              and T["l"] > L["r"] and T["r"] <= S["l"]                    # Seitenleisten-Knopf rechts der Liste, links der Bereiche-Leiste
+              and Wr["r"] <= L["l"] + 8)                                  # Verfassen über der Leseansicht (links der Liste)
+        return ok, f"{res}"
+    check("Rechts-nach-links: Listenkopf, Seitenleisten-Knopf und Knöpfe gespiegelt; Regeln fürs Kontrastdesign vorhanden", rtl_and_contrast, results)
+
     def sidebar_no_jump():
         # Mail: Ordnerliste ein-/ausblenden ohne Ruck in den letzten Bildern – vertikal und klassisch, enges Fenster
         # (Leseansicht an ihrer Mindestbreite) und breites: Ordnerliste, Mailliste und Leseansicht ändern sich je Bild
