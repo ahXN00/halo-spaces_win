@@ -422,7 +422,10 @@ def run_in_vm(args, xpi):
     finally:
         try:
             if theme and before:
-                vm_theme(vm, theme)
+                try:
+                    vm_theme(vm, theme)
+                except (subprocess.CalledProcessError, subprocess.TimeoutExpired) as e:
+                    print(f"HINWEIS Farbschema der VM nicht zurückgestellt: {e}", flush=True)
             # Speicher für die macOS-Tests freigeben: VM nach dem Lauf pausieren (--vm-weiter: laufen lassen)
             if before and not args.vm_weiter and vm_state(vm) == "running":
                 prl("suspend", vm, check=False)
@@ -3729,7 +3732,9 @@ def run_checks(m, version, profile, results):
           for (const width of [1500, 2000, 2600]) { w.resizeTo(width, 900); await wait(1300);
             const a3 = await toMail(); out[width] = Math.round(a3.document.getElementById("threadPane").getBoundingClientRect().width); }
           w.resizeTo(1500, 900); await wait(800); return out;""")
-        ok = all(abs(v - 460) <= 1 for v in res.values())
+        # Windows: die Fensterknöpfe stehen mit in der Toolbar-Zeile – bei 1500 px braucht die Leseansicht dort
+        # etwas mehr Platz und die Liste gibt bis zu 30 px ab (gewollte Begrenzung im engen Fenster)
+        ok = all(abs(v - 460) <= 1 or (sys.platform == "win32" and k == "1500" and 430 <= v <= 460) for k, v in res.items())
         return ok, f"Listenbreite je Fensterbreite {res} (soll 460)"
     check("Mailliste behält ihre Breite", list_width, results)
 
@@ -4718,6 +4723,33 @@ def run_checks(m, version, profile, results):
         return ok, f"{res}"
     check("Dunkelmodus: HTML-Mail mit hellem Hintergrund dunkel (Option „Dunkle Hintergründe für Nachrichten“), ausgeschaltet und hell bleibt sie hell", html_dark, results)
 
+    def wide_newsletter():
+        # breiter Newsletter (feste 700 px) wird wie in Apple Mail auf die Lesebreite verkleinert statt rechts
+        # abgeschnitten; eine schmale Mail bleibt in Originalgröße
+        res = m.js(r"""
+          const { MailServices } = ChromeUtils.importESModule("resource:///modules/MailServices.sys.mjs");
+          const root = MailServices.accounts.localFoldersServer.rootFolder;
+          if (!root.containsChildNamed("Schrift")) { root.createSubfolder("Schrift", null); await wait(800); }
+          const f = root.getChildNamed("Schrift"); const lf = f.QueryInterface(Ci.nsIMsgLocalMailFolder);
+          const a3 = await toMail(); a3.displayFolder(f.URI); await wait(800);
+          const find = s => { for (let i = 0; i < a3.gDBView.rowCount; i++) if (a3.gDBView.getMsgHdrAt(i).subject == s) return i; return -1; };
+          const add = (n, body) => lf.addMessage(`From: Halo <h@example.invalid>\r\nSubject: ${n}\r\nDate: Sat, 17 Oct 2026 11:00:00 +0200\r\nMessage-ID: <halo-${n.replace(/ /g, "-")}@example.invalid>\r\nMIME-Version: 1.0\r\nContent-Type: text/html; charset=UTF-8\r\n\r\n${body}\r\n\r\n`);
+          if (find("Breiter Newsletter") < 0) {
+            add("Breiter Newsletter", "<html><body><table id='t' width='700' style='width:700px'><tr><td>Angebot der Woche – erfundener Newsletter mit fester Breite</td></tr></table></body></html>");
+            add("Schmale Mail", "<html><body><p id='t'>Kurzer Gruß</p></body></html>");
+            await wait(800); a3.displayFolder(f.URI); await wait(800);
+          }
+          const show = async s => { a3.threadTree.selectedIndex = find(s); await wait(1500);
+            const md = a3.messageBrowser.contentDocument;
+            const t = await until(() => md.getElementById("messagepane")?.contentDocument?.getElementById("t")); await wait(600);
+            const doc = t.ownerDocument, r = doc.documentElement;
+            return { zoom: doc.body.style.zoom || "", scroll: r.scrollWidth, client: r.clientWidth, table: Math.round(t.getBoundingClientRect().width) }; };
+          return { wide: await show("Breiter Newsletter"), narrow: await show("Schmale Mail") };""")
+        wd, nr = res["wide"], res["narrow"]
+        ok = (wd["zoom"] not in ("", "1") and wd["scroll"] <= wd["client"] + 1 and nr["zoom"] == "")
+        return ok, f"{res}"
+    check("Leseansicht: breiter Newsletter auf die Lesebreite verkleinert, schmale Mail unverändert", wide_newsletter, results)
+
     def remote_bar():
         res = m.js(r"""
           const { MailServices } = ChromeUtils.importESModule("resource:///modules/MailServices.sys.mjs");
@@ -5284,7 +5316,8 @@ def run_checks(m, version, profile, results):
                 bad.append(f"{name}: Greifzone {r['released']}")
             if r["grip"] != [False, s["grip"], False]:
                 bad.append(f"{name}: herausgezogen {r['grip']}")
-            if widen and (r["wider"] < r["start"] + 40 or r["max"] != 360):
+            # (Windows: Fensterknöpfe in der Toolbar – in 1400 px stößt die Ordnerliste etwas früher an die Grenze)
+            if widen and (r["wider"] < r["start"] + 40 or not (r["max"] == 360 or (sys.platform == "win32" and 340 <= r["max"] <= 360))):
                 bad.append(f"{name}: Breite {r['start']} → {r['wider']} → {r['max']} (Höchstbreite 360)")
         m.js('w.resizeTo(1400, 900); await wait(500); await toCalendar(); await wait(800); return 1;')
         out["max"] = m.js(cal_js)["max"]

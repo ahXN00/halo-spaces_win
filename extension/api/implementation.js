@@ -1640,6 +1640,57 @@ class ConversationCards {
   }
 }
 
+// Breite Newsletter (feste 600–700 px) wie Apple Mail auf die Lesebreite
+// verkleinern statt sie rechts abzuschneiden: der Mailtext bekommt einen Zoom,
+// sobald er breiter ist als die Leseansicht. Nur HTML-Mails (Textmails brechen
+// selbst um), neu gerechnet bei Größenänderung und nachgeladenen Bildern
+function fitWideMessage(target) {
+  try {
+    const doc = target?.document || target?.ownerDocument || target;
+    const mp = doc?.getElementById?.("messagepane");
+    const win = mp?.contentWindow;
+    const mdoc = mp?.contentDocument;
+    if (!win || !mdoc?.body || !/^(imap|mailbox|news|nntp|ews|owl|file):/.test(mdoc.documentURI)) {
+      return;
+    }
+    const body = mdoc.body;
+    if (body.querySelector(":scope > :is(.moz-text-plain, .moz-text-flowed)")) {
+      return;
+    }
+    let busy = false;
+    const apply = () => {
+      if (busy || !body.isConnected) {
+        return;
+      }
+      busy = true;
+      try {
+        const root = mdoc.documentElement;
+        body.style.removeProperty("zoom");
+        const avail = root.clientWidth;
+        const need = Math.max(body.scrollWidth, root.scrollWidth);
+        if (avail > 0 && need > avail + 2) {
+          // nicht kleiner als die Hälfte – sonst wird die Schrift unlesbar
+          body.style.setProperty("zoom", String(Math.max(0.5, Math.floor((avail / need) * 1000) / 1000)));
+          body.dataset.mcFit = "1";
+        } else {
+          delete body.dataset.mcFit;
+        }
+      } finally {
+        busy = false;
+      }
+    };
+    apply();
+    if (!mdoc.__mcFitHooked) {
+      mdoc.__mcFitHooked = true;
+      // (Fensterbreite, Today-Pane, Seitenleiste – und nachgeladene Bilder)
+      new win.ResizeObserver(() => win.requestAnimationFrame(apply)).observe(mdoc.documentElement);
+      mdoc.addEventListener("load", () => win.requestAnimationFrame(apply), true);
+    }
+  } catch (e) {
+    log("fit message error", String(e).slice(0, 120));
+  }
+}
+
 // Verteiler, bei denen die Ein-Klick-Abmeldung geklappt hat (List-ID, sonst
 // Absenderadresse), als Liste in einer Einstellung – höchstens die letzten 500
 const UNSUBSCRIBED_PREF = "extensions.mailcards.unsubscribedLists";
@@ -6022,7 +6073,13 @@ class CardEnhancer {
         const cl = cards?.getBoundingClientRect();
         if (this.mcButtonsLeft && shared && "width" in shared && !shared.__mcDragging && cl &&
             !el.ownerDocument.body.classList.contains("layout-table")) {
-          const want = Math.round(this.mcButtonsLeft - 6 - (shift + cl.left));
+          // … aber nie so breit, dass die Kontaktdetails unter ihre Mindestbreite
+          // kämen (mit Today-Pane ist das Adressbuch enger als die Mail – sonst
+          // drückte das Raster die Adressbuchliste zusammen)
+          const dp = el.ownerDocument.getElementById("detailsPane");
+          const detailsMin = (dp && parseFloat(el.ownerDocument.defaultView.getComputedStyle(dp).minWidth)) || 0;
+          const room = Math.floor(el.ownerDocument.documentElement.clientWidth - cl.left - detailsMin - 2);
+          const want = Math.min(Math.round(this.mcButtonsLeft - 6 - (shift + cl.left)), room);
           if (want >= 160 && Math.abs((shared.width || 0) - want) >= 1) {
             shared.width = want;
           }
@@ -8426,7 +8483,12 @@ class CardEnhancer {
       };
       // Tabwechsel und neu geladene Mail (Nachrichten-Tab: Weiterblättern,
       // nächste Mail nach dem Löschen) – „MsgLoaded“ steigt aus about:message auf
-      const refresh = () => w.setTimeout(() => this.updateStarButton(w), 0);
+      const refresh = event => {
+        w.setTimeout(() => this.updateStarButton(w), 0);
+        if (event?.type == "MsgLoaded") {
+          fitWideMessage(event.target);
+        }
+      };
       const tabs = w.document.getElementById("tabmail")?.tabContainer;
       w.addEventListener("click", onClick, true);
       w.addEventListener("mousemove", onMove, true);
