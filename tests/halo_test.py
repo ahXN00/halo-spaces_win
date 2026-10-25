@@ -3152,7 +3152,11 @@ def calendar_checks(m, results):
             out.list = { border: csOf(list).borderTopWidth, radius: csOf(list).borderTopLeftRadius, lines: csOf(list).backgroundImage.slice(0, 30) };
             out.grid = { border: csOf(grid).borderTopWidth, lines: csOf(inner).backgroundImage.includes("threedshadow") ? "alt" : csOf(inner).backgroundImage.slice(0, 30) };
             out.bar = { border: csOf(bar).borderTopColor, accent: colorOf(ad, "var(--mt-accent)") };
-            out.legend = { border: csOf(legend).borderTopWidth, radius: csOf(legend).borderTopLeftRadius };
+            out.legend = { border: csOf(legend).borderTopWidth, radius: csOf(legend).borderTopLeftRadius, w: csOf(legend).width, h: csOf(legend).height };
+            // Beschriftungen der Legenden (Rolle, Art, Status) alle in derselben grauen Schrift
+            out.labelColors = [...new Set([...ad.querySelectorAll("table:has(:is(.legend, .role-icon, .usertype-icon)) td")]
+              .filter(td => td.textContent.trim() && vis(td)).map(td => csOf(td).color))];
+            out.grid.rows = csOf(inner).backgroundImage.includes("to bottom");
             out.icon = role ? (csOf(role).content || "").slice(0, 60) : null;
             out.combined = !!ad.querySelector(".mc-time-panel .mc-dtp-time") && !ad.querySelector("#event-starttime datepicker menupopup .mc-dtp-time");
           } finally {
@@ -3162,13 +3166,15 @@ def calendar_checks(m, results):
           return out;""")
         if res.get("dialog") is False or res.get("attendees") is False:
             return False, f"Dialog nicht offen {res}"
-        ok = (res["list"]["border"] == "0px" and res["list"]["radius"] == "8px" and res["list"]["lines"].startswith("linear-gradient")
-              and res["grid"]["border"] == "0px" and res["grid"]["lines"].startswith("linear-gradient")
+        # wie Apple Kalender: Liste ohne Zeilenlinien, Raster nur mit senkrechten Stundenlinien, Legende als Farbpunkte
+        ok = (res["list"]["border"] == "0px" and res["list"]["radius"] == "8px" and res["list"]["lines"] == "none"
+              and res["grid"]["border"] == "0px" and res["grid"]["lines"].startswith("linear-gradient") and not res["grid"]["rows"]
               and same_color(res["bar"]["border"], res["bar"]["accent"])
-              and res["legend"]["border"] == "0px" and res["legend"]["radius"] == "3px"
+              and res["legend"]["border"] == "0px" and res["legend"]["radius"] == "50%" and res["legend"]["w"] == res["legend"]["h"]
+              and len(res["labelColors"]) == 1
               and res["icon"] and "mailcards/icons/user.svg" in res["icon"] and res["combined"])
         return ok, f"{res}"
-    check("Termin: „Teilnehmer einladen“ mit Haarlinien statt harter Linien, einfarbigen Symbolen, Akzent statt Pink, Datum/Uhrzeit-Popover", attendees_dialog, results)
+    check("Termin: „Teilnehmer einladen“ ohne Zeilenlinien, zarte Stundenlinien, Legende als Farbpunkte, einfarbige Symbole, Akzent statt Pink, Datum/Uhrzeit-Popover", attendees_dialog, results)
 
     def event_window_still():
         # Termin-Fenster springt nach dem Öffnen nicht: Detailansicht (Doppelklick auf einen Termin) und Bearbeiten –

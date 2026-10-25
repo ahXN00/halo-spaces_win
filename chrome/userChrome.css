@@ -11022,8 +11022,8 @@ notification-message toolbarbutton.notification-button > .toolbarbutton-menubutt
    Rahmen und Linien (Thunderbird malt sie als Bild in threedshadow), Symbole
    einfarbig, Legende klein und grau, Zeitbalken in Akzentfarbe statt Pink */
 #calendar-event-dialog-attendees-v2 {
-  --mc-att-line: var(--mt-separator);
-  --mc-att-line-soft: color-mix(in srgb, var(--mt-separator) 50%, transparent);
+  --mc-att-line: color-mix(in srgb, var(--mt-separator) 60%, transparent);
+  --mc-att-line-soft: color-mix(in srgb, var(--mt-separator) 30%, transparent);
 }
 
 #calendar-event-dialog-attendees-v2 :is(#attendee-list, #freebusy-grid) {
@@ -11032,10 +11032,10 @@ notification-message toolbarbutton.notification-button > .toolbarbutton-menubutt
   background-color: var(--mt-control) !important;
 }
 
+/* Teilnehmerliste ohne Zeilenlinien wie in Apple Kalender */
 #calendar-event-dialog-attendees-v2 #attendee-list {
   border-radius: 8px !important;
-  background-image: linear-gradient(to bottom, transparent 20px, var(--mc-att-line) 20px) !important;
-  background-size: 100% 21px !important;
+  background-image: none !important;
 }
 
 #calendar-event-dialog-attendees-v2 #day-header-outer {
@@ -11059,7 +11059,8 @@ notification-message toolbarbutton.notification-button > .toolbarbutton-menubutt
   color: var(--mt-text-secondary) !important;
 }
 
-/* Raster: Zeilen je 21 px, Stunden als Haarlinie, Viertel-/Halbstunden zarter */
+/* Raster: nur senkrechte Linien – Stunden zart, Viertel-/Halbstunden noch zarter;
+   keine waagerechten Zeilenlinien (Apple Kalender) */
 #calendar-event-dialog-attendees-v2 #day-header-inner.twoMinorColumns {
   background-image: linear-gradient(to right, transparent 59px, var(--mc-att-line) 59px) !important;
   background-size: 60px 6px !important;
@@ -11072,19 +11073,17 @@ notification-message toolbarbutton.notification-button > .toolbarbutton-menubutt
 
 #calendar-event-dialog-attendees-v2 #freebusy-grid-inner.twoMinorColumns {
   background-image:
-    linear-gradient(to bottom, transparent 20px, var(--mc-att-line) 20px),
     linear-gradient(to right, transparent 59px, var(--mc-att-line) 59px),
     linear-gradient(to right, transparent 29px, var(--mc-att-line-soft) 29px, var(--mc-att-line-soft) 30px, transparent 30px) !important;
-  background-size: 100% 21px, 60px 100%, 60px 100% !important;
+  background-size: 60px 100%, 60px 100% !important;
 }
 
 #calendar-event-dialog-attendees-v2 #freebusy-grid-inner.threeMinorColumns {
   background-image:
-    linear-gradient(to bottom, transparent 20px, var(--mc-att-line) 20px),
     linear-gradient(to right, transparent 89px, var(--mc-att-line) 89px),
     linear-gradient(to right, transparent 29px, var(--mc-att-line-soft) 29px, var(--mc-att-line-soft) 30px, transparent 30px,
                     transparent 59px, var(--mc-att-line-soft) 59px, var(--mc-att-line-soft) 60px, transparent 60px) !important;
-  background-size: 100% 21px, 90px 100%, 90px 100% !important;
+  background-size: 90px 100%, 90px 100% !important;
 }
 
 /* gewählte Zeit: Akzent statt Pink (#f045a5) */
@@ -11098,11 +11097,12 @@ notification-message toolbarbutton.notification-button > .toolbarbutton-menubutt
   border-radius: 3px !important;
 }
 
+/* Legende als kleine Farbpunkte wie in Apple Kalender */
 #calendar-event-dialog-attendees-v2 .legend {
-  inline-size: 18px !important;
-  block-size: 10px !important;
+  inline-size: 9px !important;
+  block-size: 9px !important;
   border: none !important;
-  border-radius: 3px !important;
+  border-radius: 50% !important;
 }
 
 #calendar-event-dialog-attendees-v2 :is(td, label, .legend + *) {
@@ -11110,7 +11110,8 @@ notification-message toolbarbutton.notification-button > .toolbarbutton-menubutt
 }
 
 #calendar-event-dialog-attendees-v2 table:has(.legend) td,
-#calendar-event-dialog-attendees-v2 table:has(.role-icon:not([attendeerole=""])) td {
+#calendar-event-dialog-attendees-v2 table:has(.role-icon:not([attendeerole=""])) td,
+#calendar-event-dialog-attendees-v2 table:has(.usertype-icon:not([usertype=""])) td {
   color: var(--mt-text-secondary) !important;
 }
 
