@@ -3580,6 +3580,114 @@ def calendar_checks(m, results):
     check("Drucken: Minikalender „Von“/„Bis“ im Formular, Pfeile sichtbar, Knöpfe ohne helle Fläche, Monat/Jahr ohne Feldfläche", print_minimonths, results)
 
 
+    def month_views_no_scroll():
+        # Monat und Mehrwochen füllen den Bereich ohne Bildlaufleiste (Zoom 1), Tage gleich hoch
+        res = m.js(CAL_CHECK_JS + r"""
+          w.resizeTo(1500, 900); await pause(600); await toCalendar();
+          const out = {};
+          for (const v of ["month", "multiweek"]) {
+            w.switchToView(v); await pause(1200);
+            const view = d.getElementById(v + "-view");
+            const sc = [view, ...view.querySelectorAll("*")].filter(e => e.scrollHeight > e.clientHeight + 2 && /(auto|scroll)/.test(w.getComputedStyle(e).overflowY));
+            const boxes = [...view.querySelectorAll("calendar-month-day-box")].filter(vis).map(b => Math.round(b.getBoundingClientRect().height));
+            const vr = view.getBoundingClientRect(), tab = d.getElementById("calendarDisplayBox").getBoundingClientRect();
+            out[v] = { scrollers: sc.map(e => e.localName + "." + e.className.split(" ")[0]).slice(0, 3), days: boxes.length,
+                       heights: [Math.min(...boxes), Math.max(...boxes)], fits: vr.bottom <= tab.bottom + 1 };
+          }
+          w.switchToView("week"); await pause(600);
+          return out;""")
+        ok = all(not v["scrollers"] and v["days"] >= 14 and v["heights"][1] - v["heights"][0] <= 2 and v["fits"] for v in res.values())
+        return ok, f"{res}"
+    check("Kalender: Monat und Mehrwochen ohne Bildlaufleiste, Tage gleich hoch, ganz im Bereich", month_views_no_scroll, results)
+
+    def day_view_now():
+        # Tagesansicht: eine Spalte über die ganze Breite, rote Jetzt-Linie wie Apple Kalender, Kopf mit dem heutigen Tag
+        res = m.js(CAL_CHECK_JS + r"""
+          w.resizeTo(1500, 900); await pause(600); await toCalendar(); w.switchToView("day"); w.currentView().goToDay(cal.dtz.now()); await pause(1200);
+          const view = d.getElementById("day-view");
+          const dayCols = [...view.querySelectorAll("calendar-event-column")].filter(vis);
+          const ind = [...view.querySelectorAll(".timeIndicator")].find(vis);
+          const vr = view.getBoundingClientRect(), cr = dayCols[0]?.getBoundingClientRect();
+          const out = { cols: dayCols.length, share: cr ? Math.round(cr.width / vr.width * 100) : 0,
+                        line: ind ? [w.getComputedStyle(ind).borderTopColor, w.getComputedStyle(ind).borderTopStyle] : null };
+          w.switchToView("week"); await pause(500);
+          return out;""")
+        ok = res["cols"] == 1 and res["share"] >= 70 and bool(res["line"]) and same_color(res["line"][0], "rgb(255, 59, 48)")
+        return ok, f"{res}"
+    check("Kalender: Tagesansicht mit einer breiten Spalte und roter Jetzt-Linie", day_view_now, results)
+
+    def event_colors():
+        # Termine in der Woche: Fläche pastellig in der Kalenderfarbe (nicht die volle Farbe), Titel gut lesbar (≥ 4,5 : 1),
+        # hell und dunkel
+        res = m.js(CAL_CHECK_JS + r"""
+          const c = testCalendar(); const e = new CalEvent(); e.title = "Halo Farbtermin"; e.calendar = c;
+          const s = cal.dtz.now(); s.hour = 11; s.minute = 0; s.second = 0; const en = s.clone(); en.hour += 1; e.startDate = s; e.endDate = en;
+          const saved = await c.addItem(e);
+          try {
+            await toWeek();
+            const box = await till(() => [...d.querySelectorAll("#week-view calendar-event-box")].find(b => vis(b) && /Halo Farbtermin/.test(b.textContent)), 4000);
+            if (!box) return { box: false };
+            const cs = w.getComputedStyle(box), label = box.querySelector(".event-name-label") || box;
+            return { bg: cs.backgroundColor, color: w.getComputedStyle(label).color, cal: c.getProperty("color"), dark };
+          } finally { try { await c.deleteItem(saved); } catch {} }""")
+        if res.get("box") is False:
+            return False, "Termin nicht gefunden"
+        hexcol = res["cal"] or "#000000"
+        calrgb = "rgb(%d, %d, %d)" % tuple(int(hexcol[i:i + 2], 16) for i in (1, 3, 5))
+        ok = not same_color(res["bg"], calrgb, tol=20) and contrast(res["bg"], res["color"]) >= 4.5
+        return ok, f"Kontrast {contrast(res['bg'], res['color']):.1f} {res}"
+    check("Kalender: Termine pastellig in der Kalenderfarbe, Titel gut lesbar (≥ 4,5 : 1)", event_colors, results)
+
+    def event_drag():
+        # Termin in der Woche per Ziehen eine Stunde später: Thunderbirds Ziehen bleibt trotz eigener Gestaltung bedienbar
+        prep = m.js(CAL_CHECK_JS + r"""
+          const c = testCalendar(); const e = new CalEvent(); e.title = "Halo Ziehtermin"; e.calendar = c;
+          const s = cal.dtz.now(); s.hour = 9; s.minute = 0; s.second = 0; const en = s.clone(); en.hour += 1; e.startDate = s; e.endDate = en;
+          w.__mcDragItem = await c.addItem(e);
+          await toWeek(); w.currentView().scrollToMinute(480); await pause(800);
+          const box = await till(() => [...d.querySelectorAll("#week-view calendar-event-box")].find(b => vis(b) && /Halo Ziehtermin/.test(b.textContent)), 4000);
+          if (!box) return null;
+          const r = box.getBoundingClientRect();
+          const hour = w.currentView().pixelsPerMinute * 60;
+          return [Math.round(r.left + r.width / 2), Math.round(r.top + r.height / 2), Math.round(hour)];""")
+        if not prep:
+            return False, "Termin nicht gefunden"
+        x, y, hour = prep
+        m.pointer([{"type": "pointerMove", "x": x, "y": y, "origin": "viewport"}, {"type": "pointerDown", "button": 0},
+                   {"type": "pause", "duration": 150},
+                   *[{"type": "pointerMove", "x": x, "y": y + round(hour * k / 6), "origin": "viewport", "duration": 40} for k in range(1, 7)],
+                   {"type": "pause", "duration": 150}, {"type": "pointerUp", "button": 0}])
+        time.sleep(1.5)
+        res = m.js(CAL_CHECK_JS + r"""
+          const c = testCalendar(); const it = await c.getItem(w.__mcDragItem.id);
+          const out = { hour: it ? it.startDate.getInTimezone(cal.dtz.defaultTimezone).hour : null, minute: it?.startDate.minute };
+          try { await c.deleteItem(it); } catch {}
+          for (const x of [...Services.wm.getEnumerator(null)]) if (!x.location.href.includes("messenger.xhtml")) x.close();
+          return out;""")
+        return res.get("hour") == 10, f"{res}"
+    check("Kalender: Termin in der Woche per Ziehen verschieben (9 → 10 Uhr)", event_drag, results)
+
+    def agenda_soon():
+        # Today-Pane: laufender Termin mit „now“ statt Uhrzeit, bald beginnender (in 40 Min.) mit rotem Hinweis darunter
+        res = m.js(CAL_CHECK_JS + r"""
+          const c = testCalendar(); const added = [];
+          const mk = async (title, startMin, durMin) => { const e = new CalEvent(); e.title = title; e.calendar = c;
+            const s = cal.dtz.now(); s.second = 0; s.minute += startMin; const en = s.clone(); en.minute += durMin; e.startDate = s; e.endDate = en; added.push(await c.addItem(e)); };
+          try {
+            await mk("Halo Laeuft", -10, 60); await mk("Halo Gleich", 40, 30);
+            await toMail(); if (!w.TodayPane?.isVisible) d.getElementById("calendar_toggle_todaypane_command").doCommand();
+            await pause(2000);
+            const li = t => [...d.querySelectorAll("#agenda > li.agenda-listitem")].find(x => vis(x) && x.textContent.includes(t));
+            const rel = x => { const r = x?.querySelector(".agenda-listitem-relative"); return r && vis(r) ? [r.textContent.trim(), w.getComputedStyle(r).color] : null; };
+            const now = li("Halo Laeuft"), soon = li("Halo Gleich");
+            return { now: rel(now), nowTime: now ? vis(now.querySelector(".agenda-listitem-time")) : null, soon: rel(soon), dark };
+          } finally { for (const it of added) try { await c.deleteItem(it); } catch {} }""")
+        red = "rgb(255, 105, 97)" if res.get("dark") else "rgb(255, 59, 48)"
+        ok = (bool(res.get("now")) and res["nowTime"] is False and same_color(res["now"][1], red)
+              and bool(res.get("soon")) and any(ch.isdigit() for ch in res["soon"][0]) and same_color(res["soon"][1], red))
+        return ok, f"{res}"
+    check("Today-Pane: laufender Termin „now“ statt Uhrzeit, bald beginnender mit rotem Hinweis", agenda_soon, results)
+
 def rgba_alpha(c):
     """Deckkraft aus rgb()/rgba()/color(srgb …) – 1, wenn keine angegeben ist."""
     import re
