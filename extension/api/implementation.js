@@ -216,6 +216,8 @@ const DE = {
   "Today, {time}": "Heute, {time}",
   "Yesterday, {time}": "Gestern, {time}",
   "Show": "Zeigen",
+  "Keyboard Shortcuts": "Tastaturkurzbefehle",
+  "Show all keyboard shortcuts of Thunderbird": "Alle Tastaturkurzbefehle von Thunderbird zeigen",
 };
 const FR = {
   "Install version {v}": "Installer la version {v}",
@@ -403,6 +405,8 @@ const FR = {
   "Today, {time}": "Aujourd’hui, {time}",
   "Yesterday, {time}": "Hier, {time}",
   "Show": "Afficher",
+  "Keyboard Shortcuts": "Raccourcis clavier",
+  "Show all keyboard shortcuts of Thunderbird": "Afficher tous les raccourcis clavier de Thunderbird",
 };
 const ES = {
   "Install version {v}": "Instalar la versión {v}",
@@ -590,6 +594,8 @@ const ES = {
   "Today, {time}": "Hoy, {time}",
   "Yesterday, {time}": "Ayer, {time}",
   "Show": "Mostrar",
+  "Keyboard Shortcuts": "Atajos de teclado",
+  "Show all keyboard shortcuts of Thunderbird": "Mostrar todos los atajos de teclado de Thunderbird",
 };
 const IT = {
   "Install version {v}": "Installa la versione {v}",
@@ -777,6 +783,8 @@ const IT = {
   "Today, {time}": "Oggi, {time}",
   "Yesterday, {time}": "Ieri, {time}",
   "Show": "Mostra",
+  "Keyboard Shortcuts": "Scorciatoie da tastiera",
+  "Show all keyboard shortcuts of Thunderbird": "Mostra tutte le scorciatoie da tastiera di Thunderbird",
 };
 const TRANSLATIONS = { de: DE, fr: FR, es: ES, it: IT };
 // tr("+{n} more", { n: 3 }) – Platzhalter in geschweiften Klammern
@@ -3042,6 +3050,50 @@ function attachSubnav(list, browser, src) {
 // halo.spaces-Einstellungen (options_ui): Erweiterungsseiten laufen in einem
 // eigenen Prozess – eingebettet wie in Thunderbirds Add-ons-Verwaltung
 // (toolkit inline-options-browser.mjs)
+// Einstellungen → Allgemein: Link zu den offiziellen Tastaturkürzeln von
+// Thunderbird (Mozilla-Hilfe in der Sprache von Thunderbird), eigene Karte
+// unter „Scrolling“; öffnet im Standardbrowser
+function shortcutsURL() {
+  const loc = Services.locale.appLocaleAsBCP47;
+  const lang = loc == "en" || loc.startsWith("en-") ? "en-US" : loc;
+  return `https://support.mozilla.org/${lang}/kb/keyboard-shortcuts-thunderbird`;
+}
+function hookShortcutsLink(cw, restorers = null) {
+  const doc = cw.document;
+  if (doc.getElementById("mcShortcuts")) {
+    return;
+  }
+  const next = doc.getElementById("languageAndFontsCategory");
+  if (!next || next.parentNode?.id != "paneDeck") {
+    return;
+  }
+  const X = "http://www.w3.org/1999/xhtml";
+  const card = doc.createElementNS(X, "div");
+  card.id = "mcShortcuts";
+  card.setAttribute("data-category", "paneGeneral");
+  // wie Thunderbirds Karten: nur sichtbar, wenn „Allgemein“ gewählt ist
+  card.hidden = next.hidden;
+  const set = doc.createElementNS(X, "fieldset");
+  const legend = doc.createElementNS(X, "legend");
+  legend.textContent = tr("Keyboard Shortcuts");
+  const line = doc.createElementNS(X, "div");
+  line.className = "mc-shortcuts-line";
+  const link = doc.createElementNS(X, "a");
+  link.className = "text-link";
+  link.href = shortcutsURL();
+  link.textContent = tr("Show all keyboard shortcuts of Thunderbird");
+  link.addEventListener("click", event => {
+    event.preventDefault();
+    Cc["@mozilla.org/uriloader/external-protocol-service;1"].getService(Ci.nsIExternalProtocolService)
+      .loadURI(Services.io.newURI(link.href));
+  });
+  line.append(link);
+  set.append(legend, line);
+  card.append(set);
+  next.before(card);
+  restorers?.push(() => card.remove());
+}
+
 // Optionen der halo.spaces-Seite (dieselbe Liste wie options.js), übersetzt
 function haloSections() {
   try {
@@ -6813,6 +6865,11 @@ class CardEnhancer {
             hookPrefCategories(cw, winRestorers);
           } catch (e) {
             log("pref categories error", e);
+          }
+          try {
+            hookShortcutsLink(cw, winRestorers);
+          } catch (e) {
+            log("shortcuts link error", e);
           }
         }
         if (cw && url.startsWith("about:addressbook")) {

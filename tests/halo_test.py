@@ -7698,6 +7698,27 @@ def run_checks(m, version, profile, results):
         return ok, f"{res}"
     check("Einstellungen: Suche findet die Optionen von halo.spaces, „Show“ zeigt die Option", pref_halo_search, results)
 
+    def pref_shortcuts_link():
+        # Allgemein: Karte mit Link zu den offiziellen Tastaturkürzeln (Mozilla-Hilfe in der Sprache von Thunderbird),
+        # unter „General“ vor „Language & Fonts“; nur bei „Allgemein“ sichtbar, die Suche findet sie
+        res = m.js(PREFS_OPEN_JS + r"""
+          await pick("paneGeneral", 1200);
+          const card = pd.getElementById("mcShortcuts"), a = card?.querySelector("a.text-link");
+          const out = { card: !!card, shown: !!card && card.getBoundingClientRect().height > 0, href: a?.getAttribute("href"), text: a?.textContent,
+                        next: card?.nextElementSibling?.id, locale: Services.locale.appLocaleAsBCP47,
+                        legend: card ? pw.getComputedStyle(card.querySelector("legend")).fontWeight : null };
+          await pick("paneMcHalo", 1500); out.hiddenElsewhere = !!card && card.getBoundingClientRect().height == 0;
+          const input = pd.getElementById("searchInput"); input.value = "shortcuts"; input.dispatchEvent(new pw.Event("command", { bubbles: true }));
+          input.dispatchEvent(new pw.Event("input", { bubbles: true })); await wait(1500);
+          out.found = !!card && !card.classList.contains("visually-hidden") && card.getBoundingClientRect().height > 0;
+          tm.closeTab(tm.currentTabInfo); await wait(400);
+          return out;""")
+        lang = "en-US" if res.get("locale", "").startswith("en") else res.get("locale")
+        ok = (res.get("shown") and res.get("next") == "languageAndFontsCategory" and res.get("hiddenElsewhere") and res.get("found")
+              and res.get("href") == f"https://support.mozilla.org/{lang}/kb/keyboard-shortcuts-thunderbird")
+        return ok, f"{res}"
+    check("Einstellungen → Allgemein: Link zu den Tastaturkürzeln in der Sprache von Thunderbird", pref_shortcuts_link, results)
+
     def options_page_slim():
         # Einstellungsseite schlank: Breite der Mailliste und doppelte Kontakte nur in der Oberfläche,
         # Design/Symbole/Protokoll unter „Fehlerbehebung“; options.js (Seite läuft entfernt) in einer
