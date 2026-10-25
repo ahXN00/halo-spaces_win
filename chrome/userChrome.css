@@ -2534,74 +2534,75 @@ unified-toolbar {
    über die Breite der Mail, „Mehr …“ und der Senden-Pfeil erscheinen, sobald
    etwas dasteht; Haarlinie darüber wie zwischen Kopf und Text */
 #mcQuickReply {
-  display: flex;
-  align-items: flex-end;
-  gap: 8px;
-  padding: 10px 20px 12px;
-  border-top: var(--mt-hairline) solid var(--mt-pane-line);
-  background: var(--mt-window);
+  display: flex !important;
+  align-items: flex-end !important;
+  gap: 8px !important;
+  padding: 10px 20px 12px !important;
+  border-top: var(--mt-hairline) solid var(--mt-pane-line) !important;
+  background: var(--mt-window) !important;
 }
 
 #mcQuickReply .mc-qr-field {
-  flex: 1;
-  min-height: 32px;
-  box-sizing: border-box;
-  padding: 6px 14px;
-  border: var(--mt-hairline) solid var(--mt-separator);
-  border-radius: 16px;
-  background: var(--mt-control);
-  color: var(--mt-text);
-  font: 13px/18px var(--mt-font);
-  resize: none;
-  outline: none;
+  flex: 1 !important;
+  min-height: 32px !important;
+  box-sizing: border-box !important;
+  padding: 6px 14px !important;
+  border: var(--mt-hairline) solid var(--mt-separator) !important;
+  border-radius: 16px !important;
+  background: var(--mt-control) !important;
+  color: var(--mt-text) !important;
+  font: 13px/18px var(--mt-font) !important;
+  resize: none !important;
+  outline: none !important;
 }
 
 #mcQuickReply .mc-qr-field:focus {
-  border-color: var(--mt-accent);
-  background: var(--mt-window);
+  border-color: var(--mt-accent) !important;
+  background: var(--mt-window) !important;
 }
 
 #mcQuickReply .mc-qr-field::placeholder {
-  color: var(--mt-text-tertiary);
+  color: var(--mt-text-tertiary) !important;
 }
 
 #mcQuickReply :is(.mc-qr-more, .mc-qr-send) {
-  display: none;
-  appearance: none;
-  flex: none;
-  height: 32px;
-  border: none;
-  border-radius: 999px;
-  font: 13px var(--mt-font);
+  display: none !important;
+  appearance: none !important;
+  flex: none !important;
+  height: 32px !important;
+  border: none !important;
+  border-radius: 999px !important;
+  font: 13px var(--mt-font) !important;
 }
 
 #mcQuickReply[data-text] :is(.mc-qr-more, .mc-qr-send) {
-  display: block;
+  display: block !important;
 }
 
 #mcQuickReply .mc-qr-more {
-  padding: 0 12px;
-  background: var(--mt-control);
-  color: var(--mt-text);
+  padding: 0 12px !important;
+  background: var(--mt-control) !important;
+  color: var(--mt-text) !important;
 }
 
 #mcQuickReply .mc-qr-send {
-  width: 32px;
-  background: var(--mt-accent) no-repeat center / 16px;
-  color: var(--mt-accent-text);
-  position: relative;
+  width: 32px !important;
+  background: var(--mt-accent) !important;
+  color: var(--mt-accent-text) !important;
+  position: relative !important;
 }
 
 #mcQuickReply .mc-qr-send::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  background-color: var(--mt-accent-text);
-  mask: url("resource://mailcards/icons/send-up.svg") center / 16px no-repeat;
+  content: "" !important;
+  position: absolute !important;
+  inset: 0 !important;
+  background-color: var(--mt-accent-text) !important;
+  /* eigene Form: das Paket-Symbol zeichnet mit context-stroke, das trägt als Maske nicht */
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M12 19.5V5M5.5 11.5 12 5l6.5 6.5'/%3E%3C/svg%3E") center / 16px no-repeat !important;
 }
 
 #mcQuickReply[data-busy] .mc-qr-send {
-  opacity: 0.5;
+  opacity: 0.5 !important;
 }
 
 /* ---------- Nachfassen (wie „Follow Up“ in Apple Mail) ----------

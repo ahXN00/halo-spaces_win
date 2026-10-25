@@ -210,9 +210,10 @@ main {
 }
 
 .weather .capsule {
-  flex: 1;
+  flex: 1 1 auto;
   min-height: 30px;
   padding: 0 10px;
+  white-space: nowrap;
   background: var(--control-hover);
   font-size: 12px;
 }

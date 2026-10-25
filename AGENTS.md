@@ -25,6 +25,8 @@ kann. Ziel ist macOS; Windows/Linux laufen mit, sind aber nicht der Schwerpunkt.
 | `extension/icons/` | Apple-artige Ersatzsymbole |
 | `extension/about/`, `extension/options/` | Fenster „Hilfe → halo.spaces…“ und Einstellungsseite |
 | `tests/halo_test.py` | automatischer Test per Marionette in frischem Profil |
+| `tests/testserver.py` | lokaler IMAP-/SMTP-Testserver (nur 127.0.0.1, erfundene Daten) für die Prüfungen mit Testkonto |
+| `tests/ui_tour.py` | Rundgang: Bilder aller Oberflächen (Design-Durchsicht) |
 | `tests/beta.sh` | gleicher Test mit Thunderbird Beta |
 | `tests/mac-mini-setup.sh`, `tests/mac-runner-hook.sh`, `tests/MAC-MINI.md` | Mac mini als Testrechner: Prüfen/Einrichten, Wächter für den GitHub-Runner, Anleitung |
 | `tests/win-vm-setup.ps1` | Windows-Seite der Test-VM (Energie, Sperre, Thunderbird, Python), aufgerufen von `mac-mini-setup.sh` |

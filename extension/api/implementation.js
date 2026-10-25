@@ -233,7 +233,6 @@ const DE = {
   "City not found": "Stadt nicht gefunden",
   "Weather in the Today Pane?": "Wetter in der Today-Pane?",
   "The symbol next to the title then shows the weather – asks open-meteo.com about every 30 minutes.": "Das Symbol neben dem Titel zeigt dann das Wetter – fragt etwa alle 30 Minuten bei open-meteo.com nach.",
-  "Current Location": "Aktueller Standort",
   "City …": "Stadt …",
   "No": "Nein",
   "e.g. Vienna": "z. B. Wien",
@@ -269,6 +268,7 @@ const DE = {
   "Follow Up": "Nachfassen",
   "Dismiss": "Ausblenden",
   "No reply for {d} days: “{s}” to {to}": "Seit {d} Tagen keine Antwort: „{s}“ an {to}",
+  "My Location": "Mein Standort",
 };
 const FR = {
   "Install version {v}": "Installer la version {v}",
@@ -473,7 +473,6 @@ const FR = {
   "City not found": "Ville introuvable",
   "Weather in the Today Pane?": "Météo dans le panneau Aujourd’hui ?",
   "The symbol next to the title then shows the weather – asks open-meteo.com about every 30 minutes.": "Le symbole à côté du titre affiche alors la météo – interroge open-meteo.com environ toutes les 30 minutes.",
-  "Current Location": "Position actuelle",
   "City …": "Ville …",
   "No": "Non",
   "e.g. Vienna": "p. ex. Vienne",
@@ -509,6 +508,7 @@ const FR = {
   "Follow Up": "Relancer",
   "Dismiss": "Masquer",
   "No reply for {d} days: “{s}” to {to}": "Pas de réponse depuis {d} jours : « {s} » à {to}",
+  "My Location": "Ma position",
 };
 const ES = {
   "Install version {v}": "Instalar la versión {v}",
@@ -713,7 +713,6 @@ const ES = {
   "City not found": "Ciudad no encontrada",
   "Weather in the Today Pane?": "¿Tiempo en el panel Hoy?",
   "The symbol next to the title then shows the weather – asks open-meteo.com about every 30 minutes.": "El símbolo junto al título muestra entonces el tiempo – consulta open-meteo.com cada 30 minutos aprox.",
-  "Current Location": "Ubicación actual",
   "City …": "Ciudad …",
   "No": "No",
   "e.g. Vienna": "p. ej. Viena",
@@ -749,6 +748,7 @@ const ES = {
   "Follow Up": "Hacer seguimiento",
   "Dismiss": "Descartar",
   "No reply for {d} days: “{s}” to {to}": "Sin respuesta desde hace {d} días: «{s}» a {to}",
+  "My Location": "Mi ubicación",
 };
 const IT = {
   "Install version {v}": "Installa la versione {v}",
@@ -953,7 +953,6 @@ const IT = {
   "City not found": "Città non trovata",
   "Weather in the Today Pane?": "Meteo nel pannello Oggi?",
   "The symbol next to the title then shows the weather – asks open-meteo.com about every 30 minutes.": "Il simbolo accanto al titolo mostra allora il meteo – interroga open-meteo.com circa ogni 30 minuti.",
-  "Current Location": "Posizione attuale",
   "City …": "Città …",
   "No": "No",
   "e.g. Vienna": "es. Vienna",
@@ -989,6 +988,7 @@ const IT = {
   "Follow Up": "Sollecita",
   "Dismiss": "Ignora",
   "No reply for {d} days: “{s}” to {to}": "Nessuna risposta da {d} giorni: «{s}» a {to}",
+  "My Location": "La mia posizione",
 };
 const TRANSLATIONS = { de: DE, fr: FR, es: ES, it: IT };
 // tr("+{n} more", { n: 3 }) – Platzhalter in geschweiften Klammern
@@ -13199,7 +13199,7 @@ class CardEnhancer {
     const question = el("p", "q", tr("Weather in the Today Pane?"));
     const hint = el("p", "small", tr("The symbol next to the title then shows the weather – asks open-meteo.com about every 30 minutes."));
     const choices = el("div", "choices");
-    const here = el("button", "capsule", tr("Current Location"));
+    const here = el("button", "capsule", tr("My Location"));
     const city = el("button", "capsule", tr("City …"));
     const no = el("button", "capsule", tr("No"));
     choices.append(here, city, no);
