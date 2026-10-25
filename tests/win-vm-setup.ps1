@@ -100,6 +100,16 @@ if ($Benutzer) {
     RegSetzen "HKCU:\Software\Microsoft\Windows NT\CurrentVersion\Winlogon" "EnableGoodbye" 0
     ok "Bildschirmschoner und Sperre" "ausgeschaltet"
   }
+  # Skalierung 100 %: sonst ist der Bildschirm (1920 × 1080, setzt win-display.ps1 vor jedem Lauf)
+  # für Windows nur 1536 × 864 groß und das 1500 × 900 große Testfenster ragt darüber hinaus
+  $dpi = RegWert $desk "LogPixels"
+  if ($dpi -eq 96) { ok "Skalierung" "100 %" }
+  elseif ($Check) { offen "Skalierung" "LogPixels=$dpi (soll 96 = 100 %)" }
+  else {
+    RegSetzen $desk "LogPixels" 96
+    RegSetzen $desk "Win8DpiScaling" 1
+    hinweis "Skalierung" "auf 100 % gestellt – gilt nach der nächsten Anmeldung (VM neu starten)"
+  }
   $hell = RegWert "HKCU:\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize" "AppsUseLightTheme"
   hinweis "Farbschema" $(if ($hell -eq 0) { "dunkel" } else { "hell" })
   exit [int]($script:offen -gt 0)

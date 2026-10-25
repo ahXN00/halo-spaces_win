@@ -9676,15 +9676,18 @@ class CardEnhancer {
     let full;
     if (collapsing) {
       full = pane.getBoundingClientRect().width;
-      pane.__mcShownWidth = full;
+      // (gilt nur, solange Fenster und gespeicherte Breite gleich bleiben)
+      pane.__mcShown = { full, grid: grid.getBoundingClientRect().width, saved: splitter.width };
     } else {
       splitter.isCollapsed = false;
       // Zielbreite: so breit wie vor dem Ausblenden (in engen Fenstern schmaler
       // als die gespeicherte des Teilers – sonst sprang sie im letzten Bild),
       // sonst die gespeicherte – gemessen wäre sie hier noch zu schmal (die
       // Leseansicht hält im Raster noch ihre volle Breite)
-      full = pane.__mcShownWidth || Math.max(splitter.width || 0, pane.getBoundingClientRect().width);
-      delete pane.__mcShownWidth;
+      const shownBefore = pane.__mcShown;
+      const same = shownBefore && Math.abs(shownBefore.grid - grid.getBoundingClientRect().width) < 2 && shownBefore.saved == splitter.width;
+      full = same ? shownBefore.full : Math.max(splitter.width || 0, pane.getBoundingClientRect().width);
+      delete pane.__mcShown;
     }
     if (!full) {
       return;
@@ -9747,7 +9750,7 @@ class CardEnhancer {
       this.offsetUpdaters?.forEach(fn => fn());
       endFolder = collapsing ? 0 : pane.getBoundingClientRect().width;
       endMsg = msgPane.getBoundingClientRect().width;
-      endMsgProp = grid.style.getPropertyValue(msgProp);
+      endMsgProp = grid.style.getPropertyValue(msgProp) || ab.getComputedStyle(grid).getPropertyValue(msgProp);
       pane.style.minWidth = "0px";
       pane.classList.add("mc-side-anim");
       pane.style.removeProperty("width");
@@ -9783,9 +9786,13 @@ class CardEnhancer {
       // sprang im letzten Bild auf ihre Mindestbreite von 160 px)
       pane.style.minWidth = `${width}px`;
       if (vertical) {
-        // Leseansicht gleichmäßig von ihrer Ausgangs- zur gemessenen Endbreite
-        const msg = msgStart + (endMsg - msgStart) * curve(k);
-        grid.style.setProperty(msgProp, `${Math.max(0, msg - msgExtra)}px`);
+        // Leseansicht gleichmäßig von ihrer Ausgangs- zur gemessenen Endbreite – als
+        // Rastervariable, damit das letzte Bild genau dem Endwert entspricht (unter
+        // Windows ändert sich unterwegs der Zuschlag für die Bildlaufleiste)
+        const from = msgStart - msgExtra;
+        const to = parseFloat(endMsgProp);
+        const msg = Number.isFinite(to) ? from + (to - from) * curve(k) : msgStart + (endMsg - msgStart) * curve(k) - msgExtra;
+        grid.style.setProperty(msgProp, `${Math.max(0, msg)}px`);
       }
       this.offsetUpdaters?.forEach(fn => fn());
       if (k < 1) {

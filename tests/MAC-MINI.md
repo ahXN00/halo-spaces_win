@@ -367,6 +367,7 @@ Paket aus `dist/`, hell oder dunkel, Screenshots zurück auf den Mac.
 | Freigabe | nur `~/halo-vm` (in Windows `\\Mac\halo`), kein geteiltes Profil, keine geteilten Programme | die VM sieht nichts vom Benutzerordner |
 | Windows | automatische Anmeldung, kein Ruhezustand, keine Bildschirmsperre, kein Sperrbildschirm, kein Update-Neustart bei angemeldetem Benutzer | Thunderbird braucht eine Sitzung |
 | Programme | Thunderbird (x64, `C:\Program Files\Mozilla Thunderbird`), Beta (`C:\Program Files\Thunderbird Beta`), Python 3.15 (ARM64), Git für Windows (für `openssl`) | Mozilla baut Thunderbird nicht für ARM64 – läuft unter der Windows-Emulation |
+| Bildschirm | 1920 × 1080 bei Skalierung 100 % | ohne Fenster der VM wählt Parallels 1024 × 768 – das 1500 × 900 große Testfenster ragte darüber hinaus (Schnellfenster-Lage, Breiten rot); `halo_test.py --vm` stellt die Auflösung vor jedem Lauf ein (`tests/win-display.ps1`), die Skalierung `win-vm-setup.ps1 -Benutzer` |
 | Snapshot | `sauber` nach der Einrichtung | zurück: `prlctl snapshot-switch "Windows 11" --id <id>` (`prlctl snapshot-list`) |
 
 Am Bildschirm (einmalig, nicht per Skript): Windows installieren und aktivieren,
