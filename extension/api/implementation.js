@@ -11591,6 +11591,16 @@ class CardEnhancer {
         sss.unregisterSheet(plain, sss.USER_SHEET);
       }
     });
+    // gedruckte Mail im Stil von Apple Mail (print.css) – gehört zum Design
+    const print = Services.io.newURI(`resource://mailcards/print.css?v=${extensionVersion}`);
+    if (Services.prefs.getBoolPref("extensions.mailcards.bundledTheme", true) && !sss.sheetRegistered(print, sss.USER_SHEET)) {
+      sss.loadAndRegisterSheet(print, sss.USER_SHEET);
+    }
+    this.restorers.push(() => {
+      if (sss.sheetRegistered(print, sss.USER_SHEET)) {
+        sss.unregisterSheet(print, sss.USER_SHEET);
+      }
+    });
     // Ungelesene Mails leicht in Akzentfarbe (Option, Standard aus) – schaltet sofort um
     const tint = Services.io.newURI(`resource://mailcards/unread-tint.css?v=${extensionVersion}`);
     const applyTint = () => {

@@ -4750,6 +4750,36 @@ def run_checks(m, version, profile, results):
         return ok, f"{res}"
     check("Leseansicht: breiter Newsletter auf die Lesebreite verkleinert, schmale Mail unverändert", wide_newsletter, results)
 
+    def print_style():
+        # gedruckte Mail wie Apple Mail: Kopf in Systemschrift, Beschriftungen halbfett grau, Betreff fett, feine Linie
+        # darunter, Textmail in Systemschrift (Druckdarstellung über mediumOverride = "print" nachgestellt)
+        res = m.js(r"""
+          const { MailServices } = ChromeUtils.importESModule("resource:///modules/MailServices.sys.mjs");
+          const root = MailServices.accounts.localFoldersServer.rootFolder;
+          if (!root.containsChildNamed("Druck")) { root.createSubfolder("Druck", null); await wait(800); }
+          const f = root.getChildNamed("Druck"); const lf = f.QueryInterface(Ci.nsIMsgLocalMailFolder);
+          if (!f.getTotalMessages(false)) {
+            lf.addMessage("From: Anna Beispiel <anna@example.invalid>\r\nTo: Halo Test <halo@example.invalid>\r\nCc: Ben <ben@example.invalid>\r\nSubject: Druckprobe\r\nDate: Sat, 17 Oct 2026 10:00:00 +0200\r\nMessage-ID: <halo-print@example.invalid>\r\n\r\nHallo,\r\ndas ist eine Probe.\r\n");
+            await wait(800);
+          }
+          const a3 = await toMail(); a3.displayFolder(f.URI); await wait(800); a3.threadTree.selectedIndex = 0; await wait(1500);
+          const mp = a3.messageBrowser.contentDocument.getElementById("messagepane");
+          const md = mp.contentDocument, mw = mp.contentWindow, cs = e => mw.getComputedStyle(e);
+          const before = cs(md.querySelector(".moz-main-header")).display;
+          mp.browsingContext.mediumOverride = "print"; await wait(300);
+          try {
+            const h1 = md.querySelector(".moz-header-part1"), last = [...md.querySelectorAll(".moz-main-header")].pop();
+            const label = md.querySelector(".moz-header-display-name"), subj = h1.querySelector("tr td");
+            const pre = md.querySelector(".moz-text-plain pre");
+            return { before, shown: cs(h1).display, font: cs(h1).fontFamily, label: [cs(label).fontWeight, cs(label).color], subject: cs(subj).fontWeight,
+                     line: [cs(last).borderBottomStyle, cs(last).borderBottomWidth], body: cs(pre).fontFamily };
+          } finally { mp.browsingContext.mediumOverride = ""; }""")
+        ok = (res["before"] == "none" and res["shown"] != "none" and ("-apple-system" in res["font"] or "system-ui" in res["font"])
+              and res["label"][0] == "600" and res["subject"] == "700" and res["line"][0] == "solid"
+              and ("-apple-system" in res["body"] or "system-ui" in res["body"]))
+        return ok, f"{res}"
+    check("Drucken: Mail mit Kopf wie Apple Mail (Systemschrift, Beschriftungen grau, Betreff fett, Linie), Text in Systemschrift", print_style, results)
+
     def remote_bar():
         res = m.js(r"""
           const { MailServices } = ChromeUtils.importESModule("resource:///modules/MailServices.sys.mjs");
