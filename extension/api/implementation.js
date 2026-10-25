@@ -1177,9 +1177,9 @@ function hookPrefCategories(cw, restorers = null) {
       if (pane.options) {
         loadOptionsPane(cw, box);
       } else if (!overlays.has(pane.value)) {
-        const browser = embedPage(host, pane.src);
-        overlays.set(pane.value, browser);
-        detach.push(attachSubnav(subs, browser, pane.src));
+        const browserEl = embedPage(host, pane.src);
+        overlays.set(pane.value, browserEl);
+        detach.push(attachSubnav(subs, browserEl, pane.src));
         mark();
       }
     };
@@ -1263,10 +1263,10 @@ function hookPrefCategories(cw, restorers = null) {
   // (Browser verhalten sich wie Bilder: Breite und Höhe ausdrücklich, Abstände allein dehnen sie nicht)
   const place = () => {
     const x = Math.max(0, Math.round(sidebar?.getBoundingClientRect().right || 0));
-    for (const browser of overlays.values()) {
-      browser.style.insetInlineStart = `${x}px`;
-      browser.style.width = `${Math.max(0, host.clientWidth - x)}px`;
-      browser.style.height = `${host.clientHeight}px`;
+    for (const browserEl of overlays.values()) {
+      browserEl.style.insetInlineStart = `${x}px`;
+      browserEl.style.width = `${Math.max(0, host.clientWidth - x)}px`;
+      browserEl.style.height = `${host.clientHeight}px`;
     }
   };
   const ro = new cw.ResizeObserver(place);
@@ -1283,8 +1283,8 @@ function hookPrefCategories(cw, restorers = null) {
       folded = false; // neue Kategorie: Unterpunkte wieder offen
     }
     doc.documentElement.toggleAttribute("mc-embed", PREF_PANES.some(p => p.value == value));
-    for (const [key, browser] of overlays) {
-      browser.hidden = key != value;
+    for (const [key, browserEl] of overlays) {
+      browserEl.hidden = key != value;
     }
     for (const subs of categories.querySelectorAll(".mc-subcats")) {
       subs.hidden = folded || subs.id != "mcSub-" + value;
@@ -1328,7 +1328,7 @@ function hookPrefCategories(cw, restorers = null) {
     detach.forEach(f => f());
     const was = categories.selectedItem?.classList.contains("mc-embed-cat");
     added.forEach(el => el.remove());
-    overlays.forEach(browser => browser.remove());
+    overlays.forEach(browserEl => browserEl.remove());
     if (footer) {
       footer.hidden = false;
     }
@@ -1605,13 +1605,13 @@ class ConversationCards {
   loadCard(card) {
     const doc = this.win.document;
     const hdr = card.__mcHdr;
-    const browser = doc.createXULElement("browser");
-    browser.setAttribute("src", "about:message");
-    browser.className = "mc-conv-browser";
-    card.append(browser);
+    const browserEl = doc.createXULElement("browser");
+    browserEl.setAttribute("src", "about:message");
+    browserEl.className = "mc-conv-browser";
+    card.append(browserEl);
     const fit = () => {
       try {
-        const cdoc = browser.contentDocument;
+        const cdoc = browserEl.contentDocument;
         const mp = cdoc?.getElementById("messagepane");
         const inner = mp?.contentDocument?.documentElement;
         if (!inner) {
@@ -1620,13 +1620,13 @@ class ConversationCards {
         // Kopf, Anhänge … (alles außer dem Mailtext) plus die volle Höhe des Mailtexts
         const rest = cdoc.documentElement.scrollHeight - mp.getBoundingClientRect().height;
         const height = Math.ceil(rest + Math.max(inner.scrollHeight, inner.offsetHeight)) + 2;
-        if (Math.abs(parseFloat(browser.style.height || 0) - height) > 1) {
-          browser.style.height = `${height}px`;
+        if (Math.abs(parseFloat(browserEl.style.height || 0) - height) > 1) {
+          browserEl.style.height = `${height}px`;
         }
       } catch {}
     };
-    browser.addEventListener("load", () => {
-      const cw = browser.contentWindow;
+    browserEl.addEventListener("load", () => {
+      const cw = browserEl.contentWindow;
       if (!cw?.displayMessage || card.__mcLoaded) {
         return;
       }
@@ -1637,9 +1637,9 @@ class ConversationCards {
         log("conversation display error", e);
       }
     }, true);
-    browser.addEventListener("MsgLoaded", () => {
+    browserEl.addEventListener("MsgLoaded", () => {
       fit();
-      const mp = browser.contentDocument?.getElementById("messagepane");
+      const mp = browserEl.contentDocument?.getElementById("messagepane");
       const iw = mp?.contentWindow;
       if (iw && !mp.__mcFit) {
         mp.__mcFit = true;
@@ -1650,6 +1650,19 @@ class ConversationCards {
       this.win.setTimeout(fit, 300);
     }, true);
   }
+}
+
+// „Bewegung reduzieren“ (macOS: Bedienungshilfen → Anzeige; Windows:
+// Animationseffekte aus): eigene Animationen springen dann sofort ans Ende
+// (1 ms statt 0 – die Schrittfunktionen teilen durch die Dauer)
+function motionMs(ms) {
+  try {
+    const win = Services.wm.getMostRecentWindow("mail:3pane");
+    if (win?.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      return 1;
+    }
+  } catch {}
+  return ms;
 }
 
 // Breite Newsletter (feste 600–700 px) wie Apple Mail auf die Lesebreite
@@ -3187,20 +3200,20 @@ async function openHaloSettings(w) {
 function embedPage(host, src) {
   const cdoc = host.ownerDocument;
   host.classList.add("mc-embed-host");
-  const browser = cdoc.createXULElement("browser");
-  browser.className = "mc-embed-page";
-  browser.setAttribute("type", "content");
-  browser.setAttribute("disableglobalhistory", "true");
-  browser.setAttribute("src", src);
-  browser.hidden = true;
+  const browserEl = cdoc.createXULElement("browser");
+  browserEl.className = "mc-embed-page";
+  browserEl.setAttribute("type", "content");
+  browserEl.setAttribute("disableglobalhistory", "true");
+  browserEl.setAttribute("src", src);
+  browserEl.hidden = true;
   if (src == "about:addons") {
     // ohne frühere Wahl die Liste der Erweiterungen statt der Empfehlungen (lädt aus dem Netz)
     const onLoad = () => {
-      const aw = browser.contentWindow;
+      const aw = browserEl.contentWindow;
       if (!aw?.promiseInitialized) {
         return; // erst das leere Startdokument
       }
-      browser.removeEventListener("load", onLoad, true);
+      browserEl.removeEventListener("load", onLoad, true);
       aw.promiseInitialized.then(() => {
         // (Thunderbird merkt sich die Empfehlungen selbst als zuletzt gewählt)
         if (aw.gViewController?.currentViewId?.startsWith("addons://discover")) {
@@ -3208,14 +3221,14 @@ function embedPage(host, src) {
         }
       });
     };
-    browser.addEventListener("load", onLoad, true);
+    browserEl.addEventListener("load", onLoad, true);
   }
   // Merkmal fürs CSS: eingebettet (Links zurück zu den Einstellungen ausblenden)
-  browser.addEventListener("DOMContentLoaded", () => {
-    browser.contentDocument?.documentElement?.setAttribute("mc-embedded", "");
+  browserEl.addEventListener("DOMContentLoaded", () => {
+    browserEl.contentDocument?.documentElement?.setAttribute("mc-embedded", "");
   }, true);
-  host.append(browser);
-  return browser;
+  host.append(browserEl);
+  return browserEl;
 }
 
 // Unterpunkte der eingebetteten Seite (Konten mit ihren Seiten bzw.
@@ -3285,14 +3298,14 @@ const SUBNAV = {
     return { watch: tree, entries };
   },
 };
-function attachSubnav(list, browser, src) {
+function attachSubnav(list, browserEl, src) {
   const read = SUBNAV[src];
   const cdoc = list.ownerDocument;
   let observed = null, timer = 0;
   const mo = new cdoc.defaultView.MutationObserver(() => schedule());
   const render = () => {
     timer = 0;
-    const d = browser.contentDocument;
+    const d = browserEl.contentDocument;
     const nav = d && read(d);
     if (nav && nav.watch != observed) {
       mo.disconnect();
@@ -3326,15 +3339,15 @@ function attachSubnav(list, browser, src) {
   };
   // Thunderbird 140+ setzt die Auswahl der Add-ons nur als Eigenschaft
   const onView = () => schedule();
-  browser.addEventListener("load", schedule, true);
-  browser.addEventListener("view-selected", onView, true);
-  browser.addEventListener("select", onView, true);
+  browserEl.addEventListener("load", schedule, true);
+  browserEl.addEventListener("view-selected", onView, true);
+  browserEl.addEventListener("select", onView, true);
   schedule();
   return () => {
     mo.disconnect();
-    browser.removeEventListener("load", schedule, true);
-    browser.removeEventListener("view-selected", onView, true);
-    browser.removeEventListener("select", onView, true);
+    browserEl.removeEventListener("load", schedule, true);
+    browserEl.removeEventListener("view-selected", onView, true);
+    browserEl.removeEventListener("select", onView, true);
   };
 }
 
@@ -3407,34 +3420,34 @@ function loadOptionsPane(cw, box) {
   // ?in=prefs: Seite gestaltet sich wie die übrigen Kategorien der Einstellungen;
   // #s-<key>: aus der Suche gewählte Option zeigen
   const url = extensionBaseURL + "options/options.html?in=prefs" + (box.__mcFocus ? `#s-${box.__mcFocus}` : "");
-  const browser = doc.createXULElement("browser");
-  browser.className = "mc-embed-frame";
+  const browserEl = doc.createXULElement("browser");
+  browserEl.className = "mc-embed-frame";
   for (const [k, v] of [["type", "content"], ["disableglobalhistory", "true"], ["messagemanagergroup", "webext-browsers"],
     ["transparent", "true"], ["forcemessagemanager", "true"]]) {
-    browser.setAttribute(k, v);
+    browserEl.setAttribute(k, v);
   }
   const policy = ExtensionParent.WebExtensionPolicy.getByID("mail-cards@sebastian.local");
   if (policy) {
-    browser.setAttribute("initialBrowsingContextGroupId", policy.browsingContextGroupId);
+    browserEl.setAttribute("initialBrowsingContextGroupId", policy.browsingContextGroupId);
   }
   const remoteType = ChromeUtils.predictRemoteTypeForURI(url, { window: cw, preferredRemoteType: E10SUtils.EXTENSION_REMOTE_TYPE });
   const remote = remoteType !== E10SUtils.NOT_REMOTE;
   if (remote) {
-    browser.setAttribute("remote", "true");
-    browser.setAttribute("remoteType", remoteType);
+    browserEl.setAttribute("remote", "true");
+    browserEl.setAttribute("remoteType", remoteType);
   }
-  const ready = new Promise(resolve => browser.addEventListener(remote ? "XULFrameLoaderCreated" : "load", resolve, { once: true, capture: !remote }));
-  box.append(browser);
-  browser.clientTop; // Bindungen sofort anwenden
+  const ready = new Promise(resolve => browserEl.addEventListener(remote ? "XULFrameLoaderCreated" : "load", resolve, { once: true, capture: !remote }));
+  box.append(browserEl);
+  browserEl.clientTop; // Bindungen sofort anwenden
   ready.then(() => {
-    const mm = browser.messageManager;
+    const mm = browserEl.messageManager;
     if (!mm) {
       return; // inzwischen entfernt
     }
-    ExtensionParent.apiManager.emit("extension-browser-inserted", browser);
+    ExtensionParent.apiManager.emit("extension-browser-inserted", browserEl);
     mm.loadFrameScript("chrome://extensions/content/ext-browser-content.js", false, true);
     mm.sendAsyncMessage("Extension:InitBrowser", { fixedWidth: false, isInline: true });
-    browser.fixupAndLoadURIString(url, { triggeringPrincipal: Services.scriptSecurityManager.getSystemPrincipal() });
+    browserEl.fixupAndLoadURIString(url, { triggeringPrincipal: Services.scriptSecurityManager.getSystemPrincipal() });
   }).catch(e => log("halo pane error", e));
 }
 
@@ -5385,8 +5398,8 @@ const ThemeSheet = {
   // Adressbuch …): deren Browser sind eigene Bäume, nicht Teil des Fensters
   contexts(top) {
     const roots = [top?.browsingContext];
-    for (const browser of top?.document?.querySelectorAll("browser") || []) {
-      roots.push(browser.browsingContext);
+    for (const browserEl of top?.document?.querySelectorAll("browser") || []) {
+      roots.push(browserEl.browsingContext);
     }
     const all = new Set();
     for (const root of roots) {
@@ -7540,7 +7553,7 @@ class CardEnhancer {
         state.calendar = state.tasks = !show;
       }
       Services.prefs.setStringPref(SIDE_PREF, JSON.stringify(state));
-      const DURATION = 250;
+      const DURATION = motionMs(250);
       const curve = cubicBezier(0.25, 0.1, 0.25, 1);
       unCollapse(el, splitter);
       if (show) {
@@ -10045,7 +10058,7 @@ class CardEnhancer {
     const pane = ab.document.getElementById("folderPane");
     const grid = splitter.parentNode;
     const prop = "--folderPaneSplitter-width";
-    const DURATION = 250;
+    const DURATION = motionMs(250);
     const curve = cubicBezier(0.25, 0.1, 0.25, 1);
     const collapsing = !splitter.isCollapsed;
     // Leseansicht vor jeder Änderung messen (beim Einblenden klappt Thunderbird
@@ -10369,7 +10382,7 @@ class CardEnhancer {
       return;
     }
     const FULL = 67;
-    const DURATION = 250;
+    const DURATION = motionMs(250);
     const curve = cubicBezier(0.25, 0.1, 0.25, 1);
     const showing = spaces.isHidden;
     // Die Breite nicht als Variable am Wurzelelement ändern – das ließe
@@ -11114,7 +11127,7 @@ class CardEnhancer {
     if (showing) {
       d.getElementById("unifiedToolbarContainer")?.style.setProperty("--mc-tp-room", `${Math.round(full)}px`);
     }
-    const DURATION = 250;
+    const DURATION = motionMs(250);
     const curve = cubicBezier(0.25, 0.1, 0.25, 1);
     const PROPS = ["overflow", "min-width", "width", "max-width", "position", "inset-block", "inset-inline-end", "z-index"];
     const saved = PROPS.map(p => [p, panel.style.getPropertyValue(p), panel.style.getPropertyPriority(p)]);
@@ -11259,12 +11272,12 @@ class CardEnhancer {
     // Teiler kennt kein Maximum, daher hier die kleinste Breite der Nachricht
     const minMessageWidth = () => {
       const pane = win.document.getElementById("messagePane");
-      const browser = win.browsingContext.embedderElement;
+      const browserEl = win.browsingContext.embedderElement;
       const row = top.document.getElementById("unifiedToolbarContainer");
-      if (!pane || !browser || !row || !win.document.body.classList.contains("layout-vertical")) {
+      if (!pane || !browserEl || !row || !win.document.body.classList.contains("layout-vertical")) {
         return 0;
       }
-      const msgRight = browser.getBoundingClientRect().left + pane.getBoundingClientRect().right;
+      const msgRight = browserEl.getBoundingClientRect().left + pane.getBoundingClientRect().right;
       const want = toolbarNeed(top.document, true) - (row.getBoundingClientRect().right - msgRight);
       // die Liste selbst nie schmaler als ihre Mindestbreite (CSS) machen
       const list = threadPane.getBoundingClientRect();
@@ -11341,8 +11354,8 @@ class CardEnhancer {
     };
     const update = () => {
       const content = top.document.getElementById("unifiedToolbarContent");
-      const browser = win.browsingContext.embedderElement;
-      if (!content || !browser || win.closed || top.__mcSpacesAnimating) {
+      const browserEl = win.browsingContext.embedderElement;
+      if (!content || !browserEl || win.closed || top.__mcSpacesAnimating) {
         return;
       }
       keepListWidth();
@@ -11351,7 +11364,7 @@ class CardEnhancer {
       // sonst überschreibt ein zweiter Mail-Tab im Hintergrund die Kanten
       // (auch nicht, solange ein anderer Bereich vorne ist)
       const current = top.document.getElementById("tabmail")?.currentTabInfo;
-      if (current?.chromeBrowser != browser) {
+      if (current?.chromeBrowser != browserEl) {
         return;
       }
       fixFolderLock();
@@ -11381,7 +11394,7 @@ class CardEnhancer {
       } else {
         listRight = (folderRect?.right || 0) + (this.lastListRight ?? 0);
       }
-      const paneRight = browser.getBoundingClientRect().left + listRight;
+      const paneRight = browserEl.getBoundingClientRect().left + listRight;
       // für die übrigen Bereiche merken: dort beginnen die Knöpfe an derselben
       // Stelle, und die Kontaktliste im Adressbuch ist so breit wie die Mailliste
       this.mcButtonsLeft = paneRight + 6;
@@ -11435,7 +11448,7 @@ class CardEnhancer {
       if (folderPane && row) {
         const fr = folderPane.getBoundingClientRect();
         const right = fr.width
-          ? browser.getBoundingClientRect().left + fr.right - row.getBoundingClientRect().left
+          ? browserEl.getBoundingClientRect().left + fr.right - row.getBoundingClientRect().left
           : 0;
         setBarVar(top.document, "--mc-sidebar-right", `${Math.max(0, Math.round(right))}px`
         );
@@ -12428,6 +12441,48 @@ class CardEnhancer {
     }
   }
 
+  // Archivieren, Löschen, Spam wie in Apple Mail: die gewählten Karten gleiten
+  // kurz nach links weg (150 ms), dann führt Thunderbird den Befehl aus. Nur in
+  // der Kartenansicht, nicht bei „Bewegung reduzieren“; die Animation endet,
+  // sobald Thunderbird die nächste Mail wählt (Zeilen werden wiederverwendet)
+  hookCardExit(win) {
+    const cc = win.commandController;
+    if (!cc || cc.__mcExit) {
+      return;
+    }
+    cc.__mcExit = true;
+    const orig = cc.doCommand;
+    const EXIT = new Set(["cmd_archive", "cmd_delete", "cmd_shiftDelete", "cmd_deleteMessage", "cmd_markAsJunk"]);
+    let busy = false;
+    cc.doCommand = function (command, ...args) {
+      if (EXIT.has(command) && !busy && motionMs(150) > 1 && this.isCommandEnabled?.(command)) {
+        const cards = [...win.document.querySelectorAll('#threadTree tr[is="thread-card"]:is(.selected, [aria-selected="true"]) .card-container')];
+        if (cards.length && cards.length <= 20) {
+          busy = true;
+          const anims = cards.map(c => c.animate(
+            [{ transform: "none", opacity: 1 }, { transform: "translateX(-28px)", opacity: 0 }],
+            { duration: 150, easing: "ease-in", fill: "forwards" }));
+          const stop = () => anims.forEach(a => a.cancel());
+          win.setTimeout(() => {
+            try {
+              orig.call(this, command, ...args);
+            } finally {
+              busy = false;
+              win.addEventListener("select", () => win.setTimeout(stop, 0), { once: true, capture: true });
+              win.setTimeout(stop, 800);
+            }
+          }, 150);
+          return undefined;
+        }
+      }
+      return orig.call(this, command, ...args);
+    };
+    this.addWinRestorer(win, () => {
+      cc.doCommand = orig;
+      delete cc.__mcExit;
+    });
+  }
+
   // Schnellfilter-Leiste nie zeigen: Thunderbirds Befehle dafür (Knopf in
   // der Symbolleiste, Menü, ⇧⌘K) schalten stattdessen den Filter um bzw.
   // setzen den Cursor ins Suchfeld; „Zurücksetzen“ (z. B. beim Springen zu
@@ -12532,6 +12587,7 @@ class CardEnhancer {
     safely("dialog box", () => shareDialogBox(win, { push: fn => this.addWinRestorer(win, fn) }));
     safely("view choice", () => this.hookViewChoice(doc));
     safely("unread filter", () => this.hookUnreadFilter(win));
+    safely("card exit", () => this.hookCardExit(win));
     safely("star button", () => {
       // Stern-Knopf der Symbolleiste folgt der Auswahl („select“ der
       // Mailliste steigt nicht auf – darum in der Capture-Phase)

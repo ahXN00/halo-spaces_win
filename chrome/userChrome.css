@@ -11449,6 +11449,96 @@ notification-message toolbarbutton.notification-button > .toolbarbutton-menubutt
   }
 }
 
+/* ---------- Bewegung wie Apple Mail ----------
+   Auswahl und Überfahren in den Listen (Mailkarten, Ordner, Kontakte, Aufgaben,
+   Bereiche-Leiste) gleiten kurz über, statt hart umzuspringen; Kalender-
+   ansichten (Tag/Woche/Monat) und Bereiche blenden beim Wechsel weich ein.
+   Kurz (120–180 ms) wie in macOS – nichts wartet auf die Bewegung */
+#threadTree tr .card-container,
+#threadTree tr:not([is="thread-card"]),
+#folderTree li > .container,
+#cards .card-layout .card-container,
+.mc-tc,
+#mcSpacesBar button,
+#spacesToolbar .spaces-toolbar-button,
+#unifiedToolbarContent li button,
+#mcListHeader .mc-lh-tools > button {
+  transition: background-color 120ms ease-out, color 120ms ease-out, box-shadow 120ms ease-out;
+}
+
+@keyframes mc-view-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+}
+
+/* Kalender: gewählte Ansicht (Tag/Woche/Mehrwochen/Monat) blendet ein */
+#view-box > :is(#day-view, #week-view, #multiweek-view, #month-view):not([hidden]) {
+  animation: mc-view-in 180ms ease-out;
+}
+
+/* „Bewegung reduzieren“: keine Übergänge und Animationen (auch die eigenen
+   Ein-/Ausblend-Animationen der Seitenleisten springen dann, Erweiterung) */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 1ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 1ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* ---------- Bedienungshilfen: Kontrastdesign (Windows) ----------
+   forced-colors: active – Windows ersetzt die Farben durch die des Designs;
+   eigene Flächen ohne Rand (Kapseln, Karten, Auswahl) wären dann unsichtbar.
+   Auswahl in Highlight/HighlightText, Kapseln und Eingabefelder mit Rand in
+   ButtonText, Masken-Symbole in der Textfarbe */
+@media (forced-colors: active) {
+  :root {
+    --mt-accent: Highlight;
+    --mt-accent-text: HighlightText;
+  }
+
+  #threadTree tr:is(.selected, [aria-selected="true"]) .card-container,
+  #folderTree li.selected > .container,
+  #cards .card-layout.selected .card-container,
+  .mc-tc[aria-selected],
+  #mcTaskCards[data-focused] .mc-tc[aria-selected] {
+    forced-color-adjust: none;
+    background: Highlight !important;
+    color: HighlightText !important;
+  }
+
+  #threadTree tr:is(.selected, [aria-selected="true"]) .card-container *,
+  .mc-tc[aria-selected] * {
+    color: HighlightText !important;
+  }
+
+  :is(#unifiedToolbarContent li button, #mcListHeader .mc-lh-tools, #task-actions-toolbar, #mcSpacesToggle, #mcTodayToggle,
+      input:not([type="checkbox"], [type="radio"], [type="range"]), textarea, search-bar, global-search-bar, menulist) {
+    border: 1px solid ButtonText !important;
+  }
+
+  /* Symbole als Maske: Fläche in der Textfarbe des Designs */
+  :is(#unifiedToolbarContent li button .button-icon, #mcListHeader .mc-lh-tools > button::before,
+      #task-actions-toolbar > toolbarbutton::before, .mc-tc-check) {
+    forced-color-adjust: none;
+    background-color: ButtonText !important;
+  }
+
+  .mc-tc-check {
+    background-color: transparent !important;
+    border-color: ButtonText !important;
+  }
+
+  .mc-tc[data-completed] .mc-tc-check {
+    background-color: ButtonText !important;
+  }
+}
+
 /* ---------- Termin-Fenster wie Apple Kalender (mc-apple-event) ----------
    Die Erweiterung (appleEventLayout) stellt Thunderbirds Zeilen zu Karten um:
    Titel · Ganztägig/Beginn/Ende/Wiederholung/Erinnerung · Ort · Teilnehmer ·

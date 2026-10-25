@@ -5448,6 +5448,54 @@ def run_checks(m, version, profile, results):
     check("Seitenleiste: Ein-/Ausblenden in Mail, Chat, Einstellungen und Adressbuch gleich flüssig, Knopf bleibt stehen, Mailliste behält ihre Breite, kein grauer Balken", sidebar_animation, results)
 
 
+    def motion():
+        # Bewegung wie Apple Mail: gelöschte Karte gleitet weg, bevor Thunderbird sie entfernt; Kalenderansicht blendet
+        # beim Wechsel ein; Listen mit kurzem Übergang. „Bewegung reduzieren“ (ui.prefersReducedMotion): sofort, ohne
+        # Gleiten, Übergänge 1 ms
+        res = m.js(r"""
+          const { MailServices } = ChromeUtils.importESModule("resource:///modules/MailServices.sys.mjs");
+          const root = MailServices.accounts.localFoldersServer.rootFolder;
+          if (!root.containsChildNamed("Bewegung")) { root.createSubfolder("Bewegung", null); await wait(800); }
+          const f = root.getChildNamed("Bewegung"); const lf = f.QueryInterface(Ci.nsIMsgLocalMailFolder);
+          for (let i = f.getTotalMessages(false); i < 4; i++)
+            lf.addMessage(`From: Halo <h@example.invalid>\r\nSubject: Bewegung ${i}\r\nDate: Sat, 17 Oct 2026 10:0${i}:00 +0200\r\nMessage-ID: <halo-move-${i}-${Date.now()}@example.invalid>\r\n\r\nText ${i}\r\n`);
+          await wait(800);
+          const viewBefore = Services.prefs.getIntPref("mail.threadpane.listview", 0);
+          Services.prefs.setIntPref("mail.threadpane.listview", 0);
+          const a3 = await toMail(); a3.displayFolder(f.URI); await wait(1200);
+          const out = { visibility: d.visibilityState };
+          const del = async () => {
+            a3.threadTree.selectedIndex = 0; await wait(800);
+            const n0 = f.getTotalMessages(false);
+            a3.commandController.doCommand("cmd_delete");
+            const card = a3.document.querySelector('#threadTree tr[is="thread-card"]:is(.selected, [aria-selected="true"]) .card-container');
+            const r = { during: f.getTotalMessages(false) == n0, anims: card ? card.getAnimations().length : -1 };
+            await wait(900);
+            r.after = f.getTotalMessages(false) == n0 - 1;
+            r.leftover = [...a3.document.querySelectorAll('#threadTree tr[is="thread-card"] .card-container')].reduce((n, c) => n + c.getAnimations().length, 0);
+            r.transition = getComputedStyle(a3.document.querySelector('#threadTree tr[is="thread-card"] .card-container')).transitionDuration.split(",")[0];
+            return r; };
+          try {
+            out.normal = await del();
+            await toCalendar(); w.switchToView("day"); await wait(500); w.switchToView("week"); await wait(50);
+            out.view = getComputedStyle(d.getElementById("week-view")).animationName;
+            Services.prefs.setIntPref("ui.prefersReducedMotion", 1); await wait(500);
+            await toMail(); a3.displayFolder(f.URI); await wait(900);
+            out.reduced = await del();
+          } finally {
+            Services.prefs.clearUserPref("ui.prefersReducedMotion");
+            Services.prefs.setIntPref("mail.threadpane.listview", viewBefore);
+          }
+          return out;""")
+        n, r = res.get("normal") or {}, res.get("reduced") or {}
+        hidden = res.get("visibility") == "hidden"
+        dur = lambda t: float(t.rstrip("ms")) / (1000 if t.endswith("ms") else 1) if t else 0
+        ok = (n.get("during") and (n.get("anims") == 1 or hidden) and n.get("after") and n.get("leftover") == 0 and 0.05 <= dur(n.get("transition")) <= 0.25
+              and res.get("view") == "mc-view-in"
+              and r.get("anims") in (0, -1) and r.get("after") and r.get("transition") == "0.001s")
+        return ok, f"{res}"
+    check("Bewegung: Karte gleitet beim Löschen weg, Kalenderansicht blendet ein, Listen mit kurzem Übergang; „Bewegung reduzieren“ sofort", motion, results)
+
     def sidebar_no_jump():
         # Mail: Ordnerliste ein-/ausblenden ohne Ruck in den letzten Bildern – vertikal und klassisch, enges Fenster
         # (Leseansicht an ihrer Mindestbreite) und breites: Ordnerliste, Mailliste und Leseansicht ändern sich je Bild
