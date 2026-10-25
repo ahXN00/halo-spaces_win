@@ -7672,6 +7672,32 @@ def run_checks(m, version, profile, results):
         return ok, f"{res}"
     check("Einstellungen: eigene Kategorie „halo.spaces“ mit der Einstellungsseite der Erweiterung (Add-ons → Einstellungen bleibt)", pref_halo_category, results)
 
+    def pref_halo_search():
+        # Suche der Einstellungen findet die Optionen von halo.spaces („update“ → „Install updates at start“, „logos“ →
+        # „Logos from sender websites“), Treffer wie Thunderbirds eigene markiert; „Show“ öffnet halo.spaces bei der Option
+        res = m.js(PREFS_OPEN_JS + r"""
+          const input = pd.getElementById("searchInput");
+          const search = async q => { input.value = q; input.dispatchEvent(new pw.Event("command", { bubbles: true })); input.dispatchEvent(new pw.Event("input", { bubbles: true }));
+            await until(() => pd.getElementById("header-searchResults") && !pd.getElementById("header-searchResults").hidden, 3000); await wait(900);
+            return [...pd.querySelectorAll("#paneDeck > .mc-halo-found")].filter(e => !e.hidden && !e.classList.contains("visually-hidden") && e.getBoundingClientRect().height > 0)
+              .map(e => e.querySelector(".mc-halo-found-name").textContent); };
+          const out = {};
+          out.normal = [...pd.querySelectorAll("#paneDeck > .mc-halo-found")].filter(e => e.getBoundingClientRect().height > 0).length;
+          out.update = await search("update");
+          out.marked = pw.gSearchResultsPane.getFindSelection(pw).rangeCount > 0;
+          out.logos = await search("logos");
+          const hit = [...pd.querySelectorAll("#paneDeck > .mc-halo-found")].find(e => !e.classList.contains("visually-hidden") && e.getBoundingClientRect().height > 0);
+          hit?.querySelector(".mc-halo-found-show").click();
+          const b = await until(() => { const x = pd.querySelector("#mcPane-paneMcHalo > browser"); return x?.currentURI?.spec.includes("#s-") && x; }, 6000);
+          out.after = { cat: pd.getElementById("categories").selectedItem?.value, url: b?.currentURI?.spec.replace(/^moz-extension:\/\/[^/]+/, ""), search: input.value };
+          tm.closeTab(tm.currentTabInfo); await wait(400);
+          return out;""")
+        ok = (res.get("normal") == 0 and "Install updates at start" in res.get("update", []) and res.get("marked")
+              and res.get("logos") == ["Logos from sender websites"]
+              and res.get("after", {}).get("cat") == "paneMcHalo" and res["after"].get("url", "").endswith("#s-senderLogos") and res["after"].get("search") == "")
+        return ok, f"{res}"
+    check("Einstellungen: Suche findet die Optionen von halo.spaces, „Show“ zeigt die Option", pref_halo_search, results)
+
     def options_page_slim():
         # Einstellungsseite schlank: Breite der Mailliste und doppelte Kontakte nur in der Oberfläche,
         # Design/Symbole/Protokoll unter „Fehlerbehebung“; options.js (Seite läuft entfernt) in einer
@@ -7679,11 +7705,11 @@ def run_checks(m, version, profile, results):
         res = m.js('''
           const { ExtensionParent } = ChromeUtils.importESModule("resource://gre/modules/ExtensionParent.sys.mjs");
           const ext = ExtensionParent.GlobalManager.getExtension("%s"), g = ext.experimentAPIManager.global;
-          const src = await (await fetch(ext.baseURL + "options/options.js")).text();
+          const src = await (await fetch(ext.baseURL + "options/sections.js")).text() + "\\n" + await (await fetch(ext.baseURL + "options/options.js")).text();
           const sb = Cu.Sandbox(null);
           sb.browser = Cu.cloneInto({ mailCards: {} }, sb);
-          Cu.evalInSandbox(src.replace(/\\nrender\\(\\);\\s*$/, "\\n"), sb);
-          const sections = JSON.parse(Cu.evalInSandbox("JSON.stringify(SECTIONS())", sb)).map(([title, rows]) => [title, rows.map(r => r.key)]);
+          Cu.evalInSandbox(src.replace(/\\nrender\\(\\)[^\\n]*\\s*$/, "\\n").replace(/\\nwindow\\.addEventListener[^\\n]*/, "\\n"), sb);
+          const sections = JSON.parse(Cu.evalInSandbox("JSON.stringify(SECTIONS(t))", sb)).map(([title, rows]) => [title, rows.map(r => r.key)]);
           const used = [...src.matchAll(/\\bt\\("((?:[^"\\\\]|\\\\.)*)"\\)/g)].map(x => JSON.parse('"' + x[1] + '"'));
           const T = Cu.evalInSandbox("TRANSLATIONS", g), SETTINGS = Cu.evalInSandbox("SETTINGS", g);
           const api = Cu.evalInSandbox("mailCards.prototype.getAPI({})", g).mailCards, st = await api.getSettings();

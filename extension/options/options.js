@@ -8,53 +8,6 @@ const api = browser.mailCards;
 let TABLE = {};
 const t = english => TABLE[english] ?? english;
 
-// Nur was sich nicht direkt in der Oberfläche einstellen lässt (wie Apple Mail):
-// Breite der Mailliste (Trennlinie ziehen, Doppelklick), doppelte Kontakte
-// (Adressbuch → Ansicht), Vorschauzeilen (Mail → Ansicht) und Geburtstage
-// (Häkchen am Kalender „Geburtstage“ in der Kalenderliste) stehen hier
-// bewusst nicht; ihre Prefs bleiben
-const SECTIONS = () => [
-  [t("Mail"), [
-    { key: "fullConversation", label: t("Show whole conversation"),
-      hint: t("received and sent messages from all folders, newest first") },
-    { key: "unreadTint", label: t("Tint unread messages"),
-      hint: t("light accent colour behind unread messages, besides the dot") },
-    { key: "senderLogos", label: t("Logos from sender websites"),
-      hint: t("asks only the sender’s own website (favicon, BIMI) – off: no outside requests") },
-    { key: "macContactPhotos", mac: true, label: t("Photos from the Contacts app"),
-      hint: t("macOS asks for access once") },
-    { key: "plainTextSystemFont", label: t("Messages in system font"),
-      hint: t("like Apple Mail; messages with their own font keep it – off: Thunderbird’s fonts") },
-    { key: "hideCollectedAddresses", label: t("Hide “Collected Addresses”"),
-      hint: t("in the address book sidebar, like Apple Contacts – completion while writing keeps working") },
-  ]],
-  [t("Calendar"), [
-    { key: "calendarEmoji", label: t("Emojis before event titles"),
-      hint: t("🎂 birthday, 🏋️ training, 🦷 dentist …") },
-    { key: "emojiCustom", type: "textarea", label: t("Own keywords"),
-      hint: t("one per line, “keyword = emoji”, e.g. “Book club = 📖” – take precedence"),
-      placeholder: t("Book club = 📖\nChoir = 🎶") },
-    { key: "calendarOffline", label: t("Offline copy for online calendars"),
-      hint: t("faster loading; re-creates the calendars once") },
-  ]],
-  [t("Appearance"), [
-    { key: "inlinePrompts", label: t("Dialogs inside the window"),
-      hint: t("questions appear as a sheet at the top of the window, dialogs without title bar; for newly opened windows") },
-    { key: "earlyTheme", label: t("Design without flicker at start"),
-      hint: t("writes a userChrome.css into your profile; from the next start") },
-  ]],
-  [t("Updates"), [
-    { key: "autoUpdate", label: t("Install updates at start"), hint: t("checks at most every 6 hours; active after a restart") },
-  ]],
-  // Fehlerbehebung: nur abschalten, wenn etwas nicht stimmt
-  [t("Troubleshooting"), [
-    { key: "bundledTheme", label: t("halo.spaces design"), hint: t("takes effect after a restart") },
-    { key: "appleIcons", label: t("Own icons"), hint: t("takes effect after a restart") },
-    { key: "debug", label: t("Detailed log"),
-      hint: t("mail-cards-debug.log in the profile, includes sender addresses") },
-  ]],
-];
-
 function el(tag, props = {}, ...kids) {
   const node = document.createElement(tag);
   for (const [k, v] of Object.entries(props)) {
@@ -88,7 +41,7 @@ async function render() {
   // (wie „General“, „Language & Fonts“ …), links mit festem Abstand
   const inPrefs = new URLSearchParams(location.search).get("in") == "prefs";
   document.documentElement.classList.toggle("in-prefs", inPrefs);
-  for (const [title, rows] of SECTIONS()) {
+  for (const [title, rows] of SECTIONS(t)) {
     const section = el("section");
     for (const row of rows) {
       if (row.mac && !settings.mac) continue;
@@ -111,16 +64,27 @@ async function render() {
           clearTimeout(timer);
           timer = setTimeout(() => save(area.value), 500);
         });
-        section.append(el("div", { class: "row block" }, text, area));
+        section.append(el("div", { class: "row block", id: `row-${row.key}` }, text, area));
         continue;
       } else {
         control = el("input", { id, type: "checkbox", class: "switch", checked: !!settings[row.key], role: "switch" });
         control.addEventListener("change", () => save(control.checked));
       }
-      section.append(el("div", { class: "row" }, text, control));
+      section.append(el("div", { class: "row", id: `row-${row.key}` }, text, control));
     }
     main.append(el("h2", { textContent: title }), section);
   }
 }
 
-render();
+// Treffer aus der Suche der Einstellungen (#s-<key>): Option zeigen und kurz hervorheben
+function showFound() {
+  const row = document.getElementById(`row-${location.hash.slice(3)}`);
+  if (!location.hash.startsWith("#s-") || !row) return;
+  row.scrollIntoView({ block: "center" });
+  row.classList.remove("found");
+  row.offsetWidth; // Hervorhebung neu starten
+  row.classList.add("found");
+}
+window.addEventListener("hashchange", showFound);
+
+render().then(showFound);

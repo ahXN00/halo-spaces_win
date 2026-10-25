@@ -215,6 +215,7 @@ const DE = {
   "Begin forwarded message:": "Beginn der weitergeleiteten Nachricht:",
   "Today, {time}": "Heute, {time}",
   "Yesterday, {time}": "Gestern, {time}",
+  "Show": "Zeigen",
 };
 const FR = {
   "Install version {v}": "Installer la version {v}",
@@ -401,6 +402,7 @@ const FR = {
   "Begin forwarded message:": "Début du message réexpédié :",
   "Today, {time}": "Aujourd’hui, {time}",
   "Yesterday, {time}": "Hier, {time}",
+  "Show": "Afficher",
 };
 const ES = {
   "Install version {v}": "Instalar la versión {v}",
@@ -587,6 +589,7 @@ const ES = {
   "Begin forwarded message:": "Inicio del mensaje reenviado:",
   "Today, {time}": "Hoy, {time}",
   "Yesterday, {time}": "Ayer, {time}",
+  "Show": "Mostrar",
 };
 const IT = {
   "Install version {v}": "Installa la versione {v}",
@@ -773,6 +776,7 @@ const IT = {
   "Begin forwarded message:": "Inizio messaggio inoltrato:",
   "Today, {time}": "Oggi, {time}",
   "Yesterday, {time}": "Ieri, {time}",
+  "Show": "Mostra",
 };
 const TRANSLATIONS = { de: DE, fr: FR, es: ES, it: IT };
 // tr("+{n} more", { n: 3 }) – Platzhalter in geschweiften Klammern
@@ -1160,6 +1164,66 @@ function hookPrefCategories(cw, restorers = null) {
   }
   if (!added.length) {
     return;
+  }
+  // Suche der Einstellungen: die halo.spaces-Seite liegt in einem eigenen
+  // Browser, den Thunderbirds Suche nicht sieht – jede Option deshalb auch als
+  // eigene, durchsuchbare Zeile (nur in den Suchergebnissen sichtbar, eigene
+  // Kategorie ohne Eintrag in der Leiste); Klick zeigt die Option auf der Seite
+  const haloBox = doc.getElementById("mcPane-" + HALO_PANE);
+  if (haloBox) {
+    const showOption = key => {
+      haloBox.__mcFocus = key;
+      try {
+        const input = doc.getElementById("searchInput");
+        if (input) {
+          input.value = "";
+        }
+        if (cw.gSearchResultsPane) {
+          cw.gSearchResultsPane.query = "";
+          cw.gSearchResultsPane.getFindSelection(cw).removeAllRanges();
+          cw.gSearchResultsPane.removeAllSearchTooltips();
+        }
+        doc.getElementById("header-searchResults")?.setAttribute("hidden", "true");
+        doc.getElementById("no-results-message")?.setAttribute("hidden", "true");
+      } catch {}
+      cw.gotoPref(HALO_PANE);
+      const frame = haloBox.querySelector("browser");
+      if (frame?.currentURI?.spec.startsWith(extensionBaseURL)) {
+        frame.fixupAndLoadURIString(`${extensionBaseURL}options/options.html?in=prefs#s-${key}`,
+          { triggeringPrincipal: Services.scriptSecurityManager.getSystemPrincipal() });
+      }
+    };
+    for (const [section, rows] of haloSections()) {
+      for (const row of rows) {
+        if (row.mac && Services.appinfo.OS != "Darwin") {
+          continue;
+        }
+        const entry = doc.createXULElement("hbox");
+        entry.className = "mc-halo-found";
+        entry.setAttribute("data-category", "paneMcHaloSearch");
+        entry.setAttribute("align", "center");
+        entry.hidden = true;
+        const text = doc.createXULElement("vbox");
+        text.setAttribute("flex", "1");
+        const where = doc.createElementNS(X, "div");
+        where.className = "mc-halo-found-where";
+        where.textContent = `halo.spaces › ${section}`;
+        const name = doc.createElementNS(X, "div");
+        name.className = "mc-halo-found-name";
+        name.textContent = row.label;
+        const hint = doc.createElementNS(X, "div");
+        hint.className = "mc-halo-found-hint";
+        hint.textContent = row.hint || "";
+        text.append(where, name, hint);
+        const button = doc.createElementNS(X, "button");
+        button.className = "mc-halo-found-show";
+        button.textContent = tr("Show");
+        button.addEventListener("click", () => showOption(row.key));
+        entry.append(text, button);
+        deck.append(entry);
+        added.push(entry);
+      }
+    }
   }
   const footer = doc.querySelector("#pref-category-box .sidebar-footer-list");
   if (footer) {
@@ -2978,6 +3042,18 @@ function attachSubnav(list, browser, src) {
 // halo.spaces-Einstellungen (options_ui): Erweiterungsseiten laufen in einem
 // eigenen Prozess – eingebettet wie in Thunderbirds Add-ons-Verwaltung
 // (toolkit inline-options-browser.mjs)
+// Optionen der halo.spaces-Seite (dieselbe Liste wie options.js), übersetzt
+function haloSections() {
+  try {
+    const scope = {};
+    Services.scriptloader.loadSubScript("resource://mailcards/options/sections.js", scope);
+    return scope.SECTIONS(english => tr(english));
+  } catch (e) {
+    log("halo sections error", String(e).slice(0, 120));
+    return [];
+  }
+}
+
 function loadOptionsPane(cw, box) {
   const doc = cw.document;
   if (box.firstChild) {
@@ -2985,8 +3061,9 @@ function loadOptionsPane(cw, box) {
   }
   const { ExtensionParent } = ChromeUtils.importESModule("resource://gre/modules/ExtensionParent.sys.mjs");
   const { E10SUtils } = ChromeUtils.importESModule("resource://gre/modules/E10SUtils.sys.mjs");
-  // ?in=prefs: Seite gestaltet sich wie die übrigen Kategorien der Einstellungen
-  const url = extensionBaseURL + "options/options.html?in=prefs";
+  // ?in=prefs: Seite gestaltet sich wie die übrigen Kategorien der Einstellungen;
+  // #s-<key>: aus der Suche gewählte Option zeigen
+  const url = extensionBaseURL + "options/options.html?in=prefs" + (box.__mcFocus ? `#s-${box.__mcFocus}` : "");
   const browser = doc.createXULElement("browser");
   browser.className = "mc-embed-frame";
   for (const [k, v] of [["type", "content"], ["disableglobalhistory", "true"], ["messagemanagergroup", "webext-browsers"],
