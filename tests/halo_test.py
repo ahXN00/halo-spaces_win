@@ -4676,6 +4676,45 @@ def run_checks(m, version, profile, results):
         return ok, f"{res}"
     check("Mails in Systemschrift, eigene Schrift bleibt, keine Kapsel im Kopf", html_font, results)
 
+    def html_dark():
+        # Dunkelmodus: HTML-Mail mit eigenem hellem Hintergrund erscheint dunkel (Thunderbirds Umfärbung, halo-Option
+        # „Dunkle Hintergründe für Nachrichten“), ausgeschaltet hell; hell bleibt sie hell. Ohne Umfärbung (ältere
+        # Thunderbird-Versionen) entfällt die Option
+        res = m.js(r"""
+          const { MailServices } = ChromeUtils.importESModule("resource:///modules/MailServices.sys.mjs");
+          const { ExtensionParent } = ChromeUtils.importESModule("resource://gre/modules/ExtensionParent.sys.mjs");
+          const g = ExtensionParent.GlobalManager.getExtension("%s").experimentAPIManager.global;
+          const api = Cu.evalInSandbox("mailCards.prototype.getAPI({})", g).mailCards;
+          const root = MailServices.accounts.localFoldersServer.rootFolder;
+          if (!root.containsChildNamed("Schrift")) { root.createSubfolder("Schrift", null); await wait(800); }
+          const f = root.getChildNamed("Schrift");
+          const lf = f.QueryInterface(Ci.nsIMsgLocalMailFolder);
+          const has = () => { for (let i = 0; i < a3.gDBView.rowCount; i++) if (a3.gDBView.getMsgHdrAt(i).subject == "Schrift 4") return i; return -1; };
+          const a3 = await toMail(); a3.displayFolder(f.URI); await wait(800);
+          if (has() < 0) {
+            lf.addMessage("From: Halo <h@example.invalid>\r\nSubject: Schrift 4\r\nDate: Sat, 17 Oct 2026 10:04:00 +0200\r\nMessage-ID: <halo-font-4@example.invalid>\r\n" +
+              "MIME-Version: 1.0\r\nContent-Type: text/html; charset=UTF-8\r\n\r\n<html><body style='background:#ffffff;color:#000000'><p id='t'>Heller Newsletter</p></body></html>\r\n\r\n");
+            await wait(800); a3.displayFolder(f.URI); await wait(800);
+          }
+          const st = await api.getSettings();
+          const show = async () => { a3.threadTree.selectedIndex = -1; await wait(300); a3.threadTree.selectedIndex = has(); await wait(1500);
+            const md = a3.messageBrowser.contentDocument;
+            const t = await until(() => md.getElementById("messagepane")?.contentDocument?.getElementById("t")); await wait(500);
+            const doc = t.ownerDocument, cs = doc.defaultView.getComputedStyle(doc.body);
+            const lum = c => { const v = (c.match(/[\d.]+/g) || []).map(Number); return 0.2126 * v[0] + 0.7152 * v[1] + 0.0722 * v[2]; };
+            return Math.round(lum(cs.backgroundColor) > 0 && cs.backgroundColor != "rgba(0, 0, 0, 0)" ? lum(cs.backgroundColor) : lum(doc.defaultView.getComputedStyle(doc.documentElement).backgroundColor)); };
+          const out = { dark: w.matchMedia("(prefers-color-scheme: dark)").matches, available: st.darkReader, option: st.darkMessages };
+          if (!st.darkReader) return out;
+          out.on = await show();
+          await api.setSetting("darkMessages", false); out.off = await show();
+          await api.setSetting("darkMessages", true); out.stored = Services.prefs.prefHasUserValue("mail.dark-reader.enabled");
+          return out;""" % ADDON_ID)
+        if not res.get("available"):
+            return True, f"Thunderbird ohne eigene Umfärbung – Option entfällt {res}"
+        ok = res["option"] is True and res["off"] > 200 and not res["stored"] and (res["on"] < 80 if res["dark"] else res["on"] > 200)
+        return ok, f"{res}"
+    check("Dunkelmodus: HTML-Mail mit hellem Hintergrund dunkel (Option „Dunkle Hintergründe für Nachrichten“), ausgeschaltet und hell bleibt sie hell", html_dark, results)
+
     def remote_bar():
         res = m.js(r"""
           const { MailServices } = ChromeUtils.importESModule("resource:///modules/MailServices.sys.mjs");

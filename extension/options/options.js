@@ -44,7 +44,7 @@ async function render() {
   for (const [title, rows] of SECTIONS(t)) {
     const section = el("section");
     for (const row of rows) {
-      if (row.mac && !settings.mac) continue;
+      if ((row.mac && !settings.mac) || (row.needs && !settings[row.needs])) continue;
       const id = `s-${row.key}`;
       const badge = savedBadge();
       const text = el("label", { class: "text", htmlFor: id }, row.label, badge, el("span", { class: "hint", textContent: row.hint || "" }));

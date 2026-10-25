@@ -18,6 +18,8 @@ var SECTIONS = t => [
       hint: t("asks only the sender’s own website (favicon, BIMI) – off: no outside requests") },
     { key: "macContactPhotos", mac: true, label: t("Photos from the Contacts app"),
       hint: t("macOS asks for access once") },
+    { key: "darkMessages", needs: "darkReader", label: t("Dark backgrounds for messages"),
+      hint: t("in dark mode, like Apple Mail – Thunderbird recolours HTML messages carefully, images stay as they are") },
     { key: "plainTextSystemFont", label: t("Messages in system font"),
       hint: t("like Apple Mail; messages with their own font keep it – off: Thunderbird’s fonts") },
     { key: "hideCollectedAddresses", label: t("Hide “Collected Addresses”"),

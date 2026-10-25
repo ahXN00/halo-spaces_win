@@ -218,6 +218,8 @@ const DE = {
   "Show": "Zeigen",
   "Keyboard Shortcuts": "Tastaturkurzbefehle",
   "Show all keyboard shortcuts of Thunderbird": "Alle Tastaturkurzbefehle von Thunderbird zeigen",
+  "Dark backgrounds for messages": "Dunkle Hintergründe für Nachrichten",
+  "in dark mode, like Apple Mail – Thunderbird recolours HTML messages carefully, images stay as they are": "im Dunkelmodus, wie Apple Mail – Thunderbird färbt HTML-Mails behutsam um, Bilder bleiben unverändert",
 };
 const FR = {
   "Install version {v}": "Installer la version {v}",
@@ -407,6 +409,8 @@ const FR = {
   "Show": "Afficher",
   "Keyboard Shortcuts": "Raccourcis clavier",
   "Show all keyboard shortcuts of Thunderbird": "Afficher tous les raccourcis clavier de Thunderbird",
+  "Dark backgrounds for messages": "Fonds sombres pour les messages",
+  "in dark mode, like Apple Mail – Thunderbird recolours HTML messages carefully, images stay as they are": "en mode sombre, comme Apple Mail – Thunderbird recolore prudemment les messages HTML, les images restent inchangées",
 };
 const ES = {
   "Install version {v}": "Instalar la versión {v}",
@@ -596,6 +600,8 @@ const ES = {
   "Show": "Mostrar",
   "Keyboard Shortcuts": "Atajos de teclado",
   "Show all keyboard shortcuts of Thunderbird": "Mostrar todos los atajos de teclado de Thunderbird",
+  "Dark backgrounds for messages": "Fondos oscuros para los mensajes",
+  "in dark mode, like Apple Mail – Thunderbird recolours HTML messages carefully, images stay as they are": "en modo oscuro, como Apple Mail – Thunderbird cambia con cuidado los colores de los mensajes HTML, las imágenes no cambian",
 };
 const IT = {
   "Install version {v}": "Installa la versione {v}",
@@ -785,6 +791,8 @@ const IT = {
   "Show": "Mostra",
   "Keyboard Shortcuts": "Scorciatoie da tastiera",
   "Show all keyboard shortcuts of Thunderbird": "Mostra tutte le scorciatoie da tastiera di Thunderbird",
+  "Dark backgrounds for messages": "Sfondi scuri per i messaggi",
+  "in dark mode, like Apple Mail – Thunderbird recolours HTML messages carefully, images stay as they are": "in modalità scura, come Apple Mail – Thunderbird ricolora con cura i messaggi HTML, le immagini restano invariate",
 };
 const TRANSLATIONS = { de: DE, fr: FR, es: ES, it: IT };
 // tr("+{n} more", { n: 3 }) – Platzhalter in geschweiften Klammern
@@ -1203,7 +1211,7 @@ function hookPrefCategories(cw, restorers = null) {
     };
     for (const [section, rows] of haloSections()) {
       for (const row of rows) {
-        if (row.mac && Services.appinfo.OS != "Darwin") {
+        if ((row.mac && Services.appinfo.OS != "Darwin") || (row.needs && !settingNeeds()[row.needs])) {
           continue;
         }
         const entry = doc.createXULElement("hbox");
@@ -13946,7 +13954,14 @@ const SETTINGS = {
   appleIcons: ["extensions.mailcards.appleIcons", "bool", true],
   bundledTheme: ["extensions.mailcards.bundledTheme", "bool", true],
   debug: ["extensions.mailcards.debug", "bool", false],
+  // Thunderbirds eigene Umfärbung von HTML-Mails im Dunkelmodus (ab Thunderbird 13x);
+  // ihr Schalter im Mailkopf ist ausgeblendet, eingestellt wird hier wie in Apple Mail
+  darkMessages: ["mail.dark-reader.enabled", "bool", true],
 };
+// Voraussetzungen einzelner Optionen (needs in options/sections.js)
+function settingNeeds() {
+  return { darkReader: Services.prefs.getPrefType("mail.dark-reader.enabled") != Services.prefs.PREF_INVALID };
+}
 function readSetting([pref, type, def]) {
   if (type == "bool") return Services.prefs.getBoolPref(pref, def);
   if (type == "int") return Services.prefs.getIntPref(pref, def);
@@ -13968,7 +13983,7 @@ this.mailCards = class extends ExtensionCommon.ExtensionAPI {
           return { lang, table: TRANSLATIONS[lang] || {} };
         },
         async getSettings() {
-          const out = { mac: Services.appinfo.OS == "Darwin", german: Services.locale.appLocaleAsBCP47.startsWith("de") };
+          const out = { mac: Services.appinfo.OS == "Darwin", german: Services.locale.appLocaleAsBCP47.startsWith("de"), ...settingNeeds() };
           for (const [key, spec] of Object.entries(SETTINGS)) {
             out[key] = readSetting(spec);
           }
