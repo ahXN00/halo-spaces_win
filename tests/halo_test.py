@@ -1404,7 +1404,10 @@ def reading_checks(m, results):
           const out = { open: true, width: Math.round(right), outside, border: cs(tb).borderTopStyle, radius: parseFloat(cs(tb).borderTopLeftRadius) };
           fb.close(); await wait(900);
           // geschlossen: keine Lücke unter der Mail
-          out.gap = Math.round(doc.getElementById("messagepanebox").getBoundingClientRect().bottom - doc.getElementById("messagepane").getBoundingClientRect().bottom);
+          // (bis zur Schnellantwort unter der Mail, sofern sie da ist)
+          const qr = doc.getElementById("mcQuickReply");
+          const floor = qr?.getClientRects().length ? qr.getBoundingClientRect().top : doc.getElementById("messagepanebox").getBoundingClientRect().bottom;
+          out.gap = Math.round(floor - doc.getElementById("messagepane").getBoundingClientRect().bottom);
           await restore(); return out;""")
         ok = res.get("open") and not res["outside"] and res["border"] == "none" and res["radius"] >= 6 and res["gap"] <= 1
         return ok, f"{res}"
@@ -4155,6 +4158,21 @@ def run_checks(m, version, profile, results):
         return ok, f"{res}"
     check("Begrüßung: einmal nach der Erstinstallation (Optionen unter Einstellungen → halo.spaces, Win/Linux mit Plattform-Hinweis), Theme bleibt System", welcome, results)
 
+
+    # Vorbereitung: Fenstergröße, Testkalender, Fenster ohne Dialoge
+    m.js("""
+      for (const x of [...Services.wm.getEnumerator(null)]) if (!x.location.href.includes("messenger.xhtml")) x.close();
+      w.moveTo(0, 0); w.resizeTo(1500, 900); await wait(500);
+      // Marionette sperrt Add-on-Updates – für die Prüfung „Updates beim Start“ erlauben. Die Update-Liste
+      // (updates.json auf GitHub) bleibt im Testprofil aber unerreichbar: ein veröffentlichtes Update
+      // ersetzte sonst mitten im Lauf Design und Logik des geprüften Pakets
+      Services.obs.addObserver({ observe(ch) { ch.QueryInterface(Ci.nsIHttpChannel);
+        if (/\\/updates\\.json(\\?|$)/.test(ch.URI.spec)) ch.cancel(Cr.NS_ERROR_ABORT); } }, "http-on-modify-request");
+      Services.prefs.setBoolPref("extensions.update.enabled", true);
+      if (!testCalendar()) { const c = cal.manager.createCalendar("storage", Services.io.newURI("moz-storage-calendar://")); c.name = "Halo Test"; c.setProperty("color", "#FF9500"); cal.manager.registerCalendar(c); }
+      return 1;""")
+
+    # (nach der Vorbereitung: sie erlaubt Add-on-Updates, bevor die Prüfung beim Start nach 20 s läuft)
     def today_everywhere():
         # Today-Pane in allen Bereichen außer dem Kalender, nach der Erstinstallation überall eingeblendet
         # (frisches Testprofil = Erstinstallation); im Kalender aus und ihr Schalter dort gesperrt
@@ -4177,19 +4195,6 @@ def run_checks(m, version, profile, results):
               and res["calendar"] == [False, True])
         return ok, f"{res}"
     check("Today-Pane: in Mail, Aufgaben, Adressbuch, Einstellungen und Chat, nicht im Kalender; nach der Installation eingeblendet", today_everywhere, results)
-
-    # Vorbereitung: Fenstergröße, Testkalender, Fenster ohne Dialoge
-    m.js("""
-      for (const x of [...Services.wm.getEnumerator(null)]) if (!x.location.href.includes("messenger.xhtml")) x.close();
-      w.moveTo(0, 0); w.resizeTo(1500, 900); await wait(500);
-      // Marionette sperrt Add-on-Updates – für die Prüfung „Updates beim Start“ erlauben. Die Update-Liste
-      // (updates.json auf GitHub) bleibt im Testprofil aber unerreichbar: ein veröffentlichtes Update
-      // ersetzte sonst mitten im Lauf Design und Logik des geprüften Pakets
-      Services.obs.addObserver({ observe(ch) { ch.QueryInterface(Ci.nsIHttpChannel);
-        if (/\\/updates\\.json(\\?|$)/.test(ch.URI.spec)) ch.cancel(Cr.NS_ERROR_ABORT); } }, "http-on-modify-request");
-      Services.prefs.setBoolPref("extensions.update.enabled", true);
-      if (!testCalendar()) { const c = cal.manager.createCalendar("storage", Services.io.newURI("moz-storage-calendar://")); c.name = "Halo Test"; c.setProperty("color", "#FF9500"); cal.manager.registerCalendar(c); }
-      return 1;""")
 
     def addon():
         v = m.js("""const { AddonManager } = ChromeUtils.importESModule("resource://gre/modules/AddonManager.sys.mjs");
