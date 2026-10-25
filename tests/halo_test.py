@@ -5335,6 +5335,49 @@ def run_checks(m, version, profile, results):
     check("Seitenleiste: Ein-/Ausblenden in Mail, Chat, Einstellungen und Adressbuch gleich flüssig, Knopf bleibt stehen, Mailliste behält ihre Breite, kein grauer Balken", sidebar_animation, results)
 
 
+    def sidebar_no_jump():
+        # Mail: Ordnerliste ein-/ausblenden ohne Ruck in den letzten Bildern – vertikal und klassisch, enges Fenster
+        # (Leseansicht an ihrer Mindestbreite) und breites: Ordnerliste, Mailliste und Leseansicht ändern sich je Bild
+        # nur in eine Richtung, der Zustand nach dem Ende entspricht dem letzten Bild
+        res = m.js(r'''
+          const btn = d.getElementById("spacesPinnedButton");
+          const out = { visibility: d.visibilityState };
+          const viewBefore = [Services.prefs.getIntPref("mail.threadpane.listview", 0), Services.prefs.getIntPref("mail.pane_config.dynamic", 0)];
+          try {
+            for (const [name, view, layout, width] of [["karten-eng", 0, 2, 1280], ["karten-breit", 0, 2, 1500], ["klassisch-eng", 1, 0, 1280]]) {
+              w.resizeTo(width, 900);
+              Services.prefs.setIntPref("mail.threadpane.listview", view); Services.prefs.setIntPref("mail.pane_config.dynamic", layout);
+              const a3 = await toMail(); await wait(1500);
+              const fp = a3.document.getElementById("folderPane"), tp = a3.document.getElementById("threadPane"), mp = a3.document.getElementById("messagePane");
+              const snap = () => [fp, tp, mp].map(e => Math.round(e.getBoundingClientRect().width * 10) / 10);
+              for (const phase of ["aus", "ein"]) {
+                btn.click();
+                const frames = []; const t0 = performance.now();
+                while (performance.now() - t0 < 600) { await new Promise(r => a3.requestAnimationFrame(r)); frames.push(snap()); }
+                await wait(500); const end = snap();
+                // Richtungswechsel je Spalte (mehr als 1,5 px gegen die Bewegung) und Abstand des Endes zum letzten Bild vor dem Ende
+                const moving = frames.filter((f, i) => i && f.some((v, j) => Math.abs(v - frames[i - 1][j]) > 0.05));
+                const back = [0, 1, 2].map(j => { let dir = 0, bad = 0; for (let i = 1; i < frames.length; i++) { const dv = frames[i][j] - frames[i - 1][j];
+                  if (Math.abs(dv) < 0.05) continue; const sg = Math.sign(dv); if (dir && sg != dir && Math.abs(dv) > 1.5) bad++; dir = sg; } return bad; });
+                // letzter Schritt: Thunderbirds Teiler (1 px) und Rundung dürfen 3 px ausmachen
+                const lastStep = frames.length > 1 ? Math.max(...[0, 1, 2].map(j => {
+                  const ch = frames.map((f, i) => i ? Math.abs(f[j] - frames[i - 1][j]) : 0).filter(x => x > 0.05);
+                  return ch.length >= 2 ? ch[ch.length - 1] - Math.max(ch[ch.length - 2], 3) : 0; })) : 0;
+                out[`${name}/${phase}`] = { frames: frames.filter((f, i) => !i || f.join() != frames[i - 1].join()).map(f => f.join("|")).join(" "), steps: moving.length, back, lastStep: Math.round(lastStep * 10) / 10, end, last: frames[frames.length - 1] };
+              }
+            }
+          } finally {
+            Services.prefs.setIntPref("mail.threadpane.listview", viewBefore[0]); Services.prefs.setIntPref("mail.pane_config.dynamic", viewBefore[1]);
+            w.resizeTo(1500, 900); await wait(800);
+          }
+          return out;''')
+        if res.get("visibility") == "hidden":
+            return True, f"Testfenster verdeckt – übersprungen {res}"
+        bad = [f"{k}: {v}" for k, v in res.items() if k != "visibility" and (v["steps"] < 6 or any(v["back"]) or v["lastStep"] > 0
+               or any(abs(a - b) > 2 for a, b in zip(v["end"], v["last"])))]
+        return not bad, "; ".join(bad) or f"{res}"
+    check("Seitenleiste (Mail): Ein-/Ausblenden ohne Ruck in den letzten Bildern (vertikal und klassisch, enges und breites Fenster)", sidebar_no_jump, results)
+
     def address_book():
         # Person und Firma (example.invalid) im persönlichen Adressbuch
         res = m.js(r"""

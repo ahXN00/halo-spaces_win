@@ -9676,11 +9676,15 @@ class CardEnhancer {
     let full;
     if (collapsing) {
       full = pane.getBoundingClientRect().width;
+      pane.__mcShownWidth = full;
     } else {
       splitter.isCollapsed = false;
-      // Zielbreite: die gespeicherte des Teilers – gemessen wäre sie hier noch zu
-      // schmal (die Leseansicht hält im Raster noch ihre volle Breite)
-      full = Math.max(splitter.width || 0, pane.getBoundingClientRect().width);
+      // Zielbreite: so breit wie vor dem Ausblenden (in engen Fenstern schmaler
+      // als die gespeicherte des Teilers – sonst sprang sie im letzten Bild),
+      // sonst die gespeicherte – gemessen wäre sie hier noch zu schmal (die
+      // Leseansicht hält im Raster noch ihre volle Breite)
+      full = pane.__mcShownWidth || Math.max(splitter.width || 0, pane.getBoundingClientRect().width);
+      delete pane.__mcShownWidth;
     }
     if (!full) {
       return;
@@ -9720,6 +9724,40 @@ class CardEnhancer {
       delete pane.__mcLockedWidth;
     }
     pane.style.removeProperty("width");
+    // Endzustand vorab herstellen und messen (im selben Schritt, nichts wird
+    // gezeichnet): danach greifen noch „Mailliste behält ihre Breite“ und die
+    // Mindestbreite der Leseansicht – die Animation läuft genau dorthin, statt
+    // im letzten Bild zu springen
+    let endFolder = collapsing ? 0 : full;
+    let endMsg = vertical ? (collapsing ? msgStart + full : msgStart - full) : 0;
+    let endMsgProp = "";
+    if (vertical) {
+      const startProp = grid.style.getPropertyValue(prop);
+      const startMsgProp = grid.style.getPropertyValue(msgProp);
+      grid.style.setProperty(prop, collapsing ? "0px" : saved || `${full}px`);
+      grid.style.setProperty(msgProp, `${Math.max(0, Math.round(endMsg - msgExtra))}px`);
+      if (!collapsing) {
+        // eingeblendet gelten wieder Mindestbreite und Sperre der Ordnerliste
+        pane.style.minWidth = "";
+        pane.classList.remove("mc-side-anim");
+        if (lockedWidth) {
+          pane.style.setProperty("width", `${full}px`, "important");
+        }
+      }
+      this.offsetUpdaters?.forEach(fn => fn());
+      endFolder = collapsing ? 0 : pane.getBoundingClientRect().width;
+      endMsg = msgPane.getBoundingClientRect().width;
+      endMsgProp = grid.style.getPropertyValue(msgProp);
+      pane.style.minWidth = "0px";
+      pane.classList.add("mc-side-anim");
+      pane.style.removeProperty("width");
+      grid.style.setProperty(prop, startProp || `${collapsing ? full : 0}px`);
+      if (startMsgProp) {
+        grid.style.setProperty(msgProp, startMsgProp);
+      } else {
+        grid.style.removeProperty(msgProp);
+      }
+    }
     let relocked = false;
     ab.__mcAnimating = true;
     // Die Uhr läuft erst ab dem ersten gezeichneten Bild: beim Einblenden baut
@@ -9738,11 +9776,15 @@ class CardEnhancer {
         pane.style.removeProperty("width");
       }
       const shown = collapsing ? 1 - curve(k) : curve(k); // sichtbarer Anteil 1 → 0 bzw. 0 → 1
-      const width = full * shown;
+      const width = vertical ? (collapsing ? endFolder + (full - endFolder) * shown : endFolder * shown) : full * shown;
       grid.style.setProperty(prop, `${width}px`);
+      // Mindestbreite = aktuelle Breite: die Spalte verhält sich wie am Ende (in
+      // engen Fenstern hielt das Raster sie sonst bei 150 px fest, und sie
+      // sprang im letzten Bild auf ihre Mindestbreite von 160 px)
+      pane.style.minWidth = `${width}px`;
       if (vertical) {
-        // eingeblendet war die Ordnerliste „full“ breit: was ihr fehlt, bekommt die Leseansicht
-        const msg = collapsing ? msgStart + (full - width) : msgStart - width;
+        // Leseansicht gleichmäßig von ihrer Ausgangs- zur gemessenen Endbreite
+        const msg = msgStart + (endMsg - msgStart) * curve(k);
         grid.style.setProperty(msgProp, `${Math.max(0, msg - msgExtra)}px`);
       }
       this.offsetUpdaters?.forEach(fn => fn());
@@ -9761,8 +9803,10 @@ class CardEnhancer {
         // Endbreite der Leseansicht wie beim Ziehen am Teiler übernehmen (Thunderbird speichert sie)
         // Endbreite direkt als Rastervariable (wie Thunderbirds Teiler es tut) – über
         // msgSplitter.width rechnet Thunderbird selbst um, die Liste sprang dann ein Bild lang
-        const msg = Math.round((collapsing ? msgStart + full : msgStart - full) - msgExtra);
-        if (msg > 0) {
+        const msg = Math.round(endMsg - msgExtra);
+        if (endMsgProp) {
+          grid.style.setProperty(msgProp, endMsgProp);
+        } else if (msg > 0) {
           grid.style.setProperty(msgProp, `${msg}px`);
         } else if (msgSaved) {
           grid.style.setProperty(msgProp, msgSaved);
@@ -9781,14 +9825,14 @@ class CardEnhancer {
       onDone?.();
       ab.setTimeout(() => this.offsetUpdaters?.forEach(fn => fn()), 30);
     };
-    // erstes Bild sofort setzen, damit nichts aufblitzt
-    if (!collapsing) {
-      grid.style.setProperty(prop, "0px");
-      if (vertical) {
-        grid.style.setProperty(msgProp, `${msgStart - msgExtra}px`);
-      }
-      pane.getBoundingClientRect(); // Aufbau der Ordnerliste jetzt erzwingen, nicht im ersten Bild
+    // erstes Bild sofort setzen, damit nichts aufblitzt (auch nach der Vorab-
+    // Messung des Endzustands, die Thunderbirds Teiler mit verstellt)
+    grid.style.setProperty(prop, `${collapsing ? full : 0}px`);
+    pane.style.minWidth = `${collapsing ? full : 0}px`;
+    if (vertical) {
+      grid.style.setProperty(msgProp, `${msgStart - msgExtra}px`);
     }
+    pane.getBoundingClientRect(); // Aufbau der Ordnerliste jetzt erzwingen, nicht im ersten Bild
     ab.requestAnimationFrame(() => ab.requestAnimationFrame(step));
   }
 
