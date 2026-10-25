@@ -3927,25 +3927,42 @@ calendar-event-column {
   border-color: #FF3B30 !important;
 }
 
-/* Termine pastellig mit farbigem Strich links */
+/* Termine pastellig mit farbigem Strich links – frei stehend und rund wie in
+   der Monatsansicht (ein Innenschatten folgte der Ecke und sah aus wie „[“) */
 calendar-event-box.calendar-color-box {
+  position: relative !important;
   background: color-mix(in srgb, var(--item-backcolor) 22%, var(--mt-window)) !important;
   color: color-mix(in srgb, var(--item-backcolor) 50%, var(--mt-text)) !important;
   border: none !important;
   border-radius: 5px !important;
-  box-shadow: inset 3px 0 0 var(--item-backcolor) !important;
+  box-shadow: none !important;
   font-size: 12px !important;
   font-weight: 500 !important;
 }
 
+calendar-event-box.calendar-color-box::before {
+  content: "" !important;
+  position: absolute !important;
+  inset-block: 3px !important;
+  inset-inline-start: 3px !important;
+  width: 4px !important;
+  border-radius: 2px !important;
+  background-color: var(--item-backcolor) !important;
+  pointer-events: none !important;
+}
+
 calendar-event-box.calendar-color-box .calendar-item-container {
-  padding-inline-start: 4px !important;
+  padding-inline-start: 10px !important;
 }
 
 calendar-event-box.calendar-color-box[selected] {
   background: var(--item-backcolor) !important;
   color: var(--item-forecolor, white) !important;
   box-shadow: none !important;
+}
+
+calendar-event-box.calendar-color-box[selected]::before {
+  background-color: rgba(255, 255, 255, 0.9) !important;
 }
 
 calendar-event-box :is(.alarm-icons-box, .item-classification-icon, .item-recurrence-icon, .calendar-category-box, .gripbar-start img, .gripbar-end img) {

@@ -2792,6 +2792,39 @@ def calendar_checks(m, results):
         return ok, f"{res}"
     check("Woche: Tagesköpfe ganz sichtbar (Ganztags-Zeile beginnt darunter, Unterlängen nicht abgeschnitten, passende Lang- oder Kurzform ohne „…“)", week_heads, results)
 
+    def event_stripe():
+        # Termine in Woche und Tag: frei stehender, runder Farbstrich wie in der Monatsansicht (früher ein Innenschatten,
+        # der der Ecke folgte und wie eine Klammer „[“ aussah); ausgewählt weiß
+        res = m.js(CAL_CHECK_JS + r"""
+          const c = testCalendar(); const e = new CalEvent(); e.title = "Halo Strichtermin"; e.calendar = c;
+          const s = cal.dtz.now(); s.hour = 10; s.minute = 0; s.second = 0; const en = s.clone(); en.hour += 1; e.startDate = s; e.endDate = en;
+          const saved = await c.addItem(e);
+          const out = {};
+          try {
+            const stripe = el => { const a = w.getComputedStyle(el), b = w.getComputedStyle(el, "::before"), r = el.getBoundingClientRect();
+              return { shadow: a.boxShadow, content: b.content, w: b.width, radius: b.borderTopLeftRadius, bg: b.backgroundColor,
+                       h: Math.round(parseFloat(b.height)), boxH: Math.round(r.height) }; };
+            const find = sel => till(() => [...d.querySelectorAll(sel)].find(b => vis(b) && /Halo Strichtermin/.test(b.textContent)), 4000);
+            await toWeek();
+            const wb = await find("#week-view calendar-event-box"); out.week = wb && stripe(wb);
+            w.currentView().selectedItem = null;
+            if (wb) { w.currentView().setSelectedItems([saved]); await pause(300); out.weekSel = stripe(wb).bg; w.currentView().setSelectedItems([]); }
+            w.switchToView("day"); w.currentView().goToDay(cal.dtz.now()); await pause(1200);
+            const db = await find("#day-view calendar-event-box"); out.day = db && stripe(db);
+            w.switchToView("month"); await pause(1200);
+            const mb = await find("calendar-month-day-box-item"); out.month = mb && stripe(mb);
+          } finally {
+            try { await c.deleteItem(saved); } catch {}
+            w.switchToView("week"); await pause(400);
+          }
+          return out;""")
+        def good(x):
+            return (bool(x) and x["shadow"] == "none" and x["content"] != "none" and x["w"] == res["month"]["w"]
+                    and x["radius"] == res["month"]["radius"] and x["h"] >= x["boxH"] - 8)
+        ok = bool(res.get("month")) and good(res.get("week")) and good(res.get("day")) and res.get("weekSel", "").startswith("rgba(255, 255, 255")
+        return ok, f"{res}"
+    check("Woche/Tag: Termine mit frei stehendem, rundem Farbstrich wie in der Monatsansicht (keine Klammer), ausgewählt weiß", event_stripe, results)
+
     def narrow_heads():
         # schmales Fenster: Kopf nicht breiter als seine Spalte (Thunderbirds Inline-Mindestbreite), Text endet mit „…“
         res = m.js(CAL_CHECK_JS + r"""
