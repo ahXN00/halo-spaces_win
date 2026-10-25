@@ -5242,23 +5242,45 @@ class CardEnhancer {
           // Termin-Details: Fenster so groß, dass alles sichtbar ist
           if (url.startsWith("chrome://calendar/content/calendar-summary-dialog.xhtml") && doc.defaultView) {
             const dlg = doc.defaultView;
-            dlg.addEventListener("load", () => dlg.setTimeout(() => this.fitSummaryDialog(dlg), 250), { once: true });
+            // im selben Ladeschritt direkt nach Thunderbirds eigenem Aufbau (dessen
+            // load-Handler steht erst nach DOMContentLoaded fest), also bevor das
+            // Fenster erscheint – mit Verzögerung sprang es sichtbar auf die neue Größe
+            doc.documentElement.style.minWidth = "480px";
+            dlg.addEventListener("DOMContentLoaded", () => {
+              dlg.addEventListener("load", () => this.fitSummaryDialog(dlg), { once: true });
+            }, { once: true });
           }
           // Termin-/Aufgaben-Fenster: Titel und Beschriftungen ohne Doppelpunkt
           if (url.startsWith("chrome://calendar/content/calendar-event-dialog.xhtml") && doc.defaultView) {
             const dlg = doc.defaultView;
-            dlg.addEventListener("load", () => dlg.setTimeout(() => this.tidyEventDialog(dlg), 300), { once: true });
+            dlg.addEventListener("load", () => this.tidyEventDialog(dlg), { once: true });
           }
           // Beschreibung eines Termins/einer Aufgabe (Fenster und Tab): Schrift
           // wie die Felder darüber (siehe event-description.css)
           if (url.startsWith("chrome://calendar/content/calendar-item-iframe.xhtml") && doc.defaultView) {
             const iw = doc.defaultView;
-            iw.addEventListener("load", () => iw.setTimeout(() => {
-              this.styleItemDescription(iw);
-              hookDateTimePickers(iw);
-              keepDurationAlways(iw);
-              appleEventLayout(iw);
-            }, 0), { once: true });
+            // direkt nach Thunderbirds eigenem onLoad im selben Schritt (dessen
+            // load-Handler steht erst nach DOMContentLoaded fest) – per Verzögerung
+            // rückten die Felder sichtbar an ihre Apple-Plätze
+            // Das Fenster erscheint schon, bevor dieses Formular fertig ist – bis
+            // dahin unsichtbar, sonst sieht man die Felder an Thunderbirds Plätzen
+            const root = doc.documentElement;
+            root.style.visibility = "hidden";
+            const reveal = () => root.style.removeProperty("visibility");
+            iw.setTimeout(reveal, 2000);
+            iw.addEventListener("DOMContentLoaded", () => iw.addEventListener("load", () => {
+              try {
+                this.styleItemDescription(iw);
+                hookDateTimePickers(iw);
+                keepDurationAlways(iw);
+                appleEventLayout(iw);
+                if (iw.parent?.location?.href.startsWith("chrome://calendar/content/calendar-event-dialog.xhtml")) {
+                  this.tidyEventDialog(iw.parent);
+                }
+              } finally {
+                reveal();
+              }
+            }, { once: true }), { once: true });
           }
           // „Teilnehmer einladen“: Beginn/Ende ebenso
           if (url.startsWith("chrome://calendar/content/calendar-event-dialog-attendees.xhtml") && doc.defaultView) {
@@ -11064,6 +11086,9 @@ class CardEnhancer {
   // (Apple legt für Standard-Erinnerungen eine feste vom 1. April 1976 an)
   tidyEventDialog(dlg, tries = 0) {
     try {
+      if (dlg.__mcTidy) {
+        return;
+      }
       const frame = dlg.document.getElementById("calendar-item-panel-iframe")?.contentDocument;
       if ((!frame || frame.readyState != "complete" || !frame.querySelector("label")) && tries < 20) {
         dlg.setTimeout(() => this.tidyEventDialog(dlg, tries + 1), 250);
@@ -11103,6 +11128,7 @@ class CardEnhancer {
           }
         }
       };
+      dlg.__mcTidy = true;
       fixLabels();
       new dlg.MutationObserver(() => dlg.setTimeout(fixLabels, 0)).observe(idoc.documentElement, {
         subtree: true, attributes: true, attributeFilter: ["value", "label"], childList: true, characterData: true,
@@ -11255,17 +11281,22 @@ class CardEnhancer {
       if (doc.querySelector(".item-title")?.textContent.trim()) {
         doc.title = " ";
       }
-      dlg.sizeToContent();
+      // Größe anpassen, mittig auf dem Bildschirm wie bei Thunderbird
       const maxW = dlg.screen.availWidth - 40;
       const maxH = dlg.screen.availHeight - 40;
-      const width = Math.min(maxW, Math.max(480, dlg.outerWidth));
-      const height = Math.min(maxH, dlg.outerHeight);
-      dlg.resizeTo(width, height);
-      // ein zweites Mal, falls der breitere Text weniger Zeilen braucht
-      dlg.setTimeout(() => {
-        dlg.sizeToContent();
-        dlg.resizeTo(Math.min(maxW, Math.max(480, dlg.outerWidth)), Math.min(maxH, dlg.outerHeight));
-      }, 50);
+      // Mindestbreite per CSS, damit sizeToContent die Höhe gleich für die
+      // endgültige Breite rechnet (vorher ein zweiter Durchgang nach 50 ms)
+      // Bildschirmmitte wie Thunderbird selbst (das eigene Fenster hat hier teils noch keine Größe)
+      const sc = dlg.screen;
+      const cx = sc.availLeft + sc.availWidth / 2, cy = sc.availTop + sc.availHeight / 2;
+      doc.documentElement.style.minWidth = `${Math.min(maxW, 480) - (dlg.outerWidth - dlg.innerWidth)}px`;
+      dlg.sizeToContent();
+      if (dlg.outerWidth > maxW || dlg.outerHeight > maxH) {
+        dlg.resizeTo(Math.min(maxW, dlg.outerWidth), Math.min(maxH, dlg.outerHeight));
+      }
+      dlg.moveTo(Math.round(cx - dlg.outerWidth / 2), Math.round(cy - dlg.outerHeight / 2));
+      // danach nicht mehr nachführen: die Beschreibung lädt später, rollt aber in
+      // ihrem eigenen Feld – ein Nachführen ließ das schon sichtbare Fenster springen
     } catch (e) {
       log("summary size error", String(e).slice(0, 120));
     }

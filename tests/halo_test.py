@@ -3170,6 +3170,57 @@ def calendar_checks(m, results):
         return ok, f"{res}"
     check("Termin: „Teilnehmer einladen“ mit Haarlinien statt harter Linien, einfarbigen Symbolen, Akzent statt Pink, Datum/Uhrzeit-Popover", attendees_dialog, results)
 
+    def event_window_still():
+        # Termin-Fenster springt nach dem Öffnen nicht: Detailansicht (Doppelklick auf einen Termin) und Bearbeiten –
+        # Lage/Größe des Fensters und Lage des Titelfelds vom ersten sichtbaren Bild an unverändert (früher passte
+        # halo.spaces die Detailansicht erst nach 250 ms an, die Beschriftungen nach 300 ms)
+        res = m.js(CAL_CHECK_JS + r"""
+          for (const x of [...Services.wm.getEnumerator(null)]) if (!x.location.href.includes("messenger.xhtml")) x.close();
+          const c = testCalendar(); const e = new CalEvent(); e.title = "Halo Ruhetermin"; e.calendar = c;
+          const s = cal.dtz.now(); s.hour = 10; s.minute = 0; s.second = 0; const en = s.clone(); en.hour += 1; e.startDate = s; e.endDate = en;
+          e.setProperty("DESCRIPTION", "Erfundene Beschreibung."); const saved = await c.addItem(e);
+          await toCalendar();
+          const watch = async (open, part) => {
+            const known = new Set([...Services.wm.getEnumerator(null)]);
+            open();
+            const dw = await till(() => [...Services.wm.getEnumerator(null)].find(x => !known.has(x)), 6000);
+            if (!dw) return null;
+            const seen = []; const t0 = Date.now();
+            while (Date.now() - t0 < 1800) {
+              let field = null;
+              try {
+                const f = dw.document.getElementById("calendar-item-panel-iframe")?.contentDocument;
+                const el = f?.getElementById("item-title") || dw.document.querySelector(".item-title");
+                // ein noch unsichtbares Formular zählt nicht als gezeigt
+                const shown = !f || f.defaultView.getComputedStyle(f.documentElement).visibility != "hidden";
+                if (el && shown) { const r = el.getBoundingClientRect(); field = [Math.round(r.left), Math.round(r.top)]; }
+              } catch {}
+              // erst ab dem ersten sichtbaren Bild: Thunderbird zeigt das Fenster, wenn es fertig geladen ist
+              if (dw.document.readyState == "complete" && dw.outerWidth > 100 && field) {
+                const st = JSON.stringify([dw.screenX, dw.screenY, dw.outerWidth, dw.outerHeight, field]);
+                if (seen.at(-1)?.[1] != st) seen.push([Date.now() - t0, st]);
+              }
+              await pause(16);
+            }
+            const url = dw.location.href;
+            dw.close(); await till(() => dw.closed, 4000);
+            return { url: url.split("/").pop(), states: seen };
+          };
+          const out = {};
+          try {
+            out.edit = await watch(() => w.modifyEventWithDialog(saved, true));
+            await pause(600);
+            out.summary = await watch(() => w.openEventDialogForViewing(saved));
+          } finally {
+            try { await c.deleteItem(saved); } catch {}
+          }
+          return out;""")
+        sm, ed = res.get("summary") or {}, res.get("edit") or {}
+        ok = (sm.get("url", "").startswith("calendar-summary-dialog") and len(sm.get("states", [])) == 1
+              and ed.get("url", "").startswith("calendar-event-dialog") and len(ed.get("states", [])) == 1)
+        return ok, f"{res}"
+    check("Termin-Fenster (Detailansicht und Bearbeiten) springt nach dem Öffnen nicht", event_window_still, results)
+
     def event_dialog_lines():
         # Termin-Dialog: Trennlinien im Raster als Haarlinie (Thunderbird: 1 px Feldrahmenfarbe); Statuszeile mit Abstand
         # zwischen Beschriftung und Wert („Time as: Busy“ statt „Time as:Busy“); Beschreibung dunkel lesbar (früher schwarz auf #1E1E1E)
