@@ -9078,6 +9078,38 @@ Neu
         return ok, f"{res}"
     check("Geburtstage: eigener Kalender in der Kalenderliste, Häkchen blendet ein/aus; frühere Option „aus“ blendet ihn einmal aus", birthdays_toggle, results)
 
+    def calendar_list_light():
+        # Kalenderliste wie Apple Kalender: angehakt gefüllt in der Kalenderfarbe, Haken in Thunderbirds Kontrastfarbe
+        # (helle Farbe → dunkler Haken); nicht angehakt leeres Kästchen mit Rand in der Kalenderfarbe
+        res = m.js(r"""
+          const c = cal.manager.createCalendar("storage", Services.io.newURI("moz-storage-calendar://")); c.name = "Halo Hell";
+          c.setProperty("color", "#DCEBFB"); cal.manager.registerCalendar(c);
+          await toCalendar(); await wait(600);
+          const li = await until(() => d.querySelector(`#calendar-list li[calendar-id="${c.id}"]`), 4000);
+          const box = li?.querySelector(".calendar-color"), input = li?.querySelector("input.calendar-displayed");
+          const lum = s => { const v = s.match(/[\d.]+/g).slice(0, 3).map(Number).map(x => { x /= 255; return x <= 0.03928 ? x / 12.92 : ((x + 0.055) / 1.055) ** 2.4; });
+            return 0.2126 * v[0] + 0.7152 * v[1] + 0.0722 * v[2]; };
+          const ratio = (a, b) => { const [x, y] = [lum(a), lum(b)].sort((p, q) => q - p); return Math.round((x + 0.05) / (y + 0.05) * 10) / 10; };
+          const look = () => { const cs = w.getComputedStyle(box), af = w.getComputedStyle(box, "::after");
+            return { bg: cs.backgroundColor, border: cs.borderTopColor, bw: cs.borderTopWidth, check: af.content != "none" ? af.backgroundColor : null, op: cs.opacity }; };
+          const out = { row: !!li };
+          if (box) {
+            out.on = look(); out.on.contrast = out.on.check ? ratio(out.on.check, out.on.bg) : 0;
+            input.click(); await wait(400);
+            out.off = look();
+            input.click(); await wait(300);
+          }
+          cal.manager.unregisterCalendar(c); cal.manager.removeCalendar?.(c);
+          await toMail();
+          return out;""")
+        on, off = res.get("on") or {}, res.get("off") or {}
+        light = "rgb(220, 235, 251)"
+        ok = (res.get("row") and on.get("bg") == light and on.get("contrast", 0) >= 4.5
+              and off.get("check") is None and off.get("bg") in ("rgba(0, 0, 0, 0)", "transparent") and off.get("border") == light
+              and off.get("op") == "1")
+        return ok, f"{res}"
+    check("Kalenderliste: helle Kalenderfarbe mit dunklem Haken, nicht angehakt leeres Kästchen mit farbigem Rand (wie Apple Kalender)", calendar_list_light, results)
+
     def mac_photos_off():
         # Einstellungsseite (setSetting) direkt über das Experiment-Modul; den
         # Abgleich mit den macOS-Kontakten (osascript, echte Kontakte) dabei abklemmen

@@ -10632,6 +10632,14 @@ class CardEnhancer {
       const { cal } = ChromeUtils.importESModule("resource:///modules/calendar/calUtils.sys.mjs");
       const annotate = () => {
         for (const li of list.querySelectorAll("li[calendar-id]")) {
+          // Kästchen wie Apple Kalender: Farbe und passende Hakenfarbe (Thunderbird
+          // rechnet je Kalender Schwarz/Weiß aus) – heller Kalender, dunkler Haken
+          const box = li.querySelector(".calendar-color");
+          if (box && !box.style.getPropertyValue("--mc-cal-back")) {
+            const key = cal.view.formatStringForCSSRule(li.getAttribute("calendar-id"));
+            box.style.setProperty("--mc-cal-back", `var(--calendar-${key}-backcolor)`);
+            box.style.setProperty("--mc-cal-fore", `var(--calendar-${key}-forecolor, white)`);
+          }
           const note = calendarNote(cal.manager.getCalendarById(li.getAttribute("calendar-id")));
           const name = li.querySelector(".calendar-name");
           if (note && name?.getAttribute("title") != note) {
@@ -10649,6 +10657,10 @@ class CardEnhancer {
         delete list.__mcNotes;
         for (const name of list.querySelectorAll(".calendar-name[title]")) {
           name.removeAttribute("title");
+        }
+        for (const box of list.querySelectorAll(".calendar-color")) {
+          box.style.removeProperty("--mc-cal-back");
+          box.style.removeProperty("--mc-cal-fore");
         }
       });
     };
