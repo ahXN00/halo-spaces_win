@@ -1578,16 +1578,100 @@ findbar .findbar-textbox:focus {
   color: var(--mt-text-tertiary) !important;
 }
 
-/* im eigenen Fenster: Kapselknöpfe in Toolbar-Größe (40 × 38, Symbole 22 px) */
-:root[mc-standalone] #header-view-toolbar {
-  padding: 0 !important;
+/* im eigenen Fenster wie Apple Mail: Knöpfe in einer eigenen Zeile ganz oben
+   links, darunter Absender, Ordner und Uhrzeit (vorher brachen sie neben Ordner
+   und Uhrzeit auf zwei Zeilen um). Kapseln, Maße, Trennstriche und Reihenfolge
+   wie in der Mail-Toolbar des Hauptfensters: Antworten, Allen antworten,
+   Weiterleiten | Archivieren, Löschen, Werbung | Mehr, Stern */
+:root[mc-standalone] #messageHeader {
+  --mc-standalone-bar: 52px;
+  padding-top: calc(var(--mc-standalone-bar) + 12px) !important;
 }
 
-:root[mc-standalone] #header-view-toolbar toolbarbutton {
-  min-width: 40px !important;
+:root[mc-standalone] #header-view-toolbox {
+  position: absolute !important;
+  top: 8px !important;
+  inset-inline-start: 12px !important;
+  inset-inline-end: auto !important;
+  max-width: calc(100% - 24px) !important;
+  margin: 0 !important;
+}
+
+:root[mc-standalone] #header-view-toolbar {
+  flex-wrap: nowrap !important;
+  overflow: hidden !important;
+  background: none !important;
+  padding: 0 !important;
+  gap: 0 !important;
+  align-items: center !important;
+}
+
+:root[mc-standalone] #hdrReplyToSenderButton { order: 1 !important; }
+:root[mc-standalone] #hdrSmartReplyButton { order: 1 !important; }
+:root[mc-standalone] #hdrForwardButton { order: 2 !important; }
+:root[mc-standalone] #hdrArchiveButton { order: 3 !important; }
+:root[mc-standalone] #hdrTrashButton { order: 4 !important; }
+:root[mc-standalone] #hdrJunkButton { order: 5 !important; }
+:root[mc-standalone] #otherActionsButton { order: 6 !important; }
+:root[mc-standalone] #starMessageButton { order: 7 !important; }
+
+/* jedes Teilstück der Kapsel: Fläche und Trennstrich links (wie die Toolbar) */
+:root[mc-standalone] #header-view-toolbar > :is(toolbarbutton, toolbaritem, button):not([hidden]) {
+  display: flex !important;
+  align-items: center !important;
+  height: 38px !important;
   min-height: 38px !important;
-  padding: 8px 9px !important;
+  margin: 0 !important;
+  background: linear-gradient(var(--mt-pane-line), var(--mt-pane-line)) left center / 1px 16px no-repeat, var(--mt-control) !important;
+  border: none !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+}
+
+/* Anfang und Ende jeder Gruppe rund, ohne Trennstrich; 6 px zwischen den Gruppen */
+:root[mc-standalone] #header-view-toolbar > :is(#hdrReplyToSenderButton, #hdrSmartReplyButton, #hdrArchiveButton, #otherActionsButton) {
+  background: var(--mt-control) !important;
+  border-start-start-radius: 999px !important;
+  border-end-start-radius: 999px !important;
+}
+
+:root[mc-standalone] #header-view-toolbar > :is(#hdrArchiveButton, #otherActionsButton) {
+  margin-inline-start: 6px !important;
+}
+
+/* „Antworten“ (Absender) und die Antworten-Gruppe teilen sich eine Kapsel */
+:root[mc-standalone] #header-view-toolbar > #hdrReplyToSenderButton:not([hidden]) ~ #hdrSmartReplyButton {
+  background: linear-gradient(var(--mt-pane-line), var(--mt-pane-line)) left center / 1px 16px no-repeat, var(--mt-control) !important;
+  border-start-start-radius: 0 !important;
+  border-end-start-radius: 0 !important;
+}
+
+:root[mc-standalone] #header-view-toolbar > :is(#hdrForwardButton, #hdrJunkButton, #starMessageButton) {
+  border-start-end-radius: 999px !important;
+  border-end-end-radius: 999px !important;
+}
+
+:root[mc-standalone] #header-view-toolbar :is(toolbarbutton, button) {
+  min-width: 39px !important;
+  min-height: 38px !important;
+  height: 38px !important;
+  padding: 0 11px !important;
+  border-radius: 999px !important;
   color: var(--mt-text-secondary) !important;
+}
+
+:root[mc-standalone] #header-view-toolbar > :is(toolbarbutton, button) {
+  border-radius: inherit !important;
+}
+
+:root[mc-standalone] #header-view-toolbar toolbaritem toolbarbutton {
+  background: none !important;
+  border: none !important;
+}
+
+:root[mc-standalone] #header-view-toolbar :is(toolbarbutton, button):hover:not([disabled]) {
+  background-color: var(--mt-control-hover) !important;
+  color: var(--mt-text) !important;
 }
 
 :root[mc-standalone] #header-view-toolbar toolbarbutton .toolbarbutton-icon {
@@ -1595,9 +1679,16 @@ findbar .findbar-textbox:focus {
   height: 22px !important;
 }
 
-/* im eigenen Fenster sitzen oben rechts die Knöpfe – Datum darunter */
+:root[mc-standalone] #starMessageButton {
+  justify-content: center !important;
+}
+
+:root[mc-standalone] #messageHeader .recipient-avatar.mc-hdr-avatar {
+  top: calc(var(--mc-standalone-bar) + 12px) !important;
+}
+
 :root[mc-standalone] #dateLabel {
-  top: 58px !important;
+  top: calc(var(--mc-standalone-bar) + 14px) !important;
 }
 
 /* Absender: nur der Name, fett – Adresse und Adressbuch-Knopf wie bei Apple ausgeblendet */
@@ -11069,7 +11160,8 @@ notification-message toolbarbutton.notification-button > .toolbarbutton-menubutt
 }
 
 :root[mc-standalone] #mcHdrMeta {
-  top: 58px !important;
+  /* (Knopfzeile oben, Höhe in userChrome.css) */
+  top: calc(var(--mc-standalone-bar, 66px) + 14px) !important;
 }
 
 /* ohne Empfänger zeigt Thunderbird das Datum zusätzlich in der Betreffzeile */

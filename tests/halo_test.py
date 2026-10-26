@@ -9078,6 +9078,45 @@ Neu
         return ok, f"{res}"
     check("Geburtstage: eigener Kalender in der Kalenderliste, Häkchen blendet ein/aus; frühere Option „aus“ blendet ihn einmal aus", birthdays_toggle, results)
 
+    def message_window_bar():
+        # eigenes Nachrichtenfenster wie Apple Mail: Knöpfe einzeilig in eigener Zeile ganz oben, darunter Absender,
+        # Ordner und Uhrzeit – auch im schmalen Fenster keine zweite Knopfzeile und keine Überlappung
+        res = m.js(r"""
+          const { MailServices } = ChromeUtils.importESModule("resource:///modules/MailServices.sys.mjs");
+          const { MailUtils } = ChromeUtils.importESModule("resource:///modules/MailUtils.sys.mjs");
+          let hdr = null;
+          for (const f of MailServices.accounts.localFoldersServer.rootFolder.descendants) {
+            for (const h of f.messages) if (h.mime2DecodedSubject.includes("Treffen am Donnerstag")) { hdr = h; break; }
+            if (hdr) break; }
+          if (!hdr) return { mail: false };
+          MailUtils.openMessageInNewWindow(hdr);
+          const mw = await until(() => [...Services.wm.getEnumerator("mail:messageWindow")].find(x => x.document.readyState == "complete"), 8000);
+          const out = {};
+          try {
+            await wait(2000);
+            for (const W of [900, 560]) {
+              mw.resizeTo(W, 700); await wait(1000);
+              const md = mw.document.getElementById("messageBrowser").contentDocument;
+              const r = id => { const b = md.getElementById(id)?.getBoundingClientRect(); return b && b.width ? { t: Math.round(b.top), b: Math.round(b.bottom), l: Math.round(b.left), r: Math.round(b.right), h: Math.round(b.height) } : null; };
+              const btns = [...md.querySelectorAll("#header-view-toolbar > toolbarbutton, #header-view-toolbar toolbarbutton")].filter(b => b.getBoundingClientRect().width);
+              out[W] = { std: md.documentElement.hasAttribute("mc-standalone"), bar: r("header-view-toolbar"), sender: r("headerSenderToolbarContainer"), meta: r("mcHdrMeta"),
+                         rows: new Set(btns.map(b => { const q = b.getBoundingClientRect(); return Math.round((q.top + q.height / 2) / 12); })).size, inside: btns.every(b => b.getBoundingClientRect().right <= mw.innerWidth) };
+            }
+          } finally { mw.close(); }
+          await wait(300);
+          return out;""")
+        if res.get("mail") is False:
+            return False, "Testmail fehlt"
+        bad = []
+        for W in ("900", "560"):
+            v = res.get(W) or {}
+            b, snd, mt = v.get("bar") or {}, v.get("sender") or {}, v.get("meta") or {}
+            if not (v.get("std") and v.get("rows") == 1 and v.get("inside") and b and snd and mt
+                    and b.get("b", 999) <= snd.get("t", 0) and b.get("b", 999) <= mt.get("t", 0)):
+                bad.append(f"{W}: {v}")
+        return not bad, "; ".join(bad) or f"{res}"
+    check("Nachrichtenfenster: Knöpfe einzeilig in eigener Zeile über Absender, Ordner und Uhrzeit (wie Apple Mail), auch schmal", message_window_bar, results)
+
     def calendar_list_light():
         # Kalenderliste wie Apple Kalender: angehakt gefüllt in der Kalenderfarbe, Haken in Thunderbirds Kontrastfarbe
         # (helle Farbe → dunkler Haken); nicht angehakt leeres Kästchen mit Rand in der Kalenderfarbe

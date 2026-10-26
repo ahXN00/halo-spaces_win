@@ -7952,7 +7952,8 @@ notification-message toolbarbutton.notification-button > .toolbarbutton-menubutt
 }
 
 :root[mc-standalone] #mcHdrMeta {
-  top: 58px !important;
+  /* (Knopfzeile oben, Höhe in userChrome.css) */
+  top: calc(var(--mc-standalone-bar, 66px) + 14px) !important;
 }
 
 /* ohne Empfänger zeigt Thunderbird das Datum zusätzlich in der Betreffzeile */
