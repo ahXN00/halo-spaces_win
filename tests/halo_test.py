@@ -3995,6 +3995,30 @@ def server_checks(m, results):
             return ok, f"{res} gesendet: {len(got)}"
         check("Testkonto: Später senden – Menü am Senden-Knopf, geplante Mail als Entwurf, zur Zeit gesendet", send_later, results)
 
+        def send_later_place():
+            # „Später senden“ als kleiner Pfeil gleich rechts neben dem runden Senden-Knopf (war eine leere Kapsel links)
+            res = m.js(r"""
+              const { MailServices } = ChromeUtils.importESModule("resource:///modules/MailServices.sys.mjs");
+              const acc = MailServices.accounts.getAccount("%s");
+              const params = Cc["@mozilla.org/messengercompose/composeparams;1"].createInstance(Ci.nsIMsgComposeParams);
+              const fields = Cc["@mozilla.org/messengercompose/composefields;1"].createInstance(Ci.nsIMsgCompFields);
+              fields.to = "ziel@example.invalid"; fields.subject = "Halo Pfeilprobe";
+              params.type = Ci.nsIMsgCompType.New; params.format = Ci.nsIMsgCompFormat.HTML; params.composeFields = fields; params.identity = acc.defaultIdentity;
+              MailServices.compose.OpenComposeWindowWithParams(null, params);
+              const cw = await until(() => [...Services.wm.getEnumerator("msgcompose")].find(x => x.document.readyState == "complete" && x.gMsgCompose), 10000);
+              await wait(1500);
+              const r = id => { const b = cw.document.getElementById(id)?.getBoundingClientRect(); return b ? { l: Math.round(b.left), r: Math.round(b.right), w: Math.round(b.width), t: Math.round(b.top), b: Math.round(b.bottom) } : null; };
+              const later = cw.document.getElementById("mcSendLater");
+              const out = { send: r("button-send"), later: r("mcSendLater"), mask: later ? cw.getComputedStyle(later).maskImage.includes("resource://mailcards/icons/send-later.svg") : false, win: cw.innerWidth };
+              cw.gMsgCompose.compFields.subject = ""; cw.close(); await wait(500);
+              for (const x of [...Services.wm.getEnumerator("msgcompose")]) x.close();
+              return out;""" % key)
+            sd, lt = res.get("send") or {}, res.get("later") or {}
+            ok = (sd and lt and res.get("mask") and 0 <= lt["l"] - sd["r"] <= 6 and lt["w"] <= 20 and res["win"] - lt["r"] <= 20
+                  and abs((lt["t"] + lt["b"]) - (sd["t"] + sd["b"])) <= 2)
+            return ok, f"{res}"
+        check("Verfassen: „Später senden“ als kleiner Pfeil direkt rechts neben dem Senden-Knopf", send_later_place, results)
+
         def remind_me():
             # Erinnern: Kontextmenü „Remind Me“ mit Zeiten; die Mail wandert in den Ordner „Remind Me“ des Kontos und kommt
             # zur Zeit ungelesen in den Posteingang zurück (Zeit hier: in 2 s)

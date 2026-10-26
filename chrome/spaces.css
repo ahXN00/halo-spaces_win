@@ -4063,6 +4063,38 @@ addon-card .addon-inline-options {
   margin: 0 !important;
 }
 
+/* „Später senden“ (Erweiterung: #mcSendLater) wie Apple Mail: kleiner Pfeil
+   gleich rechts neben dem Senden-Knopf, öffnet das Menü mit den Zeiten */
+#composeToolbar2:has(> #mcSendLater) > #button-send {
+  inset-inline-end: 30px !important;
+}
+
+#composeToolbar2 > #mcSendLater {
+  position: absolute !important;
+  inset-inline-end: 12px !important;
+  width: 16px !important;
+  min-width: 16px !important;
+  height: 30px !important;
+  min-height: 30px !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  border: none !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  background-color: var(--mt-text-secondary) !important;
+  /* (das Verfassen-Fenster sperrt data:-Bilder – Symbol aus der Erweiterung) */
+  mask: url("resource://mailcards/icons/send-later.svg") center / 12px no-repeat !important;
+}
+
+#composeToolbar2 > #mcSendLater:hover,
+#composeToolbar2 > #mcSendLater[open] {
+  background-color: var(--mt-text) !important;
+}
+
+#composeToolbar2 > #mcSendLater > :is(.toolbarbutton-icon, .toolbarbutton-text, .toolbarbutton-menu-dropmarker) {
+  display: none !important;
+}
+
 #mcFormatToggle > .toolbarbutton-icon {
   display: none !important;
 }
