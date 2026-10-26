@@ -236,6 +236,33 @@ Lesen und Status ändern gehen in Cloud-Sessions nicht; das erledigt der
 Maintainer im Board. Das Repo ist öffentlich: Der Workflow schreibt Titel
 und Text bewusst nicht ins Log – das beim Ändern beibehalten.
 
+## GitHub-Issues und Pull Requests von Nutzern
+
+Die Kommunikation mit Nutzern auf GitHub übernimmt der Agent selbstständig.
+
+- **Bei jedem Arbeitsblock mit Bugs/Features zuerst** offene Issues und Pull
+  Requests im Repo prüfen (lokal `gh issue list -R sruf79/halo-spaces`,
+  `gh pr list …`; in Cloud-Sessions über die GitHub-MCP-Tools). Neue oder
+  geänderte Einträge im Gespräch kurz nennen.
+- **Neues Issue:** Screenshots ansehen (in Cloud-Sessions nicht abrufbar –
+  dann den Maintainer darum bitten), gegen den aktuellen Stand von `main`
+  prüfen, Ursache klären und wie jeden Bug/Wunsch in die Aufgabenliste
+  eintragen (im Text „GitHub-Issue #n“ vermerken). Dann antworten und Label
+  setzen: `bug` bzw. `enhancement`; `question`, solange eine Rückfrage offen
+  ist; `duplicate`/`wontfix` mit Begründung schließen.
+- **Status:** Issues bleiben offen, bis der Fix veröffentlicht ist (Nutzer
+  bekommen ihn erst mit dem Release). Nach dem Commit kurz antworten, dass es
+  behoben ist und mit der nächsten Version kommt; beim Release alle darin
+  behobenen Issues mit „Fixed in x.y.z“ schließen (`completed`).
+- **Pull Requests:** durchsehen (Konflikte, Überschneidung mit `main`,
+  Regeln dieser Datei) und dem Autor antworten. Mergen, schließen oder
+  Teile übernehmen nur mit Freigabe des Maintainers; übernommene Teile im
+  Commit dem Autor zuschreiben (`Co-Authored-By:`).
+- **Ton und Inhalt:** Englisch, freundlich, knapp, ohne Fachjargon des
+  Codes, wo es nicht nötig ist; Rückfragen konkret stellen. Nie auf die
+  private Aufgabenliste verweisen, keine Interna (Testrechner, VM, Tokens)
+  und keine Zusagen zu Terminen.
+
 ## Datenschutz
 
 Screenshots mit echten Mails/Kontakten (`vorschau-*.png`, `reddit/`,
