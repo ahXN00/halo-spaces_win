@@ -633,6 +633,23 @@ SURFACES = [
       'const p = await pick("Inbox", "Bilder vom Ausflug"); p.folderTree.focus(); await wait(600);'),
     S("mail-mehrfachauswahl", "mailliste", "zustand", "Mehrere Mails ausgewählt (Zusammenfassung)",
       'const p = await pick("Inbox", "Treffen am Donnerstag"); p.threadTree.selectedIndices = [0, 1, 2, 3]; await wait(2000);'),
+    S("mail-schnellantwort", "mailliste", "zustand", "Schnellantwort unter der Mail mit Text (halo.spaces)",
+      'await pick("Inbox", "Treffen am Donnerstag"); const md = msgDoc(); const bar = await until(() => md.getElementById("mcQuickReply"), 4000);'
+      ' if (!bar) throw new Error("Schnellantwort fehlt"); const f = bar.querySelector(".mc-qr-field"); f.value = "Danke, passt mir gut!";'
+      ' f.dispatchEvent(new md.defaultView.Event("input", { bubbles: true })); f.focus(); await wait(500);',
+      close='const bar = msgDoc()?.getElementById("mcQuickReply"); if (bar) { const f = bar.querySelector(".mc-qr-field"); f.value = ""; f.dispatchEvent(new f.ownerDocument.defaultView.Event("input", { bubbles: true })); }'),
+    S("mail-nachfassen", "mailliste", "zustand", "Posteingang: Hinweis „Nachfassen“ zu eigener Mail ohne Antwort (halo.spaces)",
+      'const s = fld("Sent"); s.setFlag(Ci.nsMsgFolderFlags.SentMail); const sent = s.QueryInterface(Ci.nsIMsgLocalMailFolder);'
+      ' const dt = new Date(Date.now() - 5 * 86400000).toUTCString().replace("GMT", "+0000");'
+      ' if (!s.msgDatabase.getMsgHdrForMessageID("tour-follow@example.invalid")) { sent.addMessage("From: Halo Test <halo@example.invalid>\\r\\nTo: Ben Muster <ben@example.invalid>\\r\\nSubject: Angebot Werkstatt\\r\\nDate: " + dt + "\\r\\nMessage-ID: <tour-follow@example.invalid>\\r\\n\\r\\nWie besprochen.\\r\\n"); await wait(800); }'
+      ' const { ExtensionParent } = ChromeUtils.importESModule("resource://gre/modules/ExtensionParent.sys.mjs");'
+      ' Cu.evalInSandbox("FollowUp", ExtensionParent.GlobalManager.getExtension("' + ht.ADDON_ID + '").experimentAPIManager.global).cache = null;'
+      ' await show("Inbox"); await until(() => tm.currentAbout3Pane.document.getElementById("mcFollowUp"), 4000); await wait(500);'),
+    S("mail-senden-rueckgaengig", "mailliste", "zustand", "Nach dem Senden: „Senden rückgängig“ unten (halo.spaces)",
+      'Services.prefs.setIntPref("extensions.mailcards.undoSend", 30); const cw = await compose({ subject: "Treffen nächste Woche" }); w.__tourUndo = cw;'
+      ' cw.goDoCommand("cmd_sendNow"); await until(() => d.getElementById("mcUndoSend"), 5000); await toMail(); await wait(600);',
+      close='d.getElementById("mcUndoSend")?.querySelector(".mc-us-undo")?.click(); await wait(400); const cw = w.__tourUndo; delete w.__tourUndo;'
+            ' if (cw && !cw.closed) { cw.gMsgCompose.bodyModified = false; cw.SetContentAndBodyAsUnmodified?.(); cw.close(); } Services.prefs.clearUserPref("extensions.mailcards.undoSend"); await wait(500);'),
     S("mail-leerer-ordner", "mailliste", "zustand", "Leerer Ordner",
       'await show("Projekte/Leer"); await wait(500);'),
     S("mail-entwuerfe", "mailliste", "zustand", "Ordner Entwürfe",
@@ -654,9 +671,6 @@ SURFACES = [
       close='Services.prefs.clearUserPref("mail.uidensity"); await wait(800);'),
     S("mail-layout-klassisch", "mailliste", "zustand", "Layout „klassisch“ (Liste oben, Mail unten)",
       'await pick("Inbox", "Treffen am Donnerstag"); cmd3("cmd_viewClassicMailLayout"); await wait(1500);',
-      close='cmd3("cmd_viewVerticalMailLayout"); await wait(800);'),
-    S("mail-layout-breit", "mailliste", "zustand", "Layout „breit“",
-      'await pick("Inbox", "Treffen am Donnerstag"); cmd3("cmd_viewWideMailLayout"); await wait(1500);',
       close='cmd3("cmd_viewVerticalMailLayout"); await wait(800);'),
     S("mail-ohne-leseansicht", "mailliste", "zustand", "Leseansicht ausgeblendet (nur Liste)",
       'await pick("Inbox", "Treffen am Donnerstag"); cmd3("cmd_toggleMessagePane"); await wait(1200);',
@@ -791,6 +805,9 @@ SURFACES = [
     # ------------------------------------------------------------ Verfassen
     S("verfassen-html", "verfassen", "fenster", "Verfassen (HTML) mit Formatleiste",
       'await compose();', cap="window", win="messengercompose"),
+    S("verfassen-spaeter-senden", "verfassen", "popup", "Verfassen: Später senden (Pfeil am Senden-Knopf, halo.spaces)",
+      'const cw = await compose(); const b = cw.document.getElementById("mcSendLater"); if (!b) throw new Error("Später-senden-Knopf fehlt");'
+      ' return await pop(b.menupopup || cw.document.getElementById("mcSendLaterPopup"), () => { b.open = true; });', cap="popup"),
     S("verfassen-text", "verfassen", "fenster", "Verfassen (reiner Text)",
       'await compose({ plain: true });', cap="window", win="messengercompose"),
     S("verfassen-antwort", "verfassen", "fenster", "Antworten (zitierter Text)",
@@ -922,6 +939,13 @@ SURFACES = [
     S("today-pane-zu", "ordner", "zustand", "Mail ohne Today-Pane",
       'await pick("Inbox", "Treffen am Donnerstag"); if (w.TodayPane.isVisible) d.getElementById("calendar_toggle_todaypane_command").doCommand(); await wait(1500);',
       close='if (!w.TodayPane.isVisible) d.getElementById("calendar_toggle_todaypane_command").doCommand(); await wait(1000);'),
+    S("today-wetter", "ordner", "zustand", "Today-Pane mit Wetter-Symbol (Regen, Option von halo.spaces)",
+      'const { ExtensionParent } = ChromeUtils.importESModule("resource://gre/modules/ExtensionParent.sys.mjs");'
+      ' const W = Cu.evalInSandbox("Weather", ExtensionParent.GlobalManager.getExtension("' + ht.ADDON_ID + '").experimentAPIManager.global);'
+      ' Services.prefs.setStringPref("extensions.mailcards.weatherState", JSON.stringify({ for: "Wien", place: "Wien, Österreich", status: "ok", time: Date.now(), kind: "rain", temp: 12 }));'
+      ' Services.prefs.setStringPref("extensions.mailcards.weatherPlace", "Wien"); Services.prefs.setBoolPref("extensions.mailcards.weather", true); W.show();'
+      ' await pick("Inbox", "Treffen am Donnerstag"); if (!w.TodayPane.isVisible) d.getElementById("calendar_toggle_todaypane_command").doCommand(); await wait(1200);',
+      close='for (const p of ["weather", "weatherPlace", "weatherState"]) Services.prefs.clearUserPref("extensions.mailcards." + p); await wait(300);'),
     S("spaces-eingeklappt", "ordner", "zustand", "Bereiche-Leiste eingeklappt",
       'await pick("Inbox", "Treffen am Donnerstag"); w.gSpacesToolbar.toggleToolbar(true); await wait(1500);',
       close='w.gSpacesToolbar.toggleToolbar(false); await wait(1000);'),
@@ -948,6 +972,9 @@ SURFACES = [
     S("kontext-mailliste", "menues", "popup", "Kontextmenü: Mailliste",
       'const p = await pick("Inbox", "Treffen am Donnerstag"); const row = p.document.querySelector(\'#threadTree tr.selected, #threadTree tr[aria-selected="true"]\');'
       ' return await ctxPop("mailContext", row);', cap="popup"),
+    S("kontext-mailliste-erinnern", "menues", "popup", "Kontextmenü: Mailliste → Erinnern (halo.spaces)",
+      'const p = await pick("Inbox", "Treffen am Donnerstag"); const row = p.document.querySelector(\'#threadTree tr.selected, #threadTree tr[aria-selected="true"]\');'
+      ' await ctxPop("mailContext", row); const sub = p.document.getElementById("mcRemindMenu").menupopup; return await pop(sub, () => { sub.parentNode.open = true; });', cap="popup"),
     S("kontext-mailliste-untermenue", "menues", "popup", "Kontextmenü: Mailliste → Schlagwort",
       'const p = await pick("Inbox", "Treffen am Donnerstag"); const row = p.document.querySelector(\'#threadTree tr.selected, #threadTree tr[aria-selected="true"]\');'
       ' await ctxPop("mailContext", row); const sub = p.document.getElementById("mailContext-tagpopup"); return await pop(sub, () => { sub.parentNode.open = true; });', cap="popup"),
@@ -1244,6 +1271,10 @@ SURFACES = [
     S("addons-werkzeuge-menue", "addons", "zustand", "Add-ons: Zahnrad-Menü (Updates, Add-on aus Datei installieren, Tastenkombinationen …)",
       'w.openAddonsMgr("addons://list/extension"); await wait(3000); const ad = tabDoc(); const b = ad.querySelector("addon-page-header .page-options-menu .more-options-button");'
       ' if (!b) throw new Error("Knopf fehlt"); b.click(); await wait(900); if (!ad.getElementById("page-options-panel-list")?.open) throw new Error("Menü ging nicht auf");'),
+    S("halo-begruessung", "addons", "fenster", "Begrüßung nach der Installation mit Wetter-Frage (halo.spaces)",
+      'const { ExtensionParent } = ChromeUtils.importESModule("resource://gre/modules/ExtensionParent.sys.mjs");'
+      ' const g = ExtensionParent.GlobalManager.getExtension("' + ht.ADDON_ID + '").experimentAPIManager.global;'
+      ' await toMail(); Cu.evalInSandbox("enhancer", g).openHaloWindow(w, { welcome: true });', cap="window", win="halo.html"),
     S("halo-info", "addons", "fenster", "Hilfe → halo.spaces … (Info-Fenster)",
       'await toMail(); d.getElementById("mcHaloSpaces").doCommand();', cap="window", win="halo.html"),
 

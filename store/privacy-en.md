@@ -10,7 +10,9 @@ Network requests it makes:
 
 3. Update checks: like every add-on, Thunderbird checks addons.thunderbird.net for new versions. halo.spaces also starts this check once when Thunderbird starts (at most every 6 hours; can be turned off: Preferences → "Install updates at start"). No data other than the add-on ID and version is sent.
 
-Data stored locally (only in your Thunderbird profile): the logo cache, your halo.spaces settings, and – only if you turn on "Detailed log" – a debug log file that may contain sender addresses.
+4. Weather in the Today pane (off by default; Preferences → "Weather in the Today Pane"). When turned on, halo.spaces asks Open-Meteo (api.open-meteo.com, weather data CC BY 4.0) for the current weather about every 30 minutes. Only coordinates rounded to about 1 km are sent. If you enter a city, its name is sent once to Open-Meteo's geocoding service (geocoding-api.open-meteo.com) to find these coordinates. If you leave the city empty, your system's location service is used (your operating system asks for permission); the rounded coordinates go only to Open-Meteo. Open-Meteo can see your IP address.
+
+Data stored locally (only in your Thunderbird profile): the logo cache, the last weather reading and place (if weather is on), your halo.spaces settings, and – only if you turn on "Detailed log" – a debug log file that may contain sender addresses.
 
 Optional, macOS only and off by default: "Photos from the Contacts app" reads pictures from your local macOS Contacts database; macOS asks for permission once. Nothing leaves your computer.
 

@@ -164,3 +164,72 @@ main {
   font-size: 13px;
   color: var(--text);
 }
+
+/* Begrüßung: Frage nach dem Wetter in der Today-Pane */
+.weather {
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: var(--control);
+  font-size: 13px;
+}
+
+.weather p {
+  margin: 0;
+}
+
+.weather .small {
+  margin-top: 2px;
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+
+.weather .choices,
+.weather .city {
+  display: flex;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.weather .capsule {
+  flex: 1 1 auto;
+  min-height: 30px;
+  padding: 0 10px;
+  white-space: nowrap;
+  background: var(--control-hover);
+  font-size: 12px;
+}
+
+.weather .capsule.chosen {
+  background: var(--accent);
+  color: AccentColorText;
+}
+
+.weather .city input {
+  flex: 1;
+  min-width: 0;
+  padding: 4px 8px;
+  border: 1px solid var(--control-hover);
+  border-radius: 6px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+}
+
+.weather .city .capsule {
+  flex: none;
+}
+
+.weather .status:empty,
+.weather [hidden] {
+  display: none;
+}
+
+.weather .status.bad {
+  color: #FF3B30;
+}
+
+.weather > .capsule {
+  margin-top: 6px;
+  width: 100%;
+}

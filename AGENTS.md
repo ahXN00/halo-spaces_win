@@ -42,10 +42,12 @@ kann. Ziel ist macOS; Windows/Linux laufen mit, sind aber nicht der Schwerpunkt.
 | `extension/api/implementation.js` | Experiment-API `mailCards` – die eigentliche Logik (~7500 Zeilen) |
 | `extension/api/schema.json` | Schema der Experiment-API |
 | `extension/background.js` | ruft nur `browser.mailCards.start()` auf |
-| `extension/*.css` | zusätzliche Stilblätter der Erweiterung (`parts.css`, `noscroll.css`, `plaintext.css`, `icon-vars.css`) |
+| `extension/*.css` | zusätzliche Stilblätter der Erweiterung (`parts.css`, `noscroll.css`, `plaintext.css`, `print.css`, `icon-vars.css`) |
 | `extension/icons/` | Apple-artige Ersatzsymbole |
 | `extension/about/`, `extension/options/` | Fenster „Hilfe → halo.spaces…“ und Einstellungsseite |
 | `tests/halo_test.py` | automatischer Test per Marionette in frischem Profil |
+| `tests/testserver.py` | lokaler IMAP-/SMTP-Testserver (nur 127.0.0.1, erfundene Daten) für die Prüfungen mit Testkonto |
+| `tests/ui_tour.py` | Rundgang: Bilder aller Oberflächen (Design-Durchsicht) |
 | `tests/beta.sh` | gleicher Test mit Thunderbird Beta |
 | `tests/mac-mini-setup.sh`, `tests/mac-runner-hook.sh`, `tests/MAC-MINI.md` | Mac mini als Testrechner: Prüfen/Einrichten, Wächter für den GitHub-Runner, Anleitung |
 | `tests/win-vm-setup.ps1` | Windows-Seite der Test-VM (Energie, Sperre, Thunderbird, Python), aufgerufen von `mac-mini-setup.sh` |
@@ -103,11 +105,11 @@ Das betrifft das echte Profil des Nutzers – nur auf ausdrücklichen Wunsch.
 ## Testrechner (Mac mini)
 
 Ein Mac mini übernimmt die Tests rund um die Uhr (Anleitung: `tests/MAC-MINI.md`):
-eigener Standardbenutzer ohne echte Mails mit automatischer Anmeldung, erreichbar
+eigener Benutzer `neosky.cat` (Administrator) ohne echte Mails mit automatischer Anmeldung, erreichbar
 nur über Tailscale (keine Portfreigabe), Claude Code per SSH aus der Desktop-App.
 
 - `tests/mac-mini-setup.sh --check` prüft den Rechner (Ruhezustand, Thunderbird,
-  Python, Bildschirm, Rechte, Anmeldung, Tailscale, SSH, Runner, Windows-VM) und ändert
+  Python, gh, Bildschirm, Rechte, Anmeldung, Tailscale, SSH, Runner, Windows-VM) und ändert
   nichts; ohne `--check` richtet es ein, was ohne Passwort geht, und macht einen
   Probelauf.
 - Marionette-Ports: 2839 Standard, 2845 CI-Jobs `mac` und `windows`, ab 2850 für Läufe von Hand
@@ -173,6 +175,9 @@ Thunderbird lehnt das Update ab. Vor einem Release die Versionshinweise im
 
 ## Konventionen
 
+- **Im Zweifel wie Apple:** Ist bei Design oder Verhalten etwas unklar, die
+  entsprechende Apple-App nachahmen (Mail, Kontakte, Kalender) – Aussehen,
+  Platzierung, Vorgaben und Bedienung – statt eigene Lösungen zu erfinden.
 - **Sprache:** Code-Kommentare, Commit-Nachrichten und Skriptausgaben auf
   Deutsch; `README.md` und Store-Texte auf Englisch (Store zusätzlich `listing-de.md`).
 - **Commit-Nachrichten:** ein Satz, Bereich vorneweg (`Mailkopf: …`,
@@ -221,7 +226,8 @@ SessionStart-Hook die offenen Einträge in jede Sitzung.
   Issues im Repo.
 - Titel auf Deutsch im Commit-Stil: `Bereich: kurze Beschreibung`
   (z. B. `Kalender: …`, `Mailliste: …`), Details in den Text.
-- Lokal: Zugriff über `gh` mit Scope `project`.
+- Lokal: Zugriff über `gh` mit Scope `project` (auf neon per Homebrew, siehe
+  `tests/MAC-MINI.md` Abschnitt 3; `mac-mini-setup.sh --check` prüft die Anmeldung).
 
 ```bash
 gh project item-list 1 --owner sruf79 --limit 200 --format json      # lesen

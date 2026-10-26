@@ -87,9 +87,12 @@ in your profile's `chrome` folder takes precedence and would hide updates, so re
 
 Options
 -------
-All options (preview lines, hover actions, sender logos, calendar emojis, birthdays, the bundled design
-and icons, updates) are in **Settings → halo.spaces**. You can also reach them from
-**Alt → Help → halo.spaces… → Settings…** or **Add-ons and Themes → halo.spaces → Settings**.
+Options that belong to a view are set right there: preview lines under
+**Alt → View → Preview Lines**, contact photos in the list's **…** menu, and the
+Birthdays calendar is shown or hidden with its checkbox in the calendar list.
+All other options – sender logos, calendar emojis, dialogs, updates, the bundled
+design and icons – are in **Settings → halo.spaces** (also reachable via
+**Alt → Help → halo.spaces… → Settings…** or **Add-ons and Themes → halo.spaces → Settings**).
 Changes take effect right away unless noted.
 
 Known differences from macOS
