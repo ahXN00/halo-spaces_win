@@ -3423,7 +3423,7 @@ def calendar_checks(m, results):
         res = m.js(CAL_CHECK_JS + r"""
           const c = testCalendar(); const added = [];
           try {
-            for (const [dd, title] of [[5, "Halo Agenda Einzeltag"], [6, "Halo Agenda Folgetag"]]) {
+            for (const [dd, title] of [[2, "Halo Agenda Einzeltag"], [3, "Halo Agenda Folgetag"], [4, "Halo Agenda Drittag"]]) {
               const e = new CalEvent(); e.title = title; e.calendar = c; const s = today(); s.day += dd; const en = s.clone(); en.day += 1;
               e.startDate = s; e.endDate = en; added.push(await c.addItem(e)); }
             await toMail(); if (!w.TodayPane?.isVisible) d.getElementById("calendar_toggle_todaypane_command").doCommand();
