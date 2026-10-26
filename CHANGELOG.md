@@ -3,7 +3,20 @@
 Changes in this fork compared with [halo.spaces](https://github.com/sruf79/halo-spaces). Upstream's
 own release notes are on its [Releases](https://github.com/sruf79/halo-spaces/releases) page.
 
-## Unreleased: merged halo.spaces 3.5.1, 2026-10-24
+## Unreleased: merged halo.spaces 3.6.0 and 3.7.0, 2026-10-26
+
+**Tested with Thunderbird 158 on Windows 11 at 125 % scaling: 246/246 checks pass in light and dark**
+
+### ✨ New features
+- **Merged upstream halo.spaces 3.6.0 and 3.7.0** (Undo Send, Send Later, Remind Me, Quick Reply, weather in the Today pane …)
+- **Temperature next to the weather symbol in the Today pane**
+- **Double-clicking a message opens it in its own window** (the tab bar is hidden; Esc or Ctrl+W close tabs)
+
+### 🐛 Fixes
+- **Buttons in the toolbar row react to clicks again** (Windows had treated them as part of the title bar)
+- **Tests: line widths compared correctly at 125 % scaling**
+
+## Merged halo.spaces 3.5.1, 2026-10-24
 
 ### ✨ New features
 - **Merged upstream halo.spaces 3.5.1**

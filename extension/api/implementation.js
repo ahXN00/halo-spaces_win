@@ -2606,6 +2606,7 @@ const Weather = {
     }
     for (const t of this.titles) {
       t.removeAttribute("data-weather");
+      t.removeAttribute("data-temp");
       t.removeAttribute("title");
     }
     this.titles.clear();
@@ -2618,8 +2619,15 @@ const Weather = {
       if (on) {
         t.dataset.weather = st.kind;
         t.title = st.temp != null ? `${st.place ? st.place + ": " : ""}${Math.round(st.temp)} °C` : st.place || "";
+        // Temperatur klein oben rechts am Symbol (zeigt das Stylesheet unter Windows)
+        if (st.temp != null) {
+          t.dataset.temp = `${Math.round(st.temp)}°`;
+        } else {
+          t.removeAttribute("data-temp");
+        }
       } else {
         t.removeAttribute("data-weather");
+        t.removeAttribute("data-temp");
         t.removeAttribute("title");
       }
     }
@@ -6879,6 +6887,16 @@ class CardEnhancer {
       onLoadWindow: w => this.watchMainWindow(w),
     });
     this.watchChatVariant();
+    // Windows: Doppelklick öffnet die Mail in einem eigenen Fenster statt in
+    // einem Tab – die Tab-Leiste ist ausgeblendet, aus dem Tab gäbe es keinen
+    // sichtbaren Weg zurück. Nur der Standardwert; eine eigene Wahl bleibt.
+    if (Services.appinfo.OS == "WINNT") {
+      const OPEN = "mail.openMessageBehavior";
+      const defaults = Services.prefs.getDefaultBranch("");
+      const original = defaults.getIntPref(OPEN, 2);
+      defaults.setIntPref(OPEN, 0);
+      this.restorers.push(() => defaults.setIntPref(OPEN, original));
+    }
     // Verfassen-Fenster: Symbolleiste nur mit Symbolen, sobald Beschriftungen
     // gekürzt würden (siehe watchComposeToolbar)
     const composeCleanups = new Set();

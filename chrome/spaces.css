@@ -7191,6 +7191,33 @@ body:has(> #accountTreeBox.mc-side-hidden) {
   #mcTodayTitle[data-weather="thunder"] { --mc-weather-color: #FFD60A; }
 }
 
+/* Windows: Temperatur klein oben rechts am Wettersymbol (data-temp setzt die
+   Erweiterung) – auch in der schmalen Today-Pane, wo nur das Symbol bleibt */
+@media (-moz-platform: windows) {
+  #mcTodayTitle[data-weather][data-temp]::before {
+    content: attr(data-temp);
+    order: 1;
+    align-self: flex-start;
+    margin-inline-start: -6px;
+    font-size: 10px;
+    font-weight: 600;
+    line-height: 1;
+    color: var(--mt-text-secondary);
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* schmal bleibt zwischen Kalender-Knopf und „+“ nur die Breite des Symbols –
+     der Titel nutzt den freien Rand links, die Zahl darf rechts überstehen */
+  #mcTodayTitle[data-narrow][data-weather][data-temp] {
+    overflow: visible;
+    margin-inline-start: -8px;
+  }
+
+  #mcTodayTitle[data-narrow][data-weather][data-temp]::before {
+    margin-inline-start: -2px;
+  }
+}
+
 #mcTodayTitle:-moz-window-inactive {
   color: var(--mt-text-secondary);
 }
