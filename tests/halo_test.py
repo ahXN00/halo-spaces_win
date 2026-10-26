@@ -4161,6 +4161,154 @@ def server_checks(m, results):
               return 1;""")
             return ok, f"{res}"
         check("Testkonto: abgelehnte Mail → Fehler-Dialog (mit „Postausgang zeigen“), Mail bleibt im Postausgang", send_error, results)
+
+        def chat_irc():
+            # Chat mit dem IRC-Testserver: anmelden, Raum betreten, Gespräch in der Liste ausgewählt (Akzentfarbe),
+            # Nachricht einer erfundenen Person erscheint, eigene Nachricht kommt beim Server an
+            res = m.js(r"""
+              const { IMServices } = ChromeUtils.importESModule("resource:///modules/IMServices.sys.mjs");
+              tm.openTab("chat", {}); await wait(2000);
+              const acc = IMServices.accounts.createAccount("halo@127.0.0.1", "prpl-irc");
+              acc.setInt("port", %d); acc.setBool("ssl", false); acc.alias = "Halo Testchat";
+              acc.connect();
+              const out = { connected: !!(await until(() => acc.connected, 15000)) };
+              const fields = acc.getChatRoomDefaultFieldValues(); fields.setValue("channel", "#halo");
+              acc.joinChat(fields);
+              const conv = await until(() => IMServices.conversations.getConversations().find(c => c.name == "#halo"), 10000);
+              const listbox = d.getElementById("contactlistbox");
+              const it = await until(() => [...listbox.querySelectorAll("richlistitem")].find(i => i.getAttribute("displayname") == "#halo" || i.textContent.includes("#halo")), 8000);
+              if (it) listbox.selectedItem = it;
+              await wait(1500);
+              out.item = it ? { bg: w.getComputedStyle(it).backgroundColor, accent: w.getComputedStyle(d.documentElement).getPropertyValue("--mt-accent").trim() } : null;
+              conv?.sendMsg("Hallo zurück");
+              w.__mcChatAcc = acc.id;
+              return out;""" % servers.irc_port)
+            time.sleep(2)
+            servers.irc.say("#halo", "anna", "Hallo aus dem Testchat")
+            res2 = m.js(r"""
+              const { IMServices } = ChromeUtils.importESModule("resource:///modules/IMServices.sys.mjs");
+              const cb = [...d.querySelectorAll("browser")].find(b => b.currentURI?.spec == "chrome://chat/content/conv.html" && b.getBoundingClientRect().width > 100);
+              const texts = () => [...(cb?.contentDocument?.querySelectorAll(".message, .msg") || [])].map(e => e.textContent);
+              const got = await until(() => texts().some(t => t.includes("Hallo aus dem Testchat")), 10000);
+              const out = { shown: !!got, own: texts().some(t => t.includes("Hallo zurück")) };
+              const acc = IMServices.accounts.getAccountById(w.__mcChatAcc); delete w.__mcChatAcc;
+              try { acc.disconnect(); await wait(500); IMServices.accounts.deleteAccount(acc.id); } catch {}
+              await toMail();
+              for (const t of [...tm.tabInfo].slice(1)) tm.closeTab(t);
+              return out;""")
+            it = res.get("item") or {}
+            ok = (res.get("connected") and it and it.get("bg") not in ("", "transparent", "rgba(0, 0, 0, 0)")
+                  and res2.get("shown") and res2.get("own") and ("#halo", "Hallo zurück") in servers.irc.said)
+            return ok, f"{res} {res2} IRC: {servers.irc.log[:8]}"
+        check("Testkonto: Chat mit Testserver – anmelden, Raum betreten, Gespräch ausgewählt, Nachrichten hin und zurück", chat_irc, results)
+
+        def wrong_password():
+            # Server lehnt die Anmeldung ab → Thunderbirds Nachfrage erscheint als Kachel im Fenster (wie ein macOS-Sheet)
+            servers.imap.fail_login = True
+            res = m.js(r"""
+              const { MailServices } = ChromeUtils.importESModule("resource:///modules/MailServices.sys.mjs");
+              const acc = MailServices.accounts.getAccount("%s"), server = acc.incomingServer;
+              await toMail();
+              const host = d.getElementById("mcDialogBox");
+              const out = { host: !!host, seen: null, count: 0 };
+              // jede Nachfrage messen und abbrechen (Marionette bräche sie sonst beim nächsten Befehl selbst ab)
+              const onOpen = () => {
+                out.count++;
+                w.setTimeout(() => {
+                  const card = host?.querySelector(".dialogBox"), f = host?.querySelector(".dialogFrame");
+                  out.seen ||= { open: !!host?.open, radius: card ? w.getComputedStyle(card).borderTopLeftRadius : null,
+                                 text: (f?.contentDocument?.getElementById("infoBody")?.textContent || "").slice(0, 120) };
+                  f?.contentDocument?.querySelector("dialog")?.cancelDialog();
+                }, 900);
+              };
+              w.addEventListener("dialogopen", onOpen, true);
+              w.__mcPwOff = () => w.removeEventListener("dialogopen", onOpen, true);
+              server.closeCachedConnections(); await wait(500);
+              const inbox = server.rootFolder.getFolderWithFlags(Ci.nsMsgFolderFlags.Inbox);
+              w.setTimeout(() => inbox.getNewMessages(w.msgWindow, null), 100);
+              w.__mcPwTest = out;
+              return 1;""" % key)
+            time.sleep(8)
+            res = m.js(r"""
+              const out = w.__mcPwTest || {}; delete w.__mcPwTest;
+              w.__mcPwOff?.(); delete w.__mcPwOff;
+              const host = d.getElementById("mcDialogBox");
+              await until(() => !host?.open, 3000);
+              out.closed = !host?.open;
+              return out;""")
+            servers.imap.fail_login = False
+            s_ = res.get("seen") or {}
+            ok = res.get("host") and s_.get("open") and s_.get("radius") == "14px" and res.get("closed")
+            return ok, f"{res}"
+        check("Testkonto: falsches Passwort – Nachfrage als Kachel im Fenster, Abbrechen schließt sie", wrong_password, results)
+
+        def openpgp_roundtrip():
+            # OpenPGP mit erfundenem Schlüssel: Verfassen mit Verschlüsselung (Knopf aktiv), Mail an sich selbst über den
+            # Testserver, zurück in den Posteingang → Leseansicht entschlüsselt sie und zeigt den Hinweis im Mailkopf
+            m.cmd("WebDriver:SetTimeouts", {"script": 120000})
+            try:
+                before = len(servers.smtp.sent)
+                res = m.js(r"""
+                  const { MailServices } = ChromeUtils.importESModule("resource:///modules/MailServices.sys.mjs");
+                  const { RNP } = ChromeUtils.importESModule("chrome://openpgp/content/modules/RNP.sys.mjs");
+                  const { EnigmailKeyRing } = ChromeUtils.importESModule("chrome://openpgp/content/modules/keyRing.sys.mjs");
+                  const { PgpSqliteDb2 } = ChromeUtils.importESModule("chrome://openpgp/content/modules/sqliteDb.sys.mjs");
+                  const acc = MailServices.accounts.getAccount("%s"), id = acc.defaultIdentity;
+                  await RNP.init();
+                  const keyId = await RNP.genKey("Halo Test <halo@example.invalid>", "ECC", 0, 30, "");
+                  EnigmailKeyRing.clearCache();
+                  const key = EnigmailKeyRing.getKeyById(keyId);
+                  await PgpSqliteDb2.acceptAsPersonalKey(key.fpr);
+                  id.setUnicharAttribute("openpgp_key_id", key.keyId);
+                  id.setIntAttribute("encryptionpolicy", 2);
+                  Services.prefs.setIntPref("extensions.mailcards.undoSend", 0);
+                  const params = Cc["@mozilla.org/messengercompose/composeparams;1"].createInstance(Ci.nsIMsgComposeParams);
+                  const fields = Cc["@mozilla.org/messengercompose/composefields;1"].createInstance(Ci.nsIMsgCompFields);
+                  fields.to = "Halo Test <halo@example.invalid>"; fields.subject = "Halo geheim"; fields.body = "Nur für mich lesbar.";
+                  params.type = Ci.nsIMsgCompType.New; params.format = Ci.nsIMsgCompFormat.PlainText; params.composeFields = fields; params.identity = id;
+                  MailServices.compose.OpenComposeWindowWithParams(null, params);
+                  const cw = await until(() => [...Services.wm.getEnumerator("msgcompose")].find(x => x.document.readyState == "complete" && x.gMsgCompose), 10000);
+                  await wait(2500);
+                  const btn = cw.document.getElementById("button-encryption");
+                  const out = { key: !!key, encrypt: !!cw.gSendEncrypted, btn: btn ? { checked: btn.checked || btn.getAttribute("checked") == "true", shown: btn.getBoundingClientRect().width > 0 } : null };
+                  const bmp = await cw.browsingContext.currentWindowGlobal.drawSnapshot(null, 1, "white");
+                  const c = d.createElementNS("http://www.w3.org/1999/xhtml", "canvas"); c.width = bmp.width; c.height = bmp.height; c.getContext("2d").drawImage(bmp, 0, 0);
+                  const blob = await new Promise(r => c.toBlob(r)); await IOUtils.write(PathUtils.join(PathUtils.tempDir, "halo-pgp-compose.png"), new Uint8Array(await blob.arrayBuffer()));
+                  cw.goDoCommand("cmd_sendNow");
+                  out.closed = !!(await until(() => cw.closed, 20000));
+                  return out;""" % key)
+                for _ in range(40):
+                    if len(servers.smtp.sent) > before:
+                        break
+                    time.sleep(0.5)
+                raw = servers.smtp.sent[-1][2] if len(servers.smtp.sent) > before else ""
+                encrypted = "BEGIN PGP MESSAGE" in raw or "application/pgp-encrypted" in raw
+                if raw:
+                    servers.imap.add("INBOX", raw)
+                res2 = m.js(r"""
+                  const { MailServices } = ChromeUtils.importESModule("resource:///modules/MailServices.sys.mjs");
+                  const acc = MailServices.accounts.getAccount("%s"), inbox = acc.incomingServer.rootFolder.getFolderWithFlags(Ci.nsMsgFolderFlags.Inbox);
+                  const a3 = await toMail(); a3.displayFolder(inbox.URI);
+                  inbox.getNewMessages(w.msgWindow, null);
+                  const idx = await until(() => { for (let i = 0; i < (a3.gDBView?.rowCount || 0); i++) if (a3.gDBView.getMsgHdrAt(i).mime2DecodedSubject.includes("geheim") || a3.gDBView.getMsgHdrAt(i).mime2DecodedSubject == "...") return i + 1; return 0; }, 15000);
+                  if (!idx) return { found: false };
+                  a3.threadTree.selectedIndex = idx - 1; await wait(4000);
+                  const mb = a3.messageBrowser?.contentDocument || a3.document.getElementById("messageBrowser")?.contentDocument;
+                  const body = mb?.getElementById("messagepane")?.contentDocument?.body?.textContent || "";
+                  const tech = mb?.getElementById("encryptionTechBtn");
+                  const out = { found: true, body: body.includes("Nur für mich lesbar."), tech: tech ? { shown: tech.getBoundingClientRect().width > 0, text: tech.textContent.trim() } : null };
+                  const bmp = await w.browsingContext.currentWindowGlobal.drawSnapshot(null, 1, "white");
+                  const c = d.createElementNS("http://www.w3.org/1999/xhtml", "canvas"); c.width = bmp.width; c.height = bmp.height; c.getContext("2d").drawImage(bmp, 0, 0);
+                  const blob = await new Promise(r => c.toBlob(r)); await IOUtils.write(PathUtils.join(PathUtils.tempDir, "halo-pgp-read.png"), new Uint8Array(await blob.arrayBuffer()));
+                  Services.prefs.clearUserPref("extensions.mailcards.undoSend");
+                  return out;""" % key)
+            finally:
+                m.cmd("WebDriver:SetTimeouts", {"script": 30000})
+            t_ = res2.get("tech") or {}
+            ok = (res.get("key") and res.get("encrypt") and (res.get("btn") or {}).get("checked") and res.get("closed") and encrypted
+                  and res2.get("found") and res2.get("body") and t_.get("shown"))
+            return ok, f"{res} verschlüsselt: {encrypted} {res2}"
+        check("Testkonto: OpenPGP – Verfassen verschlüsselt mit Testschlüssel, Mail kommt verschlüsselt an, Leseansicht entschlüsselt mit Hinweis im Mailkopf", openpgp_roundtrip, results)
     finally:
         try:
             m.js(r"""

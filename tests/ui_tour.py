@@ -68,6 +68,35 @@ AREA_KEYS = [a[0] for a in AREAS]
 KINDS = ("bereich", "fenster", "dialog", "menue", "popup", "zustand")
 
 
+# Chat-Konto am IRC-Testserver (Raum #halo) und OpenPGP-Testschlüssel für die Identität der Lokalen Ordner
+SERVER_JS = r"""
+  const { IMServices } = ChromeUtils.importESModule("resource:///modules/IMServices.sys.mjs");
+  const { RNP } = ChromeUtils.importESModule("chrome://openpgp/content/modules/RNP.sys.mjs");
+  const { EnigmailKeyRing } = ChromeUtils.importESModule("chrome://openpgp/content/modules/keyRing.sys.mjs");
+  const { PgpSqliteDb2 } = ChromeUtils.importESModule("chrome://openpgp/content/modules/sqliteDb.sys.mjs");
+  const out = {};
+  tm.openTab("chat", {}); await wait(1500);
+  const acc = IMServices.accounts.createAccount("halo@127.0.0.1", "prpl-irc");
+  acc.setInt("port", %d); acc.setBool("ssl", false); acc.alias = "Halo";
+  acc.connect();
+  out.chat = !!(await until(() => acc.connected, 15000));
+  const fields = acc.getChatRoomDefaultFieldValues(); fields.setValue("channel", "#halo"); acc.joinChat(fields);
+  out.room = !!(await until(() => IMServices.conversations.getConversations().find(c => c.name == "#halo"), 10000));
+  await toMail();
+  for (const t of [...tm.tabInfo].slice(1)) tm.closeTab(t);
+  const id = MailServices.accounts.findAccountForServer(MailServices.accounts.localFoldersServer)?.identities[0];
+  if (id) {
+    await RNP.init();
+    const keyId = await RNP.genKey(`${id.fullName || "Halo Test"} <${id.email || "halo@example.invalid"}>`, "ECC", 0, 0, "");
+    EnigmailKeyRing.clearCache();
+    const key = EnigmailKeyRing.getKeyById(keyId);
+    await PgpSqliteDb2.acceptAsPersonalKey(key.fpr);
+    id.setUnicharAttribute("openpgp_key_id", key.keyId);
+    out.key = key.keyId;
+  }
+  return out;"""
+
+
 def S(id, area, kind, title, open=None, cap="main", close=None, **kw):
     """Eine Oberfläche: id, Bereich, Art, Titel, JS zum Öffnen/Schließen, Aufnahmeart.
 
@@ -1361,10 +1390,17 @@ SURFACES = [
       skip="nativ: macOS-Dateidialog – nicht gestaltbar"),
     S("addons-empfehlungen", "addons", "bereich", "Add-ons: Empfehlungen", cap="native",
       skip="lädt Inhalte aus dem Netz (addons.thunderbird.net) – im Testprofil ausgelassen"),
-    S("verfassen-verschluesselung", "verfassen", "popup", "Verfassen: Verschlüsselungs-Panel", cap="native",
-      skip="braucht einen OpenPGP-/S/MIME-Schlüssel – im Testprofil nicht vorhanden"),
-    S("chat-unterhaltung", "chat", "bereich", "Chat-Unterhaltung, Kontaktliste, Status", cap="native",
-      skip="braucht ein Chat-Konto (Netzwerk) – im Testprofil nicht vorhanden"),
+    # Testschlüssel (OpenPGP) und Chat-Konto am IRC-Testserver legt main() vorher an (SERVER_JS)
+    S("verfassen-verschluesselung", "verfassen", "fenster", "Verfassen mit Verschlüsselung (OpenPGP-Testschlüssel)",
+      'const cw = await compose({ to: "Halo Test <halo@example.invalid>" }); if (!cw.gSendEncrypted) cw.toggleEncryptMessage(); await wait(1500);',
+      cap="window", win="messengercompose"),
+    S("verfassen-verschluesselung-menue", "verfassen", "popup", "Verfassen: Menü am Schloss (Verschlüsselung, Signatur)",
+      'const cw = await compose({ to: "Halo Test <halo@example.invalid>" }); const b = cw.document.getElementById("button-encryption-options");'
+      ' if (!b) throw new Error("Menü der Verschlüsselung fehlt"); return await openBtnPop(b.menupopup || b.querySelector("menupopup"), b);', cap="popup"),
+    S("chat-unterhaltung", "chat", "bereich", "Chat-Unterhaltung, Kontaktliste, Teilnehmer (IRC-Testserver)",
+      'tm.openTab("chat", {}); await wait(1500); const lb = d.getElementById("contactlistbox");'
+      ' const it = await until(() => [...lb.querySelectorAll("richlistitem")].find(i => i.getAttribute("displayname") == "#halo"), 8000);'
+      ' if (!it) throw new Error("Chat-Raum fehlt"); lb.selectedItem = it; await wait(2000);'),
 ]
 
 # Sortierung nach Bereichs-Priorität (Reihenfolge innerhalb eines Bereichs bleibt)
@@ -1948,6 +1984,9 @@ def main():
     profile = ht.create_profile(xpi, args.port, args.dark, prefix="halo-tour-")
     print(f"Rundgang {scheme} · Paket {os.path.relpath(xpi, ROOT) if xpi.startswith(ROOT) else xpi} · Profil {profile}", flush=True)
     proc = ht.start_thunderbird(args.tb, profile, args.tb_log)
+    sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+    from testserver import MailServers
+    servers = MailServers()
     tour = None
     try:
         if not ht.wait_port(args.port):
@@ -1962,6 +2001,12 @@ def main():
                 w.moveTo(0, 0); w.resizeTo(1500, 900); await wait(800); return 1;""")
         data = m.js(TOUR_JS + DATA_JS)
         print(f"Testdaten: {json.dumps(data, ensure_ascii=False)}", flush=True)
+        # Chat (IRC-Testserver, nur 127.0.0.1) und OpenPGP-Testschlüssel – ändern keine anderen Oberflächen
+        m.cmd("WebDriver:SetTimeouts", {"script": 120000})
+        print(f"Chat und Schlüssel: {json.dumps(m.js(TOUR_JS + SERVER_JS % servers.irc_port), ensure_ascii=False)}", flush=True)
+        servers.irc.say("#halo", "anna", "Hallo! Kommst du morgen zum Treffen?")
+        servers.irc.say("#halo", "ben", "Ich bringe die Unterlagen mit.")
+        m.cmd("WebDriver:SetTimeouts", {"script": 30000})
         m.js("await wait(2500); return 1;")  # Karten, Kalender und Adressbuch nachziehen lassen
         tour = Tour(m, args.port, proc.pid, out, scheme, args.probe)
         tour.cleanup()
@@ -1969,6 +2014,7 @@ def main():
             tour.visit(s)
     finally:
         ht.stop_thunderbird(args.port, proc)
+        servers.close()
         if not args.keep:
             shutil.rmtree(profile, ignore_errors=True)
     if tour:
