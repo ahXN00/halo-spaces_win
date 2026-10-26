@@ -45,6 +45,7 @@ async function render() {
     const section = el("section");
     for (const row of rows) {
       if ((row.mac && !settings.mac) || (row.needs && !settings[row.needs])) continue;
+      if (row.showIf && !row.showIf.slice(1).includes(settings[row.showIf[0]])) continue;
       const id = `s-${row.key}`;
       const badge = savedBadge();
       const text = el("label", { class: "text", htmlFor: id }, row.label, badge, el("span", { class: "hint", textContent: row.hint || "" }));
@@ -54,10 +55,45 @@ async function render() {
       };
       let control;
       if (row.type == "select") {
-        control = el("select", { id }, ...row.options.map(o => el("option", { value: String(o),
-          textContent: row.labels?.[o] ?? (row.unit ? `${o} ${row.unit}` : String(o)) })));
+        // feste Auswahl (options) oder Liste von der Erweiterung (choices: [{ value, label }])
+        const list = row.choices ? settings[row.choices] || [] : row.options.map(o => ({ value: o,
+          label: row.labels?.[o] ?? (row.unit ? `${o} ${row.unit}` : String(o)) }));
+        control = el("select", { id }, ...list.map(o => el("option", { value: String(o.value), textContent: o.label })));
+        if (row.choices && !list.length) {
+          control.append(el("option", { value: "", textContent: t("No add-on with its own space installed"), disabled: true }));
+        }
         control.value = String(settings[row.key]);
-        control.addEventListener("change", () => save(Number(control.value)));
+        if (control.selectedIndex < 0) control.selectedIndex = 0;
+        // fünfter Bereich: Auswahl ohne passende Erweiterung nicht anbieten
+        if (row.key == "fifthSpace" && !(settings.fifthSpaceAddons || []).length) {
+          const opt = control.querySelector('option[value="addon"]');
+          if (opt) {
+            opt.disabled = true;
+            opt.textContent += ` (${t("none installed")})`;
+          }
+        }
+        const numeric = typeof (row.options || [])[0] == "number";
+        control.addEventListener("change", async () => {
+          await save(numeric ? Number(control.value) : control.value);
+          if (SECTIONS(t).some(([, rows]) => rows.some(r => r.showIf?.[0] == row.key))) render();
+        });
+      } else if (row.type == "url") {
+        const input = el("input", { id, type: "url", value: settings[row.key] || "", placeholder: row.placeholder || "", spellcheck: false, class: "place" });
+        const status = el("span", { class: "hint status" });
+        let timer = null;
+        input.addEventListener("input", () => {
+          clearTimeout(timer);
+          timer = setTimeout(async () => {
+            try {
+              await save(input.value.trim());
+              status.textContent = "";
+            } catch {
+              status.textContent = t("Not a valid web address");
+            }
+          }, 800);
+        });
+        text.append(status);
+        control = input;
       } else if (row.type == "place") {
         // Ort fürs Wetter: Eingabe, darunter das Ergebnis (Ort und Temperatur bzw. Hinweis)
         const input = el("input", { id, type: "text", value: settings[row.key] || "", placeholder: row.placeholder || "", spellcheck: false, class: "place" });

@@ -269,6 +269,27 @@ const DE = {
   "Dismiss": "Ausblenden",
   "No reply for {d} days: “{s}” to {to}": "Seit {d} Tagen keine Antwort: „{s}“ an {to}",
   "My Location": "Mein Standort",
+  "Spaces": "Bereiche",
+  "Chat": "Chat",
+  "Space of an add-on": "Bereich einer Erweiterung",
+  "Website": "Webseite",
+  "Fifth space": "Fünfter Bereich",
+  "the place of Chat in the spaces bar – only one of them, never both": "der Platz des Chats in der Bereichsleiste – nur eines davon, nie beides",
+  "Add-on": "Erweiterung",
+  "add-ons that bring their own space; it opens unchanged in its own tab": "Erweiterungen mit eigenem Bereich; er öffnet sich unverändert im eigenen Tab",
+  "Address": "Adresse",
+  "opens like an app: no address bar, links to other sites open in your browser": "öffnet sich wie eine App: ohne Adressleiste, Links zu anderen Seiten öffnen im Browser",
+  "In the space colour": "In der Bereichsfarbe",
+  "Original": "Original",
+  "Symbol": "Symbol",
+  "original: unchanged on a white surface": "Original: unverändert auf weißer Fläche",
+  "No add-on with its own space installed": "Keine Erweiterung mit eigenem Bereich installiert",
+  "none installed": "keine installiert",
+  "Not a valid web address": "Keine gültige Webadresse",
+  "Fifth space in the bar?": "Fünfter Bereich in der Leiste?",
+  "Chat, a website or the space of an add-on – only one of them. Changeable later in Settings.": "Chat, eine Webseite oder der Bereich einer Erweiterung – nur eines davon. Später in den Einstellungen änderbar.",
+  "Website …": "Webseite …",
+  "e.g. calendar.example.com": "z. B. kalender.example.com",
 };
 const FR = {
   "Install version {v}": "Installer la version {v}",
@@ -509,6 +530,27 @@ const FR = {
   "Dismiss": "Masquer",
   "No reply for {d} days: “{s}” to {to}": "Pas de réponse depuis {d} jours : « {s} » à {to}",
   "My Location": "Ma position",
+  "Spaces": "Espaces",
+  "Chat": "Chat",
+  "Space of an add-on": "Espace d’un module",
+  "Website": "Site web",
+  "Fifth space": "Cinquième espace",
+  "the place of Chat in the spaces bar – only one of them, never both": "la place du Chat dans la barre des espaces – un seul, jamais les deux",
+  "Add-on": "Module",
+  "add-ons that bring their own space; it opens unchanged in its own tab": "modules avec leur propre espace ; il s’ouvre tel quel dans son propre onglet",
+  "Address": "Adresse",
+  "opens like an app: no address bar, links to other sites open in your browser": "s’ouvre comme une app : sans barre d’adresse, les liens vers d’autres sites s’ouvrent dans le navigateur",
+  "In the space colour": "Dans la couleur de l’espace",
+  "Original": "Original",
+  "Symbol": "Symbole",
+  "original: unchanged on a white surface": "original : inchangé sur fond blanc",
+  "No add-on with its own space installed": "Aucun module avec son propre espace installé",
+  "none installed": "aucun installé",
+  "Not a valid web address": "Adresse web non valide",
+  "Fifth space in the bar?": "Cinquième espace dans la barre ?",
+  "Chat, a website or the space of an add-on – only one of them. Changeable later in Settings.": "Chat, un site web ou l’espace d’un module – un seul. Modifiable plus tard dans les réglages.",
+  "Website …": "Site web …",
+  "e.g. calendar.example.com": "p. ex. agenda.example.com",
 };
 const ES = {
   "Install version {v}": "Instalar la versión {v}",
@@ -749,6 +791,27 @@ const ES = {
   "Dismiss": "Descartar",
   "No reply for {d} days: “{s}” to {to}": "Sin respuesta desde hace {d} días: «{s}» a {to}",
   "My Location": "Mi ubicación",
+  "Spaces": "Espacios",
+  "Chat": "Chat",
+  "Space of an add-on": "Espacio de un complemento",
+  "Website": "Sitio web",
+  "Fifth space": "Quinto espacio",
+  "the place of Chat in the spaces bar – only one of them, never both": "el lugar del chat en la barra de espacios – solo uno, nunca ambos",
+  "Add-on": "Complemento",
+  "add-ons that bring their own space; it opens unchanged in its own tab": "complementos con su propio espacio; se abre sin cambios en su propia pestaña",
+  "Address": "Dirección",
+  "opens like an app: no address bar, links to other sites open in your browser": "se abre como una app: sin barra de direcciones, los enlaces a otros sitios se abren en el navegador",
+  "In the space colour": "En el color del espacio",
+  "Original": "Original",
+  "Symbol": "Símbolo",
+  "original: unchanged on a white surface": "original: sin cambios sobre fondo blanco",
+  "No add-on with its own space installed": "No hay complementos con espacio propio instalados",
+  "none installed": "ninguno instalado",
+  "Not a valid web address": "Dirección web no válida",
+  "Fifth space in the bar?": "¿Quinto espacio en la barra?",
+  "Chat, a website or the space of an add-on – only one of them. Changeable later in Settings.": "Chat, un sitio web o el espacio de un complemento – solo uno. Se puede cambiar luego en Ajustes.",
+  "Website …": "Sitio web …",
+  "e.g. calendar.example.com": "p. ej. calendario.example.com",
 };
 const IT = {
   "Install version {v}": "Installa la versione {v}",
@@ -989,6 +1052,27 @@ const IT = {
   "Dismiss": "Ignora",
   "No reply for {d} days: “{s}” to {to}": "Nessuna risposta da {d} giorni: «{s}» a {to}",
   "My Location": "La mia posizione",
+  "Spaces": "Spazi",
+  "Chat": "Chat",
+  "Space of an add-on": "Spazio di un componente aggiuntivo",
+  "Website": "Sito web",
+  "Fifth space": "Quinto spazio",
+  "the place of Chat in the spaces bar – only one of them, never both": "il posto della chat nella barra degli spazi – solo uno, mai entrambi",
+  "Add-on": "Componente aggiuntivo",
+  "add-ons that bring their own space; it opens unchanged in its own tab": "componenti con un proprio spazio; si apre invariato nella propria scheda",
+  "Address": "Indirizzo",
+  "opens like an app: no address bar, links to other sites open in your browser": "si apre come un’app: senza barra degli indirizzi, i link ad altri siti si aprono nel browser",
+  "In the space colour": "Nel colore dello spazio",
+  "Original": "Originale",
+  "Symbol": "Simbolo",
+  "original: unchanged on a white surface": "originale: invariato su fondo bianco",
+  "No add-on with its own space installed": "Nessun componente con spazio proprio installato",
+  "none installed": "nessuno installato",
+  "Not a valid web address": "Indirizzo web non valido",
+  "Fifth space in the bar?": "Quinto spazio nella barra?",
+  "Chat, a website or the space of an add-on – only one of them. Changeable later in Settings.": "Chat, un sito web o lo spazio di un componente – solo uno. Modificabile poi nelle impostazioni.",
+  "Website …": "Sito web …",
+  "e.g. calendar.example.com": "es. calendario.example.com",
 };
 const TRANSLATIONS = { de: DE, fr: FR, es: ES, it: IT };
 // tr("+{n} more", { n: 3 }) – Platzhalter in geschweiften Klammern
@@ -2691,6 +2775,241 @@ const Weather = {
       this.busy = false;
     }
     this.show();
+  },
+};
+
+// Fünfter Bereich (Platz des Chats in der Bereichsleiste): Chat wie bisher,
+// der Bereich einer anderen Erweiterung, eine feste Webseite oder keiner.
+// Höchstens fünf Bereiche – Chat und Ersatz nie gleichzeitig (sonst würden
+// die Knöpfe kleiner). Der Ersatz läuft 1:1 in seinem eigenen Tab (ohne
+// Today-Pane); halo.spaces leiht ihm nur Platz, Farbe und Knopf des Chats.
+const FIFTH_PREF = "extensions.mailcards.fifthSpace"; // chat | addon | web | none
+const FIFTH_ADDON_PREF = "extensions.mailcards.fifthSpaceAddon"; // Name des Bereichs (Knopf-ID)
+const FIFTH_URL_PREF = "extensions.mailcards.fifthSpaceUrl";
+const FIFTH_ICON_PREF = "extensions.mailcards.fifthSpaceIcon"; // mask | original
+const FIFTH_CHOICES = ["chat", "addon", "web", "none"];
+const FIFTH_ICONS = ["mask", "original"];
+
+const FifthSpace = {
+  mode() {
+    const m = Services.prefs.getStringPref(FIFTH_PREF, "chat");
+    return FIFTH_CHOICES.includes(m) ? m : "chat";
+  },
+  icon() {
+    const m = Services.prefs.getStringPref(FIFTH_ICON_PREF, "mask");
+    return FIFTH_ICONS.includes(m) ? m : "mask";
+  },
+  // nur http(s); ohne Schema wird https:// vorangestellt
+  normalizeURL(text) {
+    let t = String(text || "").trim();
+    if (!t) {
+      return "";
+    }
+    if (!/^[a-z][a-z0-9+.-]*:/i.test(t)) {
+      t = "https://" + t;
+    }
+    try {
+      // (im Experiment gibt es kein URL – Thunderbirds eigene Adressprüfung)
+      const u = Services.io.newURI(t);
+      return /^https?$/.test(u.scheme) && u.host.includes(".") ? u.spec : null;
+    } catch {
+      return null;
+    }
+  },
+  url() {
+    return this.normalizeURL(Services.prefs.getStringPref(FIFTH_URL_PREF, "")) || "";
+  },
+  // erlaubt sind nur Bereiche fremder Erweiterungen (Thunderbirds spaces-API)
+  addonSpaces(w) {
+    return (w?.gSpacesToolbar?.spaces || []).filter(s => s.isExtensionSpace && s.button)
+      .map(s => ({ name: s.name, title: s.button.title || s.name, space: s }));
+  },
+  // wirksamer Zustand: Erweiterung fehlt oder Adresse ungültig → wie „keiner“
+  target(w) {
+    const mode = this.mode();
+    if (mode == "addon") {
+      const want = Services.prefs.getStringPref(FIFTH_ADDON_PREF, "");
+      const hit = this.addonSpaces(w).find(s => s.name == want);
+      return hit ? { mode, space: hit.space, title: hit.title } : { mode: "none" };
+    }
+    if (mode == "web") {
+      const url = this.url();
+      return url ? { mode, url, title: Services.io.newURI(url).host.replace(/^www\./, "") } : { mode: "none" };
+    }
+    return { mode };
+  },
+  isTarget(w, target, tab) {
+    if (!tab) {
+      return false;
+    }
+    if (target.mode == "addon") {
+      return !!target.space.tabInSpace(tab);
+    }
+    if (target.mode == "web") {
+      if (tab.mode?.name != "contentTab") {
+        return false;
+      }
+      if (tab.__mcFifth) {
+        return true;
+      }
+      try {
+        return tab.browser?.currentURI?.host == Services.io.newURI(target.url).host;
+      } catch {
+        return false;
+      }
+    }
+    return false;
+  },
+  open(w, target) {
+    const tm = w.document.getElementById("tabmail");
+    if (target.mode == "addon") {
+      w.gSpacesToolbar.openSpace(tm, target.space);
+      return;
+    }
+    const existing = tm.tabInfo.find(t => this.isTarget(w, target, t));
+    if (existing) {
+      tm.switchToTab(existing);
+      return;
+    }
+    // wie eine App: keine Adressleiste; Links auf andere Seiten öffnen im Standardbrowser
+    const tab = tm.openTab("contentTab", { url: target.url, linkHandler: "single-site", background: false });
+    if (tab) {
+      tab.__mcFifth = true;
+    }
+  },
+  attach(w, restorers) {
+    const d = w.document;
+    const chat = d.getElementById("chatButton");
+    const tm = d.getElementById("tabmail");
+    if (!chat || !tm || !w.gSpacesToolbar || w.__mcFifth) {
+      return;
+    }
+    w.__mcFifth = true;
+    const root = d.documentElement;
+    const item = () => d.getElementById("spacesPopupButtonChat");
+    let target = { mode: "chat" };
+    const sync = () => {
+      const on = (target.mode == "addon" || target.mode == "web") && this.isTarget(w, target, tm.currentTabInfo);
+      chat.classList.toggle("current", on || (target.mode == "chat" && w.gSpacesToolbar.currentSpace?.button == chat));
+      root.toggleAttribute("mc-fifth-current", on);
+    };
+    const reset = () => {
+      for (const e of d.querySelectorAll("[mc-fifth-hidden]")) {
+        e.removeAttribute("mc-fifth-hidden");
+      }
+      for (const e of [chat, item()].filter(Boolean)) {
+        e.style.removeProperty("--mc-fifth-img");
+        e.style.removeProperty("--mc-fifth-img-dark");
+        e.removeAttribute("mc-fifth-icon");
+      }
+    };
+    const apply = () => {
+      target = this.target(w);
+      reset();
+      root.setAttribute("mc-fifth", target.mode);
+      const mi = item();
+      if (mi) {
+        mi.hidden = target.mode == "none";
+      }
+      // höchstens fünf Bereiche: Knöpfe fremder Bereiche nie zusätzlich in der
+      // Leiste (sie sind über „Fünfter Bereich: Erweiterung“ und das Bereiche-Menü da)
+      for (const a of this.addonSpaces(w)) {
+        a.space.button.setAttribute("mc-fifth-hidden", "");
+      }
+      d.getElementById("spacesToolbarAddonsOverflowButton")?.setAttribute("mc-fifth-hidden", "");
+      if (target.mode == "addon" || target.mode == "web") {
+        let img = "", dark = "";
+        if (target.mode == "addon") {
+          target.space.menuitem?.setAttribute("mc-fifth-hidden", "");
+          const s = target.space.button.querySelector("img")?.style;
+          img = s?.getPropertyValue("--webextension-toolbar-image") || "";
+          dark = s?.getPropertyValue("--webextension-toolbar-image-dark") || "";
+        } else if (this.icon() == "original") {
+          img = `url("${Services.io.newURI(target.url).resolve("/favicon.ico")}")`;
+        }
+        for (const e of [chat, mi].filter(Boolean)) {
+          e.setAttribute("mc-fifth-icon", this.icon());
+          if (img) {
+            e.style.setProperty("--mc-fifth-img", img);
+          }
+          if (dark) {
+            e.style.setProperty("--mc-fifth-img-dark", dark);
+          }
+        }
+        chat.title = target.title;
+        if (mi) {
+          mi.label = target.title;
+        }
+      } else {
+        // Thunderbirds eigene Beschriftung zurück
+        d.l10n?.translateElements([chat, mi].filter(Boolean));
+      }
+      sync();
+    };
+    const onClick = event => {
+      if (target.mode == "addon" || target.mode == "web") {
+        event.preventDefault();
+        event.stopImmediatePropagation();
+        this.open(w, target);
+      }
+    };
+    // auf der Leiste abfangen: Thunderbirds eigener Klick am Knopf käme sonst zuerst
+    const bar = d.getElementById("spacesToolbar");
+    const onBarClick = event => {
+      if (event.target?.closest?.("#chatButton")) {
+        onClick(event);
+      }
+    };
+    bar.addEventListener("click", onBarClick, true);
+    const onCommand = event => {
+      if (event.target?.id == "spacesPopupButtonChat") {
+        onClick(event);
+      }
+    };
+    d.addEventListener("command", onCommand, true);
+    const monitor = {
+      monitorName: "mcFifthSpace",
+      onTabTitleChanged() {},
+      onTabOpened() {},
+      onTabPersist() {},
+      onTabRestored() {},
+      onTabClosing() {},
+      onTabSwitched: () => w.setTimeout(sync, 0),
+    };
+    tm.registerTabMonitor(monitor);
+    // Bereiche anderer Erweiterungen entstehen erst nach dem Start
+    const addons = d.getElementById("spacesToolbarAddonsContainer");
+    let pending = false;
+    const later = () => {
+      if (!pending) {
+        pending = true;
+        w.setTimeout(() => {
+          pending = false;
+          apply();
+        }, 0);
+      }
+    };
+    const mo = addons ? new w.MutationObserver(later) : null;
+    mo?.observe(addons, { childList: true });
+    const prefs = [FIFTH_PREF, FIFTH_ADDON_PREF, FIFTH_URL_PREF, FIFTH_ICON_PREF];
+    const obs = { observe: later };
+    prefs.forEach(p => Services.prefs.addObserver(p, obs));
+    apply();
+    restorers?.push(() => {
+      bar.removeEventListener("click", onBarClick, true);
+      d.removeEventListener("command", onCommand, true);
+      tm.unregisterTabMonitor(monitor);
+      mo?.disconnect();
+      prefs.forEach(p => Services.prefs.removeObserver(p, obs));
+      reset();
+      if (item()) {
+        item().hidden = false;
+      }
+      root.removeAttribute("mc-fifth");
+      root.removeAttribute("mc-fifth-current");
+      d.l10n?.translateElements([chat, item()].filter(Boolean));
+      delete w.__mcFifth;
+    });
   },
 };
 
@@ -9548,6 +9867,9 @@ class CardEnhancer {
       // später noch (Übersetzung läuft verzögert) – also jedes Mal den
       // Titel aus den Fluent-Argumenten übernehmen
       const plainTitle = space => {
+        if (space.hasAttribute("mc-fifth-icon")) {
+          return; // fünfter Bereich: Titel der Erweiterung bzw. Webseite
+        }
         let name;
         try {
           name = JSON.parse(space.getAttribute("data-l10n-args") || "{}").title;
@@ -11026,6 +11348,7 @@ class CardEnhancer {
       hookEscape();
       hookSidebarButton();
       hookSpacesToggle();
+      FifthSpace.attach(w, this.restorers);
       hookTodayToggle();
       hookSplitterReset(w.document);
       hookListHeader();
@@ -13155,6 +13478,25 @@ class CardEnhancer {
           : { ok: false, status: st.status, text: st.status == "denied" ? tr("Location access is off – allow it in System Settings or enter a city")
             : st.status == "notfound" ? tr("City not found") : tr("Location unavailable – enter a city") };
       },
+      // Begrüßung: fünfter Bereich (dieselben Prefs wie die Einstellungsseite)
+      fifthAddons: () => FifthSpace.addonSpaces(Services.wm.getMostRecentWindow("mail:3pane")),
+      setFifthSpace: (mode, extra = "") => {
+        if (mode == "web") {
+          const url = FifthSpace.normalizeURL(extra);
+          if (!url) {
+            return false;
+          }
+          Services.prefs.setStringPref(FIFTH_URL_PREF, url);
+        } else if (mode == "addon") {
+          Services.prefs.setStringPref(FIFTH_ADDON_PREF, extra);
+        }
+        if (mode == "chat") {
+          Services.prefs.clearUserPref(FIFTH_PREF);
+        } else {
+          Services.prefs.setStringPref(FIFTH_PREF, mode);
+        }
+        return true;
+      },
       // Systemeinstellung der Ortung (macOS, Windows; Linux: kein einheitlicher Ort)
       locationSettingsURL: Services.appinfo.OS == "Darwin" ? "x-apple.systempreferences:com.apple.preference.security?Privacy_LocationServices"
         : Services.appinfo.OS == "WINNT" ? "ms-settings:privacy-location" : null,
@@ -13279,6 +13621,96 @@ class CardEnhancer {
     settingsBtn.addEventListener("click", () => api.openURL(api.locationSettingsURL));
   }
 
+  // Begrüßung: „Fünfter Bereich in der Leiste?“ – Chat (vorgewählt, wie bisher),
+  // Webseite …, Erweiterung (nur wenn eine einen eigenen Bereich mitbringt), Keiner.
+  // Nur eines davon; später in den Einstellungen änderbar
+  wireWelcomeFifth(hw, api) {
+    const doc = hw.document;
+    const after = doc.getElementById("weather") || doc.getElementById("platform-note");
+    if (!after || doc.getElementById("fifth")) {
+      return;
+    }
+    const el = (tag, cls, text) => {
+      const e = doc.createElement(tag);
+      if (cls) e.className = cls;
+      if (text != null) e.textContent = text;
+      return e;
+    };
+    const box = el("section", "weather");
+    box.id = "fifth";
+    const addons = api.fifthAddons();
+    const question = el("p", "q", tr("Fifth space in the bar?"));
+    const hint = el("p", "small", tr("Chat, a website or the space of an add-on – only one of them. Changeable later in Settings."));
+    const choices = el("div", "choices");
+    const chat = el("button", "capsule chosen", tr("Chat"));
+    const web = el("button", "capsule", tr("Website …"));
+    const addon = el("button", "capsule", tr("Add-on"));
+    const none = el("button", "capsule", tr("None"));
+    if (!addons.length) {
+      addon.disabled = true;
+      addon.title = tr("No add-on with its own space installed");
+    }
+    choices.append(chat, web, addon, none);
+    const webRow = el("div", "city");
+    webRow.hidden = true;
+    const input = el("input");
+    input.type = "url";
+    input.placeholder = tr("e.g. calendar.example.com");
+    const ok = el("button", "capsule", tr("OK"));
+    webRow.append(input, ok);
+    const status = el("p", "small status");
+    box.append(question, hint, choices, webRow, status);
+    after.after(box);
+    const resize = () => {
+      const need = doc.documentElement.scrollHeight - hw.innerHeight;
+      if (need > 0) {
+        hw.resizeBy(0, need);
+      }
+    };
+    const pick = button => {
+      for (const b of choices.children) {
+        b.classList.toggle("chosen", b == button);
+      }
+    };
+    chat.addEventListener("click", () => {
+      pick(chat);
+      webRow.hidden = true;
+      status.textContent = "";
+      api.setFifthSpace("chat");
+      resize();
+    });
+    none.addEventListener("click", () => {
+      pick(none);
+      webRow.hidden = true;
+      status.textContent = "";
+      api.setFifthSpace("none");
+      resize();
+    });
+    addon.addEventListener("click", () => {
+      pick(addon);
+      webRow.hidden = true;
+      // die erste Erweiterung mit eigenem Bereich; weitere zur Wahl in den Einstellungen
+      api.setFifthSpace("addon", addons[0].name);
+      status.textContent = addons[0].title;
+      status.classList.remove("bad");
+      resize();
+    });
+    web.addEventListener("click", () => {
+      pick(web);
+      webRow.hidden = false;
+      input.focus();
+      resize();
+    });
+    const useWeb = () => {
+      const fine = api.setFifthSpace("web", input.value);
+      status.textContent = fine ? "" : tr("Not a valid web address");
+      status.classList.toggle("bad", !fine);
+      resize();
+    };
+    ok.addEventListener("click", useWeb);
+    input.addEventListener("keydown", e => e.key == "Enter" && useWeb());
+  }
+
   // Texte setzen und Knöpfe verbinden (aus der Erweiterung heraus)
   wireHaloWindow(hw, api) {
     const doc = hw.document;
@@ -13312,6 +13744,7 @@ class CardEnhancer {
     }
     if (api.welcome) {
       this.wireWelcomeWeather(hw, api);
+      this.wireWelcomeFifth(hw, api);
     }
     if (api.welcome) {
       // Begrüßung: nur „Einstellungen öffnen“ (hervorgehoben) und „Weiter“
@@ -15832,6 +16265,10 @@ const SETTINGS = {
   undoSend: [UNDO_SEND_PREF, "int", 10],
   weather: [WEATHER_PREF, "bool", false],
   weatherPlace: [WEATHER_PLACE_PREF, "string", ""],
+  fifthSpace: [FIFTH_PREF, "string", "chat"],
+  fifthSpaceAddon: [FIFTH_ADDON_PREF, "string", ""],
+  fifthSpaceUrl: [FIFTH_URL_PREF, "string", ""],
+  fifthSpaceIcon: [FIFTH_ICON_PREF, "string", "mask"],
 };
 // Voraussetzungen einzelner Optionen (needs in options/sections.js)
 function settingNeeds() {
@@ -15862,6 +16299,9 @@ this.mailCards = class extends ExtensionCommon.ExtensionAPI {
           for (const [key, spec] of Object.entries(SETTINGS)) {
             out[key] = readSetting(spec);
           }
+          // fünfter Bereich: Bereiche fremder Erweiterungen zur Auswahl
+          out.fifthSpaceAddons = FifthSpace.addonSpaces(Services.wm.getMostRecentWindow("mail:3pane"))
+            .map(a => ({ value: a.name, label: a.title }));
           // wie im Hilfe-Fenster: eingerichtete Fotos gelten auch ohne Pref als an
           out.macContactPhotos = await MacPhotos.enabled();
           // Wetter: Ort und Zustand für die Zeile unter dem Ortsfeld
@@ -15879,6 +16319,14 @@ this.mailCards = class extends ExtensionCommon.ExtensionAPI {
             throw new Error(`unknown setting ${key}`);
           }
           const [pref, type, def] = spec;
+          // fünfter Bereich: nur bekannte Werte, Adresse nur http(s)
+          if (key == "fifthSpace" && !FIFTH_CHOICES.includes(value)) throw new Error("not a choice");
+          if (key == "fifthSpaceIcon" && !FIFTH_ICONS.includes(value)) throw new Error("not a choice");
+          if (key == "fifthSpaceUrl") {
+            const url = FifthSpace.normalizeURL(value);
+            if (url === null) throw new Error("not a web address");
+            value = url;
+          }
           // Kontaktfotos immer ausdrücklich speichern: ohne Wert gälten sie als
           // an, sobald es mail-cards-photos/index.json gibt (MacPhotos.enabled)
           if ((value === null || value === def) && key != "macContactPhotos") {

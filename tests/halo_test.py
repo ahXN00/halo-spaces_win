@@ -8971,6 +8971,116 @@ Neu
         return ok, f"{res}"
     check("Bereiche-Leiste: Tooltips nur mit Namen", space_tips, results)
 
+    def fifth_space():
+        # fünfter Bereich der Leiste: keiner (Chat weg, übrige Knöpfe gleich groß, Bereiche-Symbol mit fünf Feldern),
+        # Bereich einer Erweiterung (Chat-Platz, Chat-Farbe, Symbol der Erweiterung, eigener Knopf weg, Inhalt 1:1
+        # ohne Today-Pane) und feste Webseite (eigener Tab ohne Adressleiste, fremde Links im Browser)
+        import http.server
+        import threading
+        page = b'<!doctype html><meta charset="utf-8"><title>Halo Webbereich</title><h1 id="t">Halo Webbereich</h1>'
+
+        class Handler(http.server.BaseHTTPRequestHandler):
+            def do_GET(self):
+                self.send_response(200 if self.path == "/" else 404)
+                self.send_header("Content-Type", "text/html; charset=utf-8")
+                self.end_headers()
+                if self.path == "/":
+                    self.wfile.write(page)
+
+            def log_message(self, *a):
+                pass
+        web = http.server.ThreadingHTTPServer(("127.0.0.1", 0), Handler)
+        threading.Thread(target=web.serve_forever, daemon=True).start()
+        m.cmd("WebDriver:SetTimeouts", {"script": 120000})  # Erweiterung installieren und drei Zustände: länger als 30 s
+        try:
+            res = m.js(r"""
+              const { AddonManager } = ChromeUtils.importESModule("resource://gre/modules/AddonManager.sys.mjs");
+              const P = "extensions.mailcards.fifthSpace";
+              const bar = d.getElementById("spacesToolbar"), chat = d.getElementById("chatButton");
+              const shown = e => !!e && e.getBoundingClientRect().height > 0;
+              const heights = () => [...bar.querySelectorAll(".spaces-toolbar-top-container > .spaces-toolbar-button")].filter(shown).map(b => Math.round(b.getBoundingClientRect().height));
+              const out = { before: heights() };
+              // keiner
+              Services.prefs.setStringPref(P, "none"); await wait(500);
+              const toggle = w.getComputedStyle(d.getElementById("mcSpacesToggle"), "::after").backgroundImage;
+              out.none = { chat: shown(chat), heights: heights(), rects: (decodeURIComponent(toggle).match(/<rect/g) || []).length, item: d.getElementById("spacesPopupButtonChat")?.getAttribute("mc-fifth") };
+              out.none.itemShown = !d.getElementById("spacesPopupButtonChat").hidden;
+              // Erweiterung mit eigenem Bereich (vorübergehend installiert)
+              const dir = PathUtils.join(PathUtils.profileDir, "halo-space-test");
+              await IOUtils.makeDirectory(dir, { ignoreExisting: true });
+              await IOUtils.writeUTF8(PathUtils.join(dir, "manifest.json"), JSON.stringify({ manifest_version: 2, name: "Halo Testbereich", version: "1.0",
+                browser_specific_settings: { gecko: { id: "halo-space-test@example.invalid" } }, background: { scripts: ["background.js"] } }));
+              await IOUtils.writeUTF8(PathUtils.join(dir, "background.js"), 'browser.spaces.create("halotest", "page.html", { title: "Halo Testbereich", defaultIcons: "icon.svg" });');
+              await IOUtils.writeUTF8(PathUtils.join(dir, "page.html"), '<!doctype html><meta charset="utf-8"><title>Testbereich</title><body style="margin:0;font:20px serif"><h1 id="t" style="font-size:31px">Halo Testbereich</h1></body>');
+              await IOUtils.writeUTF8(PathUtils.join(dir, "icon.svg"), '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6" fill="#2a7"/></svg>');
+              const f = Cc["@mozilla.org/file/local;1"].createInstance(Ci.nsIFile); f.initWithPath(dir);
+              const addon = await AddonManager.installTemporaryAddon(f);
+              const space = await until(() => w.gSpacesToolbar.spaces.find(s => s.isExtensionSpace && s.button?.title == "Halo Testbereich"), 8000);
+              out.addon = { space: !!space };
+              if (space) {
+                Services.prefs.setStringPref("extensions.mailcards.fifthSpaceAddon", space.name);
+                Services.prefs.setStringPref(P, "addon"); await wait(600);
+                const img = chat.querySelector("img");
+                out.addon.chat = shown(chat); out.addon.title = chat.title; out.addon.ownShown = shown(space.button);
+                out.addon.mask = w.getComputedStyle(img).maskImage.includes("moz-extension://");
+                out.addon.heights = heights();
+                chat.click();
+                // (die Seite der Erweiterung läuft in deren eigenem Prozess – geprüft werden Adresse, Titel und Umgebung)
+                const tab = await until(() => tm.currentTabInfo.mode.name == "contentTab" && tm.currentTabInfo.browser?.currentURI?.spec.startsWith("moz-extension://") && tm.currentTabInfo, 8000);
+                await until(() => tab?.browser?.contentTitle == "Testbereich", 6000);
+                out.addon.tab = !!tab; out.addon.url = !!tab?.browser?.currentURI?.spec.endsWith("/page.html"); out.addon.pageTitle = tab?.browser?.contentTitle;
+                out.addon.current = chat.classList.contains("current");
+                out.addon.today = shown(d.getElementById("today-pane-panel"));
+                await toMail(); await wait(300);
+                out.addon.afterMail = { current: chat.classList.contains("current"), today: shown(d.getElementById("today-pane-panel")) };
+                for (const t of [...tm.tabInfo].slice(1)) tm.closeTab(t);
+              }
+              // feste Webseite
+              Services.prefs.setStringPref("extensions.mailcards.fifthSpaceUrl", "http://127.0.0.1:%d/");
+              Services.prefs.setStringPref(P, "web"); await wait(500);
+              out.web = { title: chat.title, mask: w.getComputedStyle(chat.querySelector("img")).maskImage.includes("svg") };
+              chat.click();
+              const wt = await until(() => tm.currentTabInfo.mode.name == "contentTab" && tm.currentTabInfo.browser?.currentURI?.spec.includes("127.0.0.1") && tm.currentTabInfo, 8000);
+              await until(() => wt?.browser?.contentTitle == "Halo Webbereich" || wt?.title == "Halo Webbereich", 6000);
+              out.web.tab = !!wt; out.web.group = wt?.browser?.getAttribute("messagemanagergroup"); out.web.current = chat.classList.contains("current");
+              out.web.today = shown(d.getElementById("today-pane-panel"));
+              await toMail(); chat.click(); await wait(800);
+              out.web.reused = tm.tabInfo.filter(t => t.mode.name == "contentTab").length;
+              for (const t of [...tm.tabInfo].slice(1)) tm.closeTab(t);
+              await toMail();
+              // zurück: Chat
+              for (const p of [P, "extensions.mailcards.fifthSpaceAddon", "extensions.mailcards.fifthSpaceUrl"]) Services.prefs.clearUserPref(p);
+              await wait(500);
+              out.back = { chat: shown(chat), title: chat.title, heights: heights(), extra: shown(space?.button) || shown(d.getElementById("spacesToolbarAddonsOverflowButton")) };
+              // Einstellungsseite: nur bekannte Werte, Adresse nur http(s)
+              const { ExtensionParent } = ChromeUtils.importESModule("resource://gre/modules/ExtensionParent.sys.mjs");
+              const g = ExtensionParent.GlobalManager.getExtension("%s").experimentAPIManager.global;
+              const api = Cu.evalInSandbox("mailCards.prototype.getAPI({})", g).mailCards;
+              const rejects = async (k, v) => { try { await api.setSetting(k, v); return false; } catch { return true; } };
+              out.validate = [await rejects("fifthSpace", "bogus"), await rejects("fifthSpaceUrl", "javascript:alert(1)"),
+                              await rejects("fifthSpaceIcon", "x"), await api.setSetting("fifthSpaceUrl", "kalender.example.com")];
+              out.listed = (await api.getSettings()).fifthSpaceAddons?.map(a => a.label);
+              for (const p of ["extensions.mailcards.fifthSpaceUrl"]) Services.prefs.clearUserPref(p);
+              await addon?.uninstall?.(); await wait(300);
+              return out;""" % (web.server_port, ADDON_ID))
+        finally:
+            m.cmd("WebDriver:SetTimeouts", {"script": 30000})
+            web.shutdown()
+            web.server_close()
+        n, a, wb, bk = res.get("none") or {}, res.get("addon") or {}, res.get("web") or {}, res.get("back") or {}
+        before = res.get("before") or []
+        ok = (len(before) == 5 and not n.get("chat") and len(n.get("heights", [])) == 4 and max(n["heights"]) - min(n["heights"]) <= 1
+              and n["heights"][0] > before[0] and n.get("rects") == 5 and not n.get("itemShown")
+              and a.get("space") and a.get("chat") and a.get("title") == "Halo Testbereich" and not a.get("ownShown") and a.get("mask")
+              and a.get("heights") == before and a.get("tab") and a.get("url") and a.get("pageTitle") == "Testbereich"
+              and a.get("current") and not a.get("today") and not a["afterMail"]["current"]
+              and wb.get("title") == "127.0.0.1" and wb.get("mask") and wb.get("tab") and wb.get("group") == "single-site"
+              and wb.get("current") and not wb.get("today") and wb.get("reused") == 1
+              and bk.get("chat") and bk.get("title") != "Halo Testbereich" and bk.get("heights") == before and not bk.get("extra")
+              and res.get("validate") == [True, True, True, "https://kalender.example.com/"] and res.get("listed") == ["Halo Testbereich"])
+        return ok, f"{res}"
+    check("Bereichsleiste: fünfter Bereich wahlweise keiner (übrige Knöpfe gleich groß), Bereich einer Erweiterung 1:1 oder feste Webseite auf dem Platz des Chats", fifth_space, results)
+
     def system_integration_check():
         # der Dialog sperrt per CSP alle Bilder außer chrome: – Haken muss trotzdem erscheinen
         res = m.js('''

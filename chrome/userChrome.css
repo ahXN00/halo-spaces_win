@@ -1750,6 +1750,7 @@ findbar .findbar-textbox:focus {
   --mi-addressbook: url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22%23000%22 stroke-width=%221.7%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22%3E%3Crect x=%224.5%22 y=%223.5%22 width=%2215%22 height=%2217%22 rx=%222.4%22/%3E%3Ccircle cx=%2212%22 cy=%2210.2%22 r=%222.6%22/%3E%3Cpath d=%22M8.1 16.6c.8-1.9 2.2-2.8 3.9-2.8s3.1.9 3.9 2.8%22/%3E%3Cpath d=%22M4.5 7.5H3M4.5 12H3M4.5 16.5H3%22/%3E%3C/svg%3E");
   --mi-calendar: url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22%23000%22 stroke-width=%221.7%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22%3E%3Crect x=%223.5%22 y=%225%22 width=%2217%22 height=%2215.5%22 rx=%222.6%22/%3E%3Cpath d=%22M3.5 9.6h17%22/%3E%3Cpath d=%22M8 3.2v3.4M16 3.2v3.4%22/%3E%3Ccircle cx=%228%22 cy=%2213.2%22 r=%22.9%22 fill=%22%23000%22 stroke=%22none%22/%3E%3Ccircle cx=%2212%22 cy=%2213.2%22 r=%22.9%22 fill=%22%23000%22 stroke=%22none%22/%3E%3Ccircle cx=%2216%22 cy=%2213.2%22 r=%22.9%22 fill=%22%23000%22 stroke=%22none%22/%3E%3Ccircle cx=%228%22 cy=%2216.8%22 r=%22.9%22 fill=%22%23000%22 stroke=%22none%22/%3E%3Ccircle cx=%2212%22 cy=%2216.8%22 r=%22.9%22 fill=%22%23000%22 stroke=%22none%22/%3E%3C/svg%3E");
   --mi-tasks: url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22%23000%22 stroke-width=%221.7%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22%3E%3Ccircle cx=%2212%22 cy=%2212%22 r=%228.5%22/%3E%3Cpath d=%22m8.2 12.2 2.6 2.6 5-5.4%22/%3E%3C/svg%3E");
+  --mi-globe: url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22%23000%22 stroke-width=%221.7%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22%3E%3Ccircle cx=%2212%22 cy=%2212%22 r=%228.5%22/%3E%3Cpath d=%22M3.5 12h17M12 3.5c-2.4 2.4-3.6 5.2-3.6 8.5s1.2 6.1 3.6 8.5M12 3.5c2.4 2.4 3.6 5.2 3.6 8.5s-1.2 6.1-3.6 8.5%22/%3E%3C/svg%3E");
   --mi-chat: url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22%23000%22 stroke-width=%221.7%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22%3E%3Cpath d=%22M12 4.5c4.7 0 8.5 3 8.5 6.8s-3.8 6.8-8.5 6.8c-.9 0-1.8-.1-2.6-.3L5.3 19.6l1-3.4C4.6 14.9 3.5 13.2 3.5 11.3c0-3.8 3.8-6.8 8.5-6.8z%22/%3E%3C/svg%3E");
   --mi-settings: url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22%23000%22 stroke-width=%221.7%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22%3E%3Cpath d=%22M18.86 10.61 L21.13 10.90 L21.13 13.10 L18.86 13.39 L17.83 15.87 L19.24 17.68 L17.68 19.24 L15.87 17.83 L13.39 18.86 L13.10 21.13 L10.90 21.13 L10.61 18.86 L8.13 17.83 L6.32 19.24 L4.76 17.68 L6.17 15.87 L5.14 13.39 L2.87 13.10 L2.87 10.90 L5.14 10.61 L6.17 8.13 L4.76 6.32 L6.32 4.76 L8.13 6.17 L10.61 5.14 L10.90 2.87 L13.10 2.87 L13.39 5.14 L15.87 6.17 L17.68 4.76 L19.24 6.32 L17.83 8.13Z%22/%3E%3Ccircle cx=%2212%22 cy=%2212%22 r=%223%22/%3E%3C/svg%3E");
   --mi-sidebar: url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22%23000%22 stroke-width=%221.7%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22%3E%3Crect x=%223%22 y=%225%22 width=%2218%22 height=%2214%22 rx=%222.6%22/%3E%3Cpath d=%22M9.5 5v14%22/%3E%3Cpath d=%22M5.6 8.4h1.6M5.6 11h1.6%22/%3E%3C/svg%3E");
@@ -2128,6 +2129,65 @@ menupopup > .folderMenuItem:is([_moz-menuactive]:not([disabled]), [disabled]) {
 #spacesToolbar #tasksButton { --c: #FF2D78; }
 #spacesToolbar #chatButton { --c: #AF52DE; }
 #spacesToolbar #settingsButton { --c: #8E8E93; }
+
+/* Fünfter Bereich (Erweiterung: mc-fifth = chat | addon | web | none): ohne
+   Chat rücken die übrigen Knöpfe gleichmäßig zusammen; als Ersatz behält der
+   Platz Farbe und Knopf des Chats, das Symbol kommt von der Erweiterung bzw.
+   der Webseite – einfarbig in der Bereichsfarbe oder unverändert auf neutraler
+   Fläche (mc-fifth-icon=original). Im Ersatz-Tab keine Today-Pane (1:1) */
+:root[mc-fifth="none"] :is(#chatButton, #spacesPopupButtonChat),
+:is(.spaces-toolbar-button, .spaces-popup-menuitem)[mc-fifth-hidden],
+#spacesToolbar > #spacesToolbarAddonsOverflowButton[mc-fifth-hidden] {
+  display: none !important;
+}
+
+:root:is([mc-fifth="addon"], [mc-fifth="web"]) :is(#chatButton, #spacesPopupButtonChat) > :is(img, .menu-icon) {
+  mask-image: var(--mc-fifth-img, var(--mi-globe)) !important;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:is([mc-fifth="addon"], [mc-fifth="web"]) :is(#chatButton, #spacesPopupButtonChat) > :is(img, .menu-icon) {
+    mask-image: var(--mc-fifth-img-dark, var(--mc-fifth-img, var(--mi-globe))) !important;
+  }
+}
+
+:root:is([mc-fifth="addon"], [mc-fifth="web"]) :is(#chatButton, #spacesPopupButtonChat)[mc-fifth-icon="original"] > :is(img, .menu-icon) {
+  mask: none !important;
+  background: var(--mc-fifth-img, none) center / contain no-repeat !important;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:is([mc-fifth="addon"], [mc-fifth="web"]) :is(#chatButton, #spacesPopupButtonChat)[mc-fifth-icon="original"] > :is(img, .menu-icon) {
+    background-image: var(--mc-fifth-img-dark, var(--mc-fifth-img, none)) !important;
+  }
+}
+
+/* Original-Symbol: Fläche weiß, im Dunkeln neutral statt weiß */
+:root:is([mc-fifth="addon"], [mc-fifth="web"]) #spacesToolbar #chatButton[mc-fifth-icon="original"] {
+  background-color: #fff !important;
+  box-shadow: inset 0 0 0 0.5px var(--mt-pane-line) !important;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:is([mc-fifth="addon"], [mc-fifth="web"]) #spacesToolbar #chatButton[mc-fifth-icon="original"] {
+    background-color: color-mix(in srgb, var(--mt-text) 14%, transparent) !important;
+  }
+}
+
+:root[mc-fifth-current] :is(#today-pane-panel, #today-splitter) {
+  display: none !important;
+}
+
+/* Symbol des Bereiche-Knopfs ohne Chat: fünf statt sechs Felder */
+:root[mc-fifth="none"] #mcSpacesToggle::after {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22%3E%3Crect x=%223%22 y=%222.0%22 width=%222.6%22 height=%223.2%22 rx=%220.8%22 fill=%22%23186EC4%22/%3E%3Crect x=%223%22 y=%226.2%22 width=%222.6%22 height=%223.2%22 rx=%220.8%22 fill=%22%2333924A%22/%3E%3Crect x=%223%22 y=%2210.4%22 width=%222.6%22 height=%223.2%22 rx=%220.8%22 fill=%22%23C47212%22/%3E%3Crect x=%223%22 y=%2214.6%22 width=%222.6%22 height=%223.2%22 rx=%220.8%22 fill=%22%23C43166%22/%3E%3Crect x=%223%22 y=%2218.8%22 width=%222.6%22 height=%223.2%22 rx=%220.8%22 fill=%22%23757579%22/%3E%3C/svg%3E") !important;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root[mc-fifth="none"] #mcSpacesToggle::after {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22%3E%3Crect x=%223%22 y=%222.0%22 width=%222.6%22 height=%223.2%22 rx=%220.8%22 fill=%22%2345A0FD%22/%3E%3Crect x=%223%22 y=%226.2%22 width=%222.6%22 height=%223.2%22 rx=%220.8%22 fill=%22%2361C77A%22/%3E%3Crect x=%223%22 y=%2210.4%22 width=%222.6%22 height=%223.2%22 rx=%220.8%22 fill=%22%23FCA53E%22/%3E%3Crect x=%223%22 y=%2214.6%22 width=%222.6%22 height=%223.2%22 rx=%220.8%22 fill=%22%23FC5F98%22/%3E%3Crect x=%223%22 y=%2218.8%22 width=%222.6%22 height=%223.2%22 rx=%220.8%22 fill=%22%23A8A8AC%22/%3E%3C/svg%3E") !important;
+  }
+}
 
 #spacesToolbar .spaces-toolbar-button:hover {
   background-color: color-mix(in srgb, var(--c) 16%, transparent) !important;

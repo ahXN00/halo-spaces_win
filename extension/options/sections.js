@@ -40,6 +40,19 @@ var SECTIONS = t => [
     { key: "calendarOffline", label: t("Offline copy for online calendars"),
       hint: t("faster loading; re-creates the calendars once") },
   ]],
+  // fünfter Platz der Bereichsleiste: nur eines – Chat, Erweiterung, Webseite oder keiner
+  [t("Spaces"), [
+    { key: "fifthSpace", type: "select", options: ["chat", "addon", "web", "none"],
+      labels: { chat: t("Chat"), addon: t("Space of an add-on"), web: t("Website"), none: t("None") },
+      label: t("Fifth space"), hint: t("the place of Chat in the spaces bar – only one of them, never both") },
+    { key: "fifthSpaceAddon", type: "select", choices: "fifthSpaceAddons", showIf: ["fifthSpace", "addon"],
+      label: t("Add-on"), hint: t("add-ons that bring their own space; it opens unchanged in its own tab") },
+    { key: "fifthSpaceUrl", type: "url", showIf: ["fifthSpace", "web"], label: t("Address"),
+      hint: t("opens like an app: no address bar, links to other sites open in your browser"), placeholder: "https://…" },
+    { key: "fifthSpaceIcon", type: "select", options: ["mask", "original"], showIf: ["fifthSpace", "addon", "web"],
+      labels: { mask: t("In the space colour"), original: t("Original") },
+      label: t("Symbol"), hint: t("original: unchanged on a white surface") },
+  ]],
   [t("Appearance"), [
     { key: "inlinePrompts", label: t("Dialogs inside the window"),
       hint: t("questions appear as a sheet at the top of the window, dialogs without title bar; for newly opened windows") },
