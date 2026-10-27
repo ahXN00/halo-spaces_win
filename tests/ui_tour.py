@@ -1329,7 +1329,7 @@ SURFACES = [
       'await show("Inbox"); later(() => cmd3("cmd_newVirtualFolder"));', cap="window", win="virtualFolderListEdit",
       then=("virtualFolderProperties", 'const b = d.getElementById("folderListPicker"); if (!b) throw new Error("Knopf fehlt"); setTimeout(() => b.click(), 0); return 1;')),
     S("dlg-suche", "dialoge", "fenster", "Nachrichten suchen (erweiterte Suche)",
-      'await show("Inbox"); later(() => w.searchAllMessages());', cap="window", win="SearchDialog"),
+      'await show("Inbox"); later(() => w.searchAllMessages());', cap="window", win="earchDialog.xhtml"),
     S("dlg-lesen-nach-datum", "dialoge", "dialog", "Nach Datum als gelesen markieren",
       'await show("Inbox"); later(() => cmd3("cmd_markReadByDate"));', cap="window", win="markByDate"),
     S("dlg-schlagwort", "dialoge", "dialog", "Neues Schlagwort (aus der Mailliste)",

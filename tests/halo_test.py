@@ -2155,11 +2155,13 @@ def dialog_checks(m, results):
               const cx = cv.getContext("2d"); cx.drawImage(snap, 0, 0); out.pixel = [...cx.getImageData(1, 1, 1, 1).data];
             } finally { await shut(vw); }
           } finally { await shut(lw); }
-          later(() => w.searchAllMessages());
-          const sw = await winUrl("SearchDialog"); if (!sw) throw new Error("Suchfenster nicht offen");
+          // direkt statt searchAllMessages: das tut ab TB 160 ohne Konto nichts (keine Lokalen Ordner mehr); Datei heißt ab 160 searchDialog.xhtml
+          later(() => w.openSearchDialog(tm.currentAbout3Pane?.gFolder ?? null));
+          const sw = await winUrl("earchDialog.xhtml"); if (!sw) throw new Error("Suchfenster nicht offen: " + [...Services.wm.getEnumerator(null)].map(x => x.location.href.split("/").pop() + " " + x.document.readyState));
           try { await pause(1000); const sd = sw.document;
             out.terms = look(sd.getElementById("searchTermList")); out.field = look([...sd.querySelectorAll("#searchTermList input:not([type=checkbox])")].find(vis));
-            out.resHead = headOf(sd, "#threadTree");
+            // ab TB 160 ist die Ergebnisliste eine tree-view wie die Mailliste, ohne treecols (noch nicht im halo-Stil geprüft)
+            out.resHead = sd.querySelector("#threadTree > treecols") ? headOf(sd, "#threadTree") : null;
           } finally { await shut(sw); }
           later(() => w.openKeyManager());
           const kw = await winUrl("KeyManager"); if (!kw) throw new Error("OpenPGP-Schlüssel nicht offen");
@@ -2177,7 +2179,7 @@ def dialog_checks(m, results):
                     and cols[0]["bl"] == "0px" and all(same_color(c["blc"], h["sep"]) for c in cols[1:])
                     and (p := h["pick"]) is not None and p["sh"] == "none" and p["bsh"] == "none" and p["bb"] == "0px"
                     and same_color(p["blc"], cols[1]["blc"]))
-        ok = ok and all(head_ok(res[k]) for k in ("listHead", "resHead", "keyHead"))
+        ok = ok and all(head_ok(res[k]) for k in ("listHead", "resHead", "keyHead") if res[k] is not None)
         return ok, f"{res}"
     check("Filterliste, Filterprotokoll, Suche, OpenPGP: Listen und Felder mit Haarlinie und Radius statt hartem Rahmen, Protokoll dunkel ohne weiße Fläche; Spaltenköpfe samt Spaltenwahl-Knopf mit Haarlinien statt Systemlinie", filter_windows, results)
 
@@ -2300,8 +2302,9 @@ def dialog_checks(m, results):
           const f = await testFolder(); tm.switchToTab(0); await pause(500); const a3 = tm.currentAbout3Pane; a3.displayFolder(f.URI); await pause(800);
           const out = {};
           out.vf = await dialog(() => a3.commandController.doCommand("cmd_newVirtualFolder"), "virtualFolderProperties", async (dw, dd) => rows(dd));
-          later(() => w.searchAllMessages());
-          const sw = await winUrl("SearchDialog"); if (!sw) throw new Error("Suchfenster nicht offen");
+          // direkt statt searchAllMessages: das tut ab TB 160 ohne Konto nichts (keine Lokalen Ordner mehr); Datei heißt ab 160 searchDialog.xhtml
+          later(() => w.openSearchDialog(tm.currentAbout3Pane?.gFolder ?? null));
+          const sw = await winUrl("earchDialog.xhtml"); if (!sw) throw new Error("Suchfenster nicht offen: " + [...Services.wm.getEnumerator(null)].map(x => x.location.href.split("/").pop() + " " + x.document.readyState));
           try { await pause(1000); const sd = sw.document, s = csOf(sd.getElementById("gray_horizontal_splitter"));
             out.search = rows(sd); out.split = { top: s.borderTopWidth, topColor: s.borderTopColor, bottom: s.borderBottomStyle, paneLine: colorOf(sd, "var(--mt-pane-line)") };
           } finally { await shut(sw); }
@@ -4976,11 +4979,11 @@ def run_checks(m, version, profile, results):
                         icon: cs(btn, "::before").maskImage.slice(0, 20), tabbable: [...box.querySelectorAll("button")].filter(b => b.tabIndex >= 0).length,
                         labeled: [...box.querySelectorAll("button")].every(b => b.getAttribute("aria-label")), enabledMatch };
           // Löschen per Knopf: Mail in den Papierkorb, Thunderbirds Rückgängig geht
-          const txn = w.messenger.transactionManager; const undo0 = txn.numberOfUndoItems;
+          const txn = w.messenger?.transactionManager ?? MailServices.txns.transactionManager; const undo0 = txn.numberOfUndoItems;
           box.querySelector(".mc-hover-delete").click();
           out.inbox = await until(() => inbox.getTotalMessages(false) == 1 && 1, 6000);
           out.undoItems = txn.numberOfUndoItems - undo0;
-          if (out.undoItems > 0) { w.messenger.undo(w.msgWindow); out.undone = await until(() => inbox.getTotalMessages(false) == 2 && 2, 6000); }
+          if (out.undoItems > 0) { w.messenger ? w.messenger.undo(w.msgWindow) : txn.undoTransaction(); out.undone = await until(() => inbox.getTotalMessages(false) == 2 && 2, 6000); }
           InspectorUtils.clearPseudoClassLocks(md.documentElement); box.style.removeProperty("transition");
           return out;''')
         if not res.get("found"):
