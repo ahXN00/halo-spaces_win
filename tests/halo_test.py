@@ -9058,7 +9058,7 @@ Neu
           const out = { default: Services.prefs.getBoolPref(E, false), before: await read() };
           Services.prefs.setBoolPref(E, true); for (let i = 0; i < 40 && !(await IOUtils.exists(path)); i++) await wait(100); await wait(600);
           const on = await read(); out.on = { head: on?.split("\n")[0], legacy: Services.prefs.getBoolPref(L, false),
-                                              design: (await IOUtils.readUTF8(path)).includes("Thunderbird im Stil von Apple Mail") };
+                                              design: (await IOUtils.readUTF8(path)).includes("halo.spaces – ruhiges Design für Thunderbird") };
           Services.prefs.setBoolPref(E, false); await wait(800);
           out.off = { file: await IOUtils.exists(path), legacy: Services.prefs.getBoolPref(L, false), set: Services.prefs.prefHasUserValue(L) };
           // eigene userChrome.css des Nutzers: nie überschreiben, nie löschen
