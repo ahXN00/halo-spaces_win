@@ -258,6 +258,12 @@ Die Kommunikation mit Nutzern auf GitHub übernimmt der Agent selbstständig.
   Regeln dieser Datei) und dem Autor antworten. Mergen, schließen oder
   Teile übernehmen nur mit Freigabe des Maintainers; übernommene Teile im
   Commit dem Autor zuschreiben (`Co-Authored-By:`).
+- **Forks:** gehören zur Prüfung dazu (Suche `halo-spaces in:name fork:only`;
+  Stand eines Forks mit `git fetch <url> main:refs/remotes/<name>/main`
+  gegen `main` vergleichen). Brauchbare Verbesserungen dem Autor als Pull
+  Request vorschlagen; Probleme (gleiche Add-on-ID, fehlende Lizenzhinweise)
+  freundlich ansprechen. Gesprächsfaden mit dem Windows-Fork
+  `ahXN00/halo-spaces_win`: Issue #6.
 - **Ton und Inhalt:** Englisch, freundlich, knapp, ohne Fachjargon des
   Codes, wo es nicht nötig ist; Rückfragen konkret stellen. Nie auf die
   private Aufgabenliste verweisen, keine Interna (Testrechner, VM, Tokens)
