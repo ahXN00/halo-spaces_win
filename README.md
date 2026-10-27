@@ -47,7 +47,7 @@ Features
   <img src="screenshots/quick-event.png" alt="Quick event window" width="320">
 </p>
 
-The calendar shows made-up test data; personal data in the other screenshots is blurred.
+All screenshots show made-up test data.
 
 3.7.0 Release Notes
 --------
