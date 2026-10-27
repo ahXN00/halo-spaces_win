@@ -7528,6 +7528,25 @@ Neu
         return ok, f"{res}"
     check("Aufgaben: Kartenansicht mit Details rechts, Tabellenansicht wie bisher, Wahl über „…“ im Listenkopf, schmal Details unten", task_view_choice, results)
 
+    def task_header_no_overlap():
+        # ohne Auswahl (auch ohne Aufgaben) behält die Liste ihre Breite wie in der Mail: Filter und „…“ über der Liste
+        # liegen nie auf Plus und Suche der Toolbar
+        res = m.js(r"""
+          w.resizeTo(1500, 900); await wait(400);
+          tm.openTab("tasks", {}); await wait(1500);
+          const tree = d.getElementById("calendar-task-tree"); tree.mTreeView?.selection?.clearSelection(); await wait(800);
+          const r = e => { const b = e.getBoundingClientRect(); return b.width ? { l: b.left, r: b.right, t: b.top, b: b.bottom } : null; };
+          const hits = (a, b) => a && b && a.l < b.r - 1 && b.l < a.r - 1 && a.t < b.b - 1 && b.t < a.b - 1;
+          const head = [...d.querySelectorAll("#mcListHeader button")].map(r).filter(Boolean);
+          const bar = [...d.querySelectorAll("#unifiedToolbarContent > li:not([item-id='spacer'])")].map(r).filter(Boolean);
+          const search = d.querySelector('#unifiedToolbarContent > li[item-id="search-bar"]')?.getBoundingClientRect().width || 0;
+          const out = { side: d.documentElement.hasAttribute("mc-task-side"), head: head.length, overlap: head.some(h => bar.some(t => hits(h, t))), search: Math.round(search) };
+          for (const t of [...tm.tabInfo].slice(1)) tm.closeTab(t);
+          return out;""")
+        ok = res["head"] >= 2 and not res["overlap"] and res["search"] >= 160
+        return ok, f"{res}"
+    check("Aufgaben: ohne Auswahl keine Überlappung von Filter/„…“ mit Plus und Suche der Toolbar, Suchfeld bleibt breit", task_header_no_overlap, results)
+
     def alarm_dialog():
         # Erinnerung wie in Apple Kalender: Kalendersymbol mit Monat und Tag, keine graue Kachel, „Alle“-Knöpfe nur bei mehreren
         res = m.js(r"""
@@ -7898,10 +7917,11 @@ Neu
               for (let x = 0; x < 120; x++) for (let y = 0; y < (tree.rowHeight || 40); y++) { const p = px(x, y); const s = Math.max(...p) - Math.min(...p); if (s > sat) { sat = s; best = p; } }
               out.circle = best;
             }
-            // ohne Auswahl kein Teiler, mit Auswahl Teiler und Details sichtbar
+            // ohne Auswahl: in der Tabelle kein Teiler (sonst zwei Linien unten), in der Listenansicht bleibt die
+            // leere Detailspalte samt Teiler stehen wie in der Mail; mit Auswahl Teiler und Details sichtbar
             tree.mTreeView.selection.clearSelection(); await pause(500);
             const sp = d.getElementById("calendar-task-view-splitter"), det = d.getElementById("calendar-task-details-container");
-            out.splitNone = csOf(sp).display;
+            out.splitNone = csOf(sp).display; out.side = d.documentElement.hasAttribute("mc-task-side");
             if (row >= 0) { tree.mTreeView.selection.select(row); await pause(600); }
             out.splitSel = [csOf(sp).display, vis(det)];
             // Suche ohne Treffer
@@ -7944,7 +7964,7 @@ Neu
         ok_static = res.get("italic") and res.get("doneRule") and res.get("svg")
         # Rosa (#FF2D55) dominiert: Rot deutlich vor Blau und Grün
         ok_circle = ci[0] > 180 and ci[0] - ci[2] > 60 and ci[0] - ci[1] > 100
-        ok_split = res.get("splitNone") == "none" and res["splitSel"][0] != "none" and res["splitSel"][1]
+        ok_split = (res.get("splitNone") == "none") != bool(res.get("side")) and res["splitSel"][0] != "none" and res["splitSel"][1]
         se, cl = res.get("search") or [], res.get("cleared") or []
         ok_search = len(se) == 4 and se[0] == 0 and se[1] and se[2] == "No Results" and se[3] == "No tasks match your search." and cl[0] > 0 and cl[1]
         ov, op = res.get("overdue") or [], res.get("open") or []

@@ -1649,6 +1649,18 @@ calendar-event-box :is(.alarm-icons-box, .item-classification-icon, .item-recurr
   display: none !important;
 }
 
+/* Listenansicht ohne Auswahl wie die Mail: die Detailspalte bleibt als leere
+   Fläche stehen (samt Teiler) – sonst reichte die Liste bis zur Today-Pane,
+   und Filter und „…“ darüber lägen auf Plus und Suche der Toolbar */
+:root[mc-task-side] #calendar-task-details-container[hidden] {
+  display: flex !important;
+  visibility: hidden !important;
+}
+
+:root[mc-task-side] #calendar-task-view-splitter:has(+ #calendar-task-details-container[hidden]) {
+  display: flex !important;
+}
+
 #calendar-task-view-splitter {
   border: none !important;
   border-top: var(--mt-hairline) solid var(--mt-pane-line) !important;
@@ -7124,7 +7136,8 @@ body:has(> #accountTreeBox.mc-side-hidden) {
 /* ---------- Today-Pane: Knopf oben rechts in der Toolbar-Zeile ----------
    wie in Apples Apps: gespiegeltes Seitenleisten-Symbol rechts neben dem
    Suchfeld (#mcTodayToggle, Erweiterung) – Gegenstück zum Seitenleisten-
-   Knopf oben links; nur in Mail und Aufgaben, wo es die Today-Pane gibt */
+   Knopf oben links; in allen Bereichen mit Today-Pane (alle außer Kalender
+   und dem Tab des fünften Bereichs) */
 #today-closer {
   display: none !important;
 }
@@ -7137,7 +7150,7 @@ body:has(> #accountTreeBox.mc-side-hidden) {
    Knopf (12 + 40 + 8 px). Unter Windows/Linux stehen ≡-Menü und
    Fensterknöpfe schon rechts neben der Knopfleiste (--mc-row-tail) und
    liegen bei offener Today-Pane in deren Fläche */
-:root:is([mc-tab="mail3PaneTab"], [mc-tab="mailMessageTab"], [mc-tab="tasks"]) #unifiedToolbarContent {
+:root:is([mc-tab="mail3PaneTab"], [mc-tab="mailMessageTab"], [mc-tab="tasks"], [mc-tab="addressBookTab"], [mc-tab="preferencesTab"], [mc-tab="chat"], [mc-tab="contentTab"]):not([mc-fifth-current]) #unifiedToolbarContent {
   /* --mc-tp-room statt --mc-tp-w: ändert sich nur am Anfang/Ende der
      Ein-/Ausblend-Animation – sonst berechnet Thunderbirds Toolbar mitten in
      der Bewegung ihre Anordnung neu (ein sichtbarer Hänger) */
@@ -7147,12 +7160,12 @@ body:has(> #accountTreeBox.mc-side-hidden) {
 /* Suchfeld immer 333 px wie in Apple Mail, direkt links der Today-Pane –
    es wandert beim Ein-/Ausblenden mit (--mc-tp-w folgt der Animation) und
    wird nur schmaler, wenn das Fenster zu eng ist (bis zur Lupe, 40 px) */
-:root:is([mc-tab="mail3PaneTab"], [mc-tab="mailMessageTab"], [mc-tab="tasks"]) #unifiedToolbarContent > li[item-id="search-bar"] {
+:root:is([mc-tab="mail3PaneTab"], [mc-tab="mailMessageTab"], [mc-tab="tasks"], [mc-tab="addressBookTab"], [mc-tab="preferencesTab"], [mc-tab="chat"], [mc-tab="contentTab"]):not([mc-fifth-current]) #unifiedToolbarContent > li[item-id="search-bar"] {
   flex: 0 50 333px !important;
   min-width: 40px !important;
 }
 
-:root:is([mc-tab="mail3PaneTab"], [mc-tab="mailMessageTab"], [mc-tab="tasks"]) #today-pane-panel {
+:root:is([mc-tab="mail3PaneTab"], [mc-tab="mailMessageTab"], [mc-tab="tasks"], [mc-tab="addressBookTab"], [mc-tab="preferencesTab"], [mc-tab="chat"], [mc-tab="contentTab"]):not([mc-fifth-current]) #today-pane-panel {
   max-width: 341px !important;
 }
 
@@ -7162,7 +7175,7 @@ body:has(> #accountTreeBox.mc-side-hidden) {
   display: none;
 }
 
-:root:is([mc-tab="mail3PaneTab"], [mc-tab="mailMessageTab"], [mc-tab="tasks"]) #mcTodayTop {
+:root:is([mc-tab="mail3PaneTab"], [mc-tab="mailMessageTab"], [mc-tab="tasks"], [mc-tab="addressBookTab"], [mc-tab="preferencesTab"], [mc-tab="chat"], [mc-tab="contentTab"]):not([mc-fifth-current]) #mcTodayTop {
   display: block;
   position: absolute;
   /* hinter den Knöpfen der Toolbar, aber über dem Hintergrund der Zeile */
@@ -7262,7 +7275,7 @@ body:has(> #accountTreeBox.mc-side-hidden) {
 /* Knopf oben in der Today-Pane nahe ihrer linken Kante (Spiegelbild des
    Seitenleisten-Knopfs) – gleitet bei der Animation mit; ist sie aus,
    steht er rechts am Rand (vor den Fensterknöpfen von Windows/Linux) */
-:root:is([mc-tab="mail3PaneTab"], [mc-tab="mailMessageTab"], [mc-tab="tasks"]) #mcTodayToggle {
+:root:is([mc-tab="mail3PaneTab"], [mc-tab="mailMessageTab"], [mc-tab="tasks"], [mc-tab="addressBookTab"], [mc-tab="preferencesTab"], [mc-tab="chat"], [mc-tab="contentTab"]):not([mc-fifth-current]) #mcTodayToggle {
   position: absolute !important;
   z-index: 3 !important;
   top: 50% !important;
@@ -7285,7 +7298,7 @@ body:has(> #accountTreeBox.mc-side-hidden) {
 
 /* „+“ rechts oben in der Today-Pane: wie der Today-Knopf, am rechten Rand
    (vor den Fensterknöpfen von Windows/Linux); nur bei offener Today-Pane */
-:root:is([mc-tab="mail3PaneTab"], [mc-tab="mailMessageTab"], [mc-tab="tasks"]) #unifiedToolbarContainer[data-mc-tp-open] > #mcTodayNew {
+:root:is([mc-tab="mail3PaneTab"], [mc-tab="mailMessageTab"], [mc-tab="tasks"], [mc-tab="addressBookTab"], [mc-tab="preferencesTab"], [mc-tab="chat"], [mc-tab="contentTab"]):not([mc-fifth-current]) #unifiedToolbarContainer[data-mc-tp-open] > #mcTodayNew {
   position: absolute !important;
   z-index: 3 !important;
   top: 50% !important;
