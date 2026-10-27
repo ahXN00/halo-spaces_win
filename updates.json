@@ -251,6 +251,16 @@
               "strict_min_version": "128.0"
             }
           }
+        },
+        {
+          "version": "3.7.0",
+          "update_link": "https://github.com/sruf79/halo-spaces/releases/download/v3.7.0/halo-spaces-3.7.0.xpi",
+          "update_hash": "sha256:537aace05ee2c2a78284571267142124002119df74af2d2ea3963ac57de241e6",
+          "applications": {
+            "gecko": {
+              "strict_min_version": "128.0"
+            }
+          }
         }
       ]
     }
