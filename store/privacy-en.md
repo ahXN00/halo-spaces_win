@@ -12,6 +12,8 @@ Network requests it makes:
 
 4. Weather in the Today pane (off by default; Preferences → "Weather in the Today Pane"). When turned on, halo.spaces asks Open-Meteo (api.open-meteo.com, weather data CC BY 4.0) for the current weather about every 30 minutes. Only coordinates rounded to about 1 km are sent. If you enter a city, its name is sent once to Open-Meteo's geocoding service (geocoding-api.open-meteo.com) to find these coordinates. If you leave the city empty, your system's location service is used (your operating system asks for permission); the rounded coordinates go only to Open-Meteo. Open-Meteo can see your IP address.
 
+5. Fifth space (off by default; Preferences → Spaces → "Fifth space"). If you choose "Website", the web address you enter opens in its own Thunderbird tab, like in a browser – that website sees your visit and can keep you signed in with cookies in your Thunderbird profile. With "Symbol: Original", halo.spaces loads that website's icon (/favicon.ico) for the spaces bar. Links to other websites open in your normal browser. If you choose the space of another add-on, halo.spaces only shows that add-on's own page; it sends nothing.
+
 Data stored locally (only in your Thunderbird profile): the logo cache, the last weather reading and place (if weather is on), your halo.spaces settings, and – only if you turn on "Detailed log" – a debug log file that may contain sender addresses.
 
 Optional, macOS only and off by default: "Photos from the Contacts app" reads pictures from your local macOS Contacts database; macOS asks for permission once. Nothing leaves your computer.

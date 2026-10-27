@@ -9,22 +9,22 @@ A calm, tidy macOS-style design for Thunderbird: colourful spaces, message cards
 <b>Mail</b>
 <ul>
 <li>Message cards with a two-line preview and sender pictures: from your address book, macOS Contacts (optional), the sender's BIMI logo or website icon, otherwise initials</li>
-<li>Like Apple Mail: delete, reply, reply all and forward in a small bar below the message header when you hover over the message</li>
-<li>Whole conversations like Apple Mail: received mails and your own replies from Sent, newest first, each shown in full (can be turned off)</li>
-<li>Message header like Apple Mail: sender picture, folder and time, a mailing-list note with Unsubscribe that disappears once you have unsubscribed</li>
-<li>Messages in the system font like Apple Mail (Mac: SF Pro, Windows: Segoe UI, Linux: your desktop font)</li>
+<li>Delete, reply, reply all and forward in a small bar below the message header when you hover over the message</li>
+<li>Whole conversations: received mails and your own replies from Sent, newest first, each shown in full (can be turned off)</li>
+<li>A clear message header: sender picture, folder and time, a mailing-list note with Unsubscribe that disappears once you have unsubscribed</li>
+<li>Messages in the system font (Mac: SF Pro, Windows: Segoe UI, Linux: your desktop font)</li>
 <li>Unified inboxes, Inbox always first, the search field top right – it searches the selected folder, or all mailboxes from a unified folder</li>
-<li>Card view or classic table in one menu; optionally a light accent tint behind unread mail; replied and forwarded mail marked with a small arrow like Apple Mail</li>
-<li>Writing like Apple Mail: symbols-only toolbar, round send button, format bar on demand, attachments as tiles, forwarded mail with a clean header</li>
+<li>Card view or classic table in one menu; optionally a light accent tint behind unread mail; replied and forwarded mail marked with a small arrow</li>
+<li>Calm writing window: symbols-only toolbar, round send button, format bar on demand, attachments as tiles, forwarded mail with a clean header</li>
 </ul>
 
 <b>Calendar and tasks</b>
 <ul>
 <li>Day, week, multiweek and month switcher in the title bar, a month view without scrollbars</li>
 <li>Quick event window: type naturally – “tomorrow 12:30 for 90 min”, “Fri 9–11”. A double-click in the calendar opens it too</li>
-<li>Event window like Apple Calendar: title on top, cards for time, location, invitees and calendar, notes at the bottom, a stripe in the calendar colour; separate date and time popovers, hours and minutes change with the mouse wheel, the duration is kept</li>
+<li>Clear event window: title on top, cards for time, location, invitees and calendar, notes at the bottom, a stripe in the calendar colour; separate date and time popovers, hours and minutes change with the mouse wheel, the duration is kept</li>
 <li>Tasks as a list with details on the right, or as a table; filters in a menu next to the search field</li>
-<li>Reminders like Apple Calendar, with a calendar icon showing month and day</li>
+<li>Calm reminders with a calendar icon showing month and day</li>
 <li>Matching emoji before event titles (birthday, dentist, training …), with your own keywords</li>
 <li>Birthdays from your address books as their own read-only calendar</li>
 </ul>
@@ -39,7 +39,7 @@ A calm, tidy macOS-style design for Thunderbird: colourful spaces, message cards
 <li>Coloured spaces for Mail, Contacts, Calendar, Tasks and Chat, all with the same toolbar and sidebar edges</li>
 <li>Light and dark follow the system, the accent colour follows macOS</li>
 <li>No scrollbars – scrolling still works with wheel, trackpad and keyboard</li>
-<li>Unified address book: duplicates merged, account labels in the account colours, cards with name or company only; contact photos with a round crop and zoom slider like Apple Contacts</li>
+<li>Unified address book: duplicates merged, account labels in the account colours, cards with name or company only; contact photos with a round crop and zoom slider</li>
 <li>Questions appear as a sheet at the top of the window like on macOS, dialogs without title bar (can be turned off)</li>
 <li>Respects “Increase contrast” in the macOS accessibility settings</li>
 <li>Settings → halo.spaces: all options in Thunderbird's settings, next to Account Settings and Add-ons, which now open there too; a short welcome after installing points the way</li>
@@ -50,6 +50,5 @@ A calm, tidy macOS-style design for Thunderbird: colourful spaces, message cards
 
 Made for macOS. Windows and Linux work, but window buttons and some spacing differ there.
 
-halo.spaces is an independent project and is not affiliated with Apple Inc.
 
 Source code, issues and release notes: <a href="https://github.com/sruf79/halo-spaces">github.com/sruf79/halo-spaces</a>

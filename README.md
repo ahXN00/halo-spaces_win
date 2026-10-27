@@ -11,6 +11,9 @@ macOS. This fork adjusts it so Thunderbird on **Windows 11** looks and behaves t
 It is one package for Thunderbird 128+: the theme, its own Apple-style icons, and an extension for the
 things CSS alone can't do.
 
+> This fork is a staging place for Windows fixes, not a separate add-on. The fixes are offered back to
+> the original as pull requests. halo.spaces belongs to its author; please use the original where you can.
+
 Released under the Mozilla Public License 2.0, like the original.
 
 <p align="center">
@@ -27,7 +30,7 @@ Features
 --------
 - **Apple Mail layout**: card list with a two-line preview, sender logos (address book, BIMI, website icon, otherwise initials), unified inboxes and the search field top right
 - **Coloured spaces**: Mail, Contacts, Calendar, Tasks and Chat, all with the same toolbar and sidebar edges. Sidebars slide in and out; dragging a divider all the way closes the sidebar, a double-click resets its width
-- **Calendar like Apple Calendar**: Day, Week, Multiweek and Month switcher in the title bar, a month view without scrollbars, and a **quick event/task window** for new entries
+- **Clear calendar**: Day, Week, Multiweek and Month switcher in the title bar, a month view without scrollbars, and a **quick event/task window** for new entries
 - **Today pane**: runs to the top of the window, has a mini calendar plus an agenda card to the end of the month, and marks upcoming events with "now" or "in 2 hr"
 - **Unified address book**: duplicates merged, account labels in the account colours
 - **Light and dark** follow Windows, and the accent colour follows your Windows accent colour
@@ -52,6 +55,11 @@ What this fork changes for Windows
 - **Space arrow**: the arrow next to the current space no longer shows a thin bar at 125 % and 150 % display scaling
 - No "made for macOS" notice, and no feedback or donation buttons
 - Updates come from this repository, never from the macOS original
+
+Credits
+--------
+The optional weather in the Today pane uses data from [Open-Meteo.com](https://open-meteo.com/)
+([CC BY 4.0](https://creativecommons.org/licenses/by/4.0/)), see `extension/about/NOTICE.txt`.
 
 Setup Instructions
 ------------------

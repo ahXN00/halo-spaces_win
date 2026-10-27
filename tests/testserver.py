@@ -1,4 +1,4 @@
-"""Lokale Testserver für halo_test.py: SMTP und IMAP, nur auf 127.0.0.1, ohne TLS
+"""Lokale Testserver für halo_test.py: SMTP, IMAP und IRC, nur auf 127.0.0.1, ohne TLS
 und mit erfundenen Daten. Gerade so viel IMAP, wie Thunderbird für ein Konto
 braucht (Anmelden, Ordner, Abrufen, Flaggen, Kopieren, Anhängen, IDLE) – damit
 lassen sich Oberflächen prüfen, die ein Konto mit Server voraussetzen
@@ -7,6 +7,8 @@ lassen sich Oberflächen prüfen, die ein Konto mit Server voraussetzen
     servers = MailServers()          # startet beide auf freien Ports
     servers.imap.add("INBOX", raw)   # Mail in einen Ordner legen
     servers.smtp.sent                # gesendete Mails (Absender, Empfänger, Text)
+    servers.irc.say("#halo", "anna", "Hallo!")   # Chat: erfundene Person schreibt in den Raum
+    servers.irc.said                 # was Thunderbird in den Chat geschrieben hat (Ziel, Text)
     servers.close()
 """
 
@@ -461,12 +463,84 @@ def _imap_handler(store):
     return Handler
 
 
+# ---------------------------------------------------------------- IRC
+
+class IRCStore:
+    """Ein Raum, erfundene Gesprächspartner; nur was Thunderbirds Chat zum
+    Anmelden, Betreten eines Raums und Schreiben braucht."""
+
+    def __init__(self):
+        self.said = []          # (Ziel, Text) von Thunderbird
+        self.clients = []
+        self.log = []
+        self.lock = threading.Lock()
+
+    def say(self, target, nick, text):
+        """Nachricht einer erfundenen Person an alle verbundenen Clients"""
+        with self.lock:
+            for c in list(self.clients):
+                try:
+                    c.out(f":{nick}!{nick}@example.invalid PRIVMSG {target} :{text}")
+                except OSError:
+                    pass
+
+
+def _irc_handler(store):
+    class Handler(socketserver.StreamRequestHandler):
+        nick = "halo"
+
+        def out(self, line):
+            self.wfile.write((line + "\r\n").encode())
+            self.wfile.flush()
+
+        def handle(self):
+            with store.lock:
+                store.clients.append(self)
+            try:
+                for raw in self.rfile:
+                    line = raw.decode("utf-8", "replace").rstrip("\r\n")
+                    store.log.append(line)
+                    cmd, _, rest = line.partition(" ")
+                    cmd = cmd.upper()
+                    if cmd == "CAP":
+                        if rest.upper().startswith("LS"):
+                            self.out(":halo.test CAP * LS :")
+                    elif cmd == "NICK":
+                        self.nick = rest.lstrip(":").strip() or "halo"
+                    elif cmd == "USER":
+                        for n, text in (("001", "Willkommen im Halo-Testchat"), ("002", "Halo-Testserver"), ("003", "erfunden"),
+                                        ("004", "halo.test halo-1 o o"), ("376", "Ende")):
+                            self.out(f":halo.test {n} {self.nick} :{text}")
+                    elif cmd == "PING":
+                        self.out(f":halo.test PONG halo.test {rest}")
+                    elif cmd == "JOIN":
+                        for room in rest.split(" ")[0].split(","):
+                            self.out(f":{self.nick}!{self.nick}@127.0.0.1 JOIN {room}")
+                            self.out(f":halo.test 332 {self.nick} {room} :Raum zum Testen")
+                            self.out(f":halo.test 353 {self.nick} = {room} :{self.nick} anna ben")
+                            self.out(f":halo.test 366 {self.nick} {room} :Ende")
+                    elif cmd == "PRIVMSG":
+                        target, _, text = rest.partition(" ")
+                        store.said.append((target, text[1:] if text.startswith(":") else text))
+                    elif cmd in ("MODE", "WHO", "WHOIS"):
+                        self.out(f":halo.test 315 {self.nick} {rest.split(' ')[0]} :Ende")
+                    elif cmd == "QUIT":
+                        break
+            finally:
+                with store.lock:
+                    if self in store.clients:
+                        store.clients.remove(self)
+    return Handler
+
+
 class MailServers:
     def __init__(self):
         self.smtp = SMTPStore()
         self.imap = IMAPStore()
+        self.irc = IRCStore()
         self._servers = []
-        for store, factory, attr in ((self.smtp, _smtp_handler, "smtp_port"), (self.imap, _imap_handler, "imap_port")):
+        for store, factory, attr in ((self.smtp, _smtp_handler, "smtp_port"), (self.imap, _imap_handler, "imap_port"),
+                                     (self.irc, _irc_handler, "irc_port")):
             srv = _Server(("127.0.0.1", 0), factory(store))
             threading.Thread(target=srv.serve_forever, daemon=True).start()
             setattr(self, attr, srv.server_address[1])

@@ -50,6 +50,31 @@
             "type": "any"
           }
         ]
+      },
+      {
+        "name": "searchPlaces",
+        "type": "function",
+        "async": true,
+        "description": "Orte zum eingetippten Text (Vorschläge fürs Wetter)",
+        "parameters": [
+          {
+            "name": "text",
+            "type": "string"
+          }
+        ]
+      },
+      {
+        "name": "choosePlace",
+        "type": "function",
+        "async": true,
+        "description": "gewählten Ort fürs Wetter übernehmen",
+        "parameters": [
+          {
+            "name": "place",
+            "type": "object",
+            "additionalProperties": true
+          }
+        ]
       }
     ]
   }

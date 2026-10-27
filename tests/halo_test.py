@@ -2060,7 +2060,8 @@ def compose_checks(m, results):
             await till(() => cw.GetCurrentEditorElement?.()?.contentDocument?.querySelector(".moz-forward-container") && cw.document.querySelector("#attachmentBucket > .attachmentItem"), 10000);
             await pause(1800);
             const cd = cw.document, bar = cd.getElementById("composeToolbar2"), send = cd.getElementById("button-send"), aa = cd.getElementById("mcFormatToggle");
-            const btns = [...bar.querySelectorAll(":scope > toolbarbutton")].filter(b => vis(b) && b != send);
+            // (der Pfeil „Später senden“ gehört zum Senden-Knopf, nicht zur mittigen Gruppe)
+            const btns = [...bar.querySelectorAll(":scope > toolbarbutton")].filter(b => vis(b) && b != send && b.id != "mcSendLater");
             const lefts = btns.map(b => b.getBoundingClientRect().left), rights = btns.map(b => b.getBoundingClientRect().right);
             const sr = send.getBoundingClientRect();
             const out = { open: true, center: Math.round((Math.min(...lefts) + Math.max(...rights)) / 2 - cw.innerWidth / 2),
@@ -2085,7 +2086,7 @@ def compose_checks(m, results):
         if not res.get("open"):
             return False, f"{res}"
         fw, at = res["fwd"], res["att"]
-        ok = (abs(res["center"]) <= 30 and res["send"][:3] == [30, 30, "50%"] and res["send"][3] <= 20 and res["texts"] == ["Aa"]
+        ok = (abs(res["center"]) <= 30 and res["send"][:3] == [30, 30, "50%"] and res["send"][3] <= 36 and res["texts"] == ["Aa"]
               and res["fmtHidden"] and res["fmtShown"] and res["pref"] and res["label"][0] <= 30 and res["label"][1] == '":"' and not res["desc"]
               and fw["begin"] and fw["first"].startswith("From") and fw["date"] and "+0000" not in fw["date"] and fw["border"] == "none"
               and px_is(fw["bar"], 2) and not fw["modified"] and at["w"] == 96 and at["icon"] == 32 and at["src"])
@@ -2164,11 +2165,13 @@ def dialog_checks(m, results):
               const cx = cv.getContext("2d"); cx.drawImage(snap, 0, 0); out.pixel = [...cx.getImageData(1, 1, 1, 1).data];
             } finally { await shut(vw); }
           } finally { await shut(lw); }
-          later(() => w.searchAllMessages());
-          const sw = await winUrl("SearchDialog"); if (!sw) throw new Error("Suchfenster nicht offen");
+          // direkt statt searchAllMessages: das tut ab TB 160 ohne Konto nichts (keine Lokalen Ordner mehr); Datei heißt ab 160 searchDialog.xhtml
+          later(() => w.openSearchDialog(tm.currentAbout3Pane?.gFolder ?? null));
+          const sw = await winUrl("earchDialog.xhtml"); if (!sw) throw new Error("Suchfenster nicht offen: " + [...Services.wm.getEnumerator(null)].map(x => x.location.href.split("/").pop() + " " + x.document.readyState));
           try { await pause(1000); const sd = sw.document;
             out.terms = look(sd.getElementById("searchTermList")); out.field = look([...sd.querySelectorAll("#searchTermList input:not([type=checkbox])")].find(vis));
-            out.resHead = headOf(sd, "#threadTree");
+            // ab TB 160 ist die Ergebnisliste eine tree-view wie die Mailliste, ohne treecols (noch nicht im halo-Stil geprüft)
+            out.resHead = sd.querySelector("#threadTree > treecols") ? headOf(sd, "#threadTree") : null;
           } finally { await shut(sw); }
           later(() => w.openKeyManager());
           const kw = await winUrl("KeyManager"); if (!kw) throw new Error("OpenPGP-Schlüssel nicht offen");
@@ -2186,7 +2189,7 @@ def dialog_checks(m, results):
                     and cols[0]["bl"] == "0px" and all(same_color(c["blc"], h["sep"]) for c in cols[1:])
                     and (p := h["pick"]) is not None and p["sh"] == "none" and p["bsh"] == "none" and p["bb"] == "0px"
                     and same_color(p["blc"], cols[1]["blc"]))
-        ok = ok and all(head_ok(res[k]) for k in ("listHead", "resHead", "keyHead"))
+        ok = ok and all(head_ok(res[k]) for k in ("listHead", "resHead", "keyHead") if res[k] is not None)
         return ok, f"{res}"
     check("Filterliste, Filterprotokoll, Suche, OpenPGP: Listen und Felder mit Haarlinie und Radius statt hartem Rahmen, Protokoll dunkel ohne weiße Fläche; Spaltenköpfe samt Spaltenwahl-Knopf mit Haarlinien statt Systemlinie", filter_windows, results)
 
@@ -2309,8 +2312,9 @@ def dialog_checks(m, results):
           const f = await testFolder(); tm.switchToTab(0); await pause(500); const a3 = tm.currentAbout3Pane; a3.displayFolder(f.URI); await pause(800);
           const out = {};
           out.vf = await dialog(() => a3.commandController.doCommand("cmd_newVirtualFolder"), "virtualFolderProperties", async (dw, dd) => rows(dd));
-          later(() => w.searchAllMessages());
-          const sw = await winUrl("SearchDialog"); if (!sw) throw new Error("Suchfenster nicht offen");
+          // direkt statt searchAllMessages: das tut ab TB 160 ohne Konto nichts (keine Lokalen Ordner mehr); Datei heißt ab 160 searchDialog.xhtml
+          later(() => w.openSearchDialog(tm.currentAbout3Pane?.gFolder ?? null));
+          const sw = await winUrl("earchDialog.xhtml"); if (!sw) throw new Error("Suchfenster nicht offen: " + [...Services.wm.getEnumerator(null)].map(x => x.location.href.split("/").pop() + " " + x.document.readyState));
           try { await pause(1000); const sd = sw.document, s = csOf(sd.getElementById("gray_horizontal_splitter"));
             out.search = rows(sd); out.split = { top: s.borderTopWidth, topColor: s.borderTopColor, bottom: s.borderBottomStyle, paneLine: colorOf(sd, "var(--mt-pane-line)") };
           } finally { await shut(sw); }
@@ -3433,7 +3437,7 @@ def calendar_checks(m, results):
         res = m.js(CAL_CHECK_JS + r"""
           const c = testCalendar(); const added = [];
           try {
-            for (const [dd, title] of [[5, "Halo Agenda Einzeltag"], [6, "Halo Agenda Folgetag"]]) {
+            for (const [dd, title] of [[2, "Halo Agenda Einzeltag"], [3, "Halo Agenda Folgetag"], [4, "Halo Agenda Drittag"]]) {
               const e = new CalEvent(); e.title = title; e.calendar = c; const s = today(); s.day += dd; const en = s.clone(); en.day += 1;
               e.startDate = s; e.endDate = en; added.push(await c.addItem(e)); }
             await toMail(); if (!w.TodayPane?.isVisible) d.getElementById("calendar_toggle_todaypane_command").doCommand();
@@ -4021,6 +4025,30 @@ def server_checks(m, results):
             return ok, f"{res} gesendet: {len(got)}"
         check("Testkonto: Später senden – Menü am Senden-Knopf, geplante Mail als Entwurf, zur Zeit gesendet", send_later, results)
 
+        def send_later_place():
+            # „Später senden“ als kleiner Pfeil gleich rechts neben dem runden Senden-Knopf (war eine leere Kapsel links)
+            res = m.js(r"""
+              const { MailServices } = ChromeUtils.importESModule("resource:///modules/MailServices.sys.mjs");
+              const acc = MailServices.accounts.getAccount("%s");
+              const params = Cc["@mozilla.org/messengercompose/composeparams;1"].createInstance(Ci.nsIMsgComposeParams);
+              const fields = Cc["@mozilla.org/messengercompose/composefields;1"].createInstance(Ci.nsIMsgCompFields);
+              fields.to = "ziel@example.invalid"; fields.subject = "Halo Pfeilprobe";
+              params.type = Ci.nsIMsgCompType.New; params.format = Ci.nsIMsgCompFormat.HTML; params.composeFields = fields; params.identity = acc.defaultIdentity;
+              MailServices.compose.OpenComposeWindowWithParams(null, params);
+              const cw = await until(() => [...Services.wm.getEnumerator("msgcompose")].find(x => x.document.readyState == "complete" && x.gMsgCompose), 10000);
+              await wait(1500);
+              const r = id => { const b = cw.document.getElementById(id)?.getBoundingClientRect(); return b ? { l: Math.round(b.left), r: Math.round(b.right), w: Math.round(b.width), t: Math.round(b.top), b: Math.round(b.bottom) } : null; };
+              const later = cw.document.getElementById("mcSendLater");
+              const out = { send: r("button-send"), later: r("mcSendLater"), mask: later ? cw.getComputedStyle(later).maskImage.includes("resource://mailcards/icons/send-later.svg") : false, win: cw.innerWidth };
+              cw.gMsgCompose.compFields.subject = ""; cw.close(); await wait(500);
+              for (const x of [...Services.wm.getEnumerator("msgcompose")]) x.close();
+              return out;""" % key)
+            sd, lt = res.get("send") or {}, res.get("later") or {}
+            ok = (sd and lt and res.get("mask") and 0 <= lt["l"] - sd["r"] <= 6 and lt["w"] <= 20 and res["win"] - lt["r"] <= 20
+                  and abs((lt["t"] + lt["b"]) - (sd["t"] + sd["b"])) <= 2)
+            return ok, f"{res}"
+        check("Verfassen: „Später senden“ als kleiner Pfeil direkt rechts neben dem Senden-Knopf", send_later_place, results)
+
         def remind_me():
             # Erinnern: Kontextmenü „Remind Me“ mit Zeiten; die Mail wandert in den Ordner „Remind Me“ des Kontos und kommt
             # zur Zeit ungelesen in den Posteingang zurück (Zeit hier: in 2 s)
@@ -4163,6 +4191,154 @@ def server_checks(m, results):
               return 1;""")
             return ok, f"{res}"
         check("Testkonto: abgelehnte Mail → Fehler-Dialog (mit „Postausgang zeigen“), Mail bleibt im Postausgang", send_error, results)
+
+        def chat_irc():
+            # Chat mit dem IRC-Testserver: anmelden, Raum betreten, Gespräch in der Liste ausgewählt (Akzentfarbe),
+            # Nachricht einer erfundenen Person erscheint, eigene Nachricht kommt beim Server an
+            res = m.js(r"""
+              const { IMServices } = ChromeUtils.importESModule("resource:///modules/IMServices.sys.mjs");
+              tm.openTab("chat", {}); await wait(2000);
+              const acc = IMServices.accounts.createAccount("halo@127.0.0.1", "prpl-irc");
+              acc.setInt("port", %d); acc.setBool("ssl", false); acc.alias = "Halo Testchat";
+              acc.connect();
+              const out = { connected: !!(await until(() => acc.connected, 15000)) };
+              const fields = acc.getChatRoomDefaultFieldValues(); fields.setValue("channel", "#halo");
+              acc.joinChat(fields);
+              const conv = await until(() => IMServices.conversations.getConversations().find(c => c.name == "#halo"), 10000);
+              const listbox = d.getElementById("contactlistbox");
+              const it = await until(() => [...listbox.querySelectorAll("richlistitem")].find(i => i.getAttribute("displayname") == "#halo" || i.textContent.includes("#halo")), 8000);
+              if (it) listbox.selectedItem = it;
+              await wait(1500);
+              out.item = it ? { bg: w.getComputedStyle(it).backgroundColor, accent: w.getComputedStyle(d.documentElement).getPropertyValue("--mt-accent").trim() } : null;
+              conv?.sendMsg("Hallo zurück");
+              w.__mcChatAcc = acc.id;
+              return out;""" % servers.irc_port)
+            time.sleep(2)
+            servers.irc.say("#halo", "anna", "Hallo aus dem Testchat")
+            res2 = m.js(r"""
+              const { IMServices } = ChromeUtils.importESModule("resource:///modules/IMServices.sys.mjs");
+              const cb = [...d.querySelectorAll("browser")].find(b => b.currentURI?.spec == "chrome://chat/content/conv.html" && b.getBoundingClientRect().width > 100);
+              const texts = () => [...(cb?.contentDocument?.querySelectorAll(".message, .msg") || [])].map(e => e.textContent);
+              const got = await until(() => texts().some(t => t.includes("Hallo aus dem Testchat")), 10000);
+              const out = { shown: !!got, own: texts().some(t => t.includes("Hallo zurück")) };
+              const acc = IMServices.accounts.getAccountById(w.__mcChatAcc); delete w.__mcChatAcc;
+              try { acc.disconnect(); await wait(500); IMServices.accounts.deleteAccount(acc.id); } catch {}
+              await toMail();
+              for (const t of [...tm.tabInfo].slice(1)) tm.closeTab(t);
+              return out;""")
+            it = res.get("item") or {}
+            ok = (res.get("connected") and it and it.get("bg") not in ("", "transparent", "rgba(0, 0, 0, 0)")
+                  and res2.get("shown") and res2.get("own") and ("#halo", "Hallo zurück") in servers.irc.said)
+            return ok, f"{res} {res2} IRC: {servers.irc.log[:8]}"
+        check("Testkonto: Chat mit Testserver – anmelden, Raum betreten, Gespräch ausgewählt, Nachrichten hin und zurück", chat_irc, results)
+
+        def wrong_password():
+            # Server lehnt die Anmeldung ab → Thunderbirds Nachfrage erscheint als Kachel im Fenster (wie ein macOS-Sheet)
+            servers.imap.fail_login = True
+            res = m.js(r"""
+              const { MailServices } = ChromeUtils.importESModule("resource:///modules/MailServices.sys.mjs");
+              const acc = MailServices.accounts.getAccount("%s"), server = acc.incomingServer;
+              await toMail();
+              const host = d.getElementById("mcDialogBox");
+              const out = { host: !!host, seen: null, count: 0 };
+              // jede Nachfrage messen und abbrechen (Marionette bräche sie sonst beim nächsten Befehl selbst ab)
+              const onOpen = () => {
+                out.count++;
+                w.setTimeout(() => {
+                  const card = host?.querySelector(".dialogBox"), f = host?.querySelector(".dialogFrame");
+                  out.seen ||= { open: !!host?.open, radius: card ? w.getComputedStyle(card).borderTopLeftRadius : null,
+                                 text: (f?.contentDocument?.getElementById("infoBody")?.textContent || "").slice(0, 120) };
+                  f?.contentDocument?.querySelector("dialog")?.cancelDialog();
+                }, 900);
+              };
+              w.addEventListener("dialogopen", onOpen, true);
+              w.__mcPwOff = () => w.removeEventListener("dialogopen", onOpen, true);
+              server.closeCachedConnections(); await wait(500);
+              const inbox = server.rootFolder.getFolderWithFlags(Ci.nsMsgFolderFlags.Inbox);
+              w.setTimeout(() => inbox.getNewMessages(w.msgWindow, null), 100);
+              w.__mcPwTest = out;
+              return 1;""" % key)
+            time.sleep(8)
+            res = m.js(r"""
+              const out = w.__mcPwTest || {}; delete w.__mcPwTest;
+              w.__mcPwOff?.(); delete w.__mcPwOff;
+              const host = d.getElementById("mcDialogBox");
+              await until(() => !host?.open, 3000);
+              out.closed = !host?.open;
+              return out;""")
+            servers.imap.fail_login = False
+            s_ = res.get("seen") or {}
+            ok = res.get("host") and s_.get("open") and s_.get("radius") == "14px" and res.get("closed")
+            return ok, f"{res}"
+        check("Testkonto: falsches Passwort – Nachfrage als Kachel im Fenster, Abbrechen schließt sie", wrong_password, results)
+
+        def openpgp_roundtrip():
+            # OpenPGP mit erfundenem Schlüssel: Verfassen mit Verschlüsselung (Knopf aktiv), Mail an sich selbst über den
+            # Testserver, zurück in den Posteingang → Leseansicht entschlüsselt sie und zeigt den Hinweis im Mailkopf
+            m.cmd("WebDriver:SetTimeouts", {"script": 120000})
+            try:
+                before = len(servers.smtp.sent)
+                res = m.js(r"""
+                  const { MailServices } = ChromeUtils.importESModule("resource:///modules/MailServices.sys.mjs");
+                  const { RNP } = ChromeUtils.importESModule("chrome://openpgp/content/modules/RNP.sys.mjs");
+                  const { EnigmailKeyRing } = ChromeUtils.importESModule("chrome://openpgp/content/modules/keyRing.sys.mjs");
+                  const { PgpSqliteDb2 } = ChromeUtils.importESModule("chrome://openpgp/content/modules/sqliteDb.sys.mjs");
+                  const acc = MailServices.accounts.getAccount("%s"), id = acc.defaultIdentity;
+                  await RNP.init();
+                  const keyId = await RNP.genKey("Halo Test <halo@example.invalid>", "ECC", 0, 30, "");
+                  EnigmailKeyRing.clearCache();
+                  const key = EnigmailKeyRing.getKeyById(keyId);
+                  await PgpSqliteDb2.acceptAsPersonalKey(key.fpr);
+                  id.setUnicharAttribute("openpgp_key_id", key.keyId);
+                  id.setIntAttribute("encryptionpolicy", 2);
+                  Services.prefs.setIntPref("extensions.mailcards.undoSend", 0);
+                  const params = Cc["@mozilla.org/messengercompose/composeparams;1"].createInstance(Ci.nsIMsgComposeParams);
+                  const fields = Cc["@mozilla.org/messengercompose/composefields;1"].createInstance(Ci.nsIMsgCompFields);
+                  fields.to = "Halo Test <halo@example.invalid>"; fields.subject = "Halo geheim"; fields.body = "Nur für mich lesbar.";
+                  params.type = Ci.nsIMsgCompType.New; params.format = Ci.nsIMsgCompFormat.PlainText; params.composeFields = fields; params.identity = id;
+                  MailServices.compose.OpenComposeWindowWithParams(null, params);
+                  const cw = await until(() => [...Services.wm.getEnumerator("msgcompose")].find(x => x.document.readyState == "complete" && x.gMsgCompose), 10000);
+                  await wait(2500);
+                  const btn = cw.document.getElementById("button-encryption");
+                  const out = { key: !!key, encrypt: !!cw.gSendEncrypted, btn: btn ? { checked: btn.checked || btn.getAttribute("checked") == "true", shown: btn.getBoundingClientRect().width > 0 } : null };
+                  const bmp = await cw.browsingContext.currentWindowGlobal.drawSnapshot(null, 1, "white");
+                  const c = d.createElementNS("http://www.w3.org/1999/xhtml", "canvas"); c.width = bmp.width; c.height = bmp.height; c.getContext("2d").drawImage(bmp, 0, 0);
+                  const blob = await new Promise(r => c.toBlob(r)); await IOUtils.write(PathUtils.join(PathUtils.tempDir, "halo-pgp-compose.png"), new Uint8Array(await blob.arrayBuffer()));
+                  cw.goDoCommand("cmd_sendNow");
+                  out.closed = !!(await until(() => cw.closed, 20000));
+                  return out;""" % key)
+                for _ in range(40):
+                    if len(servers.smtp.sent) > before:
+                        break
+                    time.sleep(0.5)
+                raw = servers.smtp.sent[-1][2] if len(servers.smtp.sent) > before else ""
+                encrypted = "BEGIN PGP MESSAGE" in raw or "application/pgp-encrypted" in raw
+                if raw:
+                    servers.imap.add("INBOX", raw)
+                res2 = m.js(r"""
+                  const { MailServices } = ChromeUtils.importESModule("resource:///modules/MailServices.sys.mjs");
+                  const acc = MailServices.accounts.getAccount("%s"), inbox = acc.incomingServer.rootFolder.getFolderWithFlags(Ci.nsMsgFolderFlags.Inbox);
+                  const a3 = await toMail(); a3.displayFolder(inbox.URI);
+                  inbox.getNewMessages(w.msgWindow, null);
+                  const idx = await until(() => { for (let i = 0; i < (a3.gDBView?.rowCount || 0); i++) if (a3.gDBView.getMsgHdrAt(i).mime2DecodedSubject.includes("geheim") || a3.gDBView.getMsgHdrAt(i).mime2DecodedSubject == "...") return i + 1; return 0; }, 15000);
+                  if (!idx) return { found: false };
+                  a3.threadTree.selectedIndex = idx - 1; await wait(4000);
+                  const mb = a3.messageBrowser?.contentDocument || a3.document.getElementById("messageBrowser")?.contentDocument;
+                  const body = mb?.getElementById("messagepane")?.contentDocument?.body?.textContent || "";
+                  const tech = mb?.getElementById("encryptionTechBtn");
+                  const out = { found: true, body: body.includes("Nur für mich lesbar."), tech: tech ? { shown: tech.getBoundingClientRect().width > 0, text: tech.textContent.trim() } : null };
+                  const bmp = await w.browsingContext.currentWindowGlobal.drawSnapshot(null, 1, "white");
+                  const c = d.createElementNS("http://www.w3.org/1999/xhtml", "canvas"); c.width = bmp.width; c.height = bmp.height; c.getContext("2d").drawImage(bmp, 0, 0);
+                  const blob = await new Promise(r => c.toBlob(r)); await IOUtils.write(PathUtils.join(PathUtils.tempDir, "halo-pgp-read.png"), new Uint8Array(await blob.arrayBuffer()));
+                  Services.prefs.clearUserPref("extensions.mailcards.undoSend");
+                  return out;""" % key)
+            finally:
+                m.cmd("WebDriver:SetTimeouts", {"script": 30000})
+            t_ = res2.get("tech") or {}
+            ok = (res.get("key") and res.get("encrypt") and (res.get("btn") or {}).get("checked") and res.get("closed") and encrypted
+                  and res2.get("found") and res2.get("body") and t_.get("shown"))
+            return ok, f"{res} verschlüsselt: {encrypted} {res2}"
+        check("Testkonto: OpenPGP – Verfassen verschlüsselt mit Testschlüssel, Mail kommt verschlüsselt an, Leseansicht entschlüsselt mit Hinweis im Mailkopf", openpgp_roundtrip, results)
     finally:
         try:
             m.js(r"""
@@ -4202,12 +4378,78 @@ def run_checks(m, version, profile, results):
           return out;""")
         # Plattform-Hinweis nur unter Linux (macOS und Windows sind abgestimmt)
         note = sys.platform not in ("darwin", "win32")
-        ok = (res["window"] and res["title"] == "Welcome to halo.spaces" and "Settings → halo.spaces" in res["text"]
+        ok = (res["window"] and res["title"] == "Welcome to halo.spaces" and "calm and tidy." in res["text"] and " – " not in res["text"]
               and res["buttons"] == ["settings", "close"] and res["overflow"] <= 0 and res["shown"] and res["windows"] == 1
-              and res["lines"] == (3 if note else 2) and ("made for macOS" in res["text"]) == note and res["note"] == note
-              and res["theme"] == "default-theme@mozilla.org" and "appearance was set" not in res["text"] and res["closed"])
+              and res["lines"] == (2 if note else 1) and ("made for macOS" in res["text"]) == note and res["note"] == note
+              and res["theme"] == "default-theme@mozilla.org" and "follow your system" not in res["text"] and res["closed"])
         return ok, f"{res}"
-    check("Begrüßung: einmal nach der Erstinstallation (Optionen unter Einstellungen → halo.spaces, Linux mit Plattform-Hinweis), Theme bleibt System", welcome, results)
+    check("Begrüßung: einmal nach der Erstinstallation (kurz, Linux mit Plattform-Hinweis), Theme bleibt System", welcome, results)
+
+    def welcome_steps():
+        # Begrüßung schrittweise (KISS): Wetter und Chat erst nur Ja/Nein; Ja beim Wetter bzw. Nein beim Chat lässt die
+        # Einzelheiten aufgleiten und das Fenster wächst mit; Stadt mit Vorschlägen beim Tippen; keine Gedankenstriche
+        res = m.js(r"""
+          const { ExtensionParent } = ChromeUtils.importESModule("resource://gre/modules/ExtensionParent.sys.mjs");
+          const g = ExtensionParent.GlobalManager.getExtension("%s").experimentAPIManager.global;
+          const halo = () => [...Services.wm.getEnumerator(null)].find(x => x.location?.href.startsWith("resource://mailcards/about/halo.html"));
+          halo()?.close(); await wait(300);
+          Cu.evalInSandbox(`globalThis.__mcRealFetch = fetchWithTimeout;
+            fetchWithTimeout = async (win, url) => {
+              const body = url.includes("geocoding") ? { results: [{ name: "Wien", country: "Österreich", latitude: 48.20849, longitude: 16.37208 }] }
+                : { current: { weather_code: 1, is_day: 1, temperature_2m: 12.3 } };
+              return { ok: true, status: 200, text: async () => JSON.stringify(body) }; };
+            enhancer.openHaloWindow(Services.wm.getMostRecentWindow("mail:3pane"), { welcome: true });`, g);
+          const out = {};
+          try {
+            const hw = await until(() => { const x = halo(); return x?.document.getElementById("fifth") && x; }, 8000);
+            if (!hw) return { window: false };
+            await wait(600);
+            const hd = hw.document, P = "extensions.mailcards.";
+            const btn = (sec, text) => [...hd.querySelectorAll(`#${sec} button`)].find(b => b.textContent == text);
+            const isOpen = sec => hd.querySelector(`#${sec} .more`).classList.contains("open") && hd.querySelector(`#${sec} .more`).getBoundingClientRect().height > 10;
+            const shut = sec => hd.querySelector(`#${sec} .more`).getBoundingClientRect().height < 1;
+            const fits = () => hd.documentElement.scrollHeight - hw.innerHeight <= 1;
+            out.start = { h: hw.innerHeight, weatherShut: shut("weather"), fifthShut: shut("fifth"), dashes: hd.body.textContent.includes(" – "),
+                          chatChosen: btn("fifth", "Yes")?.classList.contains("chosen") };
+            btn("weather", "Yes").click(); await wait(700);
+            out.weatherYes = { open: isOpen("weather"), h: hw.innerHeight, fits: fits() };
+            btn("weather", "City …").click(); await wait(300);
+            const input = hd.querySelector("#weather .city input"); input.value = "Wi"; input.dispatchEvent(new hw.Event("input"));
+            await until(() => hd.querySelector("#weather .suggest:not([hidden]) .suggestion"), 3000); await wait(300);
+            const sug = [...hd.querySelectorAll("#weather .suggestion")];
+            out.suggest = { labels: sug.map(b => b.textContent), fits: fits() };
+            sug[0]?.click(); await wait(800);
+            out.chosen = { on: Services.prefs.getBoolPref(P + "weather", false), place: Services.prefs.getStringPref(P + "weatherPlace", ""),
+                           status: hd.querySelector("#weather .status").textContent };
+            btn("weather", "No").click(); await wait(700);
+            out.weatherNo = { shut: shut("weather"), on: Services.prefs.getBoolPref(P + "weather", false), h: hw.innerHeight, fits: fits() };
+            btn("fifth", "No").click(); await wait(700);
+            out.chatNo = { open: isOpen("fifth"), mode: Services.prefs.getStringPref(P + "fifthSpace", "chat"),
+                           nothing: btn("fifth", "Nothing")?.classList.contains("chosen"), choices: [...hd.querySelectorAll("#fifth .choices:not(.yesno) button")].map(b => b.textContent), fits: fits() };
+            btn("fifth", "Website …").click(); await wait(300);
+            const url = hd.querySelector("#fifth .city input"); url.value = "kalender.example.com"; btn("fifth", "OK").click(); await wait(300);
+            out.web = { mode: Services.prefs.getStringPref(P + "fifthSpace", ""), url: Services.prefs.getStringPref(P + "fifthSpaceUrl", "") };
+            btn("fifth", "Yes").click(); await wait(700);
+            out.chatYes = { shut: shut("fifth"), mode: Services.prefs.getStringPref(P + "fifthSpace", "chat"), fits: fits() };
+            out.endDashes = hd.body.textContent.includes(" – ");
+            hw.close();
+          } finally {
+            Cu.evalInSandbox("fetchWithTimeout = __mcRealFetch;", g);
+            for (const p of ["weather", "weatherPlace", "weatherState", "fifthSpace", "fifthSpaceUrl"]) Services.prefs.clearUserPref("extensions.mailcards." + p);
+          }
+          return out;""" % ADDON_ID)
+        if res.get("window") is False:
+            return False, f"{res}"
+        st, wy, sg, ch, wn, cn, wb, cy = (res.get(k) or {} for k in ("start", "weatherYes", "suggest", "chosen", "weatherNo", "chatNo", "web", "chatYes"))
+        ok = (st.get("weatherShut") and st.get("fifthShut") and not st.get("dashes") and st.get("chatChosen")
+              and wy.get("open") and wy.get("h", 0) > st.get("h", 0) and wy.get("fits")
+              and sg.get("labels") == ["Wien, Österreich"] and ch.get("on") and ch.get("place") == "Wien, Österreich" and "Wien" in (ch.get("status") or "")
+              and wn.get("shut") and not wn.get("on") and wn.get("h", 999) < wy.get("h", 0) and wn.get("fits")
+              and cn.get("open") and cn.get("mode") == "none" and cn.get("nothing") and cn.get("choices") == ["Website …", "Add-on", "Nothing"]
+              and wb.get("mode") == "web" and wb.get("url") == "https://kalender.example.com/"
+              and cy.get("shut") and cy.get("mode") == "chat" and not res.get("endDashes"))
+        return ok, f"{res}"
+    check("Begrüßung schrittweise: Wetter und Chat erst Ja/Nein, Einzelheiten gleiten auf, Fenster wächst mit; Stadt mit Vorschlägen", welcome_steps, results)
 
 
     # Vorbereitung: Fenstergröße, Testkalender, Fenster ohne Dialoge
@@ -4230,22 +4472,28 @@ def run_checks(m, version, profile, results):
         res = m.js(r"""
           const panel = d.getElementById("today-pane-panel"), cmd = d.getElementById("calendar_toggle_todaypane_command");
           const shown = () => !!panel && !panel.collapsed && panel.getBoundingClientRect().width > 0;
-          const out = { modes: panel.getAttribute("mode"), collapsed: panel.getAttribute("collapsedinmodes"),
+          // überall gleich wie in der Mail: ohne Aufgabenteil, Termine bis unten
+          const look = () => { const todo = d.getElementById("todo-tab-panel"), ag = d.getElementById("agenda-panel");
+            return { todo: !!todo && todo.getBoundingClientRect().height > 0, agendaH: Math.round(ag?.getBoundingClientRect().height || 0) }; };
+          const looks = {};
+          const out = { looks, modes: panel.getAttribute("mode"), collapsed: panel.getAttribute("collapsedinmodes"),
                         pref: Services.prefs.getBoolPref("extensions.mailcards.todayPaneEverywhere", false) };
-          await toMail(); await wait(800); out.mail = shown();
-          tm.openTab("tasks", {}); await wait(1200); out.tasks = shown();
-          tm.openTab("addressBookTab", {}); await wait(2000); out.addressbook = [shown(), w.gCurrentMode];
-          w.openPreferencesTab("paneGeneral"); await wait(2000); out.settings = shown();
-          tm.openTab("chat", {}); await wait(1500); out.chat = shown();
+          await toMail(); await wait(800); out.mail = shown(); looks.mail = look();
+          tm.openTab("tasks", {}); await wait(1200); out.tasks = shown(); looks.tasks = look();
+          tm.openTab("addressBookTab", {}); await wait(2000); out.addressbook = [shown(), w.gCurrentMode]; looks.addressbook = look();
+          w.openPreferencesTab("paneGeneral"); await wait(2000); out.settings = shown(); looks.settings = look();
+          tm.openTab("chat", {}); await wait(1500); out.chat = shown(); looks.chat = look();
           await toCalendar(); await wait(1200); out.calendar = [shown(), !!cmd?.disabled];
           for (const t of [...tm.tabInfo].slice(1)) tm.closeTab(t);
           await toMail(); await wait(600);
           return out;""")
         ok = (res["pref"] and "special" in res["modes"] and "calendar" not in res["modes"].split(",")
               and res["mail"] and res["tasks"] and res["addressbook"][0] and res["settings"] and res["chat"]
-              and res["calendar"] == [False, True])
+              and res["calendar"] == [False, True]
+              and not any(v["todo"] for v in res["looks"].values())
+              and all(abs(v["agendaH"] - res["looks"]["mail"]["agendaH"]) <= 2 for v in res["looks"].values()))
         return ok, f"{res}"
-    check("Today-Pane: in Mail, Aufgaben, Adressbuch, Einstellungen und Chat, nicht im Kalender; nach der Installation eingeblendet", today_everywhere, results)
+    check("Today-Pane: in Mail, Aufgaben, Adressbuch, Einstellungen und Chat gleich (ohne Aufgabenteil), nicht im Kalender; nach der Installation eingeblendet", today_everywhere, results)
 
     def addon():
         v = m.js("""const { AddonManager } = ChromeUtils.importESModule("resource://gre/modules/AddonManager.sys.mjs");
@@ -4760,11 +5008,11 @@ def run_checks(m, version, profile, results):
                         icon: cs(btn, "::before").maskImage.slice(0, 20), tabbable: [...box.querySelectorAll("button")].filter(b => b.tabIndex >= 0).length,
                         labeled: [...box.querySelectorAll("button")].every(b => b.getAttribute("aria-label")), enabledMatch };
           // Löschen per Knopf: Mail in den Papierkorb, Thunderbirds Rückgängig geht
-          const txn = w.messenger.transactionManager; const undo0 = txn.numberOfUndoItems;
+          const txn = w.messenger?.transactionManager ?? MailServices.txns.transactionManager; const undo0 = txn.numberOfUndoItems;
           box.querySelector(".mc-hover-delete").click();
           out.inbox = await until(() => inbox.getTotalMessages(false) == 1 && 1, 6000);
           out.undoItems = txn.numberOfUndoItems - undo0;
-          if (out.undoItems > 0) { w.messenger.undo(w.msgWindow); out.undone = await until(() => inbox.getTotalMessages(false) == 2 && 2, 6000); }
+          if (out.undoItems > 0) { w.messenger ? w.messenger.undo(w.msgWindow) : txn.undoTransaction(); out.undone = await until(() => inbox.getTotalMessages(false) == 2 && 2, 6000); }
           InspectorUtils.clearPseudoClassLocks(md.documentElement); box.style.removeProperty("transition");
           return out;''')
         if not res.get("found"):
@@ -7311,6 +7559,25 @@ Neu
         return ok, f"{res}"
     check("Aufgaben: Kartenansicht mit Details rechts, Tabellenansicht wie bisher, Wahl über „…“ im Listenkopf, schmal Details unten", task_view_choice, results)
 
+    def task_header_no_overlap():
+        # ohne Auswahl (auch ohne Aufgaben) behält die Liste ihre Breite wie in der Mail: Filter und „…“ über der Liste
+        # liegen nie auf Plus und Suche der Toolbar
+        res = m.js(r"""
+          w.resizeTo(1500, 900); await wait(400);
+          tm.openTab("tasks", {}); await wait(1500);
+          const tree = d.getElementById("calendar-task-tree"); tree.mTreeView?.selection?.clearSelection(); await wait(800);
+          const r = e => { const b = e.getBoundingClientRect(); return b.width ? { l: b.left, r: b.right, t: b.top, b: b.bottom } : null; };
+          const hits = (a, b) => a && b && a.l < b.r - 1 && b.l < a.r - 1 && a.t < b.b - 1 && b.t < a.b - 1;
+          const head = [...d.querySelectorAll("#mcListHeader button")].map(r).filter(Boolean);
+          const bar = [...d.querySelectorAll("#unifiedToolbarContent > li:not([item-id='spacer'])")].map(r).filter(Boolean);
+          const search = d.querySelector('#unifiedToolbarContent > li[item-id="search-bar"]')?.getBoundingClientRect().width || 0;
+          const out = { side: d.documentElement.hasAttribute("mc-task-side"), head: head.length, overlap: head.some(h => bar.some(t => hits(h, t))), search: Math.round(search) };
+          for (const t of [...tm.tabInfo].slice(1)) tm.closeTab(t);
+          return out;""")
+        ok = res["head"] >= 2 and not res["overlap"] and res["search"] >= 160
+        return ok, f"{res}"
+    check("Aufgaben: ohne Auswahl keine Überlappung von Filter/„…“ mit Plus und Suche der Toolbar, Suchfeld bleibt breit", task_header_no_overlap, results)
+
     def alarm_dialog():
         # Erinnerung wie in Apple Kalender: Kalendersymbol mit Monat und Tag, keine graue Kachel, „Alle“-Knöpfe nur bei mehreren
         res = m.js(r"""
@@ -7683,10 +7950,11 @@ Neu
               for (let x = 0; x < 120; x++) for (let y = 0; y < (tree.rowHeight || 40); y++) { const p = px(x, y); const s = Math.max(...p) - Math.min(...p); if (s > sat) { sat = s; best = p; } }
               out.circle = best;
             }
-            // ohne Auswahl kein Teiler, mit Auswahl Teiler und Details sichtbar
+            // ohne Auswahl: in der Tabelle kein Teiler (sonst zwei Linien unten), in der Listenansicht bleibt die
+            // leere Detailspalte samt Teiler stehen wie in der Mail; mit Auswahl Teiler und Details sichtbar
             tree.mTreeView.selection.clearSelection(); await pause(500);
             const sp = d.getElementById("calendar-task-view-splitter"), det = d.getElementById("calendar-task-details-container");
-            out.splitNone = csOf(sp).display;
+            out.splitNone = csOf(sp).display; out.side = d.documentElement.hasAttribute("mc-task-side");
             if (row >= 0) { tree.mTreeView.selection.select(row); await pause(600); }
             out.splitSel = [csOf(sp).display, vis(det)];
             // Suche ohne Treffer
@@ -7729,7 +7997,7 @@ Neu
         ok_static = res.get("italic") and res.get("doneRule") and res.get("svg")
         # Rosa (#FF2D55) dominiert: Rot deutlich vor Blau und Grün
         ok_circle = ci[0] > 180 and ci[0] - ci[2] > 60 and ci[0] - ci[1] > 100
-        ok_split = res.get("splitNone") == "none" and res["splitSel"][0] != "none" and res["splitSel"][1]
+        ok_split = (res.get("splitNone") == "none") != bool(res.get("side")) and res["splitSel"][0] != "none" and res["splitSel"][1]
         se, cl = res.get("search") or [], res.get("cleared") or []
         ok_search = len(se) == 4 and se[0] == 0 and se[1] and se[2] == "No Results" and se[3] == "No tasks match your search." and cl[0] > 0 and cl[1]
         ov, op = res.get("overdue") or [], res.get("open") or []
@@ -8650,6 +8918,63 @@ Neu
         return ok, f"{res}"
     check("Einstellungen: eigene Kategorie „halo.spaces“ mit der Einstellungsseite der Erweiterung (Add-ons → Einstellungen bleibt)", pref_halo_category, results)
 
+    def options_minimal():
+        # Einstellungsseite minimalistisch: Abhängiges erst bei Bedarf (Ort nur mit Wetter, Stichwörter nur mit Emojis),
+        # Chat als Schalter mit „Stattdessen“ bei Aus, Einzelheiten im ⓘ, Fehlerbehebung eingeklappt, keine Gedankenstriche.
+        # Die Seite läuft hier in einem Testfenster mit nachgebildeter Schnittstelle (die echte liegt im Erweiterungsprozess)
+        res = m.js(r"""
+          const saved = [];
+          const settings = { mac: true, darkReader: true, fullConversation: true, unreadTint: false, undoSend: 10, senderLogos: true,
+            macContactPhotos: false, darkMessages: true, plainTextSystemFont: true, hideCollectedAddresses: true, calendarEmoji: true,
+            emojiCustom: "", weather: false, weatherPlace: "", calendarOffline: false, fifthSpace: "chat", fifthSpaceAddon: "",
+            fifthSpaceUrl: "", fifthSpaceIcon: "mask", fifthSpaceAddons: [], inlinePrompts: true, earlyTheme: false, autoUpdate: true,
+            bundledTheme: true, appleIcons: true, debug: false };
+          const obs = { observe(doc) {
+            if (!doc.location?.href.startsWith("resource://mailcards/options/options.html")) return;
+            const win = doc.defaultView;
+            win.wrappedJSObject.browser = Cu.cloneInto({ mailCards: {
+              getSettings: () => win.Promise.resolve(Cu.cloneInto(settings, win)),
+              getTranslations: () => win.Promise.resolve(Cu.cloneInto({ lang: "en", table: {} }, win)),
+              setSetting: (k, v) => { saved.push([k, v]); settings[k] = v; return win.Promise.resolve(v); },
+              searchPlaces: () => win.Promise.resolve(Cu.cloneInto([], win)),
+              choosePlace: () => win.Promise.resolve() } }, win, { cloneFunctions: true });
+          } };
+          Services.obs.addObserver(obs, "document-element-inserted");
+          const ow = w.openDialog("resource://mailcards/options/options.html", "", "chrome,dialog=no,width=700,height=900");
+          try {
+            const od = await until(() => ow.document?.getElementById("row-weather") && ow.document, 8000);
+            if (!od) return { page: false };
+            await wait(400);
+            const shown = id => { const r = od.getElementById("row-" + id); return !!r && !r.hidden && r.getBoundingClientRect().height > 0; };
+            const out = { page: true, start: { place: shown("weatherPlace"), emoji: shown("emojiCustom"), chat: shown("showChat"), instead: shown("fifthSpace"),
+              url: shown("fifthSpaceUrl"), debug: shown("debug"), dashes: od.body.textContent.includes(" – "),
+              infos: od.querySelectorAll(".row .info[title]").length, disclosure: !!od.querySelector("h2 .disclosure[aria-expanded='false']") } };
+            od.getElementById("s-weather").click(); await wait(500);
+            out.weatherOn = shown("weatherPlace");
+            od.getElementById("s-calendarEmoji").click(); await wait(500);
+            out.emojiOff = shown("emojiCustom");
+            od.getElementById("s-showChat").click(); await wait(500);
+            out.chatOff = { instead: shown("fifthSpace"), value: od.getElementById("s-fifthSpace")?.value, mode: settings.fifthSpace };
+            const sel = od.getElementById("s-fifthSpace"); sel.value = "web"; sel.dispatchEvent(new ow.Event("change")); await wait(500);
+            out.web = { url: shown("fifthSpaceUrl"), icon: shown("fifthSpaceIcon"), mode: settings.fifthSpace };
+            od.getElementById("s-showChat").click(); await wait(500);
+            out.chatOn = { instead: shown("fifthSpace"), url: shown("fifthSpaceUrl"), mode: settings.fifthSpace };
+            od.querySelector("h2 .disclosure").click(); await wait(500);
+            out.troubleshoot = shown("debug");
+            return out;
+          } finally { Services.obs.removeObserver(obs, "document-element-inserted"); ow.close(); }""")
+        if not res.get("page"):
+            return False, f"{res}"
+        st = res["start"]
+        ok = (not st["place"] and st["emoji"] and st["chat"] and not st["instead"] and not st["url"] and not st["debug"]
+              and not st["dashes"] and st["infos"] >= 8 and st["disclosure"]
+              and res["weatherOn"] and not res["emojiOff"]
+              and res["chatOff"] == {"instead": True, "value": "none", "mode": "none"}
+              and res["web"] == {"url": True, "icon": True, "mode": "web"}
+              and res["chatOn"] == {"instead": False, "url": False, "mode": "chat"} and res["troubleshoot"])
+        return ok, f"{res}"
+    check("Einstellungen minimalistisch: Abhängiges erst bei Bedarf, Chat als Schalter mit „Stattdessen“, Einzelheiten im ⓘ, Fehlerbehebung eingeklappt", options_minimal, results)
+
     def pref_halo_search():
         # Suche der Einstellungen findet die Optionen von halo.spaces („update“ → „Install updates at start“, „logos“ →
         # „Logos from sender websites“), Treffer wie Thunderbirds eigene markiert; „Show“ öffnet halo.spaces bei der Option
@@ -8708,7 +9033,7 @@ Neu
           const sb = Cu.Sandbox(null);
           sb.browser = Cu.cloneInto({ mailCards: {} }, sb);
           Cu.evalInSandbox(src.replace(/\\nrender\\(\\)[^\\n]*\\s*$/, "\\n").replace(/\\nwindow\\.addEventListener[^\\n]*/, "\\n"), sb);
-          const sections = JSON.parse(Cu.evalInSandbox("JSON.stringify(SECTIONS(t))", sb)).map(([title, rows]) => [title, rows.map(r => r.key)]);
+          const sections = JSON.parse(Cu.evalInSandbox("JSON.stringify(SECTIONS(t))", sb)).map(([title, rows]) => [title, rows.filter(r => r.type != "chat").map(r => r.key)]);
           const used = [...src.matchAll(/\\bt\\("((?:[^"\\\\]|\\\\.)*)"\\)/g)].map(x => JSON.parse('"' + x[1] + '"'));
           const T = Cu.evalInSandbox("TRANSLATIONS", g), SETTINGS = Cu.evalInSandbox("SETTINGS", g);
           const api = Cu.evalInSandbox("mailCards.prototype.getAPI({})", g).mailCards, st = await api.getSettings();
@@ -8794,7 +9119,7 @@ Neu
           const out = { default: Services.prefs.getBoolPref(E, false), before: await read() };
           Services.prefs.setBoolPref(E, true); for (let i = 0; i < 40 && !(await IOUtils.exists(path)); i++) await wait(100); await wait(600);
           const on = await read(); out.on = { head: on?.split("\n")[0], legacy: Services.prefs.getBoolPref(L, false),
-                                              design: (await IOUtils.readUTF8(path)).includes("Thunderbird im Stil von Apple Mail") };
+                                              design: (await IOUtils.readUTF8(path)).includes("halo.spaces – ruhiges Design für Thunderbird") };
           Services.prefs.setBoolPref(E, false); await wait(800);
           out.off = { file: await IOUtils.exists(path), legacy: Services.prefs.getBoolPref(L, false), set: Services.prefs.prefHasUserValue(L) };
           // eigene userChrome.css des Nutzers: nie überschreiben, nie löschen
@@ -9003,6 +9328,116 @@ Neu
         return ok, f"{res}"
     check("Bereiche-Leiste: Tooltips nur mit Namen", space_tips, results)
 
+    def fifth_space():
+        # fünfter Bereich der Leiste: keiner (Chat weg, übrige Knöpfe gleich groß, Bereiche-Symbol mit fünf Feldern),
+        # Bereich einer Erweiterung (Chat-Platz, Chat-Farbe, Symbol der Erweiterung, eigener Knopf weg, Inhalt 1:1
+        # ohne Today-Pane) und feste Webseite (eigener Tab ohne Adressleiste, fremde Links im Browser)
+        import http.server
+        import threading
+        page = b'<!doctype html><meta charset="utf-8"><title>Halo Webbereich</title><h1 id="t">Halo Webbereich</h1>'
+
+        class Handler(http.server.BaseHTTPRequestHandler):
+            def do_GET(self):
+                self.send_response(200 if self.path == "/" else 404)
+                self.send_header("Content-Type", "text/html; charset=utf-8")
+                self.end_headers()
+                if self.path == "/":
+                    self.wfile.write(page)
+
+            def log_message(self, *a):
+                pass
+        web = http.server.ThreadingHTTPServer(("127.0.0.1", 0), Handler)
+        threading.Thread(target=web.serve_forever, daemon=True).start()
+        m.cmd("WebDriver:SetTimeouts", {"script": 120000})  # Erweiterung installieren und drei Zustände: länger als 30 s
+        try:
+            res = m.js(r"""
+              const { AddonManager } = ChromeUtils.importESModule("resource://gre/modules/AddonManager.sys.mjs");
+              const P = "extensions.mailcards.fifthSpace";
+              const bar = d.getElementById("spacesToolbar"), chat = d.getElementById("chatButton");
+              const shown = e => !!e && e.getBoundingClientRect().height > 0;
+              const heights = () => [...bar.querySelectorAll(".spaces-toolbar-top-container > .spaces-toolbar-button")].filter(shown).map(b => Math.round(b.getBoundingClientRect().height));
+              const out = { before: heights() };
+              // keiner
+              Services.prefs.setStringPref(P, "none"); await wait(500);
+              const toggle = w.getComputedStyle(d.getElementById("mcSpacesToggle"), "::after").backgroundImage;
+              out.none = { chat: shown(chat), heights: heights(), rects: (decodeURIComponent(toggle).match(/<rect/g) || []).length, item: d.getElementById("spacesPopupButtonChat")?.getAttribute("mc-fifth") };
+              out.none.itemShown = !d.getElementById("spacesPopupButtonChat").hidden;
+              // Erweiterung mit eigenem Bereich (vorübergehend installiert)
+              const dir = PathUtils.join(PathUtils.profileDir, "halo-space-test");
+              await IOUtils.makeDirectory(dir, { ignoreExisting: true });
+              await IOUtils.writeUTF8(PathUtils.join(dir, "manifest.json"), JSON.stringify({ manifest_version: 2, name: "Halo Testbereich", version: "1.0",
+                browser_specific_settings: { gecko: { id: "halo-space-test@example.invalid" } }, background: { scripts: ["background.js"] } }));
+              await IOUtils.writeUTF8(PathUtils.join(dir, "background.js"), 'browser.spaces.create("halotest", "page.html", { title: "Halo Testbereich", defaultIcons: "icon.svg" });');
+              await IOUtils.writeUTF8(PathUtils.join(dir, "page.html"), '<!doctype html><meta charset="utf-8"><title>Testbereich</title><body style="margin:0;font:20px serif"><h1 id="t" style="font-size:31px">Halo Testbereich</h1></body>');
+              await IOUtils.writeUTF8(PathUtils.join(dir, "icon.svg"), '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6" fill="#2a7"/></svg>');
+              const f = Cc["@mozilla.org/file/local;1"].createInstance(Ci.nsIFile); f.initWithPath(dir);
+              const addon = await AddonManager.installTemporaryAddon(f);
+              const space = await until(() => w.gSpacesToolbar.spaces.find(s => s.isExtensionSpace && s.button?.title == "Halo Testbereich"), 8000);
+              out.addon = { space: !!space };
+              if (space) {
+                Services.prefs.setStringPref("extensions.mailcards.fifthSpaceAddon", space.name);
+                Services.prefs.setStringPref(P, "addon"); await wait(600);
+                const img = chat.querySelector("img");
+                out.addon.chat = shown(chat); out.addon.title = chat.title; out.addon.ownShown = shown(space.button);
+                out.addon.mask = w.getComputedStyle(img).maskImage.includes("moz-extension://");
+                out.addon.heights = heights();
+                chat.click();
+                // (die Seite der Erweiterung läuft in deren eigenem Prozess – geprüft werden Adresse, Titel und Umgebung)
+                const tab = await until(() => tm.currentTabInfo.mode.name == "contentTab" && tm.currentTabInfo.browser?.currentURI?.spec.startsWith("moz-extension://") && tm.currentTabInfo, 8000);
+                await until(() => tab?.browser?.contentTitle == "Testbereich", 6000);
+                out.addon.tab = !!tab; out.addon.url = !!tab?.browser?.currentURI?.spec.endsWith("/page.html"); out.addon.pageTitle = tab?.browser?.contentTitle;
+                out.addon.current = chat.classList.contains("current");
+                out.addon.today = shown(d.getElementById("today-pane-panel"));
+                await toMail(); await wait(300);
+                out.addon.afterMail = { current: chat.classList.contains("current"), today: shown(d.getElementById("today-pane-panel")) };
+                for (const t of [...tm.tabInfo].slice(1)) tm.closeTab(t);
+              }
+              // feste Webseite
+              Services.prefs.setStringPref("extensions.mailcards.fifthSpaceUrl", "http://127.0.0.1:%d/");
+              Services.prefs.setStringPref(P, "web"); await wait(500);
+              out.web = { title: chat.title, mask: w.getComputedStyle(chat.querySelector("img")).maskImage.includes("svg") };
+              chat.click();
+              const wt = await until(() => tm.currentTabInfo.mode.name == "contentTab" && tm.currentTabInfo.browser?.currentURI?.spec.includes("127.0.0.1") && tm.currentTabInfo, 8000);
+              await until(() => wt?.browser?.contentTitle == "Halo Webbereich" || wt?.title == "Halo Webbereich", 6000);
+              out.web.tab = !!wt; out.web.group = wt?.browser?.getAttribute("messagemanagergroup"); out.web.current = chat.classList.contains("current");
+              out.web.today = shown(d.getElementById("today-pane-panel"));
+              await toMail(); chat.click(); await wait(800);
+              out.web.reused = tm.tabInfo.filter(t => t.mode.name == "contentTab").length;
+              for (const t of [...tm.tabInfo].slice(1)) tm.closeTab(t);
+              await toMail();
+              // zurück: Chat
+              for (const p of [P, "extensions.mailcards.fifthSpaceAddon", "extensions.mailcards.fifthSpaceUrl"]) Services.prefs.clearUserPref(p);
+              await wait(500);
+              out.back = { chat: shown(chat), title: chat.title, heights: heights(), extra: shown(space?.button) || shown(d.getElementById("spacesToolbarAddonsOverflowButton")) };
+              // Einstellungsseite: nur bekannte Werte, Adresse nur http(s)
+              const { ExtensionParent } = ChromeUtils.importESModule("resource://gre/modules/ExtensionParent.sys.mjs");
+              const g = ExtensionParent.GlobalManager.getExtension("%s").experimentAPIManager.global;
+              const api = Cu.evalInSandbox("mailCards.prototype.getAPI({})", g).mailCards;
+              const rejects = async (k, v) => { try { await api.setSetting(k, v); return false; } catch { return true; } };
+              out.validate = [await rejects("fifthSpace", "bogus"), await rejects("fifthSpaceUrl", "javascript:alert(1)"),
+                              await rejects("fifthSpaceIcon", "x"), await api.setSetting("fifthSpaceUrl", "kalender.example.com")];
+              out.listed = (await api.getSettings()).fifthSpaceAddons?.map(a => a.label);
+              for (const p of ["extensions.mailcards.fifthSpaceUrl"]) Services.prefs.clearUserPref(p);
+              await addon?.uninstall?.(); await wait(300);
+              return out;""" % (web.server_port, ADDON_ID))
+        finally:
+            m.cmd("WebDriver:SetTimeouts", {"script": 30000})
+            web.shutdown()
+            web.server_close()
+        n, a, wb, bk = res.get("none") or {}, res.get("addon") or {}, res.get("web") or {}, res.get("back") or {}
+        before = res.get("before") or []
+        ok = (len(before) == 5 and not n.get("chat") and len(n.get("heights", [])) == 4 and max(n["heights"]) - min(n["heights"]) <= 1
+              and n["heights"][0] > before[0] and n.get("rects") == 5 and not n.get("itemShown")
+              and a.get("space") and a.get("chat") and a.get("title") == "Halo Testbereich" and not a.get("ownShown") and a.get("mask")
+              and a.get("heights") == before and a.get("tab") and a.get("url") and a.get("pageTitle") == "Testbereich"
+              and a.get("current") and not a.get("today") and not a["afterMail"]["current"]
+              and wb.get("title") == "127.0.0.1" and wb.get("mask") and wb.get("tab") and wb.get("group") == "single-site"
+              and wb.get("current") and not wb.get("today") and wb.get("reused") == 1
+              and bk.get("chat") and bk.get("title") != "Halo Testbereich" and bk.get("heights") == before and not bk.get("extra")
+              and res.get("validate") == [True, True, True, "https://kalender.example.com/"] and res.get("listed") == ["Halo Testbereich"])
+        return ok, f"{res}"
+    check("Bereichsleiste: fünfter Bereich wahlweise keiner (übrige Knöpfe gleich groß), Bereich einer Erweiterung 1:1 oder feste Webseite auf dem Platz des Chats", fifth_space, results)
+
     def system_integration_check():
         # der Dialog sperrt per CSP alle Bilder außer chrome: – Haken muss trotzdem erscheinen
         res = m.js('''
@@ -9109,6 +9544,77 @@ Neu
               and res.get("on") == [True, True] and res.get("migrated") == [False, False, False, True] and res.get("back") == [True, True])
         return ok, f"{res}"
     check("Geburtstage: eigener Kalender in der Kalenderliste, Häkchen blendet ein/aus; frühere Option „aus“ blendet ihn einmal aus", birthdays_toggle, results)
+
+    def message_window_bar():
+        # eigenes Nachrichtenfenster wie Apple Mail: Knöpfe einzeilig in eigener Zeile ganz oben, darunter Absender,
+        # Ordner und Uhrzeit – auch im schmalen Fenster keine zweite Knopfzeile und keine Überlappung
+        res = m.js(r"""
+          const { MailServices } = ChromeUtils.importESModule("resource:///modules/MailServices.sys.mjs");
+          const { MailUtils } = ChromeUtils.importESModule("resource:///modules/MailUtils.sys.mjs");
+          let hdr = null;
+          for (const f of MailServices.accounts.localFoldersServer.rootFolder.descendants) {
+            for (const h of f.messages) if (h.mime2DecodedSubject.includes("Treffen am Donnerstag")) { hdr = h; break; }
+            if (hdr) break; }
+          if (!hdr) return { mail: false };
+          MailUtils.openMessageInNewWindow(hdr);
+          const mw = await until(() => [...Services.wm.getEnumerator("mail:messageWindow")].find(x => x.document.readyState == "complete"), 8000);
+          const out = {};
+          try {
+            await wait(2000);
+            for (const W of [900, 560]) {
+              mw.resizeTo(W, 700); await wait(1000);
+              const md = mw.document.getElementById("messageBrowser").contentDocument;
+              const r = id => { const b = md.getElementById(id)?.getBoundingClientRect(); return b && b.width ? { t: Math.round(b.top), b: Math.round(b.bottom), l: Math.round(b.left), r: Math.round(b.right), h: Math.round(b.height) } : null; };
+              const btns = [...md.querySelectorAll("#header-view-toolbar > toolbarbutton, #header-view-toolbar toolbarbutton")].filter(b => b.getBoundingClientRect().width);
+              out[W] = { std: md.documentElement.hasAttribute("mc-standalone"), bar: r("header-view-toolbar"), sender: r("headerSenderToolbarContainer"), meta: r("mcHdrMeta"),
+                         rows: new Set(btns.map(b => { const q = b.getBoundingClientRect(); return Math.round((q.top + q.height / 2) / 12); })).size, inside: btns.every(b => b.getBoundingClientRect().right <= mw.innerWidth) };
+            }
+          } finally { mw.close(); }
+          await wait(300);
+          return out;""")
+        if res.get("mail") is False:
+            return False, "Testmail fehlt"
+        bad = []
+        for W in ("900", "560"):
+            v = res.get(W) or {}
+            b, snd, mt = v.get("bar") or {}, v.get("sender") or {}, v.get("meta") or {}
+            if not (v.get("std") and v.get("rows") == 1 and v.get("inside") and b and snd and mt
+                    and b.get("b", 999) <= snd.get("t", 0) and b.get("b", 999) <= mt.get("t", 0)):
+                bad.append(f"{W}: {v}")
+        return not bad, "; ".join(bad) or f"{res}"
+    check("Nachrichtenfenster: Knöpfe einzeilig in eigener Zeile über Absender, Ordner und Uhrzeit (wie Apple Mail), auch schmal", message_window_bar, results)
+
+    def calendar_list_light():
+        # Kalenderliste wie Apple Kalender: angehakt gefüllt in der Kalenderfarbe, Haken in Thunderbirds Kontrastfarbe
+        # (helle Farbe → dunkler Haken); nicht angehakt leeres Kästchen mit Rand in der Kalenderfarbe
+        res = m.js(r"""
+          const c = cal.manager.createCalendar("storage", Services.io.newURI("moz-storage-calendar://")); c.name = "Halo Hell";
+          c.setProperty("color", "#DCEBFB"); cal.manager.registerCalendar(c);
+          await toCalendar(); await wait(600);
+          const li = await until(() => d.querySelector(`#calendar-list li[calendar-id="${c.id}"]`), 4000);
+          const box = li?.querySelector(".calendar-color"), input = li?.querySelector("input.calendar-displayed");
+          const lum = s => { const v = s.match(/[\d.]+/g).slice(0, 3).map(Number).map(x => { x /= 255; return x <= 0.03928 ? x / 12.92 : ((x + 0.055) / 1.055) ** 2.4; });
+            return 0.2126 * v[0] + 0.7152 * v[1] + 0.0722 * v[2]; };
+          const ratio = (a, b) => { const [x, y] = [lum(a), lum(b)].sort((p, q) => q - p); return Math.round((x + 0.05) / (y + 0.05) * 10) / 10; };
+          const look = () => { const cs = w.getComputedStyle(box), af = w.getComputedStyle(box, "::after");
+            return { bg: cs.backgroundColor, border: cs.borderTopColor, bw: cs.borderTopWidth, check: af.content != "none" ? af.backgroundColor : null, op: cs.opacity }; };
+          const out = { row: !!li };
+          if (box) {
+            out.on = look(); out.on.contrast = out.on.check ? ratio(out.on.check, out.on.bg) : 0;
+            input.click(); await wait(400);
+            out.off = look();
+            input.click(); await wait(300);
+          }
+          cal.manager.unregisterCalendar(c); cal.manager.removeCalendar?.(c);
+          await toMail();
+          return out;""")
+        on, off = res.get("on") or {}, res.get("off") or {}
+        light = "rgb(220, 235, 251)"
+        ok = (res.get("row") and on.get("bg") == light and on.get("contrast", 0) >= 4.5
+              and off.get("check") is None and off.get("bg") in ("rgba(0, 0, 0, 0)", "transparent") and off.get("border") == light
+              and off.get("op") == "1")
+        return ok, f"{res}"
+    check("Kalenderliste: helle Kalenderfarbe mit dunklem Haken, nicht angehakt leeres Kästchen mit farbigem Rand (wie Apple Kalender)", calendar_list_light, results)
 
     def mac_photos_off():
         # Einstellungsseite (setSetting) direkt über das Experiment-Modul; den
@@ -9278,8 +9784,9 @@ Neu
     check("Verteiler-Hinweis: nach erfolgreicher Ein-Klick-Abmeldung kein Abmelden-Knopf mehr, auch bei weiteren Mails des Verteilers", unsubscribed_hides_button, results)
 
     def keyboard():
+        # (Fokusring zeigt macOS nur im aktiven Fenster – nach geschlossenen Nebenfenstern das Hauptfenster nach vorn holen)
         res = m.js('''
-          await toMail(); await wait(300);
+          await toMail(); w.focus(); await until(() => Services.focus.activeWindow == w, 3000); await wait(300);
           const ring = el => { el.focus({ focusVisible: true }); const cs = getComputedStyle(el); const r = cs.outlineStyle != "none" && parseFloat(cs.outlineWidth) >= Math.floor(2 * w.devicePixelRatio) / w.devicePixelRatio - 0.01; el.blur(); return r; };
           const own = ["mcSpacesToggle", "mcTodayToggle"].map(id => d.getElementById(id)).filter(Boolean);
           const unlabeled = own.filter(b => !b.getAttribute("aria-label")).map(b => b.id);

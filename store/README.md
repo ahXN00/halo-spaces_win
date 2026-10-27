@@ -19,7 +19,7 @@ ready to paste; the package is `dist/halo-spaces-<version>-atn.xpi`
 | License | Mozilla Public License 2.0 |
 | Privacy policy | `privacy-en.md` (required: the add-on loads sender logos) |
 | Notes to reviewer | `reviewer-notes.md` |
-| Screenshots | `shot-mail.png`, `shot-calendar.png`, `shot-addressbook.png`, `shot-quick-event.png` (1280 px wide, personal data blurred) |
+| Screenshots | `shot-mail.png`, `shot-calendar.png`, `shot-addressbook.png`, `shot-quick-event.png` (1280 px wide, made-up test data; `python3 tests/store_shots.py` recreates them) |
 | Icon | `../extension/about/icon.svg` (export as 128×128 PNG: `store/icon-128.png`) |
 
 Later versions: `./publish.sh <version> notes.md` also uploads the store

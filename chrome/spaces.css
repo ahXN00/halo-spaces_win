@@ -169,7 +169,8 @@
   content: "" !important;
   position: absolute !important;
   inset: 0 !important;
-  background-color: white !important;
+  /* Haken in Thunderbirds Kontrastfarbe des Kalenders (bei hellen Farben dunkel) */
+  background-color: var(--mc-cal-fore, white) !important;
   mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='%23000' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m4 8.3 2.6 2.6L12 5.4'/%3E%3C/svg%3E") center / contain no-repeat !important;
 }
 
@@ -178,8 +179,20 @@
   background-color: var(--mt-text-secondary) !important;
 }
 
-#calendar-list > li:has(input.calendar-displayed:not(:checked)) .calendar-color {
-  opacity: 0.3 !important;
+/* nicht angehakt wie Apple Kalender: leeres Kästchen mit Rand in der Kalenderfarbe
+   (statt blasser Füllung – bei hellen Farben war kein Unterschied zu sehen) */
+#calendar-list > li:not([calendar-disabled]):has(input.calendar-displayed:not(:checked)) .calendar-color {
+  background-color: transparent !important;
+  border: 1.5px solid var(--mc-cal-back, var(--mt-text-secondary)) !important;
+}
+
+/* sehr helle Kalenderfarben: zusätzlich ein feiner dunkler Rand, damit das Kästchen nicht verschwindet */
+#calendar-list > li .calendar-color {
+  box-shadow: inset 0 0 0 0.5px color-mix(in srgb, var(--mt-text) 25%, transparent);
+}
+
+#calendar-list > li[calendar-disabled]:has(input.calendar-displayed:not(:checked)) .calendar-color {
+  opacity: 0.4 !important;
 }
 
 /* die eigentliche Checkbox liegt unsichtbar über dem Kästchen */
@@ -1636,6 +1649,18 @@ calendar-event-box :is(.alarm-icons-box, .item-classification-icon, .item-recurr
   display: none !important;
 }
 
+/* Listenansicht ohne Auswahl wie die Mail: die Detailspalte bleibt als leere
+   Fläche stehen (samt Teiler) – sonst reichte die Liste bis zur Today-Pane,
+   und Filter und „…“ darüber lägen auf Plus und Suche der Toolbar */
+:root[mc-task-side] #calendar-task-details-container[hidden] {
+  display: flex !important;
+  visibility: hidden !important;
+}
+
+:root[mc-task-side] #calendar-task-view-splitter:has(+ #calendar-task-details-container[hidden]) {
+  display: flex !important;
+}
+
 #calendar-task-view-splitter {
   border: none !important;
   border-top: var(--mt-hairline) solid var(--mt-pane-line) !important;
@@ -2575,6 +2600,12 @@ search-bar {
   font-weight: 500 !important;
   box-shadow: none !important;
   outline: none !important;
+}
+
+/* Today-Pane in jedem Bereich gleich: Minikalender und Termine, ohne den
+   Aufgabenteil unten (Liste, „Erledigte anzeigen“, „Neue Aufgabe“) */
+#today-pane-panel :is(#todo-tab-panel, #today-pane-splitter) {
+  display: none !important;
 }
 
 #mini-day-box,
@@ -4048,6 +4079,38 @@ addon-card .addon-inline-options {
   width: 16px !important;
   height: 16px !important;
   margin: 0 !important;
+}
+
+/* „Später senden“ (Erweiterung: #mcSendLater) wie Apple Mail: kleiner Pfeil
+   gleich rechts neben dem Senden-Knopf, öffnet das Menü mit den Zeiten */
+#composeToolbar2:has(> #mcSendLater) > #button-send {
+  inset-inline-end: 30px !important;
+}
+
+#composeToolbar2 > #mcSendLater {
+  position: absolute !important;
+  inset-inline-end: 12px !important;
+  width: 16px !important;
+  min-width: 16px !important;
+  height: 30px !important;
+  min-height: 30px !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  border: none !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  background-color: var(--mt-text-secondary) !important;
+  /* (das Verfassen-Fenster sperrt data:-Bilder – Symbol aus der Erweiterung) */
+  mask: url("resource://mailcards/icons/send-later.svg") center / 12px no-repeat !important;
+}
+
+#composeToolbar2 > #mcSendLater:hover,
+#composeToolbar2 > #mcSendLater[open] {
+  background-color: var(--mt-text) !important;
+}
+
+#composeToolbar2 > #mcSendLater > :is(.toolbarbutton-icon, .toolbarbutton-text, .toolbarbutton-menu-dropmarker) {
+  display: none !important;
 }
 
 #mcFormatToggle > .toolbarbutton-icon {
@@ -7073,7 +7136,8 @@ body:has(> #accountTreeBox.mc-side-hidden) {
 /* ---------- Today-Pane: Knopf oben rechts in der Toolbar-Zeile ----------
    wie in Apples Apps: gespiegeltes Seitenleisten-Symbol rechts neben dem
    Suchfeld (#mcTodayToggle, Erweiterung) – Gegenstück zum Seitenleisten-
-   Knopf oben links; nur in Mail und Aufgaben, wo es die Today-Pane gibt */
+   Knopf oben links; in allen Bereichen mit Today-Pane (alle außer Kalender
+   und dem Tab des fünften Bereichs) */
 #today-closer {
   display: none !important;
 }
@@ -7086,7 +7150,7 @@ body:has(> #accountTreeBox.mc-side-hidden) {
    Knopf (12 + 40 + 8 px). Unter Windows/Linux stehen ≡-Menü und
    Fensterknöpfe schon rechts neben der Knopfleiste (--mc-row-tail) und
    liegen bei offener Today-Pane in deren Fläche */
-:root:is([mc-tab="mail3PaneTab"], [mc-tab="mailMessageTab"], [mc-tab="tasks"]) #unifiedToolbarContent {
+:root:is([mc-tab="mail3PaneTab"], [mc-tab="mailMessageTab"], [mc-tab="tasks"], [mc-tab="addressBookTab"], [mc-tab="preferencesTab"], [mc-tab="chat"], [mc-tab="contentTab"]):not([mc-fifth-current]) #unifiedToolbarContent {
   /* --mc-tp-room statt --mc-tp-w: ändert sich nur am Anfang/Ende der
      Ein-/Ausblend-Animation – sonst berechnet Thunderbirds Toolbar mitten in
      der Bewegung ihre Anordnung neu (ein sichtbarer Hänger) */
@@ -7096,12 +7160,12 @@ body:has(> #accountTreeBox.mc-side-hidden) {
 /* Suchfeld immer 333 px wie in Apple Mail, direkt links der Today-Pane –
    es wandert beim Ein-/Ausblenden mit (--mc-tp-w folgt der Animation) und
    wird nur schmaler, wenn das Fenster zu eng ist (bis zur Lupe, 40 px) */
-:root:is([mc-tab="mail3PaneTab"], [mc-tab="mailMessageTab"], [mc-tab="tasks"]) #unifiedToolbarContent > li[item-id="search-bar"] {
+:root:is([mc-tab="mail3PaneTab"], [mc-tab="mailMessageTab"], [mc-tab="tasks"], [mc-tab="addressBookTab"], [mc-tab="preferencesTab"], [mc-tab="chat"], [mc-tab="contentTab"]):not([mc-fifth-current]) #unifiedToolbarContent > li[item-id="search-bar"] {
   flex: 0 50 333px !important;
   min-width: 40px !important;
 }
 
-:root:is([mc-tab="mail3PaneTab"], [mc-tab="mailMessageTab"], [mc-tab="tasks"]) #today-pane-panel {
+:root:is([mc-tab="mail3PaneTab"], [mc-tab="mailMessageTab"], [mc-tab="tasks"], [mc-tab="addressBookTab"], [mc-tab="preferencesTab"], [mc-tab="chat"], [mc-tab="contentTab"]):not([mc-fifth-current]) #today-pane-panel {
   max-width: 341px !important;
 }
 
@@ -7111,7 +7175,7 @@ body:has(> #accountTreeBox.mc-side-hidden) {
   display: none;
 }
 
-:root:is([mc-tab="mail3PaneTab"], [mc-tab="mailMessageTab"], [mc-tab="tasks"]) #mcTodayTop {
+:root:is([mc-tab="mail3PaneTab"], [mc-tab="mailMessageTab"], [mc-tab="tasks"], [mc-tab="addressBookTab"], [mc-tab="preferencesTab"], [mc-tab="chat"], [mc-tab="contentTab"]):not([mc-fifth-current]) #mcTodayTop {
   display: block;
   position: absolute;
   /* hinter den Knöpfen der Toolbar, aber über dem Hintergrund der Zeile */
@@ -7239,7 +7303,7 @@ body:has(> #accountTreeBox.mc-side-hidden) {
 /* Knopf oben in der Today-Pane nahe ihrer linken Kante (Spiegelbild des
    Seitenleisten-Knopfs) – gleitet bei der Animation mit; ist sie aus,
    steht er rechts am Rand (vor den Fensterknöpfen von Windows/Linux) */
-:root:is([mc-tab="mail3PaneTab"], [mc-tab="mailMessageTab"], [mc-tab="tasks"]) #mcTodayToggle {
+:root:is([mc-tab="mail3PaneTab"], [mc-tab="mailMessageTab"], [mc-tab="tasks"], [mc-tab="addressBookTab"], [mc-tab="preferencesTab"], [mc-tab="chat"], [mc-tab="contentTab"]):not([mc-fifth-current]) #mcTodayToggle {
   position: absolute !important;
   z-index: 3 !important;
   top: 50% !important;
@@ -7262,7 +7326,7 @@ body:has(> #accountTreeBox.mc-side-hidden) {
 
 /* „+“ rechts oben in der Today-Pane: wie der Today-Knopf, am rechten Rand
    (vor den Fensterknöpfen von Windows/Linux); nur bei offener Today-Pane */
-:root:is([mc-tab="mail3PaneTab"], [mc-tab="mailMessageTab"], [mc-tab="tasks"]) #unifiedToolbarContainer[data-mc-tp-open] > #mcTodayNew {
+:root:is([mc-tab="mail3PaneTab"], [mc-tab="mailMessageTab"], [mc-tab="tasks"], [mc-tab="addressBookTab"], [mc-tab="preferencesTab"], [mc-tab="chat"], [mc-tab="contentTab"]):not([mc-fifth-current]) #unifiedToolbarContainer[data-mc-tp-open] > #mcTodayNew {
   position: absolute !important;
   z-index: 3 !important;
   top: 50% !important;
@@ -7967,7 +8031,8 @@ notification-message toolbarbutton.notification-button > .toolbarbutton-menubutt
 }
 
 :root[mc-standalone] #mcHdrMeta {
-  top: 58px !important;
+  /* (Knopfzeile oben, Höhe in userChrome.css) */
+  top: calc(var(--mc-standalone-bar, 66px) + 14px) !important;
 }
 
 /* ohne Empfänger zeigt Thunderbird das Datum zusätzlich in der Betreffzeile */

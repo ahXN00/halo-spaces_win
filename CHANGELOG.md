@@ -3,7 +3,19 @@
 Changes in this fork compared with [halo.spaces](https://github.com/sruf79/halo-spaces). Upstream's
 own release notes are on its [Releases](https://github.com/sruf79/halo-spaces/releases) page.
 
-## Unreleased: merged halo.spaces 3.6.0 and 3.7.0, 2026-10-26
+## Merged halo.spaces 3.7.0 final, 2026-10-27
+
+**Tested with Thunderbird 158 on Windows 11 at 125 % scaling: 256/256 checks pass in light mode**
+
+### ✨ New features
+- **Merged the final upstream halo.spaces 3.7.0** (fifth space, simpler welcome and settings, Send Later arrow next to Send)
+- **Buttons of other add-ons (e.g. a translator) show in the mail header and in conversations**
+
+### 🐛 Fixes
+- **Empty "Send Later" capsule in the compose toolbar is gone**
+- **Open-Meteo weather credit restored (`NOTICE.txt`, README)**
+
+## Merged halo.spaces 3.6.0 and 3.7.0 pre-release, 2026-10-26
 
 **Tested with Thunderbird 158 on Windows 11 at 125 % scaling: 246/246 checks pass in light and dark**
 

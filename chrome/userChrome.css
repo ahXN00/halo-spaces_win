@@ -1,5 +1,5 @@
 /*
- * halo.spaces – Thunderbird im Stil von Apple Mail (macOS 27)
+ * halo.spaces – ruhiges Design für Thunderbird (macOS 27)
  * Für Thunderbird 128 und neuer. Folgt automatisch Hell/Dunkel des Systems
  * und der Akzentfarbe aus Systemeinstellungen → Erscheinungsbild.
  *
@@ -1590,7 +1590,14 @@ findbar .findbar-textbox:focus {
 /* Knöpfe im Mailkopf entfallen – sie sitzen jetzt oben in der Toolbar.
    Ausnahme: Nachricht im eigenen Fenster (dort gibt es keine Mail-Toolbar,
    die Erweiterung setzt mc-standalone) */
-:root:not([mc-standalone]) #header-view-toolbox {
+:root:not([mc-standalone]) #header-view-toolbox:not(:has(.webextension-action:not([hidden]))) {
+  display: none !important;
+}
+
+/* Knöpfe anderer Erweiterungen (z. B. Übersetzen) bleiben im Mailkopf –
+   oben gibt es für sie keinen Platz; nur die eigenen Knöpfe entfallen */
+:root:not([mc-standalone]) #header-view-toolbar > :not(.webextension-action),
+:root[mc-conv-card] #header-view-toolbox {
   display: none !important;
 }
 
@@ -1617,16 +1624,100 @@ findbar .findbar-textbox:focus {
   color: var(--mt-text-tertiary) !important;
 }
 
-/* im eigenen Fenster: Kapselknöpfe in Toolbar-Größe (40 × 38, Symbole 22 px) */
-:root[mc-standalone] #header-view-toolbar {
-  padding: 0 !important;
+/* im eigenen Fenster wie Apple Mail: Knöpfe in einer eigenen Zeile ganz oben
+   links, darunter Absender, Ordner und Uhrzeit (vorher brachen sie neben Ordner
+   und Uhrzeit auf zwei Zeilen um). Kapseln, Maße, Trennstriche und Reihenfolge
+   wie in der Mail-Toolbar des Hauptfensters: Antworten, Allen antworten,
+   Weiterleiten | Archivieren, Löschen, Werbung | Mehr, Stern */
+:root[mc-standalone] #messageHeader {
+  --mc-standalone-bar: 52px;
+  padding-top: calc(var(--mc-standalone-bar) + 12px) !important;
 }
 
-:root[mc-standalone] #header-view-toolbar toolbarbutton {
-  min-width: 40px !important;
+:root[mc-standalone] #header-view-toolbox {
+  position: absolute !important;
+  top: 8px !important;
+  inset-inline-start: 12px !important;
+  inset-inline-end: auto !important;
+  max-width: calc(100% - 24px) !important;
+  margin: 0 !important;
+}
+
+:root[mc-standalone] #header-view-toolbar {
+  flex-wrap: nowrap !important;
+  overflow: hidden !important;
+  background: none !important;
+  padding: 0 !important;
+  gap: 0 !important;
+  align-items: center !important;
+}
+
+:root[mc-standalone] #hdrReplyToSenderButton { order: 1 !important; }
+:root[mc-standalone] #hdrSmartReplyButton { order: 1 !important; }
+:root[mc-standalone] #hdrForwardButton { order: 2 !important; }
+:root[mc-standalone] #hdrArchiveButton { order: 3 !important; }
+:root[mc-standalone] #hdrTrashButton { order: 4 !important; }
+:root[mc-standalone] #hdrJunkButton { order: 5 !important; }
+:root[mc-standalone] #otherActionsButton { order: 6 !important; }
+:root[mc-standalone] #starMessageButton { order: 7 !important; }
+
+/* jedes Teilstück der Kapsel: Fläche und Trennstrich links (wie die Toolbar) */
+:root[mc-standalone] #header-view-toolbar > :is(toolbarbutton, toolbaritem, button):not([hidden]) {
+  display: flex !important;
+  align-items: center !important;
+  height: 38px !important;
   min-height: 38px !important;
-  padding: 8px 9px !important;
+  margin: 0 !important;
+  background: linear-gradient(var(--mt-pane-line), var(--mt-pane-line)) left center / 1px 16px no-repeat, var(--mt-control) !important;
+  border: none !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+}
+
+/* Anfang und Ende jeder Gruppe rund, ohne Trennstrich; 6 px zwischen den Gruppen */
+:root[mc-standalone] #header-view-toolbar > :is(#hdrReplyToSenderButton, #hdrSmartReplyButton, #hdrArchiveButton, #otherActionsButton) {
+  background: var(--mt-control) !important;
+  border-start-start-radius: 999px !important;
+  border-end-start-radius: 999px !important;
+}
+
+:root[mc-standalone] #header-view-toolbar > :is(#hdrArchiveButton, #otherActionsButton) {
+  margin-inline-start: 6px !important;
+}
+
+/* „Antworten“ (Absender) und die Antworten-Gruppe teilen sich eine Kapsel */
+:root[mc-standalone] #header-view-toolbar > #hdrReplyToSenderButton:not([hidden]) ~ #hdrSmartReplyButton {
+  background: linear-gradient(var(--mt-pane-line), var(--mt-pane-line)) left center / 1px 16px no-repeat, var(--mt-control) !important;
+  border-start-start-radius: 0 !important;
+  border-end-start-radius: 0 !important;
+}
+
+:root[mc-standalone] #header-view-toolbar > :is(#hdrForwardButton, #hdrJunkButton, #starMessageButton) {
+  border-start-end-radius: 999px !important;
+  border-end-end-radius: 999px !important;
+}
+
+:root[mc-standalone] #header-view-toolbar :is(toolbarbutton, button) {
+  min-width: 39px !important;
+  min-height: 38px !important;
+  height: 38px !important;
+  padding: 0 11px !important;
+  border-radius: 999px !important;
   color: var(--mt-text-secondary) !important;
+}
+
+:root[mc-standalone] #header-view-toolbar > :is(toolbarbutton, button) {
+  border-radius: inherit !important;
+}
+
+:root[mc-standalone] #header-view-toolbar toolbaritem toolbarbutton {
+  background: none !important;
+  border: none !important;
+}
+
+:root[mc-standalone] #header-view-toolbar :is(toolbarbutton, button):hover:not([disabled]) {
+  background-color: var(--mt-control-hover) !important;
+  color: var(--mt-text) !important;
 }
 
 :root[mc-standalone] #header-view-toolbar toolbarbutton .toolbarbutton-icon {
@@ -1634,9 +1725,16 @@ findbar .findbar-textbox:focus {
   height: 22px !important;
 }
 
-/* im eigenen Fenster sitzen oben rechts die Knöpfe – Datum darunter */
+:root[mc-standalone] #starMessageButton {
+  justify-content: center !important;
+}
+
+:root[mc-standalone] #messageHeader .recipient-avatar.mc-hdr-avatar {
+  top: calc(var(--mc-standalone-bar) + 12px) !important;
+}
+
 :root[mc-standalone] #dateLabel {
-  top: 58px !important;
+  top: calc(var(--mc-standalone-bar) + 14px) !important;
 }
 
 /* Absender: nur der Name, fett – Adresse und Adressbuch-Knopf wie bei Apple ausgeblendet */
@@ -1698,6 +1796,7 @@ findbar .findbar-textbox:focus {
   --mi-addressbook: url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22%23000%22 stroke-width=%221.7%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22%3E%3Crect x=%224.5%22 y=%223.5%22 width=%2215%22 height=%2217%22 rx=%222.4%22/%3E%3Ccircle cx=%2212%22 cy=%2210.2%22 r=%222.6%22/%3E%3Cpath d=%22M8.1 16.6c.8-1.9 2.2-2.8 3.9-2.8s3.1.9 3.9 2.8%22/%3E%3Cpath d=%22M4.5 7.5H3M4.5 12H3M4.5 16.5H3%22/%3E%3C/svg%3E");
   --mi-calendar: url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22%23000%22 stroke-width=%221.7%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22%3E%3Crect x=%223.5%22 y=%225%22 width=%2217%22 height=%2215.5%22 rx=%222.6%22/%3E%3Cpath d=%22M3.5 9.6h17%22/%3E%3Cpath d=%22M8 3.2v3.4M16 3.2v3.4%22/%3E%3Ccircle cx=%228%22 cy=%2213.2%22 r=%22.9%22 fill=%22%23000%22 stroke=%22none%22/%3E%3Ccircle cx=%2212%22 cy=%2213.2%22 r=%22.9%22 fill=%22%23000%22 stroke=%22none%22/%3E%3Ccircle cx=%2216%22 cy=%2213.2%22 r=%22.9%22 fill=%22%23000%22 stroke=%22none%22/%3E%3Ccircle cx=%228%22 cy=%2216.8%22 r=%22.9%22 fill=%22%23000%22 stroke=%22none%22/%3E%3Ccircle cx=%2212%22 cy=%2216.8%22 r=%22.9%22 fill=%22%23000%22 stroke=%22none%22/%3E%3C/svg%3E");
   --mi-tasks: url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22%23000%22 stroke-width=%221.7%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22%3E%3Ccircle cx=%2212%22 cy=%2212%22 r=%228.5%22/%3E%3Cpath d=%22m8.2 12.2 2.6 2.6 5-5.4%22/%3E%3C/svg%3E");
+  --mi-globe: url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22%23000%22 stroke-width=%221.7%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22%3E%3Ccircle cx=%2212%22 cy=%2212%22 r=%228.5%22/%3E%3Cpath d=%22M3.5 12h17M12 3.5c-2.4 2.4-3.6 5.2-3.6 8.5s1.2 6.1 3.6 8.5M12 3.5c2.4 2.4 3.6 5.2 3.6 8.5s-1.2 6.1-3.6 8.5%22/%3E%3C/svg%3E");
   --mi-chat: url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22%23000%22 stroke-width=%221.7%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22%3E%3Cpath d=%22M12 4.5c4.7 0 8.5 3 8.5 6.8s-3.8 6.8-8.5 6.8c-.9 0-1.8-.1-2.6-.3L5.3 19.6l1-3.4C4.6 14.9 3.5 13.2 3.5 11.3c0-3.8 3.8-6.8 8.5-6.8z%22/%3E%3C/svg%3E");
   --mi-settings: url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22%23000%22 stroke-width=%221.7%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22%3E%3Cpath d=%22M18.86 10.61 L21.13 10.90 L21.13 13.10 L18.86 13.39 L17.83 15.87 L19.24 17.68 L17.68 19.24 L15.87 17.83 L13.39 18.86 L13.10 21.13 L10.90 21.13 L10.61 18.86 L8.13 17.83 L6.32 19.24 L4.76 17.68 L6.17 15.87 L5.14 13.39 L2.87 13.10 L2.87 10.90 L5.14 10.61 L6.17 8.13 L4.76 6.32 L6.32 4.76 L8.13 6.17 L10.61 5.14 L10.90 2.87 L13.10 2.87 L13.39 5.14 L15.87 6.17 L17.68 4.76 L19.24 6.32 L17.83 8.13Z%22/%3E%3Ccircle cx=%2212%22 cy=%2212%22 r=%223%22/%3E%3C/svg%3E");
   --mi-sidebar: url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22%23000%22 stroke-width=%221.7%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22%3E%3Crect x=%223%22 y=%225%22 width=%2218%22 height=%2214%22 rx=%222.6%22/%3E%3Cpath d=%22M9.5 5v14%22/%3E%3Cpath d=%22M5.6 8.4h1.6M5.6 11h1.6%22/%3E%3C/svg%3E");
@@ -2076,6 +2175,65 @@ menupopup > .folderMenuItem:is([_moz-menuactive]:not([disabled]), [disabled]) {
 #spacesToolbar #tasksButton { --c: #FF2D78; }
 #spacesToolbar #chatButton { --c: #AF52DE; }
 #spacesToolbar #settingsButton { --c: #8E8E93; }
+
+/* Fünfter Bereich (Erweiterung: mc-fifth = chat | addon | web | none): ohne
+   Chat rücken die übrigen Knöpfe gleichmäßig zusammen; als Ersatz behält der
+   Platz Farbe und Knopf des Chats, das Symbol kommt von der Erweiterung bzw.
+   der Webseite – einfarbig in der Bereichsfarbe oder unverändert auf neutraler
+   Fläche (mc-fifth-icon=original). Im Ersatz-Tab keine Today-Pane (1:1) */
+:root[mc-fifth="none"] :is(#chatButton, #spacesPopupButtonChat),
+:is(.spaces-toolbar-button, .spaces-popup-menuitem)[mc-fifth-hidden],
+#spacesToolbar > #spacesToolbarAddonsOverflowButton[mc-fifth-hidden] {
+  display: none !important;
+}
+
+:root:is([mc-fifth="addon"], [mc-fifth="web"]) :is(#chatButton, #spacesPopupButtonChat) > :is(img, .menu-icon) {
+  mask-image: var(--mc-fifth-img, var(--mi-globe)) !important;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:is([mc-fifth="addon"], [mc-fifth="web"]) :is(#chatButton, #spacesPopupButtonChat) > :is(img, .menu-icon) {
+    mask-image: var(--mc-fifth-img-dark, var(--mc-fifth-img, var(--mi-globe))) !important;
+  }
+}
+
+:root:is([mc-fifth="addon"], [mc-fifth="web"]) :is(#chatButton, #spacesPopupButtonChat)[mc-fifth-icon="original"] > :is(img, .menu-icon) {
+  mask: none !important;
+  background: var(--mc-fifth-img, none) center / contain no-repeat !important;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:is([mc-fifth="addon"], [mc-fifth="web"]) :is(#chatButton, #spacesPopupButtonChat)[mc-fifth-icon="original"] > :is(img, .menu-icon) {
+    background-image: var(--mc-fifth-img-dark, var(--mc-fifth-img, none)) !important;
+  }
+}
+
+/* Original-Symbol: Fläche weiß, im Dunkeln neutral statt weiß */
+:root:is([mc-fifth="addon"], [mc-fifth="web"]) #spacesToolbar #chatButton[mc-fifth-icon="original"] {
+  background-color: #fff !important;
+  box-shadow: inset 0 0 0 0.5px var(--mt-pane-line) !important;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:is([mc-fifth="addon"], [mc-fifth="web"]) #spacesToolbar #chatButton[mc-fifth-icon="original"] {
+    background-color: color-mix(in srgb, var(--mt-text) 14%, transparent) !important;
+  }
+}
+
+:root[mc-fifth-current] :is(#today-pane-panel, #today-splitter) {
+  display: none !important;
+}
+
+/* Symbol des Bereiche-Knopfs ohne Chat: fünf statt sechs Felder */
+:root[mc-fifth="none"] #mcSpacesToggle::after {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22%3E%3Crect x=%223%22 y=%222.0%22 width=%222.6%22 height=%223.2%22 rx=%220.8%22 fill=%22%23186EC4%22/%3E%3Crect x=%223%22 y=%226.2%22 width=%222.6%22 height=%223.2%22 rx=%220.8%22 fill=%22%2333924A%22/%3E%3Crect x=%223%22 y=%2210.4%22 width=%222.6%22 height=%223.2%22 rx=%220.8%22 fill=%22%23C47212%22/%3E%3Crect x=%223%22 y=%2214.6%22 width=%222.6%22 height=%223.2%22 rx=%220.8%22 fill=%22%23C43166%22/%3E%3Crect x=%223%22 y=%2218.8%22 width=%222.6%22 height=%223.2%22 rx=%220.8%22 fill=%22%23757579%22/%3E%3C/svg%3E") !important;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root[mc-fifth="none"] #mcSpacesToggle::after {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22%3E%3Crect x=%223%22 y=%222.0%22 width=%222.6%22 height=%223.2%22 rx=%220.8%22 fill=%22%2345A0FD%22/%3E%3Crect x=%223%22 y=%226.2%22 width=%222.6%22 height=%223.2%22 rx=%220.8%22 fill=%22%2361C77A%22/%3E%3Crect x=%223%22 y=%2210.4%22 width=%222.6%22 height=%223.2%22 rx=%220.8%22 fill=%22%23FCA53E%22/%3E%3Crect x=%223%22 y=%2214.6%22 width=%222.6%22 height=%223.2%22 rx=%220.8%22 fill=%22%23FC5F98%22/%3E%3Crect x=%223%22 y=%2218.8%22 width=%222.6%22 height=%223.2%22 rx=%220.8%22 fill=%22%23A8A8AC%22/%3E%3C/svg%3E") !important;
+  }
+}
 
 #spacesToolbar .spaces-toolbar-button:hover {
   background-color: color-mix(in srgb, var(--c) 16%, transparent) !important;
@@ -3090,8 +3248,48 @@ message-pane.mc-conv-pending > :is(#messageBrowser, #multiMessageBrowser) {
 }
 
 #mcConversation .mc-conv-head {
+  position: relative;
   padding: 16px 20px 10px;
   border-bottom: var(--mt-hairline) solid var(--mt-separator);
+}
+
+/* Knöpfe anderer Erweiterungen rechts neben dem Titel (wie im Mailkopf) */
+#mcConversation .mc-conv-addons {
+  position: absolute;
+  top: 14px;
+  inset-inline-end: 20px;
+  display: flex;
+  gap: 4px;
+}
+
+#mcConversation:has(.mc-conv-addon) .mc-conv-head {
+  padding-inline-end: 80px;
+}
+
+#mcConversation .mc-conv-addon {
+  appearance: none;
+  width: 32px;
+  height: 28px;
+  border: none;
+  border-radius: 999px;
+  background-color: var(--mt-control);
+  color: var(--mt-text-secondary);
+}
+
+#mcConversation .mc-conv-addon::before {
+  content: "";
+  display: block;
+  width: 16px;
+  height: 16px;
+  margin: auto;
+  background-image: var(--mc-addon-icon);
+  background-size: contain;
+  -moz-context-properties: fill, fill-opacity;
+  fill: currentColor;
+}
+
+#mcConversation .mc-conv-addon:hover {
+  background-color: var(--mt-control-hover);
 }
 
 #mcConversation .mc-conv-title {
@@ -3327,7 +3525,8 @@ menuseparator[mc-tidy-hidden] {
   content: "" !important;
   position: absolute !important;
   inset: 0 !important;
-  background-color: white !important;
+  /* Haken in Thunderbirds Kontrastfarbe des Kalenders (bei hellen Farben dunkel) */
+  background-color: var(--mc-cal-fore, white) !important;
   mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='%23000' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m4 8.3 2.6 2.6L12 5.4'/%3E%3C/svg%3E") center / contain no-repeat !important;
 }
 
@@ -3336,8 +3535,20 @@ menuseparator[mc-tidy-hidden] {
   background-color: var(--mt-text-secondary) !important;
 }
 
-#calendar-list > li:has(input.calendar-displayed:not(:checked)) .calendar-color {
-  opacity: 0.3 !important;
+/* nicht angehakt wie Apple Kalender: leeres Kästchen mit Rand in der Kalenderfarbe
+   (statt blasser Füllung – bei hellen Farben war kein Unterschied zu sehen) */
+#calendar-list > li:not([calendar-disabled]):has(input.calendar-displayed:not(:checked)) .calendar-color {
+  background-color: transparent !important;
+  border: 1.5px solid var(--mc-cal-back, var(--mt-text-secondary)) !important;
+}
+
+/* sehr helle Kalenderfarben: zusätzlich ein feiner dunkler Rand, damit das Kästchen nicht verschwindet */
+#calendar-list > li .calendar-color {
+  box-shadow: inset 0 0 0 0.5px color-mix(in srgb, var(--mt-text) 25%, transparent);
+}
+
+#calendar-list > li[calendar-disabled]:has(input.calendar-displayed:not(:checked)) .calendar-color {
+  opacity: 0.4 !important;
 }
 
 /* die eigentliche Checkbox liegt unsichtbar über dem Kästchen */
@@ -4794,6 +5005,18 @@ calendar-event-box :is(.alarm-icons-box, .item-classification-icon, .item-recurr
   display: none !important;
 }
 
+/* Listenansicht ohne Auswahl wie die Mail: die Detailspalte bleibt als leere
+   Fläche stehen (samt Teiler) – sonst reichte die Liste bis zur Today-Pane,
+   und Filter und „…“ darüber lägen auf Plus und Suche der Toolbar */
+:root[mc-task-side] #calendar-task-details-container[hidden] {
+  display: flex !important;
+  visibility: hidden !important;
+}
+
+:root[mc-task-side] #calendar-task-view-splitter:has(+ #calendar-task-details-container[hidden]) {
+  display: flex !important;
+}
+
 #calendar-task-view-splitter {
   border: none !important;
   border-top: var(--mt-hairline) solid var(--mt-pane-line) !important;
@@ -5733,6 +5956,12 @@ search-bar {
   font-weight: 500 !important;
   box-shadow: none !important;
   outline: none !important;
+}
+
+/* Today-Pane in jedem Bereich gleich: Minikalender und Termine, ohne den
+   Aufgabenteil unten (Liste, „Erledigte anzeigen“, „Neue Aufgabe“) */
+#today-pane-panel :is(#todo-tab-panel, #today-pane-splitter) {
+  display: none !important;
 }
 
 #mini-day-box,
@@ -7206,6 +7435,38 @@ addon-card .addon-inline-options {
   width: 16px !important;
   height: 16px !important;
   margin: 0 !important;
+}
+
+/* „Später senden“ (Erweiterung: #mcSendLater) wie Apple Mail: kleiner Pfeil
+   gleich rechts neben dem Senden-Knopf, öffnet das Menü mit den Zeiten */
+#composeToolbar2:has(> #mcSendLater) > #button-send {
+  inset-inline-end: 30px !important;
+}
+
+#composeToolbar2 > #mcSendLater {
+  position: absolute !important;
+  inset-inline-end: 12px !important;
+  width: 16px !important;
+  min-width: 16px !important;
+  height: 30px !important;
+  min-height: 30px !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  border: none !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  background-color: var(--mt-text-secondary) !important;
+  /* (das Verfassen-Fenster sperrt data:-Bilder – Symbol aus der Erweiterung) */
+  mask: url("resource://mailcards/icons/send-later.svg") center / 12px no-repeat !important;
+}
+
+#composeToolbar2 > #mcSendLater:hover,
+#composeToolbar2 > #mcSendLater[open] {
+  background-color: var(--mt-text) !important;
+}
+
+#composeToolbar2 > #mcSendLater > :is(.toolbarbutton-icon, .toolbarbutton-text, .toolbarbutton-menu-dropmarker) {
+  display: none !important;
 }
 
 #mcFormatToggle > .toolbarbutton-icon {
@@ -10231,7 +10492,8 @@ body:has(> #accountTreeBox.mc-side-hidden) {
 /* ---------- Today-Pane: Knopf oben rechts in der Toolbar-Zeile ----------
    wie in Apples Apps: gespiegeltes Seitenleisten-Symbol rechts neben dem
    Suchfeld (#mcTodayToggle, Erweiterung) – Gegenstück zum Seitenleisten-
-   Knopf oben links; nur in Mail und Aufgaben, wo es die Today-Pane gibt */
+   Knopf oben links; in allen Bereichen mit Today-Pane (alle außer Kalender
+   und dem Tab des fünften Bereichs) */
 #today-closer {
   display: none !important;
 }
@@ -10244,7 +10506,7 @@ body:has(> #accountTreeBox.mc-side-hidden) {
    Knopf (12 + 40 + 8 px). Unter Windows/Linux stehen ≡-Menü und
    Fensterknöpfe schon rechts neben der Knopfleiste (--mc-row-tail) und
    liegen bei offener Today-Pane in deren Fläche */
-:root:is([mc-tab="mail3PaneTab"], [mc-tab="mailMessageTab"], [mc-tab="tasks"]) #unifiedToolbarContent {
+:root:is([mc-tab="mail3PaneTab"], [mc-tab="mailMessageTab"], [mc-tab="tasks"], [mc-tab="addressBookTab"], [mc-tab="preferencesTab"], [mc-tab="chat"], [mc-tab="contentTab"]):not([mc-fifth-current]) #unifiedToolbarContent {
   /* --mc-tp-room statt --mc-tp-w: ändert sich nur am Anfang/Ende der
      Ein-/Ausblend-Animation – sonst berechnet Thunderbirds Toolbar mitten in
      der Bewegung ihre Anordnung neu (ein sichtbarer Hänger) */
@@ -10254,12 +10516,12 @@ body:has(> #accountTreeBox.mc-side-hidden) {
 /* Suchfeld immer 333 px wie in Apple Mail, direkt links der Today-Pane –
    es wandert beim Ein-/Ausblenden mit (--mc-tp-w folgt der Animation) und
    wird nur schmaler, wenn das Fenster zu eng ist (bis zur Lupe, 40 px) */
-:root:is([mc-tab="mail3PaneTab"], [mc-tab="mailMessageTab"], [mc-tab="tasks"]) #unifiedToolbarContent > li[item-id="search-bar"] {
+:root:is([mc-tab="mail3PaneTab"], [mc-tab="mailMessageTab"], [mc-tab="tasks"], [mc-tab="addressBookTab"], [mc-tab="preferencesTab"], [mc-tab="chat"], [mc-tab="contentTab"]):not([mc-fifth-current]) #unifiedToolbarContent > li[item-id="search-bar"] {
   flex: 0 50 333px !important;
   min-width: 40px !important;
 }
 
-:root:is([mc-tab="mail3PaneTab"], [mc-tab="mailMessageTab"], [mc-tab="tasks"]) #today-pane-panel {
+:root:is([mc-tab="mail3PaneTab"], [mc-tab="mailMessageTab"], [mc-tab="tasks"], [mc-tab="addressBookTab"], [mc-tab="preferencesTab"], [mc-tab="chat"], [mc-tab="contentTab"]):not([mc-fifth-current]) #today-pane-panel {
   max-width: 341px !important;
 }
 
@@ -10269,7 +10531,7 @@ body:has(> #accountTreeBox.mc-side-hidden) {
   display: none;
 }
 
-:root:is([mc-tab="mail3PaneTab"], [mc-tab="mailMessageTab"], [mc-tab="tasks"]) #mcTodayTop {
+:root:is([mc-tab="mail3PaneTab"], [mc-tab="mailMessageTab"], [mc-tab="tasks"], [mc-tab="addressBookTab"], [mc-tab="preferencesTab"], [mc-tab="chat"], [mc-tab="contentTab"]):not([mc-fifth-current]) #mcTodayTop {
   display: block;
   position: absolute;
   /* hinter den Knöpfen der Toolbar, aber über dem Hintergrund der Zeile */
@@ -10397,7 +10659,7 @@ body:has(> #accountTreeBox.mc-side-hidden) {
 /* Knopf oben in der Today-Pane nahe ihrer linken Kante (Spiegelbild des
    Seitenleisten-Knopfs) – gleitet bei der Animation mit; ist sie aus,
    steht er rechts am Rand (vor den Fensterknöpfen von Windows/Linux) */
-:root:is([mc-tab="mail3PaneTab"], [mc-tab="mailMessageTab"], [mc-tab="tasks"]) #mcTodayToggle {
+:root:is([mc-tab="mail3PaneTab"], [mc-tab="mailMessageTab"], [mc-tab="tasks"], [mc-tab="addressBookTab"], [mc-tab="preferencesTab"], [mc-tab="chat"], [mc-tab="contentTab"]):not([mc-fifth-current]) #mcTodayToggle {
   position: absolute !important;
   z-index: 3 !important;
   top: 50% !important;
@@ -10420,7 +10682,7 @@ body:has(> #accountTreeBox.mc-side-hidden) {
 
 /* „+“ rechts oben in der Today-Pane: wie der Today-Knopf, am rechten Rand
    (vor den Fensterknöpfen von Windows/Linux); nur bei offener Today-Pane */
-:root:is([mc-tab="mail3PaneTab"], [mc-tab="mailMessageTab"], [mc-tab="tasks"]) #unifiedToolbarContainer[data-mc-tp-open] > #mcTodayNew {
+:root:is([mc-tab="mail3PaneTab"], [mc-tab="mailMessageTab"], [mc-tab="tasks"], [mc-tab="addressBookTab"], [mc-tab="preferencesTab"], [mc-tab="chat"], [mc-tab="contentTab"]):not([mc-fifth-current]) #unifiedToolbarContainer[data-mc-tp-open] > #mcTodayNew {
   position: absolute !important;
   z-index: 3 !important;
   top: 50% !important;
@@ -11125,7 +11387,8 @@ notification-message toolbarbutton.notification-button > .toolbarbutton-menubutt
 }
 
 :root[mc-standalone] #mcHdrMeta {
-  top: 58px !important;
+  /* (Knopfzeile oben, Höhe in userChrome.css) */
+  top: calc(var(--mc-standalone-bar, 66px) + 14px) !important;
 }
 
 /* ohne Empfänger zeigt Thunderbird das Datum zusätzlich in der Betreffzeile */

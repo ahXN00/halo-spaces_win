@@ -79,7 +79,6 @@ const DE = {
   "Hide Spaces": "Bereiche ausblenden",
   "Hide Today Pane": "Heute-Leiste ausblenden",
   "Installation failed": "Installation fehlgeschlagen",
-  "Installed – active in a moment": "Installiert – wird gleich aktiv",
   "Installing …": "Wird installiert …",
   "Light": "Hell",
   "Light, dark or follow macOS": "Hell, dunkel oder wie macOS",
@@ -94,7 +93,6 @@ const DE = {
   "New Task": "Neue Aufgabe",
   "Next Month": "Nächster Monat",
   "No calendar for tasks": "Kein Kalender für Aufgaben",
-  "No connection – try again": "Keine Verbindung – erneut versuchen",
   "No Due Date": "Kein Fälligkeitsdatum",
   "No writable calendar": "Kein beschreibbarer Kalender",
   "None": "Keine",
@@ -117,31 +115,22 @@ const DE = {
   "Preview Lines": "Vorschauzeilen",
   "1 Line": "1 Zeile",
   "{n} Lines": "{n} Zeilen",
-  "takes effect after a restart": "gilt nach einem Neustart",
   "Logos from sender websites": "Logos von Absender-Websites",
-  "asks only the sender’s own website (favicon, BIMI) – off: no outside requests": "fragt nur die Website des Absenders (Favicon, BIMI) – aus: keine Anfragen nach außen",
   "Photos from the Contacts app": "Fotos aus der Kontakte-App",
   "macOS asks for access once": "macOS fragt einmal nach dem Zugriff",
-  "Plain-text messages in system font": "Textmails in Systemschrift",
-  "off: fixed-width font, e.g. for tables made of spaces": "aus: Schreibmaschinenschrift, z. B. für Tabellen aus Leerzeichen",
   "Calendar": "Kalender",
   "Emojis before event titles": "Emojis vor Termintiteln",
   "🎂 birthday, 🏋️ training, 🦷 dentist …": "🎂 Geburtstag, 🏋️ Training, 🦷 Zahnarzt …",
   "Own keywords": "Eigene Stichwörter",
-  "one per line, “keyword = emoji”, e.g. “Book club = 📖” – take precedence": "je Zeile „Stichwort = Emoji“, z. B. „Hellas Kagran = ⚽“ – haben Vorrang",
   "Book club = 📖\nChoir = 🎶": "Hellas Kagran = ⚽\nChor = 🎶",
   "Offline copy for online calendars": "Offline-Kopie für Online-Kalender",
-  "faster loading; re-creates the calendars once": "schnelleres Laden; legt die Kalender einmal neu an",
   "halo.spaces design": "Design von halo.spaces",
   "Own icons": "Eigene Symbole",
   "Troubleshooting": "Fehlerbehebung",
   "Detailed log": "Ausführliches Protokoll",
-  "mail-cards-debug.log in the profile, includes sender addresses": "mail-cards-debug.log im Profil, auch mit Absenderadressen",
   "saved": "gesichert",
-  "halo.spaces – Settings": "halo.spaces – Einstellungen",
   "Check for Updates": "Nach Updates suchen",
   "Settings…": "Einstellungen …",
-  "halo.spaces is made for macOS – on Windows and Linux it is still being tested. If something looks odd, we'd love a quick note!": "halo.spaces ist für macOS gemacht – unter Windows und Linux wird es gerade erst erprobt. Wenn etwas komisch aussieht, freuen wir uns über eine kurze Rückmeldung!",
   "This message is from a mailing list.": "Diese Nachricht stammt von einem Verteiler.",
   "Unsubscribe": "Abmelden",
   "Unsubscribe from messages from {name}?": "Keine Nachrichten mehr von {name} erhalten?",
@@ -152,9 +141,7 @@ const DE = {
   "More fields": "Weitere Felder",
   "Fewer fields": "Weniger Felder",
   "Install updates at start": "Updates beim Start installieren",
-  "checks at most every 6 hours; active after a restart": "prüft höchstens alle 6 Stunden; aktiv nach einem Neustart",
   "Messages in system font": "Mails in Systemschrift",
-  "like Apple Mail; messages with their own font keep it – off: Thunderbird’s fonts": "wie Apple Mail; Mails mit eigener Schrift behalten sie – aus: Thunderbirds Schriften",
   "Yesterday": "Gestern",
   "No Results": "Keine Ergebnisse",
   "No tasks match your search.": "Keine Aufgabe passt zur Suche.",
@@ -176,12 +163,8 @@ const DE = {
   "Welcome to halo.spaces": "Willkommen bei halo.spaces",
   "Open Settings": "Einstellungen öffnen",
   "Continue": "Weiter",
-  "Thunderbird now looks calm and tidy, like Apple Mail, Calendar and Contacts – with sender pictures, cards and coloured spaces.": "Thunderbird sieht jetzt ruhig und aufgeräumt aus wie Apple Mail, Kalender und Kontakte – mit Absenderbildern, Karten und farbigen Bereichen.",
-  "The appearance was set to “System – automatic”, so light and dark follow your system.": "Das Erscheinungsbild steht jetzt auf „System – automatisch“, hell und dunkel folgen dem System.",
-  "All options are in Settings → halo.spaces.": "Alle Optionen findest du unter Einstellungen → halo.spaces.",
   "Time": "Uhrzeit",
   "Tint unread messages": "Ungelesene Mails hinterlegen",
-  "light accent colour behind unread messages, besides the dot": "zarte Akzentfarbe hinter ungelesenen Mails, zusätzlich zum Punkt",
   "You unsubscribed from this mailing list.": "Du hast diesen Verteiler abbestellt.",
   "Card View": "Kartenansicht",
   "Table View: Classic": "Tabelle: Klassisch",
@@ -189,10 +172,7 @@ const DE = {
   "Show Only Unread Messages": "Nur ungelesene E-Mails anzeigen",
   "Show All Messages": "Alle E-Mails anzeigen",
   "Design without flicker at start": "Design ohne Aufblitzen beim Start",
-  "writes a userChrome.css into your profile; from the next start": "schreibt eine userChrome.css ins Profil; ab dem nächsten Start",
-  "Only messages from this folder – turn on Global Search to include your replies from Sent.": "Nur E-Mails aus diesem Ordner – mit eingeschalteter globaler Suche erscheinen auch deine Antworten aus „Gesendet“.",
   "Show whole conversation": "Ganze Konversation zeigen",
-  "received and sent messages from all folders, newest first": "empfangene und gesendete E-Mails aus allen Ordnern, neueste oben",
   "Search Calendar": "Kalender durchsuchen",
   "Search Chat": "Chat durchsuchen",
   "Search Settings": "Einstellungen durchsuchen",
@@ -205,7 +185,6 @@ const DE = {
   "Zoom": "Zoomen",
   "Table View": "Tabellenansicht",
   "Dialogs inside the window": "Dialoge im Fenster",
-  "questions appear as a sheet at the top of the window, dialogs without title bar; for newly opened windows": "Nachfragen erscheinen als Kachel oben im Fenster, Dialoge ohne Titelleiste; für neu geöffnete Fenster",
   "Hide “Collected Addresses”": "„Collected Addresses“ ausblenden",
   "All unified folders in Favourites": "Alle Sammelordner in den Favoriten",
   "Drafts, Trash, Junk, Archive … besides All Inboxes and All Sent": "Entwürfe, Papierkorb, Spam, Archiv … neben „Alle Eingänge“ und „Alle gesendeten“",
@@ -219,21 +198,14 @@ const DE = {
   "Keyboard Shortcuts": "Tastaturkurzbefehle",
   "Show all keyboard shortcuts of Thunderbird": "Alle Tastaturkurzbefehle von Thunderbird zeigen",
   "Dark backgrounds for messages": "Dunkle Hintergründe für Nachrichten",
-  "in dark mode, like Apple Mail – Thunderbird recolours HTML messages carefully, images stay as they are": "im Dunkelmodus, wie Apple Mail – Thunderbird färbt HTML-Mails behutsam um, Bilder bleiben unverändert",
   "{n} task": "{n} Aufgabe",
   "{n} tasks": "{n} Aufgaben",
   "Tasks": "Aufgaben",
   "Task List Display Options": "Darstellung der Aufgabenliste",
   "Weather in the Today Pane": "Wetter in der Today-Pane",
-  "the symbol next to the title shows the current weather – asks open-meteo.com about every 30 minutes; off: the sun stays, no outside requests": "das Symbol neben dem Titel zeigt das aktuelle Wetter – fragt etwa alle 30 Minuten bei open-meteo.com nach; aus: die Sonne bleibt, keine Anfragen nach außen",
-  "Place for the weather": "Ort für das Wetter",
-  "a city – empty: your current location (the system asks for permission once)": "eine Stadt – leer: dein aktueller Standort (das System fragt einmal nach der Erlaubnis)",
   "Current location": "Aktueller Standort",
-  "Location access is off – allow it in System Settings or enter a city": "Ortung ist aus – in den Systemeinstellungen erlauben oder eine Stadt eingeben",
-  "Location unavailable – enter a city": "Standort nicht verfügbar – bitte eine Stadt eingeben",
   "City not found": "Stadt nicht gefunden",
   "Weather in the Today Pane?": "Wetter in der Today-Pane?",
-  "The symbol next to the title then shows the weather – asks open-meteo.com about every 30 minutes.": "Das Symbol neben dem Titel zeigt dann das Wetter – fragt etwa alle 30 Minuten bei open-meteo.com nach.",
   "City …": "Stadt …",
   "No": "Nein",
   "e.g. Vienna": "z. B. Wien",
@@ -248,7 +220,6 @@ const DE = {
   "Sending …": "Wird gesendet …",
   "Off": "Aus",
   "seconds": "Sekunden",
-  "like Apple Mail: the message waits this long and can still be taken back": "wie Apple Mail: die Nachricht wartet so lange und lässt sich noch zurückholen",
   "More …": "Mehr …",
   "Send": "Senden",
   "Reply to {name} …": "Antworten an {name} …",
@@ -270,6 +241,72 @@ const DE = {
   "Dismiss": "Ausblenden",
   "No reply for {d} days: “{s}” to {to}": "Seit {d} Tagen keine Antwort: „{s}“ an {to}",
   "My Location": "Mein Standort",
+  "Spaces": "Bereiche",
+  "Chat": "Chat",
+  "Space of an add-on": "Bereich einer Erweiterung",
+  "Website": "Webseite",
+  "Add-on": "Erweiterung",
+  "Address": "Adresse",
+  "In the space colour": "In der Bereichsfarbe",
+  "Original": "Original",
+  "Symbol": "Symbol",
+  "No add-on with its own space installed": "Keine Erweiterung mit eigenem Bereich installiert",
+  "none installed": "keine installiert",
+  "Not a valid web address": "Keine gültige Webadresse",
+  "Website …": "Webseite …",
+  "e.g. calendar.example.com": "z. B. kalender.example.com",
+  "Received and sent messages together.": "Empfangene und gesendete Mails zusammen.",
+  "From all folders, newest first.": "Aus allen Ordnern, neueste zuerst.",
+  "Light accent colour behind unread messages.": "Helle Akzentfarbe hinter ungelesenen Mails.",
+  "Time to take a sent message back.": "Zeit, um eine gesendete Mail zurückzuholen.",
+  "Only from the sender’s own website.": "Nur von der eigenen Webseite des Absenders.",
+  "Favicon or BIMI logo of the sender’s domain. Off: no outside requests.": "Favicon oder BIMI-Logo der Absenderdomain. Aus: keine Anfragen nach außen.",
+  "In dark mode.": "Im Dunkelmodus.",
+  "Thunderbird recolours HTML messages carefully. Images stay as they are.": "Thunderbird färbt HTML-Mails behutsam um. Bilder bleiben, wie sie sind.",
+  "Calm and easy to read.": "Ruhig und gut lesbar.",
+  "Messages with their own font keep it. Off: Thunderbird’s fonts.": "Mails mit eigener Schrift behalten sie. Aus: Schriften von Thunderbird.",
+  "In the address book sidebar.": "In der Seitenleiste des Adressbuchs.",
+  "Completion while writing keeps working.": "Die Vervollständigung beim Schreiben funktioniert weiter.",
+  "One per line: keyword = emoji. They take precedence.": "Eines pro Zeile: Stichwort = Emoji. Sie haben Vorrang.",
+  "The symbol next to the title shows the weather.": "Das Symbol neben dem Titel zeigt das Wetter.",
+  "Asks open-meteo.com about every 30 minutes. Off: the sun stays, no outside requests.": "Fragt etwa alle 30 Minuten bei open-meteo.com nach. Aus: die Sonne bleibt, keine Anfragen nach außen.",
+  "Place": "Ort",
+  "Empty: your current location.": "Leer: dein aktueller Standort.",
+  "The system asks for permission once.": "Das System fragt einmal um Erlaubnis.",
+  "Faster loading.": "Schnelleres Laden.",
+  "Re-creates the calendars once.": "Legt die Kalender einmal neu an.",
+  "In the spaces bar.": "In der Bereichsleiste.",
+  "Instead": "Stattdessen",
+  "Only one of them, in the place of Chat.": "Nur eines davon, auf dem Platz des Chats.",
+  "Nothing": "Nichts",
+  "Opens unchanged in its own tab.": "Öffnet sich unverändert im eigenen Tab.",
+  "Opens like an app.": "Öffnet sich wie eine App.",
+  "No address bar. Links to other sites open in your browser.": "Ohne Adressleiste. Links zu anderen Seiten öffnen im Browser.",
+  "Original: unchanged on a white surface.": "Original: unverändert auf weißer Fläche.",
+  "Questions appear as a sheet at the top.": "Nachfragen erscheinen als Kachel oben im Fenster.",
+  "Dialogs without title bar. For newly opened windows.": "Dialoge ohne Titelleiste. Für neu geöffnete Fenster.",
+  "From the next start.": "Ab dem nächsten Start.",
+  "Writes a userChrome.css into your profile.": "Schreibt eine userChrome.css in dein Profil.",
+  "At most every 6 hours.": "Höchstens alle 6 Stunden.",
+  "Active after a restart.": "Aktiv nach einem Neustart.",
+  "After a restart.": "Nach einem Neustart.",
+  "mail-cards-debug.log in the profile.": "mail-cards-debug.log im Profil.",
+  "Includes sender addresses.": "Enthält Absenderadressen.",
+  "halo.spaces Settings": "halo.spaces Einstellungen",
+  "Yes": "Ja",
+  "The symbol next to the title then shows the weather. Asks open-meteo.com about every 30 minutes.": "Das Symbol neben dem Titel zeigt dann das Wetter. Fragt etwa alle 30 Minuten bei open-meteo.com nach.",
+  "Do you use Chat?": "Verwendest du den Chat?",
+  "Instead in its place:": "Stattdessen auf seinem Platz:",
+  "Saved": "Gespeichert",
+  "Thunderbird now looks calm and tidy.": "Thunderbird sieht jetzt ruhig und aufgeräumt aus.",
+  "Light and dark now follow your system.": "Hell und dunkel folgen jetzt deinem System.",
+  "halo.spaces is made for macOS. On Windows and Linux it is still being tested. If something looks odd, we'd love a quick note!": "halo.spaces ist für macOS gemacht. Unter Windows und Linux wird es noch getestet. Wenn etwas komisch aussieht, freuen wir uns über eine kurze Nachricht!",
+  "Installed. Active in a moment.": "Installiert. Gleich aktiv.",
+  "No connection. Try again.": "Keine Verbindung. Nochmal versuchen.",
+  "Only messages from this folder. Turn on Global Search to include your replies from Sent.": "Nur Mails aus diesem Ordner. Schalte die globale Suche ein, um auch deine Antworten aus „Gesendet“ zu sehen.",
+  "Location access is off. Allow it in System Settings or enter a city.": "Ortungsdienste sind aus. Erlaube sie in den Systemeinstellungen oder gib eine Stadt ein.",
+  "Location unavailable. Enter a city.": "Standort nicht verfügbar. Gib eine Stadt ein.",
+  "macOS asks for access once.": "macOS fragt einmal um Erlaubnis.",
 };
 const FR = {
   "Install version {v}": "Installer la version {v}",
@@ -318,7 +355,6 @@ const FR = {
   "Hide Spaces": "Masquer les espaces",
   "Hide Today Pane": "Masquer le volet Aujourd’hui",
   "Installation failed": "Échec de l’installation",
-  "Installed – active in a moment": "Installé – actif dans un instant",
   "Installing …": "Installation …",
   "Light": "Clair",
   "Light, dark or follow macOS": "Clair, sombre ou comme macOS",
@@ -333,7 +369,6 @@ const FR = {
   "New Task": "Nouvelle tâche",
   "Next Month": "Mois suivant",
   "No calendar for tasks": "Aucun calendrier pour les tâches",
-  "No connection – try again": "Pas de connexion – réessayer",
   "No Due Date": "Sans échéance",
   "No writable calendar": "Aucun calendrier modifiable",
   "None": "Aucune",
@@ -356,31 +391,22 @@ const FR = {
   "Preview Lines": "Lignes d’aperçu",
   "1 Line": "1 ligne",
   "{n} Lines": "{n} lignes",
-  "takes effect after a restart": "après un redémarrage",
   "Logos from sender websites": "Logos des sites des expéditeurs",
-  "asks only the sender’s own website (favicon, BIMI) – off: no outside requests": "interroge uniquement le site de l’expéditeur (favicon, BIMI) – désactivé : aucune requête externe",
   "Photos from the Contacts app": "Photos de l’app Contacts",
   "macOS asks for access once": "macOS demande l’accès une fois",
-  "Plain-text messages in system font": "Messages texte dans la police système",
-  "off: fixed-width font, e.g. for tables made of spaces": "désactivé : police à chasse fixe, p. ex. pour les tableaux en espaces",
   "Calendar": "Calendrier",
   "Emojis before event titles": "Emojis devant les titres d’événements",
   "🎂 birthday, 🏋️ training, 🦷 dentist …": "🎂 anniversaire, 🏋️ sport, 🦷 dentiste …",
   "Own keywords": "Mots-clés personnels",
-  "one per line, “keyword = emoji”, e.g. “Book club = 📖” – take precedence": "un par ligne, « mot-clé = emoji », p. ex. « Club de lecture = 📖 » – prioritaires",
   "Book club = 📖\nChoir = 🎶": "Club de lecture = 📖\nChorale = 🎶",
   "Offline copy for online calendars": "Copie hors ligne des calendriers en ligne",
-  "faster loading; re-creates the calendars once": "chargement plus rapide ; recrée les calendriers une fois",
   "halo.spaces design": "Design halo.spaces",
   "Own icons": "Icônes propres",
   "Troubleshooting": "Dépannage",
   "Detailed log": "Journal détaillé",
-  "mail-cards-debug.log in the profile, includes sender addresses": "mail-cards-debug.log dans le profil, avec les adresses des expéditeurs",
   "saved": "enregistré",
-  "halo.spaces – Settings": "halo.spaces – Réglages",
   "Check for Updates": "Rechercher des mises à jour",
   "Settings…": "Réglages…",
-  "halo.spaces is made for macOS – on Windows and Linux it is still being tested. If something looks odd, we'd love a quick note!": "halo.spaces est conçu pour macOS – sous Windows et Linux, il est encore en test. Si quelque chose semble bizarre, un petit mot nous ferait plaisir !",
   "Mail": "Mail",
   "This message is from a mailing list.": "Ce message provient d’une liste de diffusion.",
   "Unsubscribe": "Se désabonner",
@@ -393,9 +419,7 @@ const FR = {
   "Fewer fields": "Moins de champs",
   "Updates": "Mises à jour",
   "Install updates at start": "Installer les mises à jour au démarrage",
-  "checks at most every 6 hours; active after a restart": "vérifie au plus toutes les 6 heures ; actif après un redémarrage",
   "Messages in system font": "Messages dans la police système",
-  "like Apple Mail; messages with their own font keep it – off: Thunderbird’s fonts": "comme Apple Mail ; les messages avec leur propre police la gardent – désactivé : polices de Thunderbird",
   "Yesterday": "Hier",
   "No Results": "Aucun résultat",
   "No tasks match your search.": "Aucune tâche ne correspond à la recherche.",
@@ -417,12 +441,8 @@ const FR = {
   "Welcome to halo.spaces": "Bienvenue dans halo.spaces",
   "Open Settings": "Ouvrir les paramètres",
   "Continue": "Continuer",
-  "Thunderbird now looks calm and tidy, like Apple Mail, Calendar and Contacts – with sender pictures, cards and coloured spaces.": "Thunderbird a désormais un aspect calme et soigné, comme Apple Mail, Calendrier et Contacts – avec photos des expéditeurs, cartes et espaces colorés.",
-  "The appearance was set to “System – automatic”, so light and dark follow your system.": "L’apparence est réglée sur « Système – automatique » : clair et sombre suivent le système.",
-  "All options are in Settings → halo.spaces.": "Toutes les options se trouvent dans Paramètres → halo.spaces.",
   "Time": "Heure",
   "Tint unread messages": "Teinter les messages non lus",
-  "light accent colour behind unread messages, besides the dot": "légère couleur d’accent derrière les messages non lus, en plus du point",
   "You unsubscribed from this mailing list.": "Vous vous êtes désabonné de cette liste de diffusion.",
   "Card View": "Vue en cartes",
   "Table View: Classic": "Tableau : classique",
@@ -430,10 +450,7 @@ const FR = {
   "Show Only Unread Messages": "Afficher uniquement les messages non lus",
   "Show All Messages": "Afficher tous les messages",
   "Design without flicker at start": "Design sans clignotement au démarrage",
-  "writes a userChrome.css into your profile; from the next start": "écrit un userChrome.css dans votre profil ; au prochain démarrage",
-  "Only messages from this folder – turn on Global Search to include your replies from Sent.": "Seulement les messages de ce dossier – activez la recherche globale pour inclure vos réponses envoyées.",
   "Show whole conversation": "Afficher toute la conversation",
-  "received and sent messages from all folders, newest first": "messages reçus et envoyés de tous les dossiers, les plus récents en haut",
   "Search Calendar": "Rechercher dans le calendrier",
   "Search Chat": "Rechercher dans le chat",
   "Search Settings": "Rechercher dans les réglages",
@@ -446,7 +463,6 @@ const FR = {
   "Zoom": "Zoom",
   "Table View": "Vue tableau",
   "Dialogs inside the window": "Dialogues dans la fenêtre",
-  "questions appear as a sheet at the top of the window, dialogs without title bar; for newly opened windows": "les questions s’affichent en haut de la fenêtre, dialogues sans barre de titre ; pour les fenêtres nouvellement ouvertes",
   "Hide “Collected Addresses”": "Masquer « Collected Addresses »",
   "All unified folders in Favourites": "Tous les dossiers unifiés dans les Favoris",
   "Drafts, Trash, Junk, Archive … besides All Inboxes and All Sent": "Brouillons, Corbeille, Indésirables, Archives … en plus de « Toutes les boîtes de réception » et « Tous les envoyés »",
@@ -460,21 +476,14 @@ const FR = {
   "Keyboard Shortcuts": "Raccourcis clavier",
   "Show all keyboard shortcuts of Thunderbird": "Afficher tous les raccourcis clavier de Thunderbird",
   "Dark backgrounds for messages": "Fonds sombres pour les messages",
-  "in dark mode, like Apple Mail – Thunderbird recolours HTML messages carefully, images stay as they are": "en mode sombre, comme Apple Mail – Thunderbird recolore prudemment les messages HTML, les images restent inchangées",
   "{n} task": "{n} tâche",
   "{n} tasks": "{n} tâches",
   "Tasks": "Tâches",
   "Task List Display Options": "Options d’affichage de la liste des tâches",
   "Weather in the Today Pane": "Météo dans le panneau Aujourd’hui",
-  "the symbol next to the title shows the current weather – asks open-meteo.com about every 30 minutes; off: the sun stays, no outside requests": "le symbole à côté du titre montre la météo actuelle – interroge open-meteo.com environ toutes les 30 minutes ; désactivé : le soleil reste, aucune requête externe",
-  "Place for the weather": "Lieu pour la météo",
-  "a city – empty: your current location (the system asks for permission once)": "une ville – vide : votre position actuelle (le système demande une fois l’autorisation)",
   "Current location": "Position actuelle",
-  "Location access is off – allow it in System Settings or enter a city": "La localisation est désactivée – autorisez-la dans les réglages du système ou saisissez une ville",
-  "Location unavailable – enter a city": "Position indisponible – saisissez une ville",
   "City not found": "Ville introuvable",
   "Weather in the Today Pane?": "Météo dans le panneau Aujourd’hui ?",
-  "The symbol next to the title then shows the weather – asks open-meteo.com about every 30 minutes.": "Le symbole à côté du titre affiche alors la météo – interroge open-meteo.com environ toutes les 30 minutes.",
   "City …": "Ville …",
   "No": "Non",
   "e.g. Vienna": "p. ex. Vienne",
@@ -489,7 +498,6 @@ const FR = {
   "Sending …": "Envoi …",
   "Off": "Désactivé",
   "seconds": "secondes",
-  "like Apple Mail: the message waits this long and can still be taken back": "comme Apple Mail : le message attend ce délai et peut encore être repris",
   "More …": "Plus …",
   "Send": "Envoyer",
   "Reply to {name} …": "Répondre à {name} …",
@@ -511,6 +519,72 @@ const FR = {
   "Dismiss": "Masquer",
   "No reply for {d} days: “{s}” to {to}": "Pas de réponse depuis {d} jours : « {s} » à {to}",
   "My Location": "Ma position",
+  "Spaces": "Espaces",
+  "Chat": "Chat",
+  "Space of an add-on": "Espace d’un module",
+  "Website": "Site web",
+  "Add-on": "Module",
+  "Address": "Adresse",
+  "In the space colour": "Dans la couleur de l’espace",
+  "Original": "Original",
+  "Symbol": "Symbole",
+  "No add-on with its own space installed": "Aucun module avec son propre espace installé",
+  "none installed": "aucun installé",
+  "Not a valid web address": "Adresse web non valide",
+  "Website …": "Site web …",
+  "e.g. calendar.example.com": "p. ex. agenda.example.com",
+  "Received and sent messages together.": "Messages reçus et envoyés ensemble.",
+  "From all folders, newest first.": "De tous les dossiers, les plus récents d’abord.",
+  "Light accent colour behind unread messages.": "Couleur d’accent claire derrière les messages non lus.",
+  "Time to take a sent message back.": "Délai pour reprendre un message envoyé.",
+  "Only from the sender’s own website.": "Uniquement depuis le site de l’expéditeur.",
+  "Favicon or BIMI logo of the sender’s domain. Off: no outside requests.": "Favicon ou logo BIMI du domaine de l’expéditeur. Désactivé : aucune requête externe.",
+  "In dark mode.": "En mode sombre.",
+  "Thunderbird recolours HTML messages carefully. Images stay as they are.": "Thunderbird recolore les messages HTML avec soin. Les images restent inchangées.",
+  "Calm and easy to read.": "Calme et lisible.",
+  "Messages with their own font keep it. Off: Thunderbird’s fonts.": "Les messages avec leur propre police la gardent. Désactivé : polices de Thunderbird.",
+  "In the address book sidebar.": "Dans la barre latérale du carnet d’adresses.",
+  "Completion while writing keeps working.": "La saisie semi-automatique continue de fonctionner.",
+  "One per line: keyword = emoji. They take precedence.": "Un par ligne : mot clé = emoji. Ils sont prioritaires.",
+  "The symbol next to the title shows the weather.": "Le symbole à côté du titre indique la météo.",
+  "Asks open-meteo.com about every 30 minutes. Off: the sun stays, no outside requests.": "Interroge open-meteo.com environ toutes les 30 minutes. Désactivé : le soleil reste, aucune requête externe.",
+  "Place": "Lieu",
+  "Empty: your current location.": "Vide : votre position actuelle.",
+  "The system asks for permission once.": "Le système demande l’autorisation une fois.",
+  "Faster loading.": "Chargement plus rapide.",
+  "Re-creates the calendars once.": "Recrée les agendas une fois.",
+  "In the spaces bar.": "Dans la barre des espaces.",
+  "Instead": "À la place",
+  "Only one of them, in the place of Chat.": "Un seul, à la place du Chat.",
+  "Nothing": "Rien",
+  "Opens unchanged in its own tab.": "S’ouvre tel quel dans son propre onglet.",
+  "Opens like an app.": "S’ouvre comme une app.",
+  "No address bar. Links to other sites open in your browser.": "Sans barre d’adresse. Les liens vers d’autres sites s’ouvrent dans le navigateur.",
+  "Original: unchanged on a white surface.": "Original : inchangé sur fond blanc.",
+  "Questions appear as a sheet at the top.": "Les questions apparaissent en haut de la fenêtre.",
+  "Dialogs without title bar. For newly opened windows.": "Dialogues sans barre de titre. Pour les nouvelles fenêtres.",
+  "From the next start.": "À partir du prochain démarrage.",
+  "Writes a userChrome.css into your profile.": "Écrit un userChrome.css dans votre profil.",
+  "At most every 6 hours.": "Au plus toutes les 6 heures.",
+  "Active after a restart.": "Actif après un redémarrage.",
+  "After a restart.": "Après un redémarrage.",
+  "mail-cards-debug.log in the profile.": "mail-cards-debug.log dans le profil.",
+  "Includes sender addresses.": "Contient les adresses des expéditeurs.",
+  "halo.spaces Settings": "Réglages de halo.spaces",
+  "Yes": "Oui",
+  "The symbol next to the title then shows the weather. Asks open-meteo.com about every 30 minutes.": "Le symbole à côté du titre indique alors la météo. Interroge open-meteo.com environ toutes les 30 minutes.",
+  "Do you use Chat?": "Utilisez-vous le Chat ?",
+  "Instead in its place:": "À sa place :",
+  "Saved": "Enregistré",
+  "Thunderbird now looks calm and tidy.": "Thunderbird est désormais calme et épuré.",
+  "Light and dark now follow your system.": "Clair et sombre suivent désormais votre système.",
+  "halo.spaces is made for macOS. On Windows and Linux it is still being tested. If something looks odd, we'd love a quick note!": "halo.spaces est conçu pour macOS. Sous Windows et Linux, il est encore en test. Si quelque chose semble bizarre, un petit mot nous fera plaisir !",
+  "Installed. Active in a moment.": "Installé. Actif dans un instant.",
+  "No connection. Try again.": "Pas de connexion. Réessayez.",
+  "Only messages from this folder. Turn on Global Search to include your replies from Sent.": "Uniquement les messages de ce dossier. Activez la recherche globale pour inclure vos réponses des Envoyés.",
+  "Location access is off. Allow it in System Settings or enter a city.": "La localisation est désactivée. Autorisez-la dans les Réglages système ou saisissez une ville.",
+  "Location unavailable. Enter a city.": "Position indisponible. Saisissez une ville.",
+  "macOS asks for access once.": "macOS demande l’accès une fois.",
 };
 const ES = {
   "Install version {v}": "Instalar la versión {v}",
@@ -559,7 +633,6 @@ const ES = {
   "Hide Spaces": "Ocultar espacios",
   "Hide Today Pane": "Ocultar panel Hoy",
   "Installation failed": "Error en la instalación",
-  "Installed – active in a moment": "Instalado – activo en un momento",
   "Installing …": "Instalando …",
   "Light": "Claro",
   "Light, dark or follow macOS": "Claro, oscuro o como macOS",
@@ -574,7 +647,6 @@ const ES = {
   "New Task": "Nueva tarea",
   "Next Month": "Mes siguiente",
   "No calendar for tasks": "Ningún calendario para tareas",
-  "No connection – try again": "Sin conexión – inténtalo de nuevo",
   "No Due Date": "Sin vencimiento",
   "No writable calendar": "Ningún calendario editable",
   "None": "Ninguno",
@@ -597,31 +669,22 @@ const ES = {
   "Preview Lines": "Líneas de vista previa",
   "1 Line": "1 línea",
   "{n} Lines": "{n} líneas",
-  "takes effect after a restart": "se aplica tras reiniciar",
   "Logos from sender websites": "Logotipos de los sitios web de los remitentes",
-  "asks only the sender’s own website (favicon, BIMI) – off: no outside requests": "solo consulta el sitio web del remitente (favicon, BIMI) – desactivado: ninguna petición externa",
   "Photos from the Contacts app": "Fotos de la app Contactos",
   "macOS asks for access once": "macOS pide acceso una vez",
-  "Plain-text messages in system font": "Mensajes de texto en la fuente del sistema",
-  "off: fixed-width font, e.g. for tables made of spaces": "desactivado: fuente de ancho fijo, p. ej. para tablas con espacios",
   "Calendar": "Calendario",
   "Emojis before event titles": "Emojis antes de los títulos de eventos",
   "🎂 birthday, 🏋️ training, 🦷 dentist …": "🎂 cumpleaños, 🏋️ entrenamiento, 🦷 dentista …",
   "Own keywords": "Palabras clave propias",
-  "one per line, “keyword = emoji”, e.g. “Book club = 📖” – take precedence": "uno por línea, «palabra = emoji», p. ej. «Club de lectura = 📖» – tienen prioridad",
   "Book club = 📖\nChoir = 🎶": "Club de lectura = 📖\nCoro = 🎶",
   "Offline copy for online calendars": "Copia sin conexión de calendarios en línea",
-  "faster loading; re-creates the calendars once": "carga más rápida; vuelve a crear los calendarios una vez",
   "halo.spaces design": "Diseño de halo.spaces",
   "Own icons": "Iconos propios",
   "Troubleshooting": "Solución de problemas",
   "Detailed log": "Registro detallado",
-  "mail-cards-debug.log in the profile, includes sender addresses": "mail-cards-debug.log en el perfil, incluye direcciones de remitentes",
   "saved": "guardado",
-  "halo.spaces – Settings": "halo.spaces – Ajustes",
   "Check for Updates": "Buscar actualizaciones",
   "Settings…": "Ajustes…",
-  "halo.spaces is made for macOS – on Windows and Linux it is still being tested. If something looks odd, we'd love a quick note!": "halo.spaces está hecho para macOS – en Windows y Linux aún se está probando. Si algo se ve raro, ¡nos encantaría que nos avisaras!",
   "Mail": "Correo",
   "This message is from a mailing list.": "Este mensaje procede de una lista de correo.",
   "Unsubscribe": "Darse de baja",
@@ -634,9 +697,7 @@ const ES = {
   "Fewer fields": "Menos campos",
   "Updates": "Actualizaciones",
   "Install updates at start": "Instalar actualizaciones al iniciar",
-  "checks at most every 6 hours; active after a restart": "comprueba como máximo cada 6 horas; activo tras reiniciar",
   "Messages in system font": "Mensajes en la fuente del sistema",
-  "like Apple Mail; messages with their own font keep it – off: Thunderbird’s fonts": "como Apple Mail; los mensajes con su propia fuente la conservan – desactivado: fuentes de Thunderbird",
   "Yesterday": "Ayer",
   "No Results": "Sin resultados",
   "No tasks match your search.": "Ninguna tarea coincide con la búsqueda.",
@@ -658,12 +719,8 @@ const ES = {
   "Welcome to halo.spaces": "Bienvenido a halo.spaces",
   "Open Settings": "Abrir ajustes",
   "Continue": "Continuar",
-  "Thunderbird now looks calm and tidy, like Apple Mail, Calendar and Contacts – with sender pictures, cards and coloured spaces.": "Thunderbird ahora tiene un aspecto tranquilo y ordenado, como Apple Mail, Calendario y Contactos – con fotos de remitentes, tarjetas y espacios de colores.",
-  "The appearance was set to “System – automatic”, so light and dark follow your system.": "La apariencia se ha ajustado a «Sistema – automático»: claro y oscuro siguen al sistema.",
-  "All options are in Settings → halo.spaces.": "Todas las opciones están en Ajustes → halo.spaces.",
   "Time": "Hora",
   "Tint unread messages": "Resaltar mensajes no leídos",
-  "light accent colour behind unread messages, besides the dot": "color de acento suave detrás de los mensajes no leídos, además del punto",
   "You unsubscribed from this mailing list.": "Te has dado de baja de esta lista de correo.",
   "Card View": "Vista de tarjetas",
   "Table View: Classic": "Tabla: clásica",
@@ -671,10 +728,7 @@ const ES = {
   "Show Only Unread Messages": "Mostrar solo los mensajes no leídos",
   "Show All Messages": "Mostrar todos los mensajes",
   "Design without flicker at start": "Diseño sin parpadeo al iniciar",
-  "writes a userChrome.css into your profile; from the next start": "escribe un userChrome.css en tu perfil; a partir del próximo inicio",
-  "Only messages from this folder – turn on Global Search to include your replies from Sent.": "Solo mensajes de esta carpeta: activa la búsqueda global para incluir tus respuestas enviadas.",
   "Show whole conversation": "Mostrar toda la conversación",
-  "received and sent messages from all folders, newest first": "mensajes recibidos y enviados de todas las carpetas, los más recientes arriba",
   "Search Calendar": "Buscar en el calendario",
   "Search Chat": "Buscar en el chat",
   "Search Settings": "Buscar en Ajustes",
@@ -687,7 +741,6 @@ const ES = {
   "Zoom": "Zoom",
   "Table View": "Vista de tabla",
   "Dialogs inside the window": "Diálogos dentro de la ventana",
-  "questions appear as a sheet at the top of the window, dialogs without title bar; for newly opened windows": "las preguntas aparecen arriba en la ventana, diálogos sin barra de título; para ventanas nuevas",
   "Hide “Collected Addresses”": "Ocultar “Collected Addresses”",
   "All unified folders in Favourites": "Todas las carpetas unificadas en Favoritos",
   "Drafts, Trash, Junk, Archive … besides All Inboxes and All Sent": "Borradores, Papelera, Correo no deseado, Archivo … además de «Todas las bandejas de entrada» y «Todos los enviados»",
@@ -701,21 +754,14 @@ const ES = {
   "Keyboard Shortcuts": "Atajos de teclado",
   "Show all keyboard shortcuts of Thunderbird": "Mostrar todos los atajos de teclado de Thunderbird",
   "Dark backgrounds for messages": "Fondos oscuros para los mensajes",
-  "in dark mode, like Apple Mail – Thunderbird recolours HTML messages carefully, images stay as they are": "en modo oscuro, como Apple Mail – Thunderbird cambia con cuidado los colores de los mensajes HTML, las imágenes no cambian",
   "{n} task": "{n} tarea",
   "{n} tasks": "{n} tareas",
   "Tasks": "Tareas",
   "Task List Display Options": "Opciones de visualización de la lista de tareas",
   "Weather in the Today Pane": "Tiempo en el panel Hoy",
-  "the symbol next to the title shows the current weather – asks open-meteo.com about every 30 minutes; off: the sun stays, no outside requests": "el símbolo junto al título muestra el tiempo actual – consulta open-meteo.com cada 30 minutos aprox.; desactivado: queda el sol, sin consultas externas",
-  "Place for the weather": "Lugar para el tiempo",
-  "a city – empty: your current location (the system asks for permission once)": "una ciudad – vacío: tu ubicación actual (el sistema pide permiso una vez)",
   "Current location": "Ubicación actual",
-  "Location access is off – allow it in System Settings or enter a city": "La ubicación está desactivada – permítela en los ajustes del sistema o escribe una ciudad",
-  "Location unavailable – enter a city": "Ubicación no disponible – escribe una ciudad",
   "City not found": "Ciudad no encontrada",
   "Weather in the Today Pane?": "¿Tiempo en el panel Hoy?",
-  "The symbol next to the title then shows the weather – asks open-meteo.com about every 30 minutes.": "El símbolo junto al título muestra entonces el tiempo – consulta open-meteo.com cada 30 minutos aprox.",
   "City …": "Ciudad …",
   "No": "No",
   "e.g. Vienna": "p. ej. Viena",
@@ -730,7 +776,6 @@ const ES = {
   "Sending …": "Enviando …",
   "Off": "Desactivado",
   "seconds": "segundos",
-  "like Apple Mail: the message waits this long and can still be taken back": "como Apple Mail: el mensaje espera este tiempo y aún se puede recuperar",
   "More …": "Más …",
   "Send": "Enviar",
   "Reply to {name} …": "Responder a {name} …",
@@ -752,6 +797,72 @@ const ES = {
   "Dismiss": "Descartar",
   "No reply for {d} days: “{s}” to {to}": "Sin respuesta desde hace {d} días: «{s}» a {to}",
   "My Location": "Mi ubicación",
+  "Spaces": "Espacios",
+  "Chat": "Chat",
+  "Space of an add-on": "Espacio de un complemento",
+  "Website": "Sitio web",
+  "Add-on": "Complemento",
+  "Address": "Dirección",
+  "In the space colour": "En el color del espacio",
+  "Original": "Original",
+  "Symbol": "Símbolo",
+  "No add-on with its own space installed": "No hay complementos con espacio propio instalados",
+  "none installed": "ninguno instalado",
+  "Not a valid web address": "Dirección web no válida",
+  "Website …": "Sitio web …",
+  "e.g. calendar.example.com": "p. ej. calendario.example.com",
+  "Received and sent messages together.": "Mensajes recibidos y enviados juntos.",
+  "From all folders, newest first.": "De todas las carpetas, los más recientes primero.",
+  "Light accent colour behind unread messages.": "Color de acento claro detrás de los mensajes no leídos.",
+  "Time to take a sent message back.": "Tiempo para recuperar un mensaje enviado.",
+  "Only from the sender’s own website.": "Solo desde el sitio web del remitente.",
+  "Favicon or BIMI logo of the sender’s domain. Off: no outside requests.": "Favicon o logotipo BIMI del dominio del remitente. Desactivado: ninguna solicitud externa.",
+  "In dark mode.": "En modo oscuro.",
+  "Thunderbird recolours HTML messages carefully. Images stay as they are.": "Thunderbird recolorea los mensajes HTML con cuidado. Las imágenes no cambian.",
+  "Calm and easy to read.": "Tranquilo y fácil de leer.",
+  "Messages with their own font keep it. Off: Thunderbird’s fonts.": "Los mensajes con fuente propia la conservan. Desactivado: fuentes de Thunderbird.",
+  "In the address book sidebar.": "En la barra lateral de la libreta de direcciones.",
+  "Completion while writing keeps working.": "El autocompletado al escribir sigue funcionando.",
+  "One per line: keyword = emoji. They take precedence.": "Uno por línea: palabra clave = emoji. Tienen prioridad.",
+  "The symbol next to the title shows the weather.": "El símbolo junto al título muestra el tiempo.",
+  "Asks open-meteo.com about every 30 minutes. Off: the sun stays, no outside requests.": "Consulta open-meteo.com cada 30 minutos aprox. Desactivado: el sol se queda, ninguna solicitud externa.",
+  "Place": "Lugar",
+  "Empty: your current location.": "Vacío: tu ubicación actual.",
+  "The system asks for permission once.": "El sistema pide permiso una vez.",
+  "Faster loading.": "Carga más rápida.",
+  "Re-creates the calendars once.": "Vuelve a crear los calendarios una vez.",
+  "In the spaces bar.": "En la barra de espacios.",
+  "Instead": "En su lugar",
+  "Only one of them, in the place of Chat.": "Solo uno, en el lugar del chat.",
+  "Nothing": "Nada",
+  "Opens unchanged in its own tab.": "Se abre sin cambios en su propia pestaña.",
+  "Opens like an app.": "Se abre como una app.",
+  "No address bar. Links to other sites open in your browser.": "Sin barra de direcciones. Los enlaces a otros sitios se abren en el navegador.",
+  "Original: unchanged on a white surface.": "Original: sin cambios sobre fondo blanco.",
+  "Questions appear as a sheet at the top.": "Las preguntas aparecen arriba en la ventana.",
+  "Dialogs without title bar. For newly opened windows.": "Diálogos sin barra de título. Para ventanas nuevas.",
+  "From the next start.": "A partir del próximo inicio.",
+  "Writes a userChrome.css into your profile.": "Escribe un userChrome.css en tu perfil.",
+  "At most every 6 hours.": "Como máximo cada 6 horas.",
+  "Active after a restart.": "Activo tras reiniciar.",
+  "After a restart.": "Tras reiniciar.",
+  "mail-cards-debug.log in the profile.": "mail-cards-debug.log en el perfil.",
+  "Includes sender addresses.": "Incluye las direcciones de los remitentes.",
+  "halo.spaces Settings": "Ajustes de halo.spaces",
+  "Yes": "Sí",
+  "The symbol next to the title then shows the weather. Asks open-meteo.com about every 30 minutes.": "El símbolo junto al título mostrará el tiempo. Consulta open-meteo.com cada 30 minutos aprox.",
+  "Do you use Chat?": "¿Usas el chat?",
+  "Instead in its place:": "En su lugar:",
+  "Saved": "Guardado",
+  "Thunderbird now looks calm and tidy.": "Thunderbird ahora se ve tranquilo y ordenado.",
+  "Light and dark now follow your system.": "Claro y oscuro siguen ahora a tu sistema.",
+  "halo.spaces is made for macOS. On Windows and Linux it is still being tested. If something looks odd, we'd love a quick note!": "halo.spaces está hecho para macOS. En Windows y Linux aún se está probando. Si algo se ve raro, ¡agradecemos un breve aviso!",
+  "Installed. Active in a moment.": "Instalado. Activo en un momento.",
+  "No connection. Try again.": "Sin conexión. Inténtalo de nuevo.",
+  "Only messages from this folder. Turn on Global Search to include your replies from Sent.": "Solo mensajes de esta carpeta. Activa la búsqueda global para incluir tus respuestas de Enviados.",
+  "Location access is off. Allow it in System Settings or enter a city.": "El acceso a la ubicación está desactivado. Permítelo en Ajustes del sistema o escribe una ciudad.",
+  "Location unavailable. Enter a city.": "Ubicación no disponible. Escribe una ciudad.",
+  "macOS asks for access once.": "macOS pide acceso una vez.",
 };
 const IT = {
   "Install version {v}": "Installa la versione {v}",
@@ -800,7 +911,6 @@ const IT = {
   "Hide Spaces": "Nascondi spazi",
   "Hide Today Pane": "Nascondi pannello Oggi",
   "Installation failed": "Installazione non riuscita",
-  "Installed – active in a moment": "Installato – attivo tra un attimo",
   "Installing …": "Installazione …",
   "Light": "Chiaro",
   "Light, dark or follow macOS": "Chiaro, scuro o come macOS",
@@ -815,7 +925,6 @@ const IT = {
   "New Task": "Nuova attività",
   "Next Month": "Mese successivo",
   "No calendar for tasks": "Nessun calendario per le attività",
-  "No connection – try again": "Nessuna connessione – riprova",
   "No Due Date": "Nessuna scadenza",
   "No writable calendar": "Nessun calendario modificabile",
   "None": "Nessuno",
@@ -838,31 +947,22 @@ const IT = {
   "Preview Lines": "Righe di anteprima",
   "1 Line": "1 riga",
   "{n} Lines": "{n} righe",
-  "takes effect after a restart": "attivo dopo un riavvio",
   "Logos from sender websites": "Loghi dai siti dei mittenti",
-  "asks only the sender’s own website (favicon, BIMI) – off: no outside requests": "interroga solo il sito del mittente (favicon, BIMI) – disattivato: nessuna richiesta esterna",
   "Photos from the Contacts app": "Foto dall’app Contatti",
   "macOS asks for access once": "macOS chiede l’accesso una volta",
-  "Plain-text messages in system font": "Messaggi di testo nel font di sistema",
-  "off: fixed-width font, e.g. for tables made of spaces": "disattivato: font a larghezza fissa, ad es. per tabelle fatte di spazi",
   "Calendar": "Calendario",
   "Emojis before event titles": "Emoji prima dei titoli degli eventi",
   "🎂 birthday, 🏋️ training, 🦷 dentist …": "🎂 compleanno, 🏋️ allenamento, 🦷 dentista …",
   "Own keywords": "Parole chiave personali",
-  "one per line, “keyword = emoji”, e.g. “Book club = 📖” – take precedence": "uno per riga, «parola = emoji», ad es. «Club del libro = 📖» – hanno la precedenza",
   "Book club = 📖\nChoir = 🎶": "Club del libro = 📖\nCoro = 🎶",
   "Offline copy for online calendars": "Copia offline dei calendari online",
-  "faster loading; re-creates the calendars once": "caricamento più rapido; ricrea i calendari una volta",
   "halo.spaces design": "Design di halo.spaces",
   "Own icons": "Icone proprie",
   "Troubleshooting": "Risoluzione dei problemi",
   "Detailed log": "Registro dettagliato",
-  "mail-cards-debug.log in the profile, includes sender addresses": "mail-cards-debug.log nel profilo, include gli indirizzi dei mittenti",
   "saved": "salvato",
-  "halo.spaces – Settings": "halo.spaces – Impostazioni",
   "Check for Updates": "Cerca aggiornamenti",
   "Settings…": "Impostazioni…",
-  "halo.spaces is made for macOS – on Windows and Linux it is still being tested. If something looks odd, we'd love a quick note!": "halo.spaces è fatto per macOS – su Windows e Linux è ancora in prova. Se qualcosa sembra strano, ci farebbe piacere un messaggio!",
   "Mail": "Posta",
   "This message is from a mailing list.": "Questo messaggio proviene da una mailing list.",
   "Unsubscribe": "Annulla iscrizione",
@@ -875,9 +975,7 @@ const IT = {
   "Fewer fields": "Meno campi",
   "Updates": "Aggiornamenti",
   "Install updates at start": "Installa gli aggiornamenti all’avvio",
-  "checks at most every 6 hours; active after a restart": "controlla al massimo ogni 6 ore; attivo dopo un riavvio",
   "Messages in system font": "Messaggi nel font di sistema",
-  "like Apple Mail; messages with their own font keep it – off: Thunderbird’s fonts": "come Apple Mail; i messaggi con un proprio font lo mantengono – disattivato: font di Thunderbird",
   "Yesterday": "Ieri",
   "No Results": "Nessun risultato",
   "No tasks match your search.": "Nessuna attività corrisponde alla ricerca.",
@@ -899,12 +997,8 @@ const IT = {
   "Welcome to halo.spaces": "Benvenuto in halo.spaces",
   "Open Settings": "Apri impostazioni",
   "Continue": "Continua",
-  "Thunderbird now looks calm and tidy, like Apple Mail, Calendar and Contacts – with sender pictures, cards and coloured spaces.": "Thunderbird ora ha un aspetto calmo e ordinato, come Apple Mail, Calendario e Contatti – con foto dei mittenti, schede e spazi colorati.",
-  "The appearance was set to “System – automatic”, so light and dark follow your system.": "L’aspetto è impostato su «Sistema – automatico»: chiaro e scuro seguono il sistema.",
-  "All options are in Settings → halo.spaces.": "Tutte le opzioni sono in Impostazioni → halo.spaces.",
   "Time": "Ora",
   "Tint unread messages": "Evidenzia i messaggi non letti",
-  "light accent colour behind unread messages, besides the dot": "leggero colore d’accento dietro i messaggi non letti, oltre al punto",
   "You unsubscribed from this mailing list.": "Hai annullato l’iscrizione a questa lista.",
   "Card View": "Vista a schede",
   "Table View: Classic": "Tabella: classica",
@@ -912,10 +1006,7 @@ const IT = {
   "Show Only Unread Messages": "Mostra solo i messaggi non letti",
   "Show All Messages": "Mostra tutti i messaggi",
   "Design without flicker at start": "Design senza sfarfallio all’avvio",
-  "writes a userChrome.css into your profile; from the next start": "scrive un userChrome.css nel profilo; dal prossimo avvio",
-  "Only messages from this folder – turn on Global Search to include your replies from Sent.": "Solo messaggi di questa cartella – attiva la ricerca globale per includere le risposte inviate.",
   "Show whole conversation": "Mostra l’intera conversazione",
-  "received and sent messages from all folders, newest first": "messaggi ricevuti e inviati da tutte le cartelle, i più recenti in alto",
   "Search Calendar": "Cerca nel calendario",
   "Search Chat": "Cerca nella chat",
   "Search Settings": "Cerca nelle impostazioni",
@@ -928,7 +1019,6 @@ const IT = {
   "Zoom": "Zoom",
   "Table View": "Vista tabella",
   "Dialogs inside the window": "Finestre di dialogo nella finestra",
-  "questions appear as a sheet at the top of the window, dialogs without title bar; for newly opened windows": "le domande appaiono in alto nella finestra, finestre di dialogo senza barra del titolo; per le finestre aperte di nuovo",
   "Hide “Collected Addresses”": "Nascondi “Collected Addresses”",
   "All unified folders in Favourites": "Tutte le cartelle unificate nei Preferiti",
   "Drafts, Trash, Junk, Archive … besides All Inboxes and All Sent": "Bozze, Cestino, Indesiderata, Archivio … oltre a «Tutte le cartelle Posta in arrivo» e «Tutta la posta inviata»",
@@ -942,21 +1032,14 @@ const IT = {
   "Keyboard Shortcuts": "Scorciatoie da tastiera",
   "Show all keyboard shortcuts of Thunderbird": "Mostra tutte le scorciatoie da tastiera di Thunderbird",
   "Dark backgrounds for messages": "Sfondi scuri per i messaggi",
-  "in dark mode, like Apple Mail – Thunderbird recolours HTML messages carefully, images stay as they are": "in modalità scura, come Apple Mail – Thunderbird ricolora con cura i messaggi HTML, le immagini restano invariate",
   "{n} task": "{n} attività",
   "{n} tasks": "{n} attività",
   "Tasks": "Attività",
   "Task List Display Options": "Opzioni di visualizzazione dell’elenco attività",
   "Weather in the Today Pane": "Meteo nel pannello Oggi",
-  "the symbol next to the title shows the current weather – asks open-meteo.com about every 30 minutes; off: the sun stays, no outside requests": "il simbolo accanto al titolo mostra il meteo attuale – interroga open-meteo.com circa ogni 30 minuti; disattivato: resta il sole, nessuna richiesta esterna",
-  "Place for the weather": "Luogo per il meteo",
-  "a city – empty: your current location (the system asks for permission once)": "una città – vuoto: la tua posizione attuale (il sistema chiede il permesso una volta)",
   "Current location": "Posizione attuale",
-  "Location access is off – allow it in System Settings or enter a city": "La localizzazione è disattivata – consentila nelle impostazioni di sistema o inserisci una città",
-  "Location unavailable – enter a city": "Posizione non disponibile – inserisci una città",
   "City not found": "Città non trovata",
   "Weather in the Today Pane?": "Meteo nel pannello Oggi?",
-  "The symbol next to the title then shows the weather – asks open-meteo.com about every 30 minutes.": "Il simbolo accanto al titolo mostra allora il meteo – interroga open-meteo.com circa ogni 30 minuti.",
   "City …": "Città …",
   "No": "No",
   "e.g. Vienna": "es. Vienna",
@@ -971,7 +1054,6 @@ const IT = {
   "Sending …": "Invio …",
   "Off": "Disattivato",
   "seconds": "secondi",
-  "like Apple Mail: the message waits this long and can still be taken back": "come Apple Mail: il messaggio attende questo tempo e può ancora essere ritirato",
   "More …": "Altro …",
   "Send": "Invia",
   "Reply to {name} …": "Rispondi a {name} …",
@@ -993,6 +1075,72 @@ const IT = {
   "Dismiss": "Ignora",
   "No reply for {d} days: “{s}” to {to}": "Nessuna risposta da {d} giorni: «{s}» a {to}",
   "My Location": "La mia posizione",
+  "Spaces": "Spazi",
+  "Chat": "Chat",
+  "Space of an add-on": "Spazio di un componente aggiuntivo",
+  "Website": "Sito web",
+  "Add-on": "Componente aggiuntivo",
+  "Address": "Indirizzo",
+  "In the space colour": "Nel colore dello spazio",
+  "Original": "Originale",
+  "Symbol": "Simbolo",
+  "No add-on with its own space installed": "Nessun componente con spazio proprio installato",
+  "none installed": "nessuno installato",
+  "Not a valid web address": "Indirizzo web non valido",
+  "Website …": "Sito web …",
+  "e.g. calendar.example.com": "es. calendario.example.com",
+  "Received and sent messages together.": "Messaggi ricevuti e inviati insieme.",
+  "From all folders, newest first.": "Da tutte le cartelle, i più recenti prima.",
+  "Light accent colour behind unread messages.": "Colore d’accento chiaro dietro i messaggi non letti.",
+  "Time to take a sent message back.": "Tempo per riprendere un messaggio inviato.",
+  "Only from the sender’s own website.": "Solo dal sito web del mittente.",
+  "Favicon or BIMI logo of the sender’s domain. Off: no outside requests.": "Favicon o logo BIMI del dominio del mittente. Disattivato: nessuna richiesta esterna.",
+  "In dark mode.": "In modalità scura.",
+  "Thunderbird recolours HTML messages carefully. Images stay as they are.": "Thunderbird ricolora i messaggi HTML con cura. Le immagini restano invariate.",
+  "Calm and easy to read.": "Calmo e facile da leggere.",
+  "Messages with their own font keep it. Off: Thunderbird’s fonts.": "I messaggi con un proprio carattere lo mantengono. Disattivato: caratteri di Thunderbird.",
+  "In the address book sidebar.": "Nella barra laterale della rubrica.",
+  "Completion while writing keeps working.": "Il completamento durante la scrittura continua a funzionare.",
+  "One per line: keyword = emoji. They take precedence.": "Uno per riga: parola chiave = emoji. Hanno la precedenza.",
+  "The symbol next to the title shows the weather.": "Il simbolo accanto al titolo mostra il meteo.",
+  "Asks open-meteo.com about every 30 minutes. Off: the sun stays, no outside requests.": "Interroga open-meteo.com circa ogni 30 minuti. Disattivato: il sole resta, nessuna richiesta esterna.",
+  "Place": "Luogo",
+  "Empty: your current location.": "Vuoto: la tua posizione attuale.",
+  "The system asks for permission once.": "Il sistema chiede il permesso una volta.",
+  "Faster loading.": "Caricamento più rapido.",
+  "Re-creates the calendars once.": "Ricrea i calendari una volta.",
+  "In the spaces bar.": "Nella barra degli spazi.",
+  "Instead": "Al suo posto",
+  "Only one of them, in the place of Chat.": "Solo uno, al posto della chat.",
+  "Nothing": "Niente",
+  "Opens unchanged in its own tab.": "Si apre invariato nella propria scheda.",
+  "Opens like an app.": "Si apre come un’app.",
+  "No address bar. Links to other sites open in your browser.": "Senza barra degli indirizzi. I link ad altri siti si aprono nel browser.",
+  "Original: unchanged on a white surface.": "Originale: invariato su fondo bianco.",
+  "Questions appear as a sheet at the top.": "Le domande appaiono in alto nella finestra.",
+  "Dialogs without title bar. For newly opened windows.": "Finestre di dialogo senza barra del titolo. Per le nuove finestre.",
+  "From the next start.": "Dal prossimo avvio.",
+  "Writes a userChrome.css into your profile.": "Scrive un userChrome.css nel tuo profilo.",
+  "At most every 6 hours.": "Al massimo ogni 6 ore.",
+  "Active after a restart.": "Attivo dopo un riavvio.",
+  "After a restart.": "Dopo un riavvio.",
+  "mail-cards-debug.log in the profile.": "mail-cards-debug.log nel profilo.",
+  "Includes sender addresses.": "Contiene gli indirizzi dei mittenti.",
+  "halo.spaces Settings": "Impostazioni di halo.spaces",
+  "Yes": "Sì",
+  "The symbol next to the title then shows the weather. Asks open-meteo.com about every 30 minutes.": "Il simbolo accanto al titolo mostrerà il meteo. Interroga open-meteo.com circa ogni 30 minuti.",
+  "Do you use Chat?": "Usi la chat?",
+  "Instead in its place:": "Al suo posto:",
+  "Saved": "Salvato",
+  "Thunderbird now looks calm and tidy.": "Ora Thunderbird appare calmo e ordinato.",
+  "Light and dark now follow your system.": "Chiaro e scuro ora seguono il tuo sistema.",
+  "halo.spaces is made for macOS. On Windows and Linux it is still being tested. If something looks odd, we'd love a quick note!": "halo.spaces è pensato per macOS. Su Windows e Linux è ancora in prova. Se qualcosa sembra strano, ci farebbe piacere un breve messaggio!",
+  "Installed. Active in a moment.": "Installato. Attivo tra un attimo.",
+  "No connection. Try again.": "Nessuna connessione. Riprova.",
+  "Only messages from this folder. Turn on Global Search to include your replies from Sent.": "Solo messaggi di questa cartella. Attiva la ricerca globale per includere le tue risposte da Inviati.",
+  "Location access is off. Allow it in System Settings or enter a city.": "La localizzazione è disattivata. Consentila nelle Impostazioni di sistema o inserisci una città.",
+  "Location unavailable. Enter a city.": "Posizione non disponibile. Inserisci una città.",
+  "macOS asks for access once.": "macOS chiede l’accesso una volta.",
 };
 const TRANSLATIONS = { de: DE, fr: FR, es: ES, it: IT };
 // tr("+{n} more", { n: 3 }) – Platzhalter in geschweiften Klammern
@@ -1694,7 +1842,11 @@ class ConversationCards {
   // sonst blitzte kurz die Einzelmail bzw. die Zusammenfassung auf
   async show(hdr, { thread = false } = {}) {
     const token = ++this.seq;
-    if (!hdr || !this.enabled()) {
+    const single = hdr && hdr.messageId == this.single;
+    if (!single) {
+      this.single = null;
+    }
+    if (!hdr || !this.enabled() || single) {
       this.reveal();
       return;
     }
@@ -1738,12 +1890,12 @@ class ConversationCards {
     const count = doc.createElementNS(X, "div");
     count.className = "mc-conv-count";
     count.textContent = tr("{n} messages", { n: messages.length });
-    head.append(title, count);
+    head.append(title, count, this.addonButtons(selected));
     box.append(head);
     if (!indexed) {
       const note = doc.createElementNS(X, "div");
       note.className = "mc-conv-note";
-      note.textContent = tr("Only messages from this folder – turn on Global Search to include your replies from Sent.");
+      note.textContent = tr("Only messages from this folder. Turn on Global Search to include your replies from Sent.");
       box.append(note);
     }
     const own = this.ownAddresses();
@@ -1786,6 +1938,52 @@ class ConversationCards {
     }
   }
 
+  // Knöpfe anderer Erweiterungen (z. B. Übersetzen) hängt Thunderbird nur an die
+  // Einzelansicht. In der Konversation stehen sie daher als Kopie im Kopf: ein
+  // Klick zeigt die gewählte Mail einzeln und löst dort den echten Knopf aus
+  addonButtons(selected) {
+    const doc = this.win.document;
+    const row = doc.createElementNS("http://www.w3.org/1999/xhtml", "div");
+    row.className = "mc-conv-addons";
+    const mdoc = this.win.messageBrowser?.contentDocument;
+    for (const orig of mdoc?.querySelectorAll("#header-view-toolbar .webextension-action:not([hidden])") || []) {
+      const btn = doc.createElementNS("http://www.w3.org/1999/xhtml", "button");
+      btn.className = "mc-conv-addon";
+      btn.title = orig.getAttribute("tooltiptext") || orig.getAttribute("label") || "";
+      btn.setAttribute("aria-label", orig.getAttribute("label") || btn.title);
+      const img = orig.style.getPropertyValue("--webextension-toolbar-image") || orig.style.getPropertyValue("--webextension-menupanel-image");
+      if (img) {
+        btn.style.setProperty("--mc-addon-icon", img);
+      }
+      btn.addEventListener("click", () => {
+        const uri = selected.folder.getUriForMsg(selected);
+        // die Mail selbst in der Liste wählen (Faden aufgeklappt) – nur dann kennt
+        // die Erweiterung sie als angezeigte Mail; diese eine bleibt ohne Konversation
+        this.single = selected.messageId;
+        this.hide();
+        const index = this.win.gDBView?.findIndexOfMsgHdr(selected, true) ?? -1;
+        if (index >= 0) {
+          this.win.threadTree.selectedIndex = index;
+        }
+        // Einzelansicht der gewählten Mail abwarten, dann den echten Knopf drücken
+        const go = (tries = 0) => {
+          const mw = this.win.messageBrowser?.contentWindow;
+          const real = mw?.document.getElementById(orig.id);
+          const body = mw?.document.getElementById("messagepane")?.contentDocument;
+          if (mw?.gMessageURI == uri && real && !real.disabled && body?.readyState == "complete") {
+            // die Erweiterung hängt sich erst nach dem Laden an die Mail
+            this.win.setTimeout(() => real.click(), 1000);
+          } else if (tries < 30) {
+            this.win.setTimeout(() => go(tries + 1), 100);
+          }
+        };
+        go();
+      });
+      row.append(btn);
+    }
+    return row;
+  }
+
   loadCard(card) {
     const doc = this.win.document;
     const hdr = card.__mcHdr;
@@ -1815,6 +2013,8 @@ class ConversationCards {
         return;
       }
       card.__mcLoaded = true;
+      // Knöpfe anderer Erweiterungen wirken hier nicht (Thunderbird kennt die Karte nicht) – sie stehen im Konversationskopf
+      browserEl.contentDocument.documentElement.setAttribute("mc-conv-card", "");
       try {
         cw.displayMessage(hdr.folder.getUriForMsg(hdr), this.win.gViewWrapper);
       } catch (e) {
@@ -2646,6 +2846,42 @@ const Weather = {
         { timeout: 15000, maximumAge: 60 * 60 * 1000 });
     });
   },
+  // Vorschläge beim Tippen: bis zu fünf Orte („Wien, Österreich“; bei gleichen
+  // Namen mit Bundesland), nur der eingetippte Text geht an Open-Meteo
+  async search(win, text) {
+    const name = String(text || "").trim().slice(0, 80);
+    if (name.length < 2 || !win) {
+      return [];
+    }
+    const lang = Services.locale.appLocaleAsBCP47.split("-")[0];
+    const url = `https://geocoding-api.open-meteo.com/v1/search?count=5&format=json&language=${encodeURIComponent(lang)}&name=${encodeURIComponent(name)}`;
+    try {
+      const res = await fetchWithTimeout(win, url, { max: 64 * 1024 });
+      const hits = JSON.parse(await res.text())?.results || [];
+      const seen = new Set();
+      return hits.map(h => {
+        let label = [h.name, h.country].filter(Boolean).join(", ");
+        if (seen.has(label) && h.admin1) {
+          label = [h.name, h.admin1, h.country].filter(Boolean).join(", ");
+        }
+        seen.add(label);
+        return { label, lat: h.latitude, lon: h.longitude };
+      }).filter(p => Number.isFinite(p.lat) && Number.isFinite(p.lon));
+    } catch {
+      return [];
+    }
+  },
+  // gewählter Vorschlag: Koordinaten gleich merken (keine zweite Suche nach dem Namen)
+  async choose(place) {
+    const label = String(place?.label || "").slice(0, 120);
+    const lat = Math.round(Number(place?.lat) * 100) / 100, lon = Math.round(Number(place?.lon) * 100) / 100;
+    if (!label || !Number.isFinite(lat) || !Number.isFinite(lon)) {
+      throw new Error("not a place");
+    }
+    this.save({ ...this.state(), for: label, lat, lon, place: label, time: 0 });
+    Services.prefs.setStringPref(WEATHER_PLACE_PREF, label);
+    await this.refresh(true);
+  },
   async geocode(win, name) {
     const lang = Services.locale.appLocaleAsBCP47.split("-")[0];
     const url = `https://geocoding-api.open-meteo.com/v1/search?count=1&format=json&language=${encodeURIComponent(lang)}&name=${encodeURIComponent(name)}`;
@@ -2653,9 +2889,12 @@ const Weather = {
     const hit = JSON.parse(await res.text())?.results?.[0];
     return hit ? { lat: hit.latitude, lon: hit.longitude, place: [hit.name, hit.country].filter(Boolean).join(", ") } : null;
   },
+  // jede Abfrage läuft für sich; gespeichert wird nur das Ergebnis der neuesten
+  // (eine langsame Standortabfrage überschreibt keinen inzwischen gewählten Ort)
+  gen: 0,
   async refresh(force = false) {
     const win = Services.wm.getMostRecentWindow("mail:3pane");
-    if (!this.enabled() || !win || this.busy) {
+    if (!this.enabled() || !win) {
       this.show();
       return;
     }
@@ -2665,20 +2904,21 @@ const Weather = {
       this.show();
       return;
     }
-    this.busy = true;
+    const gen = ++this.gen;
+    const latest = () => gen == this.gen;
     try {
       let where = null;
       if (wanted) {
         where = st.for == wanted && st.lat != null ? { lat: st.lat, lon: st.lon, place: st.place } : await this.geocode(win, wanted);
         if (!where) {
-          this.save({ ...st, for: wanted, status: "notfound", time: Date.now(), kind: null });
+          if (latest()) this.save({ ...st, for: wanted, status: "notfound", time: Date.now(), kind: null });
           this.show();
           return;
         }
       } else {
         where = await this.locate(win);
         if (where.error) {
-          this.save({ ...st, for: wanted, status: where.error, time: Date.now(), kind: null, place: null });
+          if (latest()) this.save({ ...st, for: wanted, status: where.error, time: Date.now(), kind: null, place: null });
           this.show();
           return;
         }
@@ -2691,14 +2931,250 @@ const Weather = {
       if (!res.ok || !cur) {
         throw new Error(`weather ${res.status}`);
       }
+      if (!latest()) {
+        return;
+      }
       this.save({ for: wanted, lat, lon, place: where.place, status: "ok", time: Date.now(),
                   kind: this.kind(cur.weather_code, cur.is_day), temp: cur.temperature_2m, code: cur.weather_code });
     } catch (e) {
       log("weather error", String(e).slice(0, 120));
-    } finally {
-      this.busy = false;
     }
     this.show();
+  },
+};
+
+// Fünfter Bereich (Platz des Chats in der Bereichsleiste): Chat wie bisher,
+// der Bereich einer anderen Erweiterung, eine feste Webseite oder keiner.
+// Höchstens fünf Bereiche – Chat und Ersatz nie gleichzeitig (sonst würden
+// die Knöpfe kleiner). Der Ersatz läuft 1:1 in seinem eigenen Tab (ohne
+// Today-Pane); halo.spaces leiht ihm nur Platz, Farbe und Knopf des Chats.
+const FIFTH_PREF = "extensions.mailcards.fifthSpace"; // chat | addon | web | none
+const FIFTH_ADDON_PREF = "extensions.mailcards.fifthSpaceAddon"; // Name des Bereichs (Knopf-ID)
+const FIFTH_URL_PREF = "extensions.mailcards.fifthSpaceUrl";
+const FIFTH_ICON_PREF = "extensions.mailcards.fifthSpaceIcon"; // mask | original
+const FIFTH_CHOICES = ["chat", "addon", "web", "none"];
+const FIFTH_ICONS = ["mask", "original"];
+
+const FifthSpace = {
+  mode() {
+    const m = Services.prefs.getStringPref(FIFTH_PREF, "chat");
+    return FIFTH_CHOICES.includes(m) ? m : "chat";
+  },
+  icon() {
+    const m = Services.prefs.getStringPref(FIFTH_ICON_PREF, "mask");
+    return FIFTH_ICONS.includes(m) ? m : "mask";
+  },
+  // nur http(s); ohne Schema wird https:// vorangestellt
+  normalizeURL(text) {
+    let t = String(text || "").trim();
+    if (!t) {
+      return "";
+    }
+    if (!/^[a-z][a-z0-9+.-]*:/i.test(t)) {
+      t = "https://" + t;
+    }
+    try {
+      // (im Experiment gibt es kein URL – Thunderbirds eigene Adressprüfung)
+      const u = Services.io.newURI(t);
+      return /^https?$/.test(u.scheme) && u.host.includes(".") ? u.spec : null;
+    } catch {
+      return null;
+    }
+  },
+  url() {
+    return this.normalizeURL(Services.prefs.getStringPref(FIFTH_URL_PREF, "")) || "";
+  },
+  // erlaubt sind nur Bereiche fremder Erweiterungen (Thunderbirds spaces-API)
+  addonSpaces(w) {
+    return (w?.gSpacesToolbar?.spaces || []).filter(s => s.isExtensionSpace && s.button)
+      .map(s => ({ name: s.name, title: s.button.title || s.name, space: s }));
+  },
+  // wirksamer Zustand: Erweiterung fehlt oder Adresse ungültig → wie „keiner“
+  target(w) {
+    const mode = this.mode();
+    if (mode == "addon") {
+      const want = Services.prefs.getStringPref(FIFTH_ADDON_PREF, "");
+      const hit = this.addonSpaces(w).find(s => s.name == want);
+      return hit ? { mode, space: hit.space, title: hit.title } : { mode: "none" };
+    }
+    if (mode == "web") {
+      const url = this.url();
+      return url ? { mode, url, title: Services.io.newURI(url).host.replace(/^www\./, "") } : { mode: "none" };
+    }
+    return { mode };
+  },
+  isTarget(w, target, tab) {
+    if (!tab) {
+      return false;
+    }
+    if (target.mode == "addon") {
+      return !!target.space.tabInSpace(tab);
+    }
+    if (target.mode == "web") {
+      if (tab.mode?.name != "contentTab") {
+        return false;
+      }
+      if (tab.__mcFifth) {
+        return true;
+      }
+      try {
+        return tab.browser?.currentURI?.host == Services.io.newURI(target.url).host;
+      } catch {
+        return false;
+      }
+    }
+    return false;
+  },
+  open(w, target) {
+    const tm = w.document.getElementById("tabmail");
+    if (target.mode == "addon") {
+      w.gSpacesToolbar.openSpace(tm, target.space);
+      return;
+    }
+    const existing = tm.tabInfo.find(t => this.isTarget(w, target, t));
+    if (existing) {
+      tm.switchToTab(existing);
+      return;
+    }
+    // wie eine App: keine Adressleiste; Links auf andere Seiten öffnen im Standardbrowser
+    const tab = tm.openTab("contentTab", { url: target.url, linkHandler: "single-site", background: false });
+    if (tab) {
+      tab.__mcFifth = true;
+    }
+  },
+  attach(w, restorers) {
+    const d = w.document;
+    const chat = d.getElementById("chatButton");
+    const tm = d.getElementById("tabmail");
+    if (!chat || !tm || !w.gSpacesToolbar || w.__mcFifth) {
+      return;
+    }
+    w.__mcFifth = true;
+    const root = d.documentElement;
+    const item = () => d.getElementById("spacesPopupButtonChat");
+    let target = { mode: "chat" };
+    const sync = () => {
+      const on = (target.mode == "addon" || target.mode == "web") && this.isTarget(w, target, tm.currentTabInfo);
+      chat.classList.toggle("current", on || (target.mode == "chat" && w.gSpacesToolbar.currentSpace?.button == chat));
+      root.toggleAttribute("mc-fifth-current", on);
+    };
+    const reset = () => {
+      for (const e of d.querySelectorAll("[mc-fifth-hidden]")) {
+        e.removeAttribute("mc-fifth-hidden");
+      }
+      for (const e of [chat, item()].filter(Boolean)) {
+        e.style.removeProperty("--mc-fifth-img");
+        e.style.removeProperty("--mc-fifth-img-dark");
+        e.removeAttribute("mc-fifth-icon");
+      }
+    };
+    const apply = () => {
+      target = this.target(w);
+      reset();
+      root.setAttribute("mc-fifth", target.mode);
+      const mi = item();
+      if (mi) {
+        mi.hidden = target.mode == "none";
+      }
+      // höchstens fünf Bereiche: Knöpfe fremder Bereiche nie zusätzlich in der
+      // Leiste (sie sind über „Fünfter Bereich: Erweiterung“ und das Bereiche-Menü da)
+      for (const a of this.addonSpaces(w)) {
+        a.space.button.setAttribute("mc-fifth-hidden", "");
+      }
+      d.getElementById("spacesToolbarAddonsOverflowButton")?.setAttribute("mc-fifth-hidden", "");
+      if (target.mode == "addon" || target.mode == "web") {
+        let img = "", dark = "";
+        if (target.mode == "addon") {
+          target.space.menuitem?.setAttribute("mc-fifth-hidden", "");
+          const s = target.space.button.querySelector("img")?.style;
+          img = s?.getPropertyValue("--webextension-toolbar-image") || "";
+          dark = s?.getPropertyValue("--webextension-toolbar-image-dark") || "";
+        } else if (this.icon() == "original") {
+          img = `url("${Services.io.newURI(target.url).resolve("/favicon.ico")}")`;
+        }
+        for (const e of [chat, mi].filter(Boolean)) {
+          e.setAttribute("mc-fifth-icon", this.icon());
+          if (img) {
+            e.style.setProperty("--mc-fifth-img", img);
+          }
+          if (dark) {
+            e.style.setProperty("--mc-fifth-img-dark", dark);
+          }
+        }
+        chat.title = target.title;
+        if (mi) {
+          mi.label = target.title;
+        }
+      } else {
+        // Thunderbirds eigene Beschriftung zurück
+        d.l10n?.translateElements([chat, mi].filter(Boolean));
+      }
+      sync();
+    };
+    const onClick = event => {
+      if (target.mode == "addon" || target.mode == "web") {
+        event.preventDefault();
+        event.stopImmediatePropagation();
+        this.open(w, target);
+      }
+    };
+    // auf der Leiste abfangen: Thunderbirds eigener Klick am Knopf käme sonst zuerst
+    const bar = d.getElementById("spacesToolbar");
+    const onBarClick = event => {
+      if (event.target?.closest?.("#chatButton")) {
+        onClick(event);
+      }
+    };
+    bar.addEventListener("click", onBarClick, true);
+    const onCommand = event => {
+      if (event.target?.id == "spacesPopupButtonChat") {
+        onClick(event);
+      }
+    };
+    d.addEventListener("command", onCommand, true);
+    const monitor = {
+      monitorName: "mcFifthSpace",
+      onTabTitleChanged() {},
+      onTabOpened() {},
+      onTabPersist() {},
+      onTabRestored() {},
+      onTabClosing() {},
+      onTabSwitched: () => w.setTimeout(sync, 0),
+    };
+    tm.registerTabMonitor(monitor);
+    // Bereiche anderer Erweiterungen entstehen erst nach dem Start
+    const addons = d.getElementById("spacesToolbarAddonsContainer");
+    let pending = false;
+    const later = () => {
+      if (!pending) {
+        pending = true;
+        w.setTimeout(() => {
+          pending = false;
+          apply();
+        }, 0);
+      }
+    };
+    const mo = addons ? new w.MutationObserver(later) : null;
+    mo?.observe(addons, { childList: true });
+    const prefs = [FIFTH_PREF, FIFTH_ADDON_PREF, FIFTH_URL_PREF, FIFTH_ICON_PREF];
+    const obs = { observe: later };
+    prefs.forEach(p => Services.prefs.addObserver(p, obs));
+    apply();
+    restorers?.push(() => {
+      bar.removeEventListener("click", onBarClick, true);
+      d.removeEventListener("command", onCommand, true);
+      tm.unregisterTabMonitor(monitor);
+      mo?.disconnect();
+      prefs.forEach(p => Services.prefs.removeObserver(p, obs));
+      reset();
+      if (item()) {
+        item().hidden = false;
+      }
+      root.removeAttribute("mc-fifth");
+      root.removeAttribute("mc-fifth-current");
+      d.l10n?.translateElements([chat, item()].filter(Boolean));
+      delete w.__mcFifth;
+    });
   },
 };
 
@@ -6334,7 +6810,8 @@ function enableCalendarOffline() {
 // mit jedem Update automatisch mit, ohne userChrome.css im Profil. Liegt dort
 // noch eine (ältere, manuell kopierte) userChrome.css dieses Designs, gilt
 // diese und theme.css bleibt aus, damit nichts doppelt greift.
-const THEME_MARKER = "Thunderbird im Stil von Apple Mail";
+// Kopfzeile der eigenen userChrome.css (ältere Fassungen trugen noch den alten Text)
+const THEME_MARKERS = ["halo.spaces – ruhiges Design für Thunderbird", "Thunderbird im Stil von Apple Mail"];
 // Start ohne Aufblitzen (Einstellung, Standard aus): Thunderbird zeichnet das
 // Fenster, bevor Erweiterungen starten – nur eine userChrome.css im Profil gilt
 // von Anfang an. Ist die Option an, schreibt halo.spaces sein Design dorthin
@@ -6440,7 +6917,7 @@ const ThemeSheet = {
             log("theme: eigene userChrome.css (Start ohne Aufblitzen) ist aktuell");
             return;
           }
-        } else if (head.includes(THEME_MARKER)) {
+        } else if (THEME_MARKERS.some(m => head.includes(m))) {
           log("theme: userChrome.css im Profil hat Vorrang");
           return;
         }
@@ -9593,6 +10070,9 @@ class CardEnhancer {
       // später noch (Übersetzung läuft verzögert) – also jedes Mal den
       // Titel aus den Fluent-Argumenten übernehmen
       const plainTitle = space => {
+        if (space.hasAttribute("mc-fifth-icon")) {
+          return; // fünfter Bereich: Titel der Erweiterung bzw. Webseite
+        }
         let name;
         try {
           name = JSON.parse(space.getAttribute("data-l10n-args") || "{}").title;
@@ -10678,6 +11158,14 @@ class CardEnhancer {
       const { cal } = ChromeUtils.importESModule("resource:///modules/calendar/calUtils.sys.mjs");
       const annotate = () => {
         for (const li of list.querySelectorAll("li[calendar-id]")) {
+          // Kästchen wie Apple Kalender: Farbe und passende Hakenfarbe (Thunderbird
+          // rechnet je Kalender Schwarz/Weiß aus) – heller Kalender, dunkler Haken
+          const box = li.querySelector(".calendar-color");
+          if (box && !box.style.getPropertyValue("--mc-cal-back")) {
+            const key = cal.view.formatStringForCSSRule(li.getAttribute("calendar-id"));
+            box.style.setProperty("--mc-cal-back", `var(--calendar-${key}-backcolor)`);
+            box.style.setProperty("--mc-cal-fore", `var(--calendar-${key}-forecolor, white)`);
+          }
           const note = calendarNote(cal.manager.getCalendarById(li.getAttribute("calendar-id")));
           const name = li.querySelector(".calendar-name");
           if (note && name?.getAttribute("title") != note) {
@@ -10695,6 +11183,10 @@ class CardEnhancer {
         delete list.__mcNotes;
         for (const name of list.querySelectorAll(".calendar-name[title]")) {
           name.removeAttribute("title");
+        }
+        for (const box of list.querySelectorAll(".calendar-color")) {
+          box.style.removeProperty("--mc-cal-back");
+          box.style.removeProperty("--mc-cal-fore");
         }
       });
     };
@@ -11060,6 +11552,7 @@ class CardEnhancer {
       hookEscape();
       hookSidebarButton();
       hookSpacesToggle();
+      FifthSpace.attach(w, this.restorers);
       hookTodayToggle();
       hookSplitterReset(w.document);
       hookListHeader();
@@ -12799,7 +13292,9 @@ class CardEnhancer {
       return;
     }
     panel.__mcEverywhere = true;
-    for (const box of [panel, ...panel.querySelectorAll("[mode]")]) {
+    // (der Aufgabenteil unten bleibt außen vor: die Today-Pane zeigt überall nur
+    // Minikalender und Termine, wie in der Mail)
+    for (const box of [panel, ...panel.querySelectorAll("[mode]")].filter(b => b.id != "todo-tab-panel")) {
       const modes = box.getAttribute("mode").split(",");
       const widths = (box.getAttribute("modewidths") || "").split(",");
       const pairs = modes.map((m, i) => [m, widths[i] || "200"]).filter(([m]) => !(box == panel && m == "calendar"));
@@ -12912,9 +13407,7 @@ class CardEnhancer {
 
   // Beschreibung im Termin-Fenster: Systemschrift 13 px als Benutzer-
   // Stylesheet im Editor-Dokument – kein <style> und kein Inline-Stil, die
-  // landeten sonst im gespeicherten Text der Beschreibung. Erst wenn
-  // Thunderbird den Editor eingerichtet hat (sein editorContent.css hängt
-  // dann im Dokument), höchstens 5 s warten
+  // landeten sonst im gespeicherten Text der Beschreibung
   styleItemDescription(iw, tries = 0) {
     try {
       if (iw.closed || !Services.prefs.getBoolPref("extensions.mailcards.bundledTheme", true)) {
@@ -12922,16 +13415,16 @@ class CardEnhancer {
       }
       const cw = iw.document.getElementById("item-description")?.contentWindow;
       const doc = cw?.document;
-      const ready = doc?.head?.querySelector('link[href*="editorContent.css"]');
-      if (!ready && tries < 20) {
+      // gleich setzen (ab Thunderbird 160 hängt editorContent.css nicht mehr als
+      // <link> im Dokument, auf das bisher gewartet wurde); noch 5 s nachsehen,
+      // ob der Editor sein Dokument ersetzt hat, dann dort erneut
+      if (doc?.body && !doc.__mcDescSheet) {
+        cw.windowUtils.loadSheetUsingURIString(`resource://mailcards/event-description.css?v=${extensionVersion}`, cw.windowUtils.USER_SHEET);
+        doc.__mcDescSheet = true;
+      }
+      if (tries < 20) {
         iw.setTimeout(() => this.styleItemDescription(iw, tries + 1), 250);
-        return;
       }
-      if (!doc || doc.__mcDescSheet) {
-        return;
-      }
-      cw.windowUtils.loadSheetUsingURIString(`resource://mailcards/event-description.css?v=${extensionVersion}`, cw.windowUtils.USER_SHEET);
-      doc.__mcDescSheet = true;
     } catch (e) {
       log("item description sheet error", String(e).slice(0, 120));
     }
@@ -13160,8 +13653,38 @@ class CardEnhancer {
         const st = Weather.state();
         return st.status == "ok"
           ? { ok: true, text: (st.place || tr("Current location")) + (st.temp != null ? ` · ${Math.round(st.temp)} °C` : "") }
-          : { ok: false, status: st.status, text: st.status == "denied" ? tr("Location access is off – allow it in System Settings or enter a city")
-            : st.status == "notfound" ? tr("City not found") : tr("Location unavailable – enter a city") };
+          : { ok: false, status: st.status, text: st.status == "denied" ? tr("Location access is off. Allow it in System Settings or enter a city.")
+            : st.status == "notfound" ? tr("City not found") : tr("Location unavailable. Enter a city.") };
+      },
+      // Begrüßung: Ortsvorschläge beim Tippen und gewählter Ort (mit Koordinaten)
+      searchPlaces: text => Weather.search(w, text),
+      choosePlace: async place => {
+        await Weather.choose(place);
+        Services.prefs.setBoolPref(WEATHER_PREF, true);
+        await Weather.refresh(true);
+        const st = Weather.state();
+        return st.status == "ok"
+          ? { ok: true, text: (st.place || "") + (st.temp != null ? ` · ${Math.round(st.temp)} °C` : "") }
+          : { ok: false, text: tr("Location unavailable. Enter a city.") };
+      },
+      // Begrüßung: fünfter Bereich (dieselben Prefs wie die Einstellungsseite)
+      fifthAddons: () => FifthSpace.addonSpaces(Services.wm.getMostRecentWindow("mail:3pane")),
+      setFifthSpace: (mode, extra = "") => {
+        if (mode == "web") {
+          const url = FifthSpace.normalizeURL(extra);
+          if (!url) {
+            return false;
+          }
+          Services.prefs.setStringPref(FIFTH_URL_PREF, url);
+        } else if (mode == "addon") {
+          Services.prefs.setStringPref(FIFTH_ADDON_PREF, extra);
+        }
+        if (mode == "chat") {
+          Services.prefs.clearUserPref(FIFTH_PREF);
+        } else {
+          Services.prefs.setStringPref(FIFTH_PREF, mode);
+        }
+        return true;
       },
       // Systemeinstellung der Ortung (macOS, Windows; Linux: kein einheitlicher Ort)
       locationSettingsURL: Services.appinfo.OS == "Darwin" ? "x-apple.systempreferences:com.apple.preference.security?Privacy_LocationServices"
@@ -13187,15 +13710,11 @@ class CardEnhancer {
     w.setTimeout(wire, 30);
   }
 
-  // Begrüßung: „Wetter in der Today-Pane?“ – Aktueller Standort / Stadt / Nein.
-  // Standort: gleich orten (macOS fragt dabei nach den Ortungsdiensten); gesperrt
-  // oder ohne Ergebnis → Hinweis mit Knopf zur Systemeinstellung und Stadtfeld
-  wireWelcomeWeather(hw, api) {
+  // Begrüßung, so wenig auf einmal wie möglich (KISS): je Frage erst Ja/Nein;
+  // erst nach dem Klick gleiten die Einzelheiten ein, das Fenster wächst sanft
+  // mit. Gemeinsamer Aufbau für Wetter und Chat
+  welcomeStep(hw, { id, question, yes, no, chosen }) {
     const doc = hw.document;
-    const note = doc.getElementById("platform-note");
-    if (!note || doc.getElementById("weather")) {
-      return;
-    }
     const el = (tag, cls, text) => {
       const e = doc.createElement(tag);
       if (cls) e.className = cls;
@@ -13203,76 +13722,242 @@ class CardEnhancer {
       return e;
     };
     const box = el("section", "weather");
-    box.id = "weather";
-    const question = el("p", "q", tr("Weather in the Today Pane?"));
-    const hint = el("p", "small", tr("The symbol next to the title then shows the weather – asks open-meteo.com about every 30 minutes."));
+    box.id = id;
+    const head = el("div", "ask");
+    head.append(el("p", "q", question));
+    const choices = el("div", "choices yesno");
+    const yesBtn = el("button", "capsule", tr("Yes"));
+    const noBtn = el("button", "capsule", tr("No"));
+    choices.append(yesBtn, noBtn);
+    head.append(choices);
+    // aufklappbarer Teil (Höhe über das Raster, Fenster folgt Bild für Bild)
+    const more = el("div", "more");
+    const inner = el("div", "more-inner");
+    more.append(inner);
+    box.append(head, more);
+    const fit = () => {
+      const body = doc.body, style = hw.getComputedStyle(body);
+      const need = Math.ceil([...body.children].filter(e => !e.hidden).reduce((h, e) => Math.max(h, e.getBoundingClientRect().bottom), 0)
+        + parseFloat(style.paddingBottom));
+      if (Math.abs(need - hw.innerHeight) >= 1) {
+        hw.resizeBy(0, need - hw.innerHeight);
+      }
+    };
+    const follow = () => {
+      const end = Date.now() + 420;
+      const step = () => {
+        fit();
+        if (Date.now() < end && !hw.closed) {
+          hw.requestAnimationFrame(step);
+        }
+      };
+      hw.requestAnimationFrame(step);
+    };
+    const pick = (group, button) => {
+      for (const b of group.children) {
+        b.classList.toggle("chosen", b == button);
+      }
+    };
+    const open = show => {
+      more.classList.toggle("open", show);
+      follow();
+    };
+    if (chosen) {
+      pick(choices, chosen == "yes" ? yesBtn : noBtn);
+    }
+    yesBtn.addEventListener("click", () => {
+      pick(choices, yesBtn);
+      yes?.();
+    });
+    noBtn.addEventListener("click", () => {
+      pick(choices, noBtn);
+      no?.();
+    });
+    return { box, inner, el, open, pick, follow };
+  }
+
+  // Wetter: Ja → „Mein Standort“ oder „Stadt …“ (Vorschläge beim Tippen); Nein → aus
+  wireWelcomeWeather(hw, api) {
+    const doc = hw.document;
+    const note = doc.getElementById("platform-note");
+    if (!note || doc.getElementById("weather")) {
+      return;
+    }
+    let step = null;
+    step = this.welcomeStep(hw, {
+      id: "weather",
+      question: tr("Weather in the Today Pane?"),
+      yes: () => step.open(true),
+      no: async () => {
+        step.open(false);
+        await api.setWeather(false);
+      },
+    });
+    const { inner, el, pick, follow } = step;
+    const hint = el("p", "small", tr("The symbol next to the title then shows the weather. Asks open-meteo.com about every 30 minutes."));
     const choices = el("div", "choices");
     const here = el("button", "capsule", tr("My Location"));
     const city = el("button", "capsule", tr("City …"));
-    const no = el("button", "capsule", tr("No"));
-    choices.append(here, city, no);
+    choices.append(here, city);
     const cityRow = el("div", "city");
     cityRow.hidden = true;
     const input = el("input");
     input.type = "text";
     input.placeholder = tr("e.g. Vienna");
-    const ok = el("button", "capsule", tr("OK"));
-    cityRow.append(input, ok);
+    input.spellcheck = false;
+    cityRow.append(input);
+    const list = el("div", "suggest");
+    list.hidden = true;
     const status = el("p", "small status");
     const settingsBtn = el("button", "capsule", tr("Open System Settings"));
     settingsBtn.hidden = true;
-    box.append(question, hint, choices, cityRow, status, settingsBtn);
-    note.after(box);
-    const resize = () => {
-      const need = doc.documentElement.scrollHeight - hw.innerHeight;
-      if (need > 0) {
-        hw.resizeBy(0, need);
-      }
-    };
-    const pick = button => {
-      for (const b of choices.children) {
-        b.classList.toggle("chosen", b == button);
-      }
-    };
+    inner.append(hint, choices, cityRow, list, status, settingsBtn);
+    note.after(step.box);
     const result = r => {
       status.textContent = r.text;
       status.classList.toggle("bad", !r.ok);
       settingsBtn.hidden = !(r.status == "denied" && api.locationSettingsURL);
       if (!r.ok) {
         cityRow.hidden = false;
-        pick(city);
+        pick(choices, city);
       }
-      resize();
+      follow();
     };
     here.addEventListener("click", async () => {
-      pick(here);
+      pick(choices, here);
       cityRow.hidden = true;
+      list.hidden = true;
       status.textContent = tr("Locating …");
+      follow();
       result(await api.setWeather(true, ""));
     });
     city.addEventListener("click", () => {
-      pick(city);
+      pick(choices, city);
       cityRow.hidden = false;
       input.focus();
-      resize();
+      follow();
     });
-    const useCity = async () => {
-      if (input.value.trim()) {
+    // Vorschläge beim Tippen; ein Klick übernimmt den Ort samt Koordinaten
+    let timer = null, seq = 0;
+    input.addEventListener("input", () => {
+      hw.clearTimeout(timer);
+      const text = input.value.trim();
+      if (text.length < 2) {
+        list.hidden = true;
+        follow();
+        return;
+      }
+      timer = hw.setTimeout(async () => {
+        const mine = ++seq;
+        const hits = await api.searchPlaces(text);
+        if (mine != seq || hw.closed) {
+          return;
+        }
+        list.replaceChildren(...hits.map(p => {
+          const b = el("button", "suggestion", p.label);
+          b.addEventListener("click", async () => {
+            input.value = p.label;
+            list.hidden = true;
+            status.textContent = tr("Searching …");
+            follow();
+            result(await api.choosePlace(p));
+          });
+          return b;
+        }));
+        list.hidden = !hits.length;
+        follow();
+      }, 250);
+    });
+    input.addEventListener("keydown", async e => {
+      if (e.key == "Enter" && input.value.trim()) {
+        list.hidden = true;
         status.textContent = tr("Searching …");
+        follow();
         result(await api.setWeather(true, input.value.trim()));
       }
-    };
-    ok.addEventListener("click", useCity);
-    input.addEventListener("keydown", e => e.key == "Enter" && useCity());
-    no.addEventListener("click", async () => {
-      pick(no);
-      cityRow.hidden = true;
-      settingsBtn.hidden = true;
-      status.textContent = "";
-      await api.setWeather(false);
-      resize();
     });
     settingsBtn.addEventListener("click", () => api.openURL(api.locationSettingsURL));
+  }
+
+  // Chat: Ja (vorgewählt, wie bisher) → Chat bleibt; Nein → stattdessen Webseite,
+  // Erweiterung (nur wenn eine einen eigenen Bereich mitbringt) oder nichts
+  wireWelcomeFifth(hw, api) {
+    const doc = hw.document;
+    const after = doc.getElementById("weather") || doc.getElementById("platform-note");
+    if (!after || doc.getElementById("fifth")) {
+      return;
+    }
+    const addons = api.fifthAddons();
+    let step = null, status = null;
+    step = this.welcomeStep(hw, {
+      id: "fifth",
+      question: tr("Do you use Chat?"),
+      chosen: "yes",
+      yes: () => {
+        api.setFifthSpace("chat");
+        step.open(false);
+      },
+      no: () => {
+        api.setFifthSpace("none");
+        step.pick(choices, nothing);
+        webRow.hidden = true;
+        status.textContent = "";
+        step.open(true);
+      },
+    });
+    const { inner, el, pick, follow } = step;
+    const hint = el("p", "small", tr("Instead in its place:"));
+    const choices = el("div", "choices");
+    const web = el("button", "capsule", tr("Website …"));
+    const addon = el("button", "capsule", tr("Add-on"));
+    const nothing = el("button", "capsule", tr("Nothing"));
+    if (!addons.length) {
+      addon.disabled = true;
+      addon.title = tr("No add-on with its own space installed");
+    }
+    choices.append(web, addon, nothing);
+    const webRow = el("div", "city");
+    webRow.hidden = true;
+    const input = el("input");
+    input.type = "url";
+    input.placeholder = tr("e.g. calendar.example.com");
+    input.spellcheck = false;
+    const ok = el("button", "capsule", tr("OK"));
+    webRow.append(input, ok);
+    status = el("p", "small status");
+    inner.append(hint, choices, webRow, status);
+    after.after(step.box);
+    nothing.addEventListener("click", () => {
+      pick(choices, nothing);
+      webRow.hidden = true;
+      status.textContent = "";
+      api.setFifthSpace("none");
+      follow();
+    });
+    addon.addEventListener("click", () => {
+      pick(choices, addon);
+      webRow.hidden = true;
+      // die erste Erweiterung mit eigenem Bereich; weitere zur Wahl in den Einstellungen
+      api.setFifthSpace("addon", addons[0].name);
+      status.textContent = addons[0].title;
+      status.classList.remove("bad");
+      follow();
+    });
+    web.addEventListener("click", () => {
+      pick(choices, web);
+      webRow.hidden = false;
+      status.textContent = "";
+      input.focus();
+      follow();
+    });
+    const useWeb = () => {
+      const fine = api.setFifthSpace("web", input.value);
+      status.textContent = fine ? tr("Saved") : tr("Not a valid web address");
+      status.classList.toggle("bad", !fine);
+      follow();
+    };
+    ok.addEventListener("click", useWeb);
+    input.addEventListener("keydown", e => e.key == "Enter" && useWeb());
   }
 
   // Texte setzen und Knöpfe verbinden (aus der Erweiterung heraus)
@@ -13288,14 +13973,13 @@ class CardEnhancer {
     const note = $("platform-note");
     const lines = [];
     if (api.welcome) {
-      lines.push(tr("Thunderbird now looks calm and tidy, like Apple Mail, Calendar and Contacts – with sender pictures, cards and coloured spaces."));
+      lines.push(tr("Thunderbird now looks calm and tidy."));
       if (api.themeSwitched) {
-        lines.push(tr("The appearance was set to “System – automatic”, so light and dark follow your system."));
+        lines.push(tr("Light and dark now follow your system."));
       }
-      lines.push(tr("All options are in Settings → halo.spaces."));
     }
     if (api.platformNote) {
-      lines.push(tr("halo.spaces is made for macOS – on Windows and Linux it is still being tested. If something looks odd, we'd love a quick note!"));
+      lines.push(tr("halo.spaces is made for macOS. On Windows and Linux it is still being tested. If something looks odd, we'd love a quick note!"));
     }
     if (note && lines.length) {
       note.replaceChildren(...lines.map(text => {
@@ -13308,6 +13992,7 @@ class CardEnhancer {
     }
     if (api.welcome) {
       this.wireWelcomeWeather(hw, api);
+      this.wireWelcomeFifth(hw, api);
     }
     if (api.welcome) {
       // Begrüßung: nur „Einstellungen öffnen“ (hervorgehoben) und „Weiter“
@@ -13328,7 +14013,7 @@ class CardEnhancer {
         label.textContent = tr("Installing …");
         try {
           await install();
-          label.textContent = tr("Installed – active in a moment");
+          label.textContent = tr("Installed. Active in a moment.");
         } catch {
           label.textContent = tr("Installation failed");
           button.disabled = false;
@@ -13347,7 +14032,7 @@ class CardEnhancer {
         button.classList.add("available");
         label.textContent = tr("Install version {v}", { v: result.version });
       } else if (result.error) {
-        label.textContent = tr("No connection – try again");
+        label.textContent = tr("No connection. Try again.");
       } else {
         label.textContent = tr("halo.spaces is up to date");
         status.textContent = "✓";
@@ -15833,6 +16518,10 @@ const SETTINGS = {
   undoSend: [UNDO_SEND_PREF, "int", 10],
   weather: [WEATHER_PREF, "bool", false],
   weatherPlace: [WEATHER_PLACE_PREF, "string", ""],
+  fifthSpace: [FIFTH_PREF, "string", "chat"],
+  fifthSpaceAddon: [FIFTH_ADDON_PREF, "string", ""],
+  fifthSpaceUrl: [FIFTH_URL_PREF, "string", ""],
+  fifthSpaceIcon: [FIFTH_ICON_PREF, "string", "mask"],
 };
 // Voraussetzungen einzelner Optionen (needs in options/sections.js)
 function settingNeeds() {
@@ -15863,16 +16552,26 @@ this.mailCards = class extends ExtensionCommon.ExtensionAPI {
           for (const [key, spec] of Object.entries(SETTINGS)) {
             out[key] = readSetting(spec);
           }
+          // fünfter Bereich: Bereiche fremder Erweiterungen zur Auswahl
+          out.fifthSpaceAddons = FifthSpace.addonSpaces(Services.wm.getMostRecentWindow("mail:3pane"))
+            .map(a => ({ value: a.name, label: a.title }));
           // wie im Hilfe-Fenster: eingerichtete Fotos gelten auch ohne Pref als an
           out.macContactPhotos = await MacPhotos.enabled();
           // Wetter: Ort und Zustand für die Zeile unter dem Ortsfeld
           const ws = Weather.state();
           out.weatherStatus = !out.weather ? "" : ws.status == "ok"
             ? (ws.place || tr("Current location")) + (ws.temp != null ? ` · ${Math.round(ws.temp)} °C` : "")
-            : ws.status == "denied" ? tr("Location access is off – allow it in System Settings or enter a city")
-            : ws.status == "unavailable" ? tr("Location unavailable – enter a city")
+            : ws.status == "denied" ? tr("Location access is off. Allow it in System Settings or enter a city.")
+            : ws.status == "unavailable" ? tr("Location unavailable. Enter a city.")
             : ws.status == "notfound" ? tr("City not found") : "";
           return out;
+        },
+        // Wetter: Ortsvorschläge beim Tippen und gewählten Ort übernehmen
+        async searchPlaces(text) {
+          return Weather.search(Services.wm.getMostRecentWindow("mail:3pane"), text);
+        },
+        async choosePlace(place) {
+          await Weather.choose(place);
         },
         async setSetting(key, value) {
           const spec = SETTINGS[key];
@@ -15880,6 +16579,14 @@ this.mailCards = class extends ExtensionCommon.ExtensionAPI {
             throw new Error(`unknown setting ${key}`);
           }
           const [pref, type, def] = spec;
+          // fünfter Bereich: nur bekannte Werte, Adresse nur http(s)
+          if (key == "fifthSpace" && !FIFTH_CHOICES.includes(value)) throw new Error("not a choice");
+          if (key == "fifthSpaceIcon" && !FIFTH_ICONS.includes(value)) throw new Error("not a choice");
+          if (key == "fifthSpaceUrl") {
+            const url = FifthSpace.normalizeURL(value);
+            if (url === null) throw new Error("not a web address");
+            value = url;
+          }
           // Kontaktfotos immer ausdrücklich speichern: ohne Wert gälten sie als
           // an, sobald es mail-cards-photos/index.json gibt (MacPhotos.enabled)
           if ((value === null || value === def) && key != "macContactPhotos") {
