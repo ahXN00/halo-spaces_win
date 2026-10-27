@@ -1838,7 +1838,11 @@ class ConversationCards {
   // sonst blitzte kurz die Einzelmail bzw. die Zusammenfassung auf
   async show(hdr, { thread = false } = {}) {
     const token = ++this.seq;
-    if (!hdr || !this.enabled()) {
+    const single = hdr && hdr.messageId == this.single;
+    if (!single) {
+      this.single = null;
+    }
+    if (!hdr || !this.enabled() || single) {
       this.reveal();
       return;
     }
@@ -1882,7 +1886,7 @@ class ConversationCards {
     const count = doc.createElementNS(X, "div");
     count.className = "mc-conv-count";
     count.textContent = tr("{n} messages", { n: messages.length });
-    head.append(title, count);
+    head.append(title, count, this.addonButtons(selected));
     box.append(head);
     if (!indexed) {
       const note = doc.createElementNS(X, "div");
@@ -1930,6 +1934,52 @@ class ConversationCards {
     }
   }
 
+  // Knöpfe anderer Erweiterungen (z. B. Übersetzen) hängt Thunderbird nur an die
+  // Einzelansicht. In der Konversation stehen sie daher als Kopie im Kopf: ein
+  // Klick zeigt die gewählte Mail einzeln und löst dort den echten Knopf aus
+  addonButtons(selected) {
+    const doc = this.win.document;
+    const row = doc.createElementNS("http://www.w3.org/1999/xhtml", "div");
+    row.className = "mc-conv-addons";
+    const mdoc = this.win.messageBrowser?.contentDocument;
+    for (const orig of mdoc?.querySelectorAll("#header-view-toolbar .webextension-action:not([hidden])") || []) {
+      const btn = doc.createElementNS("http://www.w3.org/1999/xhtml", "button");
+      btn.className = "mc-conv-addon";
+      btn.title = orig.getAttribute("tooltiptext") || orig.getAttribute("label") || "";
+      btn.setAttribute("aria-label", orig.getAttribute("label") || btn.title);
+      const img = orig.style.getPropertyValue("--webextension-toolbar-image") || orig.style.getPropertyValue("--webextension-menupanel-image");
+      if (img) {
+        btn.style.setProperty("--mc-addon-icon", img);
+      }
+      btn.addEventListener("click", () => {
+        const uri = selected.folder.getUriForMsg(selected);
+        // die Mail selbst in der Liste wählen (Faden aufgeklappt) – nur dann kennt
+        // die Erweiterung sie als angezeigte Mail; diese eine bleibt ohne Konversation
+        this.single = selected.messageId;
+        this.hide();
+        const index = this.win.gDBView?.findIndexOfMsgHdr(selected, true) ?? -1;
+        if (index >= 0) {
+          this.win.threadTree.selectedIndex = index;
+        }
+        // Einzelansicht der gewählten Mail abwarten, dann den echten Knopf drücken
+        const go = (tries = 0) => {
+          const mw = this.win.messageBrowser?.contentWindow;
+          const real = mw?.document.getElementById(orig.id);
+          const body = mw?.document.getElementById("messagepane")?.contentDocument;
+          if (mw?.gMessageURI == uri && real && !real.disabled && body?.readyState == "complete") {
+            // die Erweiterung hängt sich erst nach dem Laden an die Mail
+            this.win.setTimeout(() => real.click(), 1000);
+          } else if (tries < 30) {
+            this.win.setTimeout(() => go(tries + 1), 100);
+          }
+        };
+        go();
+      });
+      row.append(btn);
+    }
+    return row;
+  }
+
   loadCard(card) {
     const doc = this.win.document;
     const hdr = card.__mcHdr;
@@ -1959,6 +2009,8 @@ class ConversationCards {
         return;
       }
       card.__mcLoaded = true;
+      // Knöpfe anderer Erweiterungen wirken hier nicht (Thunderbird kennt die Karte nicht) – sie stehen im Konversationskopf
+      browserEl.contentDocument.documentElement.setAttribute("mc-conv-card", "");
       try {
         cw.displayMessage(hdr.folder.getUriForMsg(hdr), this.win.gViewWrapper);
       } catch (e) {

@@ -1561,7 +1561,14 @@ findbar .findbar-textbox:focus {
 /* Knöpfe im Mailkopf entfallen – sie sitzen jetzt oben in der Toolbar.
    Ausnahme: Nachricht im eigenen Fenster (dort gibt es keine Mail-Toolbar,
    die Erweiterung setzt mc-standalone) */
-:root:not([mc-standalone]) #header-view-toolbox {
+:root:not([mc-standalone]) #header-view-toolbox:not(:has(.webextension-action:not([hidden]))) {
+  display: none !important;
+}
+
+/* Knöpfe anderer Erweiterungen (z. B. Übersetzen) bleiben im Mailkopf –
+   oben gibt es für sie keinen Platz; nur die eigenen Knöpfe entfallen */
+:root:not([mc-standalone]) #header-view-toolbar > :not(.webextension-action),
+:root[mc-conv-card] #header-view-toolbox {
   display: none !important;
 }
 
@@ -3212,8 +3219,48 @@ message-pane.mc-conv-pending > :is(#messageBrowser, #multiMessageBrowser) {
 }
 
 #mcConversation .mc-conv-head {
+  position: relative;
   padding: 16px 20px 10px;
   border-bottom: var(--mt-hairline) solid var(--mt-separator);
+}
+
+/* Knöpfe anderer Erweiterungen rechts neben dem Titel (wie im Mailkopf) */
+#mcConversation .mc-conv-addons {
+  position: absolute;
+  top: 14px;
+  inset-inline-end: 20px;
+  display: flex;
+  gap: 4px;
+}
+
+#mcConversation:has(.mc-conv-addon) .mc-conv-head {
+  padding-inline-end: 80px;
+}
+
+#mcConversation .mc-conv-addon {
+  appearance: none;
+  width: 32px;
+  height: 28px;
+  border: none;
+  border-radius: 999px;
+  background-color: var(--mt-control);
+  color: var(--mt-text-secondary);
+}
+
+#mcConversation .mc-conv-addon::before {
+  content: "";
+  display: block;
+  width: 16px;
+  height: 16px;
+  margin: auto;
+  background-image: var(--mc-addon-icon);
+  background-size: contain;
+  -moz-context-properties: fill, fill-opacity;
+  fill: currentColor;
+}
+
+#mcConversation .mc-conv-addon:hover {
+  background-color: var(--mt-control-hover);
 }
 
 #mcConversation .mc-conv-title {
