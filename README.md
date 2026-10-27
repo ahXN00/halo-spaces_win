@@ -22,7 +22,7 @@ and an extension for the things CSS alone can't do.
 Released under the Mozilla Public License 2.0
 
 <p align="center">
-  <img src="screenshots/mail.png" alt="halo.spaces – mail with Today pane" width="90%">
+  <img src="screenshots/mail-inbox.png" alt="halo.spaces – mail with Today pane" width="90%">
 </p>
 
 ---------------------------------------------------------------
@@ -39,8 +39,8 @@ Features
 - Automatic updates via GitHub
 
 <p align="center">
-  <img src="screenshots/calendar.png" alt="Calendar month view with emojis before event titles" width="49%">
-  <img src="screenshots/addressbook.png" alt="Address book" width="49%">
+  <img src="screenshots/calendar-month.png" alt="Calendar month view with emojis before event titles" width="49%">
+  <img src="screenshots/addressbook-contacts.png" alt="Address book" width="49%">
 </p>
 
 <p align="center">
