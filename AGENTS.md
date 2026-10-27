@@ -264,6 +264,18 @@ Die Kommunikation mit Nutzern auf GitHub übernimmt der Agent selbstständig.
   Request vorschlagen; Probleme (gleiche Add-on-ID, fehlende Lizenzhinweise)
   freundlich ansprechen. Gesprächsfaden mit dem Windows-Fork
   `ahXN00/halo-spaces_win`: Issue #6.
+- **Automatisch nachsehen:** Nach jeder eigenen Antwort auf GitHub
+  dranbleiben, bis der Faden erledigt ist. Pull Requests abonnieren
+  (in Cloud-Sessions `subscribe_pr_activity`; Kommentare, Pushes und Merge
+  wecken die Sitzung dann selbst). Issues und Forks melden sich nicht von
+  selbst – dafür eine Prüfung einplanen (in Cloud-Sessions `send_later`):
+  die erste etwa 1 Stunde nach der letzten Aktivität, danach alle
+  4–6 Stunden. Jede Prüfung: neue Issues/PRs, Antworten in offenen Fäden,
+  Stand der bekannten Forks; Antworten gleich beantworten. Ohne Neues still
+  neu einplanen; nach 3 leeren Prüfungen in Folge aufhören und das dem
+  Maintainer einmal kurz sagen. Neue Aktivität setzt den Zähler zurück.
+  Der Maintainer erfährt im Gespräch nur, was neu ist oder seine
+  Entscheidung braucht (Mergen, Code übernehmen, Design-Fragen).
 - **Ton und Inhalt:** Englisch, freundlich, knapp, ohne Fachjargon des
   Codes, wo es nicht nötig ist; Rückfragen konkret stellen. Nie auf die
   private Aufgabenliste verweisen, keine Interna (Testrechner, VM, Tokens)
