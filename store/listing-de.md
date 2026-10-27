@@ -9,22 +9,22 @@ Ein ruhiges, aufgeräumtes Design im Stil von macOS für Thunderbird: farbige Be
 <b>Mail</b>
 <ul>
 <li>Mailkarten mit zweizeiliger Vorschau und Absenderbildern: aus dem Adressbuch, der macOS-Kontakte-App (optional), dem BIMI-Logo oder Website-Symbol des Absenders, sonst Initialen</li>
-<li>Wie in Apple Mail: Löschen, Antworten, Allen antworten und Weiterleiten in einer kleinen Leiste unter dem Mailkopf, wenn man über die Mail fährt</li>
-<li>Ganze Konversationen wie in Apple Mail: empfangene Mails und eigene Antworten aus „Gesendet“, neueste oben, jede vollständig (abschaltbar)</li>
-<li>Mailkopf wie in Apple Mail: Absenderbild, Ordner und Uhrzeit, Verteiler-Hinweis mit Abmelden, der Knopf verschwindet nach der Abmeldung</li>
-<li>Mails in der Systemschrift wie bei Apple Mail (Mac: SF Pro, Windows: Segoe UI, Linux: Schrift der Oberfläche)</li>
+<li>Löschen, Antworten, Allen antworten und Weiterleiten in einer kleinen Leiste unter dem Mailkopf, wenn man über die Mail fährt</li>
+<li>Ganze Konversationen: empfangene Mails und eigene Antworten aus „Gesendet“, neueste oben, jede vollständig (abschaltbar)</li>
+<li>Übersichtlicher Mailkopf: Absenderbild, Ordner und Uhrzeit, Verteiler-Hinweis mit Abmelden, der Knopf verschwindet nach der Abmeldung</li>
+<li>Mails in der Systemschrift (Mac: SF Pro, Windows: Segoe UI, Linux: Schrift der Oberfläche)</li>
 <li>Gemeinsame Posteingänge, der Posteingang immer zuerst, das Suchfeld oben rechts – es sucht im gewählten Ordner, aus einem Sammelordner in allen Postfächern</li>
-<li>Kartenansicht oder klassische Tabelle in einem Menü; auf Wunsch ungelesene Mails zart in der Akzentfarbe hinterlegt; beantwortete und weitergeleitete Mails mit kleinem Pfeil wie in Apple Mail</li>
-<li>Schreiben wie in Apple Mail: Symbolleiste nur mit Symbolen, runder Sendeknopf, Formatleiste bei Bedarf, Anhänge als Kacheln, Weiterleitung mit ruhigem Kopf</li>
+<li>Kartenansicht oder klassische Tabelle in einem Menü; auf Wunsch ungelesene Mails zart in der Akzentfarbe hinterlegt; beantwortete und weitergeleitete Mails mit kleinem Pfeil</li>
+<li>Ruhiges Schreibfenster: Symbolleiste nur mit Symbolen, runder Sendeknopf, Formatleiste bei Bedarf, Anhänge als Kacheln, Weiterleitung mit ruhigem Kopf</li>
 </ul>
 
 <b>Kalender und Aufgaben</b>
 <ul>
 <li>Umschalter für Tag, Woche, Mehrere Wochen und Monat in der Titelleiste, Monatsansicht ohne Scrollbalken</li>
 <li>Schnellfenster für Termine: einfach schreiben – „morgen 12:30 für 90 min“, „Fr 9–11“. Auch ein Doppelklick im Kalender öffnet es</li>
-<li>Terminfenster wie in Apple Kalender: Titel oben, Karten für Zeit, Ort, Teilnehmer und Kalender, Notizen unten, ein Streifen in der Kalenderfarbe; getrennte Popover für Datum und Uhrzeit, Stunden und Minuten mit dem Mausrad, die Dauer bleibt erhalten</li>
+<li>Übersichtliches Terminfenster: Titel oben, Karten für Zeit, Ort, Teilnehmer und Kalender, Notizen unten, ein Streifen in der Kalenderfarbe; getrennte Popover für Datum und Uhrzeit, Stunden und Minuten mit dem Mausrad, die Dauer bleibt erhalten</li>
 <li>Aufgaben als Liste mit Details rechts oder als Tabelle; Filter in einem Menü neben dem Suchfeld</li>
-<li>Erinnerungen wie in Apple Kalender, mit Kalendersymbol für Monat und Tag</li>
+<li>Ruhige Erinnerungen mit Kalendersymbol für Monat und Tag</li>
 <li>Passende Emojis vor Termintiteln (Geburtstag, Zahnarzt, Training …), mit eigenen Stichwörtern</li>
 <li>Geburtstage aus den Adressbüchern als eigener, schreibgeschützter Kalender</li>
 </ul>
@@ -39,7 +39,7 @@ Ein ruhiges, aufgeräumtes Design im Stil von macOS für Thunderbird: farbige Be
 <li>Farbige Bereiche für Mail, Kontakte, Kalender, Aufgaben und Chat, alle mit denselben Kanten bei Toolbar und Seitenleiste</li>
 <li>Hell und dunkel folgen dem System, die Akzentfarbe folgt macOS</li>
 <li>Keine Scrollbalken – Scrollen geht weiterhin mit Mausrad, Trackpad und Tastatur</li>
-<li>Gemeinsames Adressbuch: Doppelte zusammengeführt, Kontobezeichnungen in den Kontofarben, Karten nur mit Name oder Firma; Kontaktfotos mit rundem Ausschnitt und Zoom-Regler wie in Apple Kontakte</li>
+<li>Gemeinsames Adressbuch: Doppelte zusammengeführt, Kontobezeichnungen in den Kontofarben, Karten nur mit Name oder Firma; Kontaktfotos mit rundem Ausschnitt und Zoom-Regler</li>
 <li>Nachfragen erscheinen wie unter macOS als Kachel oben im Fenster, Dialoge ohne Titelleiste (abschaltbar)</li>
 <li>Berücksichtigt „Kontrast erhöhen“ aus den Bedienungshilfen von macOS</li>
 <li>Einstellungen → halo.spaces: alle Optionen in Thunderbirds Einstellungen, neben Kontoeinstellungen und Add-ons, die sich jetzt ebenfalls dort öffnen; eine kurze Begrüßung nach der Installation zeigt den Weg</li>
@@ -50,6 +50,5 @@ Ein ruhiges, aufgeräumtes Design im Stil von macOS für Thunderbird: farbige Be
 
 Gemacht für macOS. Windows und Linux funktionieren, dort sehen Fensterknöpfe und einige Abstände anders aus.
 
-halo.spaces ist ein unabhängiges Projekt und steht in keiner Verbindung zu Apple Inc.
 
 Quellcode, Fehlermeldungen und Versionshinweise: <a href="https://github.com/sruf79/halo-spaces">github.com/sruf79/halo-spaces</a>

@@ -259,11 +259,11 @@ const DE = {
   "Time to take a sent message back.": "Zeit, um eine gesendete Mail zurückzuholen.",
   "Only from the sender’s own website.": "Nur von der eigenen Webseite des Absenders.",
   "Favicon or BIMI logo of the sender’s domain. Off: no outside requests.": "Favicon oder BIMI-Logo der Absenderdomain. Aus: keine Anfragen nach außen.",
-  "In dark mode, like Apple Mail.": "Im Dunkelmodus, wie Apple Mail.",
+  "In dark mode.": "Im Dunkelmodus.",
   "Thunderbird recolours HTML messages carefully. Images stay as they are.": "Thunderbird färbt HTML-Mails behutsam um. Bilder bleiben, wie sie sind.",
-  "Like Apple Mail.": "Wie Apple Mail.",
+  "Calm and easy to read.": "Ruhig und gut lesbar.",
   "Messages with their own font keep it. Off: Thunderbird’s fonts.": "Mails mit eigener Schrift behalten sie. Aus: Schriften von Thunderbird.",
-  "In the address book sidebar, like Apple Contacts.": "In der Seitenleiste des Adressbuchs, wie Apple Kontakte.",
+  "In the address book sidebar.": "In der Seitenleiste des Adressbuchs.",
   "Completion while writing keeps working.": "Die Vervollständigung beim Schreiben funktioniert weiter.",
   "One per line: keyword = emoji. They take precedence.": "Eines pro Zeile: Stichwort = Emoji. Sie haben Vorrang.",
   "The symbol next to the title shows the weather.": "Das Symbol neben dem Titel zeigt das Wetter.",
@@ -296,7 +296,7 @@ const DE = {
   "Do you use Chat?": "Verwendest du den Chat?",
   "Instead in its place:": "Stattdessen auf seinem Platz:",
   "Saved": "Gespeichert",
-  "Thunderbird now looks calm and tidy, like Apple Mail.": "Thunderbird sieht jetzt ruhig und aufgeräumt aus, wie Apple Mail.",
+  "Thunderbird now looks calm and tidy.": "Thunderbird sieht jetzt ruhig und aufgeräumt aus.",
   "Light and dark now follow your system.": "Hell und dunkel folgen jetzt deinem System.",
   "halo.spaces is made for macOS. On Windows and Linux it is still being tested. If something looks odd, we'd love a quick note!": "halo.spaces ist für macOS gemacht. Unter Windows und Linux wird es noch getestet. Wenn etwas komisch aussieht, freuen wir uns über eine kurze Nachricht!",
   "Installed. Active in a moment.": "Installiert. Gleich aktiv.",
@@ -535,11 +535,11 @@ const FR = {
   "Time to take a sent message back.": "Délai pour reprendre un message envoyé.",
   "Only from the sender’s own website.": "Uniquement depuis le site de l’expéditeur.",
   "Favicon or BIMI logo of the sender’s domain. Off: no outside requests.": "Favicon ou logo BIMI du domaine de l’expéditeur. Désactivé : aucune requête externe.",
-  "In dark mode, like Apple Mail.": "En mode sombre, comme Apple Mail.",
+  "In dark mode.": "En mode sombre.",
   "Thunderbird recolours HTML messages carefully. Images stay as they are.": "Thunderbird recolore les messages HTML avec soin. Les images restent inchangées.",
-  "Like Apple Mail.": "Comme Apple Mail.",
+  "Calm and easy to read.": "Calme et lisible.",
   "Messages with their own font keep it. Off: Thunderbird’s fonts.": "Les messages avec leur propre police la gardent. Désactivé : polices de Thunderbird.",
-  "In the address book sidebar, like Apple Contacts.": "Dans la barre latérale du carnet d’adresses, comme Contacts d’Apple.",
+  "In the address book sidebar.": "Dans la barre latérale du carnet d’adresses.",
   "Completion while writing keeps working.": "La saisie semi-automatique continue de fonctionner.",
   "One per line: keyword = emoji. They take precedence.": "Un par ligne : mot clé = emoji. Ils sont prioritaires.",
   "The symbol next to the title shows the weather.": "Le symbole à côté du titre indique la météo.",
@@ -572,7 +572,7 @@ const FR = {
   "Do you use Chat?": "Utilisez-vous le Chat ?",
   "Instead in its place:": "À sa place :",
   "Saved": "Enregistré",
-  "Thunderbird now looks calm and tidy, like Apple Mail.": "Thunderbird est désormais calme et épuré, comme Apple Mail.",
+  "Thunderbird now looks calm and tidy.": "Thunderbird est désormais calme et épuré.",
   "Light and dark now follow your system.": "Clair et sombre suivent désormais votre système.",
   "halo.spaces is made for macOS. On Windows and Linux it is still being tested. If something looks odd, we'd love a quick note!": "halo.spaces est conçu pour macOS. Sous Windows et Linux, il est encore en test. Si quelque chose semble bizarre, un petit mot nous fera plaisir !",
   "Installed. Active in a moment.": "Installé. Actif dans un instant.",
@@ -811,11 +811,11 @@ const ES = {
   "Time to take a sent message back.": "Tiempo para recuperar un mensaje enviado.",
   "Only from the sender’s own website.": "Solo desde el sitio web del remitente.",
   "Favicon or BIMI logo of the sender’s domain. Off: no outside requests.": "Favicon o logotipo BIMI del dominio del remitente. Desactivado: ninguna solicitud externa.",
-  "In dark mode, like Apple Mail.": "En modo oscuro, como Apple Mail.",
+  "In dark mode.": "En modo oscuro.",
   "Thunderbird recolours HTML messages carefully. Images stay as they are.": "Thunderbird recolorea los mensajes HTML con cuidado. Las imágenes no cambian.",
-  "Like Apple Mail.": "Como Apple Mail.",
+  "Calm and easy to read.": "Tranquilo y fácil de leer.",
   "Messages with their own font keep it. Off: Thunderbird’s fonts.": "Los mensajes con fuente propia la conservan. Desactivado: fuentes de Thunderbird.",
-  "In the address book sidebar, like Apple Contacts.": "En la barra lateral de la libreta de direcciones, como Contactos de Apple.",
+  "In the address book sidebar.": "En la barra lateral de la libreta de direcciones.",
   "Completion while writing keeps working.": "El autocompletado al escribir sigue funcionando.",
   "One per line: keyword = emoji. They take precedence.": "Uno por línea: palabra clave = emoji. Tienen prioridad.",
   "The symbol next to the title shows the weather.": "El símbolo junto al título muestra el tiempo.",
@@ -848,7 +848,7 @@ const ES = {
   "Do you use Chat?": "¿Usas el chat?",
   "Instead in its place:": "En su lugar:",
   "Saved": "Guardado",
-  "Thunderbird now looks calm and tidy, like Apple Mail.": "Thunderbird ahora se ve tranquilo y ordenado, como Apple Mail.",
+  "Thunderbird now looks calm and tidy.": "Thunderbird ahora se ve tranquilo y ordenado.",
   "Light and dark now follow your system.": "Claro y oscuro siguen ahora a tu sistema.",
   "halo.spaces is made for macOS. On Windows and Linux it is still being tested. If something looks odd, we'd love a quick note!": "halo.spaces está hecho para macOS. En Windows y Linux aún se está probando. Si algo se ve raro, ¡agradecemos un breve aviso!",
   "Installed. Active in a moment.": "Instalado. Activo en un momento.",
@@ -1087,11 +1087,11 @@ const IT = {
   "Time to take a sent message back.": "Tempo per riprendere un messaggio inviato.",
   "Only from the sender’s own website.": "Solo dal sito web del mittente.",
   "Favicon or BIMI logo of the sender’s domain. Off: no outside requests.": "Favicon o logo BIMI del dominio del mittente. Disattivato: nessuna richiesta esterna.",
-  "In dark mode, like Apple Mail.": "In modalità scura, come Apple Mail.",
+  "In dark mode.": "In modalità scura.",
   "Thunderbird recolours HTML messages carefully. Images stay as they are.": "Thunderbird ricolora i messaggi HTML con cura. Le immagini restano invariate.",
-  "Like Apple Mail.": "Come Apple Mail.",
+  "Calm and easy to read.": "Calmo e facile da leggere.",
   "Messages with their own font keep it. Off: Thunderbird’s fonts.": "I messaggi con un proprio carattere lo mantengono. Disattivato: caratteri di Thunderbird.",
-  "In the address book sidebar, like Apple Contacts.": "Nella barra laterale della rubrica, come Contatti di Apple.",
+  "In the address book sidebar.": "Nella barra laterale della rubrica.",
   "Completion while writing keeps working.": "Il completamento durante la scrittura continua a funzionare.",
   "One per line: keyword = emoji. They take precedence.": "Uno per riga: parola chiave = emoji. Hanno la precedenza.",
   "The symbol next to the title shows the weather.": "Il simbolo accanto al titolo mostra il meteo.",
@@ -1124,7 +1124,7 @@ const IT = {
   "Do you use Chat?": "Usi la chat?",
   "Instead in its place:": "Al suo posto:",
   "Saved": "Salvato",
-  "Thunderbird now looks calm and tidy, like Apple Mail.": "Ora Thunderbird appare calmo e ordinato, come Apple Mail.",
+  "Thunderbird now looks calm and tidy.": "Ora Thunderbird appare calmo e ordinato.",
   "Light and dark now follow your system.": "Chiaro e scuro ora seguono il tuo sistema.",
   "halo.spaces is made for macOS. On Windows and Linux it is still being tested. If something looks odd, we'd love a quick note!": "halo.spaces è pensato per macOS. Su Windows e Linux è ancora in prova. Se qualcosa sembra strano, ci farebbe piacere un breve messaggio!",
   "Installed. Active in a moment.": "Installato. Attivo tra un attimo.",
@@ -6725,7 +6725,8 @@ function enableCalendarOffline() {
 // mit jedem Update automatisch mit, ohne userChrome.css im Profil. Liegt dort
 // noch eine (ältere, manuell kopierte) userChrome.css dieses Designs, gilt
 // diese und theme.css bleibt aus, damit nichts doppelt greift.
-const THEME_MARKER = "Thunderbird im Stil von Apple Mail";
+// Kopfzeile der eigenen userChrome.css (ältere Fassungen trugen noch den alten Text)
+const THEME_MARKERS = ["halo.spaces – ruhiges Design für Thunderbird", "Thunderbird im Stil von Apple Mail"];
 // Start ohne Aufblitzen (Einstellung, Standard aus): Thunderbird zeichnet das
 // Fenster, bevor Erweiterungen starten – nur eine userChrome.css im Profil gilt
 // von Anfang an. Ist die Option an, schreibt halo.spaces sein Design dorthin
@@ -6831,7 +6832,7 @@ const ThemeSheet = {
             log("theme: eigene userChrome.css (Start ohne Aufblitzen) ist aktuell");
             return;
           }
-        } else if (head.includes(THEME_MARKER)) {
+        } else if (THEME_MARKERS.some(m => head.includes(m))) {
           log("theme: userChrome.css im Profil hat Vorrang");
           return;
         }
@@ -13908,7 +13909,7 @@ class CardEnhancer {
     const note = $("platform-note");
     const lines = [];
     if (api.welcome) {
-      lines.push(tr("Thunderbird now looks calm and tidy, like Apple Mail."));
+      lines.push(tr("Thunderbird now looks calm and tidy."));
       if (api.themeSwitched) {
         lines.push(tr("Light and dark now follow your system."));
       }

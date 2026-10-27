@@ -4,11 +4,11 @@
   <img src="extension/about/icon.svg" alt="halo.spaces logo" width="128">
 </p>
 
-halo.spaces gives Mozilla Thunderbird on macOS a calm, tidy look inspired by
-Apple Mail, Calendar and Contacts. It adds coloured spaces on the left and
-uses the same layout in every space.
+halo.spaces gives Mozilla Thunderbird on macOS a calm, tidy look that fits
+right in on the Mac. It adds coloured spaces on the left and uses the same
+layout in every space.
 
-It is one package for Thunderbird 128+: the theme, its own Apple-style icons,
+It is one package for Thunderbird 128+: the theme, its own clean icons,
 and an extension for the things CSS alone can't do.
 
 Released under the Mozilla Public License 2.0
@@ -21,9 +21,9 @@ Released under the Mozilla Public License 2.0
 
 Features
 --------
-- **Apple Mail layout**: card list with a two-line preview, sender logos (address book, macOS Contacts, BIMI, website icon, otherwise initials), unified inboxes and the search field top right
+- **Clean mail layout**: card list with a two-line preview, sender logos (address book, macOS Contacts, BIMI, website icon, otherwise initials), unified inboxes and the search field top right
 - **Coloured spaces**: Mail, Contacts, Calendar, Tasks and Chat, all with the same toolbar and sidebar edges. Sidebars slide in and out; dragging a divider all the way closes the sidebar, a double-click resets its width
-- **Calendar like Apple Calendar**: Day, Week, Multiweek and Month switcher in the title bar, a month view without scrollbars, and a **quick event/task window** for new entries
+- **Clear calendar**: Day, Week, Multiweek and Month switcher in the title bar, a month view without scrollbars, and a **quick event/task window** for new entries
 - **Today pane**: runs to the top of the window, has a mini calendar plus an agenda card to the end of the month, and marks upcoming events with "now" or "in 2 hr"
 - **Unified address book**: duplicates merged, account labels in the account colours
 - **Light and dark** follow the system, and the accent colour follows macOS
@@ -43,7 +43,7 @@ The calendar shows made-up test data; personal data in the other screenshots is 
 
 3.7.0 Release Notes
 --------
-- **Undo Send like Apple Mail**: after sending, the compose window disappears and "Undo Send" waits at the bottom for 10 seconds (Settings → halo.spaces: off, 10, 20 or 30 s) – one click brings the message back
+- **Undo Send**: after sending, the compose window disappears and "Undo Send" waits at the bottom for 10 seconds (Settings → halo.spaces: off, 10, 20 or 30 s) – one click brings the message back
 - **Send Later**: a small arrow next to the Send button – tonight at 9 PM, tomorrow at 8 AM or a time of your choice. The message waits in Drafts and goes out on time while Thunderbird is running
 - **Remind Me**: right-click a message → Remind Me (in an hour, tonight, tomorrow, next week). It moves to a "Remind Me" mailbox and comes back unread at that time, with a notification
 - **Follow Up**: when a message you sent got no reply after 3 days, a quiet note above the Inbox offers to follow up
@@ -51,10 +51,10 @@ The calendar shows made-up test data; personal data in the other screenshots is 
 - **Tasks like Mail**: tasks show as cards like mail cards (two lines, rounded, selection in the accent colour); filter and "…" sit above the list exactly where they are in Mail; Category, Mark Completed, Priority and Delete are icon buttons in the toolbar
 - **Fifth space**: Chat's place in the spaces bar can instead hold the space of another add-on, a website that opens like an app (no address bar, other links open in your browser) or nothing – only one of them, so the buttons keep their size. Settings → halo.spaces → Spaces, and asked once on first start
 - **Today pane everywhere** but in the calendar – mail, tasks, contacts, chat and settings – and shown after installing. Optional: the sun next to its title shows the current weather (Open-Meteo, a city or your location; off by default)
-- **Dark mode**: new setting "Dark backgrounds for messages" for Thunderbird's own recolouring of HTML mail; wide newsletters are scaled down to the reading width instead of being cut off; printed messages get a calm Apple Mail style header
+- **Dark mode**: new setting "Dark backgrounds for messages" for Thunderbird's own recolouring of HTML mail; wide newsletters are scaled down to the reading width instead of being cut off; printed messages get a calm, simple header
 - **Motion**: cards slide away when archived or deleted, new mail slides in, unread counts pop, calendar views fade in – all off with the system's "Reduce motion"
 - **Accessibility**: right-to-left languages lay out the toolbar row mirrored; Windows high contrast uses the system colours
-- **Fixes**: event windows no longer jump after opening; week and day view show the same coloured bar as the month view; sidebars no longer stutter at the end of their animation; "for 2h" across the clock change lasts 120 minutes again; background sending no longer leaves mail in the Outbox; Settings search finds halo.spaces options; a link to Thunderbird's keyboard shortcuts in Settings → General; "Invite Attendees" without hard lines; calendar checkboxes stay visible with light calendar colours (unchecked: an empty box like Apple Calendar); a message in its own window shows its buttons in one row above the sender, in the same capsules as the toolbar
+- **Fixes**: event windows no longer jump after opening; week and day view show the same coloured bar as the month view; sidebars no longer stutter at the end of their animation; "for 2h" across the clock change lasts 120 minutes again; background sending no longer leaves mail in the Outbox; Settings search finds halo.spaces options; a link to Thunderbird's keyboard shortcuts in Settings → General; "Invite Attendees" without hard lines; calendar checkboxes stay visible with light calendar colours (unchecked: an empty box); a message in its own window shows its buttons in one row above the sender, in the same capsules as the toolbar
 
 See [Releases](https://github.com/sruf79/halo-spaces/releases) for all versions.
 

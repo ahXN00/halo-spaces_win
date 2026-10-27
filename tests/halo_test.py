@@ -4346,7 +4346,7 @@ def run_checks(m, version, profile, results):
           out.closed = ![...Services.wm.getEnumerator(null)].some(x => x.location?.href.startsWith("resource://mailcards/about/halo.html"));
           return out;""")
         mac = sys.platform == "darwin"
-        ok = (res["window"] and res["title"] == "Welcome to halo.spaces" and "like Apple Mail." in res["text"] and " – " not in res["text"]
+        ok = (res["window"] and res["title"] == "Welcome to halo.spaces" and "calm and tidy." in res["text"] and " – " not in res["text"]
               and res["buttons"] == ["settings", "close"] and res["overflow"] <= 0 and res["shown"] and res["windows"] == 1
               and res["lines"] == (1 if mac else 2) and ("made for macOS" in res["text"]) != mac and res["note"] != mac
               and res["theme"] == "default-theme@mozilla.org" and "follow your system" not in res["text"] and res["closed"])
