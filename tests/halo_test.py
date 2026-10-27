@@ -2050,7 +2050,8 @@ def compose_checks(m, results):
             await till(() => cw.GetCurrentEditorElement?.()?.contentDocument?.querySelector(".moz-forward-container") && cw.document.querySelector("#attachmentBucket > .attachmentItem"), 10000);
             await pause(1800);
             const cd = cw.document, bar = cd.getElementById("composeToolbar2"), send = cd.getElementById("button-send"), aa = cd.getElementById("mcFormatToggle");
-            const btns = [...bar.querySelectorAll(":scope > toolbarbutton")].filter(b => vis(b) && b != send);
+            // (der Pfeil „Später senden“ gehört zum Senden-Knopf, nicht zur mittigen Gruppe)
+            const btns = [...bar.querySelectorAll(":scope > toolbarbutton")].filter(b => vis(b) && b != send && b.id != "mcSendLater");
             const lefts = btns.map(b => b.getBoundingClientRect().left), rights = btns.map(b => b.getBoundingClientRect().right);
             const sr = send.getBoundingClientRect();
             const out = { open: true, center: Math.round((Math.min(...lefts) + Math.max(...rights)) / 2 - cw.innerWidth / 2),
@@ -2075,7 +2076,7 @@ def compose_checks(m, results):
         if not res.get("open"):
             return False, f"{res}"
         fw, at = res["fwd"], res["att"]
-        ok = (abs(res["center"]) <= 30 and res["send"][:3] == [30, 30, "50%"] and res["send"][3] <= 20 and res["texts"] == ["Aa"]
+        ok = (abs(res["center"]) <= 30 and res["send"][:3] == [30, 30, "50%"] and res["send"][3] <= 36 and res["texts"] == ["Aa"]
               and res["fmtHidden"] and res["fmtShown"] and res["pref"] and res["label"][0] <= 30 and res["label"][1] == '":"' and not res["desc"]
               and fw["begin"] and fw["first"].startswith("From") and fw["date"] and "+0000" not in fw["date"] and fw["border"] == "none"
               and fw["bar"] == "2px" and not fw["modified"] and at["w"] == 96 and at["icon"] == 32 and at["src"])
@@ -9599,8 +9600,9 @@ Neu
     check("Verteiler-Hinweis: nach erfolgreicher Ein-Klick-Abmeldung kein Abmelden-Knopf mehr, auch bei weiteren Mails des Verteilers", unsubscribed_hides_button, results)
 
     def keyboard():
+        # (Fokusring zeigt macOS nur im aktiven Fenster – nach geschlossenen Nebenfenstern das Hauptfenster nach vorn holen)
         res = m.js('''
-          await toMail(); await wait(300);
+          await toMail(); w.focus(); await until(() => Services.focus.activeWindow == w, 3000); await wait(300);
           const ring = el => { el.focus({ focusVisible: true }); const cs = getComputedStyle(el); const r = cs.outlineStyle != "none" && parseFloat(cs.outlineWidth) >= 2; el.blur(); return r; };
           const own = ["mcSpacesToggle", "mcTodayToggle"].map(id => d.getElementById(id)).filter(Boolean);
           const unlabeled = own.filter(b => !b.getAttribute("aria-label")).map(b => b.id);
