@@ -272,11 +272,11 @@ const attachFiles = async (cw, names) => { const atts = [];
     const a = Cc["@mozilla.org/messengercompose/attachment;1"].createInstance(Ci.nsIMsgAttachment); a.url = PathUtils.toFileURI(path); a.name = n; a.size = 30; atts.push(a); }
   cw.AddAttachments(atts); if (!await until(() => cw.gAttachmentBucket?.itemCount >= names.length, 4000)) throw new Error("Anhänge fehlen"); await wait(1200); };
 // Termin-Dialog (Fenster) und sein Inhalt (iframe)
-const eventDialog = async () => { await toCalendar(); w.switchToView("week"); w.createEventWithDialog(testCalendar(), null, null, "Neuer Testtermin");
+const eventDialog = async () => { await toCalendar(); w.switchCalendarView("week"); w.createEventWithDialog(testCalendar(), null, null, "Neuer Testtermin");
   const dw = await winUrl("calendar-event-dialog"); if (!dw) throw new Error("Termin-Dialog nicht offen"); await wait(2500);
   return { dw, iw: dw.document.getElementById("calendar-item-panel-iframe")?.contentWindow || dw }; };
 // Schnellfenster „Neuer Termin“ von halo.spaces mit aufgeklappten Details (Beginn, Ende, Wiederholen …)
-const quickPanel = async () => { await toCalendar(); w.switchToView("week"); await wait(800); const li = toolbarItem("new-event"); if (!li) throw new Error("„+“ fehlt");
+const quickPanel = async () => { await toCalendar(); w.switchCalendarView("week"); await wait(800); const li = toolbarItem("new-event"); if (!li) throw new Error("„+“ fehlt");
   await pop("mcQuickPanel", () => li.querySelector("button").click()); const f = d.getElementById("mcQuickPanel").__mc;
   if (!f) throw new Error("Schnellfenster ohne Felder"); if (!vis(f.startDate)) { f.summary.click(); await wait(600); } return f; };
 // Mauszeiger auf die Mitte eines Elements (Rückgabe für den Rundgang: Marionette bewegt den Zeiger im Hauptfenster,
@@ -1040,23 +1040,23 @@ SURFACES = [
 
     # ------------------------------------------------------------ Kalender
     S("kal-tag", "kalender", "bereich", "Kalender: Tag",
-      'await toCalendar(); w.switchToView("day"); w.currentView().goToDay(cal.dtz.now()); await wait(1500);'),
+      'await toCalendar(); w.switchCalendarView("day"); w.currentView().goToDay(cal.dtz.now()); await wait(1500);'),
     S("kal-woche", "kalender", "bereich", "Kalender: Woche",
-      'await toCalendar(); w.switchToView("week"); w.currentView().goToDay(cal.dtz.now()); await wait(1500);'),
+      'await toCalendar(); w.switchCalendarView("week"); w.currentView().goToDay(cal.dtz.now()); await wait(1500);'),
     S("kal-mehrwochen", "kalender", "bereich", "Kalender: Mehrere Wochen",
-      'await toCalendar(); w.switchToView("multiweek"); w.currentView().goToDay(cal.dtz.now()); await wait(1500);'),
+      'await toCalendar(); w.switchCalendarView("multiweek"); w.currentView().goToDay(cal.dtz.now()); await wait(1500);'),
     S("kal-monat", "kalender", "bereich", "Kalender: Monat",
-      'await toCalendar(); w.switchToView("month"); w.currentView().goToDay(cal.dtz.now()); await wait(1500);'),
+      'await toCalendar(); w.switchCalendarView("month"); w.currentView().goToDay(cal.dtz.now()); await wait(1500);'),
     S("kal-woche-auswahl", "kalender", "zustand", "Woche mit ausgewähltem Termin",
-      'await toCalendar(); w.switchToView("week"); w.currentView().goToDay(cal.dtz.now()); await wait(1200);'
+      'await toCalendar(); w.switchCalendarView("week"); w.currentView().goToDay(cal.dtz.now()); await wait(1200);'
       ' const b = [...d.querySelectorAll("#week-view calendar-event-box")].find(x => x.occurrence?.title == "Teamrunde"); if (!b) throw new Error("Termin fehlt");'
       ' w.currentView().setSelectedItems([b.occurrence]); await wait(900);'),
     S("kal-woche-leer", "kalender", "zustand", "Leere Woche",
-      'await toCalendar(); w.switchToView("week"); const t = cal.dtz.now(); t.year += 2; w.currentView().goToDay(t); await wait(1500);'),
+      'await toCalendar(); w.switchCalendarView("week"); const t = cal.dtz.now(); t.year += 2; w.currentView().goToDay(t); await wait(1500);'),
     S("kal-schmal-1100", "kalender", "zustand", "Woche im schmalen Fenster (1100 px bzw. kleinste mögliche Breite)",
-      'await toCalendar(); w.switchToView("week"); w.currentView().goToDay(cal.dtz.now()); await wait(1500);', size=(1100, 900)),
+      'await toCalendar(); w.switchCalendarView("week"); w.currentView().goToDay(cal.dtz.now()); await wait(1500);', size=(1100, 900)),
     S("kal-suche", "kalender", "zustand", "Kalender: Termine suchen (Liste oben)",
-      'await toCalendar(); w.switchToView("week"); const box = d.getElementById("bottom-events-box");'
+      'await toCalendar(); w.switchCalendarView("week"); const box = d.getElementById("bottom-events-box");'
       ' if (box && getComputedStyle(box).display == "none") throw new Error("von halo.spaces bewusst ausgeblendet (Suchliste gibt es in Apple Kalender nicht)");'
       ' if (!vis(box)) w.toggleUnifinder(); await wait(1500);'
       ' const f = d.getElementById("unifinder-search-field"); if (f) { f.value = "e"; f.dispatchEvent(new w.Event("input")); f.dispatchEvent(new w.Event("command")); } await wait(1500);',
@@ -1064,7 +1064,7 @@ SURFACES = [
     S("kal-today-pane", "kalender", "zustand", "Today-Pane in der Mailansicht",
       'await pick("Inbox", "Treffen am Donnerstag"); if (!w.TodayPane.isVisible) d.getElementById("calendar_toggle_todaypane_command").doCommand(); await wait(1500);'),
     S("kal-schnellfenster", "kalender", "popup", "Kalender: Schnellfenster „Neuer Termin“",
-      'await toCalendar(); w.switchToView("week"); await wait(800); const li = toolbarItem("new-event"); if (!li) throw new Error("„+“ fehlt");'
+      'await toCalendar(); w.switchCalendarView("week"); await wait(800); const li = toolbarItem("new-event"); if (!li) throw new Error("„+“ fehlt");'
       ' return await pop("mcQuickPanel", () => li.querySelector("button").click());', cap="popup"),
     # Schnellfenster: Popups der HTML-Felder (Datum, Auswahlliste) und das eigene Kalendermenü von halo.spaces
     S("kal-schnellfenster-datum", "kalender", "popup", "Schnellfenster: Datumsauswahl (Datumsfeld „Beginn“)",
@@ -1080,7 +1080,7 @@ SURFACES = [
       'await toMail(); if (!w.TodayPane.isVisible) d.getElementById("calendar_toggle_todaypane_command").doCommand(); await wait(1000);'
       ' return await pop("mcNewPopup", () => d.getElementById("mcTodayNew").click());', cap="popup"),
     S("kal-termin-dialog", "kalender", "fenster", "Neuer Termin (Dialog)",
-      'await toCalendar(); w.switchToView("week"); w.createEventWithDialog(testCalendar(), null, null, "Neuer Testtermin");', cap="window", win="calendar-event-dialog"),
+      'await toCalendar(); w.switchCalendarView("week"); w.createEventWithDialog(testCalendar(), null, null, "Neuer Testtermin");', cap="window", win="calendar-event-dialog"),
     S("kal-termin-bearbeiten", "kalender", "fenster", "Termin bearbeiten (Ort, Beschreibung)",
       'await toCalendar(); const it = await anyItem("Teamrunde"); w.modifyEventWithDialog(it, true);', cap="window", win="calendar-event-dialog"),
     S("kal-termin-erinnerung-menue", "kalender", "popup", "Termin-Dialog: Erinnerung (Auswahl)",
@@ -1125,7 +1125,7 @@ SURFACES = [
       close='await dropAlarm();', note="nur geöffnet, kein Eintrag gewählt; Termin wird danach gelöscht"),
     # Tooltip eines Termins: Marionette fährt mit dem Zeiger über die Terminbox (tooltip="itemTooltip")
     S("kal-termin-tooltip", "kalender", "popup", "Kalender: Tooltip eines Termins (Titel, Zeit, Ort, Kalender)",
-      'await toCalendar(); w.switchToView("week"); w.currentView().goToDay(cal.dtz.now()); await wait(1200);'
+      'await toCalendar(); w.switchCalendarView("week"); w.currentView().goToDay(cal.dtz.now()); await wait(1200);'
       ' const b = [...d.querySelectorAll("#week-view calendar-event-box")].find(x => x.occurrence?.title == "Teamrunde" && vis(x)); if (!b) throw new Error("Termin fehlt");'
       ' return hoverAt(b);', cap="popup", after="return await openTip();", hover=1.4),
     S("kal-eigenschaften", "kalender", "dialog", "Kalender-Eigenschaften",
@@ -1133,17 +1133,17 @@ SURFACES = [
     S("kal-neuer-kalender", "kalender", "dialog", "Neuer Kalender (Assistent)",
       'await toCalendar(); later(() => d.getElementById("calendar_new_calendar_command").doCommand());', cap="window", win="calendar-creation"),
     S("kal-wiederholung-frage", "kalender", "dialog", "Wiederholten Termin löschen: Nachfrage",
-      'await toCalendar(); w.switchToView("week"); w.currentView().goToDay(cal.dtz.now()); await wait(1000); const it = await anyItem("Jour fixe");'
+      'await toCalendar(); w.switchCalendarView("week"); w.currentView().goToDay(cal.dtz.now()); await wait(1000); const it = await anyItem("Jour fixe");'
       ' const occ = it.recurrenceInfo.getNextOccurrence(cal.dtz.now()) || it; later(() => w.calendarViewController.deleteOccurrences([occ], false, false));', cap="window", win="calendar-occurrence-prompt"),
     S("kal-druck", "kalender", "zustand", "Kalender drucken (Druckvorschau)",
-      'await toCalendar(); w.switchToView("week"); await wait(800); later(() => w.goDoCommand("cmd_print")); await wait(4000);'
+      'await toCalendar(); w.switchCalendarView("week"); await wait(800); later(() => w.goDoCommand("cmd_print")); await wait(4000);'
       ' if (![...d.querySelectorAll(".dialogFrame, browser")].some(f => /print/.test(f.getAttribute("src") || f.currentURI?.spec || ""))) throw new Error("keine Druckvorschau");'),
     S("kal-kontext-ansicht", "kalender", "popup", "Kontextmenü: Kalenderansicht (leere Stelle)",
-      'await toCalendar(); w.switchToView("week"); await wait(1000); const cols = [...d.querySelectorAll("#week-view calendar-event-column")].filter(vis);'
+      'await toCalendar(); w.switchCalendarView("week"); await wait(1000); const cols = [...d.querySelectorAll("#week-view calendar-event-column")].filter(vis);'
       ' const col = cols.find(c => ![...c.querySelectorAll("calendar-event-box")].some(b => vis(b))) || cols.at(-1);'
       ' return await ctxPop("calendar-view-context-menu", col, { oy: 40 });', cap="popup"),
     S("kal-kontext-termin", "kalender", "popup", "Kontextmenü: Termin",
-      'await toCalendar(); w.switchToView("week"); w.currentView().goToDay(cal.dtz.now()); await wait(1200);'
+      'await toCalendar(); w.switchCalendarView("week"); w.currentView().goToDay(cal.dtz.now()); await wait(1200);'
       ' const b = [...d.querySelectorAll("#week-view calendar-event-box")].find(x => x.occurrence?.title == "Teamrunde"); return await ctxPop("calendar-item-context-menu", b);', cap="popup"),
     S("kal-kontext-kalenderliste", "kalender", "popup", "Kontextmenü: Kalenderliste",
       'await toCalendar(); const li = rowOf(d, "#calendar-list li", "Halo Test"); return await ctxPop("list-calendars-context-menu", li);', cap="popup"),
