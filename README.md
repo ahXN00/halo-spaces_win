@@ -31,7 +31,7 @@ Features
 - Automatic updates via GitHub
 
 <p align="center">
-  <img src="screenshots/calendar.png" alt="Calendar month view" width="49%">
+  <img src="screenshots/calendar.png" alt="Calendar month view with emojis before event titles" width="49%">
   <img src="screenshots/addressbook.png" alt="Address book" width="49%">
 </p>
 
@@ -39,7 +39,7 @@ Features
   <img src="screenshots/quick-event.png" alt="Quick event window" width="320">
 </p>
 
-Personal data in the screenshots is blurred.
+The calendar shows made-up test data; personal data in the other screenshots is blurred.
 
 3.7.0 Release Notes
 --------
