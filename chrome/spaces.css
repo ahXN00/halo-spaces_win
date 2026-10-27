@@ -2590,6 +2590,12 @@ search-bar {
   outline: none !important;
 }
 
+/* Today-Pane in jedem Bereich gleich: Minikalender und Termine, ohne den
+   Aufgabenteil unten (Liste, „Erledigte anzeigen“, „Neue Aufgabe“) */
+#today-pane-panel :is(#todo-tab-panel, #today-pane-splitter) {
+  display: none !important;
+}
+
 #mini-day-box,
 #today-pane-panel :is(#mini-day-image, .today-subpane, #todo-tab-panel) {
   background: transparent !important;

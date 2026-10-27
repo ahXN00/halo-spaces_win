@@ -4440,22 +4440,28 @@ def run_checks(m, version, profile, results):
         res = m.js(r"""
           const panel = d.getElementById("today-pane-panel"), cmd = d.getElementById("calendar_toggle_todaypane_command");
           const shown = () => !!panel && !panel.collapsed && panel.getBoundingClientRect().width > 0;
-          const out = { modes: panel.getAttribute("mode"), collapsed: panel.getAttribute("collapsedinmodes"),
+          // überall gleich wie in der Mail: ohne Aufgabenteil, Termine bis unten
+          const look = () => { const todo = d.getElementById("todo-tab-panel"), ag = d.getElementById("agenda-panel");
+            return { todo: !!todo && todo.getBoundingClientRect().height > 0, agendaH: Math.round(ag?.getBoundingClientRect().height || 0) }; };
+          const looks = {};
+          const out = { looks, modes: panel.getAttribute("mode"), collapsed: panel.getAttribute("collapsedinmodes"),
                         pref: Services.prefs.getBoolPref("extensions.mailcards.todayPaneEverywhere", false) };
-          await toMail(); await wait(800); out.mail = shown();
-          tm.openTab("tasks", {}); await wait(1200); out.tasks = shown();
-          tm.openTab("addressBookTab", {}); await wait(2000); out.addressbook = [shown(), w.gCurrentMode];
-          w.openPreferencesTab("paneGeneral"); await wait(2000); out.settings = shown();
-          tm.openTab("chat", {}); await wait(1500); out.chat = shown();
+          await toMail(); await wait(800); out.mail = shown(); looks.mail = look();
+          tm.openTab("tasks", {}); await wait(1200); out.tasks = shown(); looks.tasks = look();
+          tm.openTab("addressBookTab", {}); await wait(2000); out.addressbook = [shown(), w.gCurrentMode]; looks.addressbook = look();
+          w.openPreferencesTab("paneGeneral"); await wait(2000); out.settings = shown(); looks.settings = look();
+          tm.openTab("chat", {}); await wait(1500); out.chat = shown(); looks.chat = look();
           await toCalendar(); await wait(1200); out.calendar = [shown(), !!cmd?.disabled];
           for (const t of [...tm.tabInfo].slice(1)) tm.closeTab(t);
           await toMail(); await wait(600);
           return out;""")
         ok = (res["pref"] and "special" in res["modes"] and "calendar" not in res["modes"].split(",")
               and res["mail"] and res["tasks"] and res["addressbook"][0] and res["settings"] and res["chat"]
-              and res["calendar"] == [False, True])
+              and res["calendar"] == [False, True]
+              and not any(v["todo"] for v in res["looks"].values())
+              and all(abs(v["agendaH"] - res["looks"]["mail"]["agendaH"]) <= 2 for v in res["looks"].values()))
         return ok, f"{res}"
-    check("Today-Pane: in Mail, Aufgaben, Adressbuch, Einstellungen und Chat, nicht im Kalender; nach der Installation eingeblendet", today_everywhere, results)
+    check("Today-Pane: in Mail, Aufgaben, Adressbuch, Einstellungen und Chat gleich (ohne Aufgabenteil), nicht im Kalender; nach der Installation eingeblendet", today_everywhere, results)
 
     def addon():
         v = m.js("""const { AddonManager } = ChromeUtils.importESModule("resource://gre/modules/AddonManager.sys.mjs");

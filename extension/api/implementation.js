@@ -13190,7 +13190,9 @@ class CardEnhancer {
       return;
     }
     panel.__mcEverywhere = true;
-    for (const box of [panel, ...panel.querySelectorAll("[mode]")]) {
+    // (der Aufgabenteil unten bleibt außen vor: die Today-Pane zeigt überall nur
+    // Minikalender und Termine, wie in der Mail)
+    for (const box of [panel, ...panel.querySelectorAll("[mode]")].filter(b => b.id != "todo-tab-panel")) {
       const modes = box.getAttribute("mode").split(",");
       const widths = (box.getAttribute("modewidths") || "").split(",");
       const pairs = modes.map((m, i) => [m, widths[i] || "200"]).filter(([m]) => !(box == panel && m == "calendar"));
