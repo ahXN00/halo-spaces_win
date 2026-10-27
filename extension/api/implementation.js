@@ -13305,9 +13305,7 @@ class CardEnhancer {
 
   // Beschreibung im Termin-Fenster: Systemschrift 13 px als Benutzer-
   // Stylesheet im Editor-Dokument – kein <style> und kein Inline-Stil, die
-  // landeten sonst im gespeicherten Text der Beschreibung. Erst wenn
-  // Thunderbird den Editor eingerichtet hat (sein editorContent.css hängt
-  // dann im Dokument), höchstens 5 s warten
+  // landeten sonst im gespeicherten Text der Beschreibung
   styleItemDescription(iw, tries = 0) {
     try {
       if (iw.closed || !Services.prefs.getBoolPref("extensions.mailcards.bundledTheme", true)) {
@@ -13315,16 +13313,16 @@ class CardEnhancer {
       }
       const cw = iw.document.getElementById("item-description")?.contentWindow;
       const doc = cw?.document;
-      const ready = doc?.head?.querySelector('link[href*="editorContent.css"]');
-      if (!ready && tries < 20) {
+      // gleich setzen (ab Thunderbird 160 hängt editorContent.css nicht mehr als
+      // <link> im Dokument, auf das bisher gewartet wurde); noch 5 s nachsehen,
+      // ob der Editor sein Dokument ersetzt hat, dann dort erneut
+      if (doc?.body && !doc.__mcDescSheet) {
+        cw.windowUtils.loadSheetUsingURIString(`resource://mailcards/event-description.css?v=${extensionVersion}`, cw.windowUtils.USER_SHEET);
+        doc.__mcDescSheet = true;
+      }
+      if (tries < 20) {
         iw.setTimeout(() => this.styleItemDescription(iw, tries + 1), 250);
-        return;
       }
-      if (!doc || doc.__mcDescSheet) {
-        return;
-      }
-      cw.windowUtils.loadSheetUsingURIString(`resource://mailcards/event-description.css?v=${extensionVersion}`, cw.windowUtils.USER_SHEET);
-      doc.__mcDescSheet = true;
     } catch (e) {
       log("item description sheet error", String(e).slice(0, 120));
     }
