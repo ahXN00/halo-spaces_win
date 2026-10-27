@@ -4346,12 +4346,78 @@ def run_checks(m, version, profile, results):
           out.closed = ![...Services.wm.getEnumerator(null)].some(x => x.location?.href.startsWith("resource://mailcards/about/halo.html"));
           return out;""")
         mac = sys.platform == "darwin"
-        ok = (res["window"] and res["title"] == "Welcome to halo.spaces" and "Settings → halo.spaces" in res["text"]
+        ok = (res["window"] and res["title"] == "Welcome to halo.spaces" and "like Apple Mail." in res["text"] and " – " not in res["text"]
               and res["buttons"] == ["settings", "close"] and res["overflow"] <= 0 and res["shown"] and res["windows"] == 1
-              and res["lines"] == (2 if mac else 3) and ("made for macOS" in res["text"]) != mac and res["note"] != mac
-              and res["theme"] == "default-theme@mozilla.org" and "appearance was set" not in res["text"] and res["closed"])
+              and res["lines"] == (1 if mac else 2) and ("made for macOS" in res["text"]) != mac and res["note"] != mac
+              and res["theme"] == "default-theme@mozilla.org" and "follow your system" not in res["text"] and res["closed"])
         return ok, f"{res}"
-    check("Begrüßung: einmal nach der Erstinstallation (Optionen unter Einstellungen → halo.spaces, Win/Linux mit Plattform-Hinweis), Theme bleibt System", welcome, results)
+    check("Begrüßung: einmal nach der Erstinstallation (kurz, Win/Linux mit Plattform-Hinweis), Theme bleibt System", welcome, results)
+
+    def welcome_steps():
+        # Begrüßung schrittweise (KISS): Wetter und Chat erst nur Ja/Nein; Ja beim Wetter bzw. Nein beim Chat lässt die
+        # Einzelheiten aufgleiten und das Fenster wächst mit; Stadt mit Vorschlägen beim Tippen; keine Gedankenstriche
+        res = m.js(r"""
+          const { ExtensionParent } = ChromeUtils.importESModule("resource://gre/modules/ExtensionParent.sys.mjs");
+          const g = ExtensionParent.GlobalManager.getExtension("%s").experimentAPIManager.global;
+          const halo = () => [...Services.wm.getEnumerator(null)].find(x => x.location?.href.startsWith("resource://mailcards/about/halo.html"));
+          halo()?.close(); await wait(300);
+          Cu.evalInSandbox(`globalThis.__mcRealFetch = fetchWithTimeout;
+            fetchWithTimeout = async (win, url) => {
+              const body = url.includes("geocoding") ? { results: [{ name: "Wien", country: "Österreich", latitude: 48.20849, longitude: 16.37208 }] }
+                : { current: { weather_code: 1, is_day: 1, temperature_2m: 12.3 } };
+              return { ok: true, status: 200, text: async () => JSON.stringify(body) }; };
+            enhancer.openHaloWindow(Services.wm.getMostRecentWindow("mail:3pane"), { welcome: true });`, g);
+          const out = {};
+          try {
+            const hw = await until(() => { const x = halo(); return x?.document.getElementById("fifth") && x; }, 8000);
+            if (!hw) return { window: false };
+            await wait(600);
+            const hd = hw.document, P = "extensions.mailcards.";
+            const btn = (sec, text) => [...hd.querySelectorAll(`#${sec} button`)].find(b => b.textContent == text);
+            const isOpen = sec => hd.querySelector(`#${sec} .more`).classList.contains("open") && hd.querySelector(`#${sec} .more`).getBoundingClientRect().height > 10;
+            const shut = sec => hd.querySelector(`#${sec} .more`).getBoundingClientRect().height < 1;
+            const fits = () => hd.documentElement.scrollHeight - hw.innerHeight <= 1;
+            out.start = { h: hw.innerHeight, weatherShut: shut("weather"), fifthShut: shut("fifth"), dashes: hd.body.textContent.includes(" – "),
+                          chatChosen: btn("fifth", "Yes")?.classList.contains("chosen") };
+            btn("weather", "Yes").click(); await wait(700);
+            out.weatherYes = { open: isOpen("weather"), h: hw.innerHeight, fits: fits() };
+            btn("weather", "City …").click(); await wait(300);
+            const input = hd.querySelector("#weather .city input"); input.value = "Wi"; input.dispatchEvent(new hw.Event("input"));
+            await until(() => hd.querySelector("#weather .suggest:not([hidden]) .suggestion"), 3000); await wait(300);
+            const sug = [...hd.querySelectorAll("#weather .suggestion")];
+            out.suggest = { labels: sug.map(b => b.textContent), fits: fits() };
+            sug[0]?.click(); await wait(800);
+            out.chosen = { on: Services.prefs.getBoolPref(P + "weather", false), place: Services.prefs.getStringPref(P + "weatherPlace", ""),
+                           status: hd.querySelector("#weather .status").textContent };
+            btn("weather", "No").click(); await wait(700);
+            out.weatherNo = { shut: shut("weather"), on: Services.prefs.getBoolPref(P + "weather", false), h: hw.innerHeight, fits: fits() };
+            btn("fifth", "No").click(); await wait(700);
+            out.chatNo = { open: isOpen("fifth"), mode: Services.prefs.getStringPref(P + "fifthSpace", "chat"),
+                           nothing: btn("fifth", "Nothing")?.classList.contains("chosen"), choices: [...hd.querySelectorAll("#fifth .choices:not(.yesno) button")].map(b => b.textContent), fits: fits() };
+            btn("fifth", "Website …").click(); await wait(300);
+            const url = hd.querySelector("#fifth .city input"); url.value = "kalender.example.com"; btn("fifth", "OK").click(); await wait(300);
+            out.web = { mode: Services.prefs.getStringPref(P + "fifthSpace", ""), url: Services.prefs.getStringPref(P + "fifthSpaceUrl", "") };
+            btn("fifth", "Yes").click(); await wait(700);
+            out.chatYes = { shut: shut("fifth"), mode: Services.prefs.getStringPref(P + "fifthSpace", "chat"), fits: fits() };
+            out.endDashes = hd.body.textContent.includes(" – ");
+            hw.close();
+          } finally {
+            Cu.evalInSandbox("fetchWithTimeout = __mcRealFetch;", g);
+            for (const p of ["weather", "weatherPlace", "weatherState", "fifthSpace", "fifthSpaceUrl"]) Services.prefs.clearUserPref("extensions.mailcards." + p);
+          }
+          return out;""" % ADDON_ID)
+        if res.get("window") is False:
+            return False, f"{res}"
+        st, wy, sg, ch, wn, cn, wb, cy = (res.get(k) or {} for k in ("start", "weatherYes", "suggest", "chosen", "weatherNo", "chatNo", "web", "chatYes"))
+        ok = (st.get("weatherShut") and st.get("fifthShut") and not st.get("dashes") and st.get("chatChosen")
+              and wy.get("open") and wy.get("h", 0) > st.get("h", 0) and wy.get("fits")
+              and sg.get("labels") == ["Wien, Österreich"] and ch.get("on") and ch.get("place") == "Wien, Österreich" and "Wien" in (ch.get("status") or "")
+              and wn.get("shut") and not wn.get("on") and wn.get("h", 999) < wy.get("h", 0) and wn.get("fits")
+              and cn.get("open") and cn.get("mode") == "none" and cn.get("nothing") and cn.get("choices") == ["Website …", "Add-on", "Nothing"]
+              and wb.get("mode") == "web" and wb.get("url") == "https://kalender.example.com/"
+              and cy.get("shut") and cy.get("mode") == "chat" and not res.get("endDashes"))
+        return ok, f"{res}"
+    check("Begrüßung schrittweise: Wetter und Chat erst Ja/Nein, Einzelheiten gleiten auf, Fenster wächst mit; Stadt mit Vorschlägen", welcome_steps, results)
 
 
     # Vorbereitung: Fenstergröße, Testkalender, Fenster ohne Dialoge
@@ -8791,6 +8857,63 @@ Neu
         return ok, f"{res}"
     check("Einstellungen: eigene Kategorie „halo.spaces“ mit der Einstellungsseite der Erweiterung (Add-ons → Einstellungen bleibt)", pref_halo_category, results)
 
+    def options_minimal():
+        # Einstellungsseite minimalistisch: Abhängiges erst bei Bedarf (Ort nur mit Wetter, Stichwörter nur mit Emojis),
+        # Chat als Schalter mit „Stattdessen“ bei Aus, Einzelheiten im ⓘ, Fehlerbehebung eingeklappt, keine Gedankenstriche.
+        # Die Seite läuft hier in einem Testfenster mit nachgebildeter Schnittstelle (die echte liegt im Erweiterungsprozess)
+        res = m.js(r"""
+          const saved = [];
+          const settings = { mac: true, darkReader: true, fullConversation: true, unreadTint: false, undoSend: 10, senderLogos: true,
+            macContactPhotos: false, darkMessages: true, plainTextSystemFont: true, hideCollectedAddresses: true, calendarEmoji: true,
+            emojiCustom: "", weather: false, weatherPlace: "", calendarOffline: false, fifthSpace: "chat", fifthSpaceAddon: "",
+            fifthSpaceUrl: "", fifthSpaceIcon: "mask", fifthSpaceAddons: [], inlinePrompts: true, earlyTheme: false, autoUpdate: true,
+            bundledTheme: true, appleIcons: true, debug: false };
+          const obs = { observe(doc) {
+            if (!doc.location?.href.startsWith("resource://mailcards/options/options.html")) return;
+            const win = doc.defaultView;
+            win.wrappedJSObject.browser = Cu.cloneInto({ mailCards: {
+              getSettings: () => win.Promise.resolve(Cu.cloneInto(settings, win)),
+              getTranslations: () => win.Promise.resolve(Cu.cloneInto({ lang: "en", table: {} }, win)),
+              setSetting: (k, v) => { saved.push([k, v]); settings[k] = v; return win.Promise.resolve(v); },
+              searchPlaces: () => win.Promise.resolve(Cu.cloneInto([], win)),
+              choosePlace: () => win.Promise.resolve() } }, win, { cloneFunctions: true });
+          } };
+          Services.obs.addObserver(obs, "document-element-inserted");
+          const ow = w.openDialog("resource://mailcards/options/options.html", "", "chrome,dialog=no,width=700,height=900");
+          try {
+            const od = await until(() => ow.document?.getElementById("row-weather") && ow.document, 8000);
+            if (!od) return { page: false };
+            await wait(400);
+            const shown = id => { const r = od.getElementById("row-" + id); return !!r && !r.hidden && r.getBoundingClientRect().height > 0; };
+            const out = { page: true, start: { place: shown("weatherPlace"), emoji: shown("emojiCustom"), chat: shown("showChat"), instead: shown("fifthSpace"),
+              url: shown("fifthSpaceUrl"), debug: shown("debug"), dashes: od.body.textContent.includes(" – "),
+              infos: od.querySelectorAll(".row .info[title]").length, disclosure: !!od.querySelector("h2 .disclosure[aria-expanded='false']") } };
+            od.getElementById("s-weather").click(); await wait(500);
+            out.weatherOn = shown("weatherPlace");
+            od.getElementById("s-calendarEmoji").click(); await wait(500);
+            out.emojiOff = shown("emojiCustom");
+            od.getElementById("s-showChat").click(); await wait(500);
+            out.chatOff = { instead: shown("fifthSpace"), value: od.getElementById("s-fifthSpace")?.value, mode: settings.fifthSpace };
+            const sel = od.getElementById("s-fifthSpace"); sel.value = "web"; sel.dispatchEvent(new ow.Event("change")); await wait(500);
+            out.web = { url: shown("fifthSpaceUrl"), icon: shown("fifthSpaceIcon"), mode: settings.fifthSpace };
+            od.getElementById("s-showChat").click(); await wait(500);
+            out.chatOn = { instead: shown("fifthSpace"), url: shown("fifthSpaceUrl"), mode: settings.fifthSpace };
+            od.querySelector("h2 .disclosure").click(); await wait(500);
+            out.troubleshoot = shown("debug");
+            return out;
+          } finally { Services.obs.removeObserver(obs, "document-element-inserted"); ow.close(); }""")
+        if not res.get("page"):
+            return False, f"{res}"
+        st = res["start"]
+        ok = (not st["place"] and st["emoji"] and st["chat"] and not st["instead"] and not st["url"] and not st["debug"]
+              and not st["dashes"] and st["infos"] >= 8 and st["disclosure"]
+              and res["weatherOn"] and not res["emojiOff"]
+              and res["chatOff"] == {"instead": True, "value": "none", "mode": "none"}
+              and res["web"] == {"url": True, "icon": True, "mode": "web"}
+              and res["chatOn"] == {"instead": False, "url": False, "mode": "chat"} and res["troubleshoot"])
+        return ok, f"{res}"
+    check("Einstellungen minimalistisch: Abhängiges erst bei Bedarf, Chat als Schalter mit „Stattdessen“, Einzelheiten im ⓘ, Fehlerbehebung eingeklappt", options_minimal, results)
+
     def pref_halo_search():
         # Suche der Einstellungen findet die Optionen von halo.spaces („update“ → „Install updates at start“, „logos“ →
         # „Logos from sender websites“), Treffer wie Thunderbirds eigene markiert; „Show“ öffnet halo.spaces bei der Option
@@ -8849,7 +8972,7 @@ Neu
           const sb = Cu.Sandbox(null);
           sb.browser = Cu.cloneInto({ mailCards: {} }, sb);
           Cu.evalInSandbox(src.replace(/\\nrender\\(\\)[^\\n]*\\s*$/, "\\n").replace(/\\nwindow\\.addEventListener[^\\n]*/, "\\n"), sb);
-          const sections = JSON.parse(Cu.evalInSandbox("JSON.stringify(SECTIONS(t))", sb)).map(([title, rows]) => [title, rows.map(r => r.key)]);
+          const sections = JSON.parse(Cu.evalInSandbox("JSON.stringify(SECTIONS(t))", sb)).map(([title, rows]) => [title, rows.filter(r => r.type != "chat").map(r => r.key)]);
           const used = [...src.matchAll(/\\bt\\("((?:[^"\\\\]|\\\\.)*)"\\)/g)].map(x => JSON.parse('"' + x[1] + '"'));
           const T = Cu.evalInSandbox("TRANSLATIONS", g), SETTINGS = Cu.evalInSandbox("SETTINGS", g);
           const api = Cu.evalInSandbox("mailCards.prototype.getAPI({})", g).mailCards, st = await api.getSettings();

@@ -251,3 +251,82 @@ main {
   margin-top: 6px;
   width: 100%;
 }
+
+/* Begrüßung schrittweise: erst die Frage mit Ja/Nein, die Einzelheiten
+   gleiten danach auf (Rasterhöhe 0 → Inhalt; das Fenster wächst mit) */
+.weather .ask {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.weather .ask .q {
+  flex: 1;
+}
+
+.weather .choices.yesno {
+  flex: none;
+  margin-top: 0;
+}
+
+.weather .choices.yesno .capsule {
+  min-width: 56px;
+}
+
+.weather .more {
+  display: grid;
+  grid-template-rows: 0fr;
+  opacity: 0;
+  transition: grid-template-rows 300ms ease, opacity 220ms ease;
+}
+
+.weather .more.open {
+  grid-template-rows: 1fr;
+  opacity: 1;
+}
+
+.weather .more-inner {
+  min-height: 0;
+  overflow: hidden;
+}
+
+.weather .more-inner > :first-child {
+  margin-top: 8px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .weather .more {
+    transition: none;
+  }
+}
+
+/* Vorschläge beim Tippen der Stadt */
+.weather .suggest {
+  display: flex;
+  flex-direction: column;
+  margin-top: 4px;
+  padding: 3px;
+  border-radius: 8px;
+  background: var(--window);
+  box-shadow: 0 0 0 0.5px var(--control-hover);
+}
+
+.weather .suggest .suggestion {
+  padding: 5px 8px;
+  border: none;
+  border-radius: 5px;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: start;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.weather .suggest .suggestion:hover,
+.weather .suggest .suggestion:focus-visible {
+  background: var(--accent);
+  color: AccentColorText;
+  outline: none;
+}

@@ -257,3 +257,81 @@ textarea {
 .in-prefs .row .hint {
   font-size: 12px;
 }
+
+/* ausgeblendete Zeilen (abhängige Optionen, eingeklappte Fehlerbehebung) */
+[hidden] {
+  display: none !important;
+}
+
+/* Einzelheiten auf Nachfrage: ⓘ neben dem Titel, Text als Tooltip */
+.row .info {
+  margin-inline-start: 5px;
+  font-size: 12px;
+  color: var(--text-secondary);
+  cursor: help;
+}
+
+/* eingeklappter Abschnitt: Überschrift als Knopf mit Pfeil (wie macOS) */
+h2 .disclosure {
+  height: auto;
+  padding: 0;
+  border-radius: 0;
+  background: none;
+  font: inherit;
+  color: inherit;
+  text-transform: inherit;
+  letter-spacing: inherit;
+}
+
+h2 .disclosure::after {
+  content: "";
+  display: inline-block;
+  width: 0.45em;
+  height: 0.45em;
+  margin-inline-start: 0.4em;
+  border: solid currentColor;
+  border-width: 0 2px 2px 0;
+  transform: translateY(-0.15em) rotate(-45deg);
+  transition: transform 200ms ease;
+}
+
+h2 .disclosure[aria-expanded="true"]::after {
+  transform: translateY(-0.25em) rotate(45deg);
+}
+
+/* Ort fürs Wetter mit Vorschlägen beim Tippen */
+.place-box {
+  position: relative;
+  flex: none;
+}
+
+.suggest {
+  position: absolute;
+  z-index: 2;
+  inset-inline: 0;
+  top: calc(100% + 4px);
+  display: flex;
+  flex-direction: column;
+  padding: 4px;
+  border-radius: 8px;
+  background: var(--window);
+  box-shadow: 0 0 0 0.5px var(--line), 0 6px 18px rgba(0, 0, 0, 0.16);
+}
+
+.suggest button {
+  height: auto;
+  padding: 5px 8px;
+  border-radius: 5px;
+  background: none;
+  text-align: start;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.suggest button:hover,
+.suggest button:focus-visible {
+  background: var(--accent);
+  color: AccentColorText;
+  outline: none;
+}
