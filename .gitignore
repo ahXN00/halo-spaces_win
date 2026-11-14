@@ -19,3 +19,5 @@ CLAUDE.md
 __pycache__/
 # Notizen und Gesprächsverläufe der KI-Sitzungen (lokal, privat)
 .claude-notes/
+# lokaler Code-Index (CodeGraph)
+.codegraph/
