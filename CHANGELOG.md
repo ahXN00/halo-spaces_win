@@ -14,6 +14,7 @@ own release notes are on its [Releases](https://github.com/sruf79/halo-spaces/re
 ### 🐛 Fixes
 - **Help window no longer scrolls by a fraction of a pixel at 125 % scaling**
 - **Address book: the divider line in the toolbar row lines up with the list border at 125 % and 150 % scaling**
+- **Weather symbol back between the calendar button and "+" in the Today pane** (the new version had moved it to its own row on Windows)
 - **Removed upstream-only files** (donate link, the author's server workflows and agent hooks)
 - **No "Say Thanks", "Recommend" or donation reminder dot** (fork rule: no feedback or donate)
 

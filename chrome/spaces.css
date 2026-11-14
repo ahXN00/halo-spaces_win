@@ -9068,6 +9068,11 @@ body:has(> #accountTreeBox.mc-side-hidden) {
 
   /* schmal bleibt zwischen Kalender-Knopf und „+“ nur die Breite des Symbols –
      der Titel nutzt den freien Rand links, die Zahl darf rechts überstehen */
+  /* schmal oben zwischen den Knöpfen: nie schmaler als das Symbol (Klickfläche) */
+  #mcTodayTitle[data-narrow]:not([data-below]) {
+    min-width: 20px;
+  }
+
   #mcTodayTitle[data-narrow][data-weather][data-temp] {
     overflow: visible;
     margin-inline-start: -8px;

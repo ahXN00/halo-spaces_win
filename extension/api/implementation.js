@@ -11789,7 +11789,9 @@ class CardEnhancer {
         // nicht einmal für die Sonne Platz (Windows/Linux: ≡ und Fensterknöpfe
         // liegen über der Today-Pane): Überschrift als eigene Zeile oben in der
         // Today-Pane statt unsichtbar unter „+“
-        const below = width > 0 && room < 32;
+        // (Windows: das Symbol allein – 20 px – passt zwischen Kalender-Knopf
+        // und „+“, auch wenn die Fensterknöpfe den Titel verdrängen)
+        const below = width > 0 && room < (Services.appinfo.OS == "WINNT" ? 20 : 32);
         if (below != (title.parentNode == panel)) {
           if (below) {
             panel.prepend(title);
