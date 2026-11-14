@@ -34,7 +34,7 @@ body {
   margin: 0;
   background: transparent;
   color: var(--text);
-  font: 13px/1.4 -apple-system, "SF Pro Text", "Segoe UI Variable Text", system-ui, sans-serif;
+  font: calc(13px * var(--mt-font-scale, 1))/1.4 -apple-system, "SF Pro Text", "Segoe UI Variable Text", system-ui, sans-serif;
 }
 
 main {
@@ -46,7 +46,7 @@ main {
 
 h2 {
   margin: 18px 4px 6px;
-  font-size: 11px;
+  font-size: calc(11px * var(--mt-font-scale, 1));
   font-weight: 600;
   color: var(--text-secondary);
   text-transform: uppercase;
@@ -83,7 +83,7 @@ section {
 .row .hint {
   display: block;
   margin-top: 1px;
-  font-size: 11px;
+  font-size: calc(11px * var(--mt-font-scale, 1));
   color: var(--text-secondary);
 }
 
@@ -101,6 +101,47 @@ section {
 
 .row .hint.status:not(:empty) {
   color: AccentColor;
+}
+
+/* Zustand des Wetters unter „Place“: Punkt grün (Wetter da) bzw. orange (Hinweis) */
+.row .hint.status[data-tone] {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0 6px;
+  color: var(--text-secondary);
+}
+
+.row .hint.status[data-tone] .dot {
+  flex: none;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--text-secondary);
+}
+
+.row .hint.status[data-tone="ok"] .dot {
+  background: #34C759;
+}
+
+.row .hint.status[data-tone="warn"] .dot {
+  background: #FF9500;
+}
+
+.row .hint.status .link {
+  height: auto;
+  padding: 0;
+  background: none;
+  color: AccentColor;
+  font-size: inherit;
+}
+
+.row .hint.status [hidden] {
+  display: none;
+}
+
+.place-box select.place-menu {
+  max-width: 200px;
 }
 
 /* Treffer aus der Suche der Einstellungen: kurz in Akzentfarbe getönt */
@@ -199,13 +240,13 @@ textarea {
   border-radius: 8px;
   background: var(--window);
   color: var(--text);
-  font: 12px/1.5 ui-monospace, Menlo, Consolas, monospace;
+  font: calc(12px * var(--mt-font-scale, 1))/1.5 ui-monospace, Menlo, Consolas, monospace;
   resize: vertical;
 }
 
 .saved {
   margin-inline-start: 6px;
-  font-size: 11px;
+  font-size: calc(11px * var(--mt-font-scale, 1));
   color: var(--text-secondary);
   opacity: 0;
   transition: opacity 200ms ease;
@@ -238,8 +279,8 @@ textarea {
 
 .in-prefs h2 {
   margin: 18px 0 8px;
-  font-size: 22px;
-  line-height: 28.6px;
+  font-size: calc(22px * var(--mt-font-scale, 1));
+  line-height: calc(28.6px * var(--mt-font-scale, 1));
   font-weight: 700;
   color: var(--text);
   text-transform: none;
@@ -255,7 +296,7 @@ textarea {
 }
 
 .in-prefs .row .hint {
-  font-size: 12px;
+  font-size: calc(12px * var(--mt-font-scale, 1));
 }
 
 /* ausgeblendete Zeilen (abhängige Optionen, eingeklappte Fehlerbehebung) */
@@ -266,7 +307,7 @@ textarea {
 /* Einzelheiten auf Nachfrage: ⓘ neben dem Titel, Text als Tooltip */
 .row .info {
   margin-inline-start: 5px;
-  font-size: 12px;
+  font-size: calc(12px * var(--mt-font-scale, 1));
   color: var(--text-secondary);
   cursor: help;
 }
@@ -335,3 +376,15 @@ h2 .disclosure[aria-expanded="true"]::after {
   color: AccentColorText;
   outline: none;
 }
+
+/* bereitliegendes Update: Zeile oben, Knopf in der Akzentfarbe */
+section.update {
+  margin-bottom: 18px;
+}
+
+button.accent {
+  background: var(--accent);
+  color: #fff;
+}
+
+

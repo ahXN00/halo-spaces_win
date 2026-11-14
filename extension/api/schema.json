@@ -37,6 +37,31 @@
         "parameters": []
       },
       {
+        "name": "updateReady",
+        "type": "function",
+        "async": true,
+        "description": "Update liegt bereit (zurückgestellt bis zum nächsten Start)",
+        "parameters": [
+          {
+            "name": "version",
+            "type": "string"
+          }
+        ]
+      },
+      {
+        "name": "getPendingUpdate",
+        "type": "function",
+        "async": true,
+        "description": "bereitliegendes Update: { version, auto } oder null",
+        "parameters": []
+      },
+      {
+        "name": "installUpdateNow",
+        "type": "function",
+        "async": true,
+        "parameters": []
+      },
+      {
         "name": "setSetting",
         "type": "function",
         "async": true,
@@ -50,6 +75,13 @@
             "type": "any"
           }
         ]
+      },
+      {
+        "name": "sayThanks",
+        "type": "function",
+        "async": true,
+        "description": "„Danke sagen“: Spendenseite im Browser öffnen, Erinnerung gilt als erledigt",
+        "parameters": []
       },
       {
         "name": "searchPlaces",
@@ -75,6 +107,13 @@
             "additionalProperties": true
           }
         ]
+      },
+      {
+        "name": "openLocationSettings",
+        "type": "function",
+        "async": true,
+        "description": "Systemeinstellung der Ortung öffnen (Wetter)",
+        "parameters": []
       }
     ]
   }

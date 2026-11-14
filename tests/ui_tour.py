@@ -175,6 +175,11 @@ const toolbarItem = id => [...d.querySelectorAll(`#unifiedToolbarContent li[item
 const roomyToolbar = async () => { w.__tourTodayWas = w.TodayPane.isVisible; if (w.TodayPane.isVisible) d.getElementById("calendar_toggle_todaypane_command").doCommand();
   w.resizeTo(Math.min(w.screen.availWidth, 1728), 900); await wait(1500); };
 const restoreToolbar = async () => { if (w.__tourTodayWas && !w.TodayPane.isVisible) d.getElementById("calendar_toggle_todaypane_command").doCommand(); w.__tourTodayWas = null; await wait(600); };
+// ausgewählte Zeile der Mailliste (Tabelle oder Karten): erst nach dem Aufbau der Zeile da – nach anderen Oberflächen
+// baut die Liste sie teils verzögert, die Suche nach tr.selected allein fand sie dann nicht
+const selRow = async p => { const t = p.threadTree; t.scrollToIndex?.(t.selectedIndex, true);
+  const row = await until(() => t.getRowAtIndex?.(t.selectedIndex) || p.document.querySelector('#threadTree tr.selected, #threadTree tr[aria-selected="true"]'), 4000);
+  if (!row) throw new Error("ausgewählte Zeile der Mailliste fehlt"); return row; };
 const rowOf = (doc, sel, text) => [...doc.querySelectorAll(sel)].find(r => r.textContent.includes(text));
 // Fenster eines Typs, sobald es geladen ist
 const winOf = (type, ms = 10000) => until(() => { const x = Services.wm.getMostRecentWindow(type); return x?.document.readyState == "complete" && x; }, ms);
@@ -193,6 +198,12 @@ const compose = async (o = {}) => {
   const cw = await until(() => { const x = Services.wm.getMostRecentWindow("msgcompose"); return x?.document.readyState == "complete" && x.gMsgCompose && x; }, 12000);
   if (!cw) throw new Error("Verfassen-Fenster nicht offen");
   await wait(1800); return cw; };
+// Verfassen mit sichtbarer Formatleiste: halo.spaces zeigt sie erst nach „Aa“ (gemerkt in der Einstellung) –
+// ohne sie haben Absatz-, Schrift-, Einfügen- usw. Menü keinen Anker und gehen nicht auf
+const FORMAT_PREF = "extensions.mailcards.composeFormatBar";
+const composeFmt = async (o = {}) => { Services.prefs.setBoolPref(FORMAT_PREF, true); const cw = await compose(o);
+  if (!await until(() => vis(cw.document.getElementById("FormatToolbar")), 4000)) throw new Error("Formatleiste nicht sichtbar");
+  await wait(300); return cw; };
 // Termin/Aufgabe eines beliebigen Kalenders nach Titel
 const anyItem = async title => { for (const c of cal.manager.getCalendars()) { try {
   const it = (await c.getItemsAsArray(Ci.calICalendar.ITEM_FILTER_ALL_ITEMS, 0, null, null)).find(i => i.title == title); if (it) return it; } catch {} }
@@ -278,7 +289,7 @@ const eventDialog = async () => { await toCalendar(); w.switchCalendarView("week
 // Schnellfenster „Neuer Termin“ von halo.spaces mit aufgeklappten Details (Beginn, Ende, Wiederholen …)
 const quickPanel = async () => { await toCalendar(); w.switchCalendarView("week"); await wait(800); const li = toolbarItem("new-event"); if (!li) throw new Error("„+“ fehlt");
   await pop("mcQuickPanel", () => li.querySelector("button").click()); const f = d.getElementById("mcQuickPanel").__mc;
-  if (!f) throw new Error("Schnellfenster ohne Felder"); if (!vis(f.startDate)) { f.summary.click(); await wait(600); } return f; };
+  if (!f) throw new Error("Schnellfenster ohne Felder"); if (!vis(f.allDay)) { f.summary.click(); await wait(600); } return f; };
 // Mauszeiger auf die Mitte eines Elements (Rückgabe für den Rundgang: Marionette bewegt den Zeiger im Hauptfenster,
 // Rahmen wie about:3pane werden eingerechnet) – für Hover-Zustände und Tooltips. Merkt sich jeden Tooltip, der danach
 // aufgeht: Knöpfe mit title nutzen den Standard-Tooltip des Dokuments (anonymer Inhalt, per querySelector unsichtbar)
@@ -662,11 +673,6 @@ SURFACES = [
       'const p = await pick("Inbox", "Bilder vom Ausflug"); p.folderTree.focus(); await wait(600);'),
     S("mail-mehrfachauswahl", "mailliste", "zustand", "Mehrere Mails ausgewählt (Zusammenfassung)",
       'const p = await pick("Inbox", "Treffen am Donnerstag"); p.threadTree.selectedIndices = [0, 1, 2, 3]; await wait(2000);'),
-    S("mail-schnellantwort", "mailliste", "zustand", "Schnellantwort unter der Mail mit Text (halo.spaces)",
-      'await pick("Inbox", "Treffen am Donnerstag"); const md = msgDoc(); const bar = await until(() => md.getElementById("mcQuickReply"), 4000);'
-      ' if (!bar) throw new Error("Schnellantwort fehlt"); const f = bar.querySelector(".mc-qr-field"); f.value = "Danke, passt mir gut!";'
-      ' f.dispatchEvent(new md.defaultView.Event("input", { bubbles: true })); f.focus(); await wait(500);',
-      close='const bar = msgDoc()?.getElementById("mcQuickReply"); if (bar) { const f = bar.querySelector(".mc-qr-field"); f.value = ""; f.dispatchEvent(new f.ownerDocument.defaultView.Event("input", { bubbles: true })); }'),
     S("mail-nachfassen", "mailliste", "zustand", "Posteingang: Hinweis „Nachfassen“ zu eigener Mail ohne Antwort (halo.spaces)",
       'const s = fld("Sent"); s.setFlag(Ci.nsMsgFolderFlags.SentMail); const sent = s.QueryInterface(Ci.nsIMsgLocalMailFolder);'
       ' const dt = new Date(Date.now() - 5 * 86400000).toUTCString().replace("GMT", "+0000");'
@@ -736,6 +742,13 @@ SURFACES = [
     S("mail-ansichtsoptionen", "mailliste", "popup", "Listenkopf: Ansichtsoptionen (…)",
       'const p = await pick("Inbox", "Treffen am Donnerstag"); const b = p.document.getElementById("threadPaneDisplayButton");'
       ' return await pop(p.document.getElementById("threadPaneDisplayContext"), () => b.click());', cap="popup"),
+    S("mail-filtermenue", "mailliste", "popup", "Listenkopf: Filter-Bedingungen (Rechtsklick oder Halten auf den Filterknopf)",
+      'await pick("Inbox", "Treffen am Donnerstag"); const b = d.querySelector("#mcListHeader .mc-lh-filter"); const r = b.getBoundingClientRect();'
+      ' return await pop("mcMailFilterPopup", () => b.dispatchEvent(new w.MouseEvent("contextmenu", { bubbles: true, cancelable: true, clientX: r.left + 5, clientY: r.top + 5 })));',
+      cap="popup"),
+    S("mail-gefiltert", "mailliste", "zustand", "Filter an: „Filtered by: Unread“ unter dem Titel",
+      'await pick("Inbox", "Treffen am Donnerstag"); d.querySelector("#mcListHeader .mc-lh-filter").click(); await wait(1200);',
+      close='d.querySelector("#mcListHeader .mc-lh-filter").click(); await wait(800);'),
     S("mail-ansichtsoptionen-sortieren", "mailliste", "popup", "Listenkopf: Ansichtsoptionen → Sortieren nach",
       'const p = await pick("Inbox", "Treffen am Donnerstag"); const b = p.document.getElementById("threadPaneDisplayButton");'
       ' await pop(p.document.getElementById("threadPaneDisplayContext"), () => b.click());'
@@ -860,11 +873,14 @@ SURFACES = [
       ' if (!await until(() => inp.controller.matchCount > 0, 5000)) throw new Error("keine Vorschläge");'
       ' return await pop(inp.popup, () => { if (inp.popup.state != "open") inp.openPopup(); });', cap="popup"),
     S("verfassen-absatz-menue", "verfassen", "popup", "Formatleiste: Absatzformat",
-      'const cw = await compose(); return await openBtnPop(cw.document.getElementById("ParagraphPopup"), cw.document.getElementById("ParagraphSelect"));', cap="popup"),
+      'const cw = await composeFmt(); return await openBtnPop(cw.document.getElementById("ParagraphPopup"), cw.document.getElementById("ParagraphSelect"));', cap="popup",
+      close='Services.prefs.clearUserPref(FORMAT_PREF);'),
     S("verfassen-schrift-menue", "verfassen", "popup", "Formatleiste: Schriftart",
-      'const cw = await compose(); return await openBtnPop(cw.document.getElementById("FontFacePopup"), cw.document.getElementById("FontFaceSelect"));', cap="popup"),
+      'const cw = await composeFmt(); return await openBtnPop(cw.document.getElementById("FontFacePopup"), cw.document.getElementById("FontFaceSelect"));', cap="popup",
+      close='Services.prefs.clearUserPref(FORMAT_PREF);'),
     S("verfassen-einfuegen-menue", "verfassen", "popup", "Formatleiste: Einfügen",
-      'const cw = await compose(); return await openBtnPop(cw.document.getElementById("InsertPopup"), cw.document.getElementById("InsertPopupButton"));', cap="popup"),
+      'const cw = await composeFmt(); return await openBtnPop(cw.document.getElementById("InsertPopup"), cw.document.getElementById("InsertPopupButton"));', cap="popup",
+      close='Services.prefs.clearUserPref(FORMAT_PREF);'),
     S("verfassen-anhang-menue", "verfassen", "popup", "Symbolleiste: Anhängen-Menü",
       'const cw = await compose(); return await openBtnPop(cw.document.getElementById("button-attachPopup"), cw.document.getElementById("button-attach"));', cap="popup"),
     S("verfassen-speichern-menue", "verfassen", "popup", "Symbolleiste: Speichern-Menü",
@@ -902,11 +918,14 @@ SURFACES = [
       'const cw = await compose({ body: "<p>Ein Tset mit Fehlrn und noch mehr Fehlren.</p>" }); later(() => cw.goDoCommand("cmd_spelling"));', cap="window", win="EdSpellCheck"),
     # Formatleiste: weitere Menüs
     S("verfassen-schriftgroesse-menue", "verfassen", "popup", "Formatleiste: Textgröße",
-      'const cw = await compose(); return await openBtnPop(cw.document.getElementById("AbsoluteFontSizeButtonPopup"), cw.document.getElementById("AbsoluteFontSizeButton"));', cap="popup"),
+      'const cw = await composeFmt(); return await openBtnPop(cw.document.getElementById("AbsoluteFontSizeButtonPopup"), cw.document.getElementById("AbsoluteFontSizeButton"));', cap="popup",
+      close='Services.prefs.clearUserPref(FORMAT_PREF);'),
     S("verfassen-ausrichtung-menue", "verfassen", "popup", "Formatleiste: Ausrichtung (mit Symbolen)",
-      'const cw = await compose(); return await openBtnPop(cw.document.getElementById("AlignPopup"), cw.document.getElementById("AlignPopupButton"));', cap="popup"),
+      'const cw = await composeFmt(); return await openBtnPop(cw.document.getElementById("AlignPopup"), cw.document.getElementById("AlignPopupButton"));', cap="popup",
+      close='Services.prefs.clearUserPref(FORMAT_PREF);'),
     S("verfassen-smiley-menue", "verfassen", "popup", "Formatleiste: Smileys",
-      'const cw = await compose(); return await openBtnPop(cw.document.getElementById("smileyPopup"), cw.document.getElementById("smileButtonMenu"));', cap="popup"),
+      'const cw = await composeFmt(); return await openBtnPop(cw.document.getElementById("smileyPopup"), cw.document.getElementById("smileButtonMenu"));', cap="popup",
+      close='Services.prefs.clearUserPref(FORMAT_PREF);'),
     S("verfassen-suchleiste", "verfassen", "zustand", "Verfassen: Suchleiste im Nachrichtentext (Bearbeiten → Suchen)",
       'const cw = await compose(); cw.goDoCommand("cmd_find"); const fb = await until(() => { const f = cw.document.getElementById("FindToolbar"); return f && !f.hidden && f; }, 4000);'
       ' if (!fb) throw new Error("Suchleiste ging nicht auf"); fb._findField.value = "Liste"; fb._find?.(); await wait(800);', cap="window", win="messengercompose"),
@@ -924,8 +943,6 @@ SURFACES = [
       close='const cw = Services.wm.getMostRecentWindow("msgcompose"); try { cw?.document.getElementById("customizeToolbarSheetIFrame")?.contentWindow?.onClose?.(); } catch {} await wait(800);'),
 
     # ------------------------------------------------------------ Ordnerliste, Toolbar, Suche, Spaces
-    S("ordner-mehr-menue", "ordner", "popup", "Ordnerliste: „…“-Menü (Ordner-Modi)",
-      'const p = await toMail(); const b = p.document.getElementById("folderPaneMoreButton"); return await pop(p.document.getElementById("folderPaneMoreContext"), () => b.click());', cap="popup"),
     S("ordner-modi", "ordner", "zustand", "Ordnerliste mit Modi „Ungelesen“ und „Markiert“",
       'const p = await toMail(); w.__tourModes = p.folderPane.activeModes; p.folderPane.activeModes = [...new Set([...p.folderPane.activeModes, "unread", "flagged"])]; await wait(1500);',
       close='const p = tm.currentAbout3Pane; if (w.__tourModes) p.folderPane.activeModes = w.__tourModes; await wait(800);'),
@@ -935,9 +952,6 @@ SURFACES = [
     S("ordner-ausgeblendet", "ordner", "zustand", "Ordnerliste ausgeblendet",
       'await pick("Inbox", "Treffen am Donnerstag"); cmd3("cmd_toggleFolderPane"); await wait(1200);',
       close='cmd3("cmd_toggleFolderPane"); await wait(800);'),
-    S("ordner-abrufen-menue", "ordner", "popup", "Ordnerliste: Abrufen-Knopf (Kontextmenü)",
-      'const p = await toMail(); const b = p.document.getElementById("folderPaneGetMessages");'
-      ' if (b.disabled) throw new Error("Knopf deaktiviert: kein Konto mit Server im Testprofil"); return await ctxPop("folderPaneGetMessagesContext", b);', cap="popup"),
     S("toolbar-verschieben", "ordner", "popup", "Toolbar: „Verschieben“ (Ordnerauswahl)",
       'await pick("Inbox", "Treffen am Donnerstag"); await roomyToolbar(); const li = toolbarItem("move-to"); if (!li) throw new Error("Knopf auch im breiten Fenster eingeklappt");'
       ' return await pop("toolbarMoveToPopup", () => li.querySelector("button").click());', cap="popup", close="await restoreToolbar();"),
@@ -980,12 +994,8 @@ SURFACES = [
       close='w.gSpacesToolbar.toggleToolbar(false); await wait(1000);'),
     S("spaces-menue-knopf", "ordner", "popup", "Bereiche-Leiste eingeklappt: Bereiche-Menü", cap="native",
       skip="von halo.spaces ersetzt: der Knopf blendet die Seitenleiste ein/aus, das Menü wird blockiert (implementation.js, hookSidebarButton)"),
-    S("spaces-anpassen", "ordner", "popup", "Bereiche-Leiste anpassen (Panel)",
-      'await toMail(); const gs = w.gSpacesToolbar; const anchor = d.getElementById("collapseButton");'
-      ' return await pop("spacesToolbarCustomizationPanel", p => { if (vis(anchor)) return gs.showCustomize();'
-      ' gs.isCustomizing = true; gs._resetColorInputs?.(); p.openPopup(d.getElementById("settingsButton"), "end_after", 6, 0, false); });', cap="popup",
-      close='w.gSpacesToolbar.customizePanel?.hidePopup(); await wait(400);',
-      note="showCustomize() verankert das Panel am ausgeblendeten collapseButton – dort geht es nicht auf; der Rundgang öffnet es am Einstellungen-Knopf"),
+    S("spaces-anpassen", "ordner", "popup", "Bereiche-Leiste anpassen (Panel)", cap="native",
+      skip="von halo.spaces entfernt: „Anpassen…“ ist in beiden Kontextmenüs ausgeblendet, Nutzer erreichen das Panel nicht (implementation.js)"),
     S("appmenu", "ordner", "popup", "App-Menü (≡)",
       'await toMail(); const anchor = toolbarItem("search-bar") || d.getElementById("unifiedToolbarContent"); await w.PanelUI.ensureReady?.();'
       ' await pop("appMenu-popup", async () => { await w.PanelMultiView.openPopup(w.PanelUI.panel, anchor, { position: "bottomright topright" }); }); return { popup: "appMenu-popup" };', cap="popup",
@@ -999,14 +1009,15 @@ SURFACES = [
     # ------------------------------------------------------------ Menüs und Kontextmenüs
     *_menubar(),
     S("kontext-mailliste", "menues", "popup", "Kontextmenü: Mailliste",
-      'const p = await pick("Inbox", "Treffen am Donnerstag"); const row = p.document.querySelector(\'#threadTree tr.selected, #threadTree tr[aria-selected="true"]\');'
+      'const p = await pick("Inbox", "Treffen am Donnerstag"); const row = await selRow(p);'
       ' return await ctxPop("mailContext", row);', cap="popup"),
     S("kontext-mailliste-erinnern", "menues", "popup", "Kontextmenü: Mailliste → Erinnern (halo.spaces)",
-      'const p = await pick("Inbox", "Treffen am Donnerstag"); const row = p.document.querySelector(\'#threadTree tr.selected, #threadTree tr[aria-selected="true"]\');'
+      'const p = await pick("Inbox", "Treffen am Donnerstag"); const row = await selRow(p);'
       ' await ctxPop("mailContext", row); const sub = p.document.getElementById("mcRemindMenu").menupopup; return await pop(sub, () => { sub.parentNode.open = true; });', cap="popup"),
-    S("kontext-mailliste-untermenue", "menues", "popup", "Kontextmenü: Mailliste → Schlagwort",
-      'const p = await pick("Inbox", "Treffen am Donnerstag"); const row = p.document.querySelector(\'#threadTree tr.selected, #threadTree tr[aria-selected="true"]\');'
-      ' await ctxPop("mailContext", row); const sub = p.document.getElementById("mailContext-tagpopup"); return await pop(sub, () => { sub.parentNode.open = true; });', cap="popup"),
+    S("kontext-mailliste-untermenue", "menues", "popup", "Kontextmenü: Mailliste → Move To (Ordner-Untermenü)",
+      'const p = await pick("Inbox", "Treffen am Donnerstag"); const row = await selRow(p);'
+      ' await ctxPop("mailContext", row); const sub = p.document.getElementById("mailContext-moveMenu").menupopup; return await pop(sub, () => { sub.parentNode.open = true; });', cap="popup",
+      note="„Tag“ blendet halo.spaces im flachen Kontextmenü aus – das Untermenü zeigt darum „Move To“"),
     S("kontext-ordnerliste", "menues", "popup", "Kontextmenü: Ordnerliste",
       'const p = await toMail(); const row = [...p.document.querySelectorAll("#folderTree li")].find(li => li.querySelector(".name")?.textContent.trim() == "Newsletter");'
       ' return await ctxPop("folderPaneContext", row.querySelector(".container") || row);', cap="popup"),
@@ -1066,10 +1077,18 @@ SURFACES = [
     S("kal-schnellfenster", "kalender", "popup", "Kalender: Schnellfenster „Neuer Termin“",
       'await toCalendar(); w.switchCalendarView("week"); await wait(800); const li = toolbarItem("new-event"); if (!li) throw new Error("„+“ fehlt");'
       ' return await pop("mcQuickPanel", () => li.querySelector("button").click());', cap="popup"),
+    # Bild für README und Store (screenshots/quick-event.png, store/shot-quick-event.png): erfundenes Beispiel
+    S("kal-schnellfenster-beispiel", "kalender", "popup", "Schnellfenster mit Beispiel (Team Lunch, Café Central, wöchentlich, Erinnerung)",
+      'await toCalendar(); w.switchCalendarView("week"); await wait(800); const li = toolbarItem("new-event"); if (!li) throw new Error("„+“ fehlt");'
+      ' await pop("mcQuickPanel", () => li.querySelector("button").click()); const p = d.getElementById("mcQuickPanel"), f = p.__mc;'
+      ' f.title.value = "Team Lunch"; f.location.value = "Café Central";'
+      ' f.repeat.value = "WEEKLY"; f.repeat.dispatchEvent(new Event("change")); f.alert.value = "PT15M"; f.alert.dispatchEvent(new Event("change"));'
+      ' f.title.blur(); await wait(500); w.__tourPopup = p; return p;', cap="popup"),
     # Schnellfenster: Popups der HTML-Felder (Datum, Auswahlliste) und das eigene Kalendermenü von halo.spaces
-    S("kal-schnellfenster-datum", "kalender", "popup", "Schnellfenster: Datumsauswahl (Datumsfeld „Beginn“)",
-      'const f = await quickPanel(); return await pop("DateTimePickerPanel", () => { d.notifyUserGestureActivation(); f.startDate.showPicker(); });', cap="popup",
-      note="DateTimePickerPanel (datetimepicker.xhtml) – in userChrome.css/spaces.css bisher ohne eigene Regeln"),
+    S("kal-schnellfenster-datum", "kalender", "popup", "Schnellfenster: Datum zum Eintippen mit Monatskalender (Klick ins Jahr bei „Beginn“)",
+      'const f = await quickPanel(); const s = f.startDate.parentNode.querySelector(\'.mc-date-seg[data-seg="y"]\'); if (!s) throw new Error("Datum zum Eintippen fehlt");'
+      ' const p = await until(() => [...d.querySelectorAll(".mc-date-panel")].find(x => x.__mcFor == s.parentNode) || d.querySelector(".mc-date-panel"), 3000);'
+      ' return await pop(p, () => s.dispatchEvent(new w.MouseEvent("mousedown", { bubbles: true, cancelable: true, button: 0 })));', cap="popup"),
     S("kal-schnellfenster-auswahlliste", "kalender", "popup", "Schnellfenster: aufgeklappte Auswahlliste „Wiederholen“",
       'const f = await quickPanel(); const p = d.getElementById("ContentSelectDropdown")?.menupopup; if (!p) throw new Error("Auswahlliste fehlt");'
       ' return await pop(p, () => { d.notifyUserGestureActivation(); f.repeat.showPicker(); });', cap="popup",
@@ -1095,13 +1114,17 @@ SURFACES = [
       'await toCalendar(); w.createEventWithDialog(testCalendar(), null, null, "Neuer Testtermin"); const dw = await winUrl("calendar-event-dialog"); await wait(2500);'
       ' const iw = dw.document.getElementById("calendar-item-panel-iframe")?.contentWindow || dw; later(() => iw.editAttendees());', cap="window", win="calendar-event-dialog-attendees"),
     # Termin-Dialog: aufgeklappte Felder (Datum, Uhrzeit, Kategorien) und Menüs der Symbolleiste
-    S("kal-termin-datum", "kalender", "popup", "Termin-Dialog: Datumsauswahl (Minimonat im Datumsfeld)",
-      'const { iw } = await eventDialog(); const ml = iw.document.querySelector("#event-starttime datepicker menulist"); if (!ml) throw new Error("Datumsfeld fehlt");'
-      ' return await openBtnPop(ml.menupopup, ml);', cap="popup"),
-    S("kal-termin-uhrzeit", "kalender", "popup", "Termin-Dialog: Uhrzeit-Popover (nur Uhrzeit, wie Apple Kalender)",
-      'const { iw } = await eventDialog(); const ml = iw.document.querySelector("#event-starttime timepicker menulist"); if (!ml) throw new Error("Uhrzeitfeld fehlt");'
-      ' const p = await until(() => iw.document.querySelector(".mc-time-panel"), 3000); if (!p) throw new Error("Uhrzeit-Popover fehlt");'
-      ' return await pop(p, () => { ml.open = true; });', cap="popup"),
+    S("kal-termin-datum", "kalender", "popup", "Termin-Dialog: Datum zum Eintippen mit Monatskalender (Klick ins Jahr, wie Apple Kalender)",
+      'const { iw } = await eventDialog(); const s = iw.document.querySelector(\'#event-starttime .mc-date-seg[data-seg="y"]\'); const p = iw.document.querySelector(".mc-date-panel");'
+      ' if (!s || !p) throw new Error("Datum zum Eintippen fehlt");'
+      ' return await pop(p, () => s.dispatchEvent(new iw.MouseEvent("mousedown", { bubbles: true, cancelable: true, button: 0 })));', cap="popup"),
+    S("kal-termin-uhrzeit", "kalender", "dialog", "Termin-Dialog: Uhrzeit zum Eintippen (Stunden gewählt, wie Apple Kalender)",
+      'const { iw } = await eventDialog(); const s = iw.document.querySelector("#event-starttime timepicker .mc-time-seg"); if (!s) throw new Error("Uhrzeitfeld fehlt");'
+      ' s.dispatchEvent(new iw.MouseEvent("mousedown", { bubbles: true, cancelable: true, button: 0 }));', cap="window", win="calendar-event-dialog"),
+    S("kal-termin-endzeit", "kalender", "popup", "Termin-Dialog: Endzeit – Auswahlliste mit Dauer (Klick in die Uhrzeit des Endes)",
+      'const { iw } = await eventDialog(); const s = iw.document.querySelector("#event-endtime timepicker .mc-time-seg"); const p = iw.document.querySelector(".mc-end-list");'
+      ' if (!s || !p) throw new Error("Endzeit-Liste fehlt");'
+      ' return await pop(p, () => s.dispatchEvent(new iw.MouseEvent("mousedown", { bubbles: true, cancelable: true, button: 0 })));', cap="popup"),
     S("kal-termin-kategorien", "kalender", "popup", "Termin-Dialog: Kategorien (Auswahl mit Häkchen)",
       'const { iw } = await eventDialog(); const ml = iw.document.getElementById("item-categories"); if (!ml) throw new Error("Kategorien fehlen");'
       ' return await openBtnPop(iw.document.getElementById("item-categories-popup"), ml);', cap="popup"),
@@ -1329,7 +1352,12 @@ SURFACES = [
       'await show("Inbox"); later(() => cmd3("cmd_newVirtualFolder"));', cap="window", win="virtualFolderListEdit",
       then=("virtualFolderProperties", 'const b = d.getElementById("folderListPicker"); if (!b) throw new Error("Knopf fehlt"); setTimeout(() => b.click(), 0); return 1;')),
     S("dlg-suche", "dialoge", "fenster", "Nachrichten suchen (erweiterte Suche)",
-      'await show("Inbox"); later(() => w.searchAllMessages());', cap="window", win="earchDialog.xhtml"),
+      'const f = await show("Inbox"); later(() => w.openSearchDialog(tm.currentAbout3Pane?.gFolder ?? null));', cap="window", win="earchDialog.xhtml",
+      # alle Nachrichten suchen, damit die Ergebnisliste gefüllt ist (ab TB 160 eine Liste wie die Mailliste)
+      then=("earchDialog.xhtml", 'await new Promise(r => setTimeout(r, 800));'
+            ' const v = [...d.querySelectorAll("#searchTermList input:not([type=checkbox])")].find(e => e.getBoundingClientRect().width);'
+            ' if (v) { v.focus(); v.value = "e"; v.dispatchEvent(new Event("input", { bubbles: true })); }'
+            ' d.getElementById("search-button")?.click(); await new Promise(r => setTimeout(r, 3000)); return 1;')),
     S("dlg-lesen-nach-datum", "dialoge", "dialog", "Nach Datum als gelesen markieren",
       'await show("Inbox"); later(() => cmd3("cmd_markReadByDate"));', cap="window", win="markByDate"),
     S("dlg-schlagwort", "dialoge", "dialog", "Neues Schlagwort (aus der Mailliste)",
@@ -1482,6 +1510,7 @@ class Tour:
         self.m, self.port, self.pid, self.out, self.scheme, self.probe = m, port, pid, out, scheme, probe
         self.main = self.handle()
         self.results = []
+        self.messung = {}
         self.echo = True
 
     def reconnect(self):
@@ -1537,6 +1566,8 @@ class Tour:
             else:
                 res = self.js("const popup = w.__tourPopup; const cur = tabDoc();" + self.probe)
             print(f"PROBE {sid} {json.dumps(res, ensure_ascii=False)}", flush=True)
+            if isinstance(res, dict):
+                self.messung[sid] = res
         except Exception as e:
             print(f"PROBE {sid} FEHLER {e}", flush=True)
 
@@ -1596,8 +1627,9 @@ class Tour:
             if s.get("after"):
                 self.js(s["after"] + "\n;return null;")
             if s["cap"] == "popup":
-                files = self.capture_popups(sid)
+                # messen, solange das Popup sicher offen ist – die Aufnahme kann es schließen
                 self.do_probe(sid)
+                files = self.capture_popups(sid)
                 return self.report(s, True, files)
             if s.get("prompt"):
                 return self.capture_prompt(s, before_wins)
@@ -1945,6 +1977,8 @@ def main():
     ap.add_argument("--list", action="store_true", help="Oberflächen auflisten und beenden")
     ap.add_argument("--probe", help="JavaScript nach dem Öffnen jeder Oberfläche ausführen und als JSON ausgeben "
                                     "(Hauptfenster: Hilfen aus PRELUDE/TOUR_JS, popup, cur; Fenster: w, d)")
+    ap.add_argument("--messung", action="store_true", help="jede Oberfläche mit tests/tour-messung.js messen und die Werte "
+                                                           "nach <out>/<hell|dunkel>-messung.json schreiben (Design-Rundgang)")
     ap.add_argument("--keep", action="store_true", help="Testprofil nicht löschen")
     ap.add_argument("--tb", default=ht.DEFAULT_TB, help="Thunderbird-Programm")
     ap.add_argument("--tb-log", help="Ausgabe von Thunderbird in diese Datei")
@@ -1952,6 +1986,8 @@ def main():
     ap.add_argument("--fortschritt", metavar="DATEI", help="Fortschrittsliste (Markdown) schreiben")
     args = ap.parse_args()
     out = os.path.abspath(args.out)
+    if args.messung and not args.probe:
+        args.probe = open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "tour-messung.js"), encoding="utf-8").read()
     # bei einem Hänger: kill -USR1 <pid> gibt den Python-Stack aus
     import faulthandler
     import signal
@@ -2025,6 +2061,12 @@ def main():
             old[e["id"]] = e
         order = {s["id"]: i for i, s in enumerate(SURFACES)}
         json.dump(sorted(old.values(), key=lambda e: order.get(e["id"], 9999)), open(rp, "w"), indent=1, ensure_ascii=False)
+        if args.messung:
+            # Messwerte je Oberfläche, wie das Ergebnis mit früheren --only-Läufen zusammengeführt
+            mp = os.path.join(out, f"{scheme}-messung.json")
+            alt = json.load(open(mp)) if os.path.exists(mp) else {}
+            alt.update(tour.messung)
+            json.dump(alt, open(mp, "w"), indent=1, ensure_ascii=False)
         ok = sum(1 for e in tour.results if e["ok"])
         print(f"\n{ok} von {len(tour.results)} Oberflächen aufgenommen, {len(tour.results) - ok} nicht erreichbar → {rp}")
 

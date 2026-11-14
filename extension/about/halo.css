@@ -15,7 +15,7 @@
   :root {
     --text: #f5f5f7;
     --text-secondary: #a1a1a6;
-    --window: #1e1e20;
+    --window: #1e1e1e;
     --control: rgba(255, 255, 255, 0.07);
     --control-hover: rgba(255, 255, 255, 0.12);
   }
@@ -34,7 +34,7 @@ body {
   margin: 0;
   background: var(--window);
   color: var(--text);
-  font: 13px/1.4 -apple-system, "SF Pro Text", "Segoe UI Variable Text", system-ui, "Helvetica Neue", sans-serif;
+  font: calc(13px * var(--mt-font-scale, 1))/1.4 -apple-system, "SF Pro Text", "Segoe UI Variable Text", system-ui, "Helvetica Neue", sans-serif;
   -moz-user-select: none;
   user-select: none;
 }
@@ -64,13 +64,13 @@ header {
 
 h1 {
   margin: 0;
-  font-size: 17px;
+  font-size: calc(17px * var(--mt-font-scale, 1));
   font-weight: 600;
 }
 
 .version {
   margin: 2px 0 0;
-  font-size: 11px;
+  font-size: calc(11px * var(--mt-font-scale, 1));
   color: var(--text-secondary);
 }
 
@@ -126,6 +126,16 @@ main {
   color: AccentColorText;
 }
 
+/* Darüberfahren behält das Akzentblau (sonst gewänne das graue Hover oben),
+   Drücken dunkelt leicht ab */
+.capsule.available:hover:not([disabled]) {
+  background: color-mix(in srgb, var(--accent) 92%, black);
+}
+
+.capsule.available:active:not([disabled]) {
+  background: color-mix(in srgb, var(--accent) 82%, black);
+}
+
 .capsule.available .status {
   color: inherit;
   opacity: 0.85;
@@ -136,7 +146,7 @@ main {
   padding: 10px 12px;
   border-radius: 10px;
   background: var(--control);
-  font-size: 12px;
+  font-size: calc(12px * var(--mt-font-scale, 1));
   color: var(--text-secondary);
 }
 
@@ -152,7 +162,7 @@ main {
 /* Begrüßung nach der Erstinstallation: nur „Einstellungen öffnen“ (in
    Akzentfarbe) und „Weiter“ */
 .welcome #update {
-  display: none;
+  display: none !important;
 }
 
 .welcome #settings {
@@ -161,7 +171,7 @@ main {
 }
 
 .welcome .note {
-  font-size: 13px;
+  font-size: calc(13px * var(--mt-font-scale, 1));
   color: var(--text);
 }
 
@@ -171,7 +181,7 @@ main {
   padding: 10px 12px;
   border-radius: 10px;
   background: var(--control);
-  font-size: 13px;
+  font-size: calc(13px * var(--mt-font-scale, 1));
 }
 
 .weather p {
@@ -180,7 +190,7 @@ main {
 
 .weather .small {
   margin-top: 2px;
-  font-size: 11px;
+  font-size: calc(11px * var(--mt-font-scale, 1));
   color: var(--text-secondary);
 }
 
@@ -197,7 +207,7 @@ main {
   padding: 0 10px;
   white-space: nowrap;
   background: var(--control-hover);
-  font-size: 12px;
+  font-size: calc(12px * var(--mt-font-scale, 1));
 }
 
 .weather .capsule.chosen {
@@ -311,4 +321,98 @@ main {
   background: var(--accent);
   color: AccentColorText;
   outline: none;
+}
+
+/* Assistent „Konto lokal archivieren“ (archive.html, aufgebaut von
+   ArchiveAccount.openWizard): Übersicht, Fortschritt je Ordner, Abschluss */
+body.archive {
+  gap: 12px;
+  padding: 18px 20px 16px;
+  -moz-user-select: text;
+  user-select: text;
+}
+
+body.archive h1 {
+  text-align: start;
+}
+
+body.archive .summary {
+  margin: -6px 0 0;
+  color: var(--text-secondary);
+}
+
+body.archive select {
+  padding: 4px 8px;
+  border: none;
+  border-radius: 7px;
+  background: var(--control);
+  color: var(--text);
+  font: inherit;
+}
+
+body.archive .folders {
+  flex: 1;
+  min-height: 120px;
+  overflow-y: auto;
+  border-radius: 10px;
+  background: var(--control);
+}
+
+body.archive table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+body.archive td {
+  padding: 5px 12px;
+  white-space: nowrap;
+}
+
+body.archive tr + tr td {
+  border-top: 1px solid var(--control-hover);
+}
+
+body.archive td.name {
+  width: 100%;
+  max-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+body.archive td.num {
+  text-align: end;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-secondary);
+}
+
+body.archive tr[data-state="done"] td.num {
+  color: #34c759;
+}
+
+body.archive tr[data-state="failed"] td.num {
+  color: #ff3b30;
+}
+
+body.archive tr[data-state="busy"] td.name {
+  font-weight: 600;
+}
+
+body.archive .note {
+  margin: 0;
+}
+
+body.archive .buttons {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+body.archive .buttons .capsule {
+  min-height: 28px;
+  padding: 0 16px;
+}
+
+body.archive .buttons .capsule.primary {
+  background: var(--accent);
+  color: AccentColorText;
 }

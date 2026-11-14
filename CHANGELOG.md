@@ -3,6 +3,20 @@
 Changes in this fork compared with [halo.spaces](https://github.com/sruf79/halo-spaces). Upstream's
 own release notes are on its [Releases](https://github.com/sruf79/halo-spaces/releases) page.
 
+## Merged halo.spaces 3.27.0, 2026-11-14
+
+**Tested with Thunderbird 160 on Windows 11 at 125 % scaling: targeted checks pass, plus 168 checks of a partial full light run (stopped early)**
+
+### ✨ New features
+- **Merged upstream halo.spaces 3.27.0** (attachment tiles, Rules page, calendar search panel, multi-day bars, task Kanban, floating sidebar, appearance tiles …)
+- **Windows changes carried into upstream's new file layout** (font, Alt menu bars, "On This PC", Favourites option, weather temperature, add-on buttons in conversations)
+
+### 🐛 Fixes
+- **Help window no longer scrolls by a fraction of a pixel at 125 % scaling**
+- **Address book: the divider line in the toolbar row lines up with the list border at 125 % and 150 % scaling**
+- **Removed upstream-only files** (donate link, the author's server workflows and agent hooks)
+- **No "Say Thanks", "Recommend" or donation reminder dot** (fork rule: no feedback or donate)
+
 ## Merged halo.spaces 3.7.0 final, 2026-10-27
 
 **Tested with Thunderbird 158 on Windows 11 at 125 % scaling: 256/256 checks pass in light mode**

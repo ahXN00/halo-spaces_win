@@ -432,6 +432,321 @@ pruefe_runner() {
   fi
 }
 
+# Remote Control (tests/MAC-MINI.md Abschnitt 12): LaunchAgent hält
+# „claude remote-control“ im Checkout offen, damit Cloud-Sitzungen und die
+# Claude-App den Rechner steuern können, ohne ihn von außen erreichbar zu machen
+RC_LABEL=at.halo-spaces.remote-control
+RC_ZIEL=$HOME/.config/halo-spaces/remote-control.sh   # außerhalb des Checkouts, wie der Runner-Wächter
+RC_PLIST=$HOME/Library/LaunchAgents/$RC_LABEL.plist
+RC_LOG=$HOME/Library/Logs/halo-remote-control.log
+rc_plist() {
+  cat <<EOF
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key><string>$RC_LABEL</string>
+  <key>ProgramArguments</key>
+  <array><string>/bin/zsh</string><string>$RC_ZIEL</string><string>$ROOT</string></array>
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>HALO_RC_MODELL</key><string>sonnet</string>
+    <key>HALO_RC_EFFORT</key><string>medium</string>
+  </dict>
+  <key>RunAtLoad</key><true/>
+  <key>KeepAlive</key><true/>
+  <key>ThrottleInterval</key><integer>60</integer>
+  <key>ProcessType</key><string>Interactive</string>
+  <key>StandardOutPath</key><string>$RC_LOG</string>
+  <key>StandardErrorPath</key><string>$RC_LOG</string>
+</dict>
+</plist>
+EOF
+}
+# Skripte der Remote-Control-Sitzungen neon und neon-board (und die Vorprüfungen
+# vorpruefung.zsh für Nachtlauf, Rundgang und Doku-Prüfung, ci-runde.zsh für Nachtlauf und
+# Wochenprüfung sowie
+# github-vorpruefung.sh und issue-abgleich.sh für die GitHub-Kommunikation, issue-abgleich.sh auch
+# für die Wochenprüfung) nach
+# ~/.config/halo-spaces/ (Entscheidung des Maintainers vom 6.11.2026, Sitzung
+# global.design.comparison, Wortlaut: „ja selbst übernehmen“): nur geänderte
+# Dateien, ersetzt über eine neue Datei (mv) statt überschrieben; laufende
+# Sitzungen werden nicht neu gestartet, die neue Fassung gilt ab ihrem
+# nächsten Start. --check meldet veraltete Kopien nur.
+SK_DIR=$HOME/.config/halo-spaces
+SK_PAARE=(mac-remote-control.sh remote-control.sh neon-hook.sh neon-hook.sh
+          board.sh board.sh neon-stand.sh neon-stand.sh
+          vorpruefung.zsh vorpruefung.zsh github-vorpruefung.sh github-vorpruefung.sh
+          ci-runde.zsh ci-runde.zsh issue-abgleich.sh issue-abgleich.sh
+          github-komm-waechter.sh github-komm-waechter.sh board-uebergabe.zsh board-uebergabe.zsh)
+skripte_kopieren() {   # [<Quellordner> <Zielordner>] – Standard: Checkout und SK_DIR
+  local von=${1:-$ROOT/tests} nach=${2:-$SK_DIR} q z veraltet=() kopiert=()
+  for q z in $SK_PAARE; do
+    cmp -s $von/$q $nach/$z && continue
+    veraltet+=($z)
+    (( CHECK )) && continue
+    mkdir -p $nach && cp $von/$q $nach/.$z.neu && chmod 755 $nach/.$z.neu &&
+      mv -f $nach/.$z.neu $nach/$z && kopiert+=($z)
+  done
+  if (( ! $#veraltet )); then
+    ok "Sitzungs-Skripte" "aktuell in $nach"
+  elif (( CHECK )); then
+    offen "Sitzungs-Skripte" "veraltet oder fehlt in $nach: ${(j:, :)veraltet}"
+    tun "tests/mac-mini-setup.sh ohne --check ausführen (startet keine Sitzung neu)"
+  elif (( $#kopiert == $#veraltet )); then
+    hinweis "Sitzungs-Skripte" "kopiert: ${(j:, :)kopiert} – gilt ab dem nächsten Start von neon bzw. neon-board (nicht neu gestartet)"
+  else
+    offen "Sitzungs-Skripte" "nicht kopiert: ${(j:, :)${veraltet:|kopiert}} nach $nach"
+  fi
+}
+
+pruefe_remote_control() {
+  local quelle=$ROOT/tests/mac-remote-control.sh claude c dom=gui/$(id -u)
+  claude=${commands[claude]}
+  for c in ~/.local/bin/claude /opt/homebrew/bin/claude /usr/local/bin/claude; do
+    [[ -z $claude && -x $c ]] && claude=$c
+  done
+  if [[ -z $claude ]]; then
+    hinweis "Remote Control" "claude nicht installiert (nur für die Steuerung aus Cloud-Sitzungen nötig)"
+    tun "curl -fsSL https://claude.ai/install.sh | bash, dann im Repo claude starten und anmelden (Abschnitt 12)"
+    return
+  fi
+  # ohne Terminal kann remote-control nicht fragen, ob dem Ordner vertraut wird
+  if ! python3 - "$ROOT" <<'EOF' >/dev/null 2>&1
+import json, os, sys
+d = json.load(open(os.path.expanduser("~/.claude.json")))
+sys.exit(0 if d.get("projects", {}).get(sys.argv[1], {}).get("hasTrustDialogAccepted") else 1)
+EOF
+  then
+    hinweis "Remote Control" "$ROOT ist in Claude Code vermutlich noch nicht freigegeben"
+    tun "cd $ROOT && claude   (anmelden, „Trust this folder“ bestätigen, /exit)"
+  fi
+  # das Skript selbst legt skripte_kopieren() ab (ohne Neustart); neu
+  # eingerichtet und gestartet wird nur, wenn die plist fehlt oder abweicht
+  if [[ $(rc_plist) == "$(cat $RC_PLIST 2>/dev/null)" ]]; then
+    :
+  elif (( CHECK )); then
+    offen "Remote Control" "LaunchAgent fehlt oder ist veraltet – Cloud-Sitzungen erreichen den Rechner nicht"
+    tun "tests/mac-mini-setup.sh ohne --check ausführen"
+    return
+  elif mkdir -p ${RC_ZIEL:h} ${RC_PLIST:h} ${RC_LOG:h} && cp $quelle $RC_ZIEL && chmod 755 $RC_ZIEL &&
+       rc_plist > $RC_PLIST; then
+    launchctl bootout $dom/$RC_LABEL 2>/dev/null
+    if ! launchctl bootstrap $dom $RC_PLIST 2>/dev/null; then
+      offen "Remote Control" "LaunchAgent eingerichtet, ließ sich aber nicht starten"
+      tun "in der Bildschirmsitzung von $ME: launchctl bootstrap $dom $RC_PLIST"
+      return
+    fi
+    sleep 5
+  else
+    offen "Remote Control" "LaunchAgent ließ sich nicht einrichten"
+    return
+  fi
+  if launchctl print $dom/$RC_LABEL 2>/dev/null | grep -q 'state = running'; then
+    ok "Remote Control" "läuft als LaunchAgent in $ROOT ($RC_LOG)"
+  else
+    offen "Remote Control" "LaunchAgent eingerichtet, claude läuft aber nicht"
+    [[ -s $RC_LOG ]] && tail -3 $RC_LOG | sed 's/^/           /'
+    tun "Protokoll: $RC_LOG; neu starten: launchctl kickstart -k $dom/$RC_LABEL"
+  fi
+}
+
+# Zweite Remote-Control-Sitzung neon-board (nur Board und Bilder,
+# tests/MAC-MINI.md Abschnitt 12): LaunchAgent wird nur geprüft, nie
+# eingerichtet – den legt der Maintainer selbst an (Skripte: skripte_kopieren). Ohne plist nur ein Hinweis.
+NB_LABEL=at.halo-spaces.neon-board
+NB_PLIST=$HOME/Library/LaunchAgents/$NB_LABEL.plist
+NB_DIR=$HOME/halo-board
+NB_LOG=$HOME/Library/Logs/halo-neon-board.log
+pruefe_neon_board() {
+  local dom=gui/$(id -u)
+  if [[ ! -f $NB_PLIST ]]; then
+    hinweis "neon-board" "nicht eingerichtet (zweite Sitzung nur für Board und Bilder, Abschnitt 12)"
+    return
+  fi
+  grep -q '<string>neon-board</string>' $NB_PLIST ||
+    { offen "neon-board" "$NB_PLIST setzt HALO_RC_NAME=neon-board nicht"; tun "plist wie in Abschnitt 12"; return }
+  # Skriptkopien prüft bzw. legt skripte_kopieren() ab
+  if ! python3 - "$NB_DIR" <<'EOF' >/dev/null 2>&1
+import json, os, sys
+d = json.load(open(os.path.expanduser("~/.claude.json")))
+sys.exit(0 if d.get("projects", {}).get(sys.argv[1], {}).get("hasTrustDialogAccepted") else 1)
+EOF
+  then
+    hinweis "neon-board" "$NB_DIR ist in Claude Code vermutlich noch nicht freigegeben"
+    tun "cd $NB_DIR && claude   („Trust this folder“ bestätigen, /exit)"
+  fi
+  if ! launchctl print $dom/$NB_LABEL 2>/dev/null | grep -q 'state = running'; then
+    offen "neon-board" "LaunchAgent nicht geladen oder läuft nicht"
+    tun "launchctl bootstrap $dom $NB_PLIST bzw. launchctl kickstart -k $dom/$NB_LABEL; Protokoll $NB_LOG"
+  elif ! pgrep -f 'remote-control.*--name neon-board' >/dev/null; then
+    offen "neon-board" "LaunchAgent läuft, aber kein claude remote-control --name neon-board"
+    tun "Protokoll $NB_LOG"
+  else
+    ok "neon-board" "läuft als LaunchAgent in $NB_DIR ($NB_LOG)"
+  fi
+}
+
+# Dritte Remote-Control-Sitzung github.comm.routine (GitHub-Kommunikation,
+# Arbeitsordner ~/halo-github): wie neon-board nur geprüft, nie eingerichtet.
+GC_LABEL=at.halo-spaces.github-comm
+GC_PLIST=$HOME/Library/LaunchAgents/$GC_LABEL.plist
+GC_DIR=$HOME/halo-github
+GC_LOG=$HOME/Library/Logs/halo-github-comm.log
+pruefe_github_comm() {
+  local dom=gui/$(id -u)
+  if [[ ! -f $GC_PLIST ]]; then
+    hinweis "github.comm.routine" "nicht eingerichtet (Sitzung für die GitHub-Kommunikation, Abschnitt 12)"
+    return
+  fi
+  grep -q '<string>github.comm.routine</string>' $GC_PLIST ||
+    { offen "github.comm.routine" "$GC_PLIST setzt HALO_RC_NAME=github.comm.routine nicht"; tun "plist wie in Abschnitt 12"; return }
+  if ! launchctl print $dom/$GC_LABEL 2>/dev/null | grep -q 'state = running'; then
+    offen "github.comm.routine" "LaunchAgent nicht geladen oder läuft nicht"
+    tun "launchctl bootstrap $dom $GC_PLIST bzw. launchctl kickstart -k $dom/$GC_LABEL; Protokoll $GC_LOG"
+  elif ! pgrep -f 'remote-control.*--name github\.comm\.routine' >/dev/null; then
+    offen "github.comm.routine" "LaunchAgent läuft, aber kein claude remote-control --name github.comm.routine"
+    tun "Protokoll $GC_LOG"
+  else
+    ok "github.comm.routine" "läuft als LaunchAgent in $GC_DIR ($GC_LOG)"
+  fi
+}
+
+# Läufe als LaunchAgents (tests/MAC-MINI.md Abschnitte 13–18): Nachtlauf jede
+# Nacht 01:30, CI-Wächter und Bilder-Eingang alle 15 Minuten, Wochenprüfung sonntags 08:00,
+# Doku-Prüfung samstags 08:00 (wochenpruefung.sh --doku), Design-Rundgang
+# samstags 10:00 (rundgang-woche.sh). Die
+# Skripte werden mit lauf-hilfen.zsh nach ~/.config/halo-spaces/ kopiert
+# (außerhalb des Checkouts, die Läufe ändern ihn).
+AG_DIR=$HOME/.config/halo-spaces
+# Eigene Kopie von /bin/zsh als erstes Programm von Nachtlauf, Wochen-/Doku-Prüfung und Rundgang:
+# Nur diese Kopie steht unter Systemeinstellungen → Bedienungshilfen und darf die Maus bewegen
+# (docs/testrechner.md). Neu kopiert wird nur, wenn sie fehlt; weicht /bin/zsh nach einem macOS-Update
+# ab, gibt es nur einen Hinweis (die Freigabe hängt an der Datei, keine stille Neukopie).
+HALOZSH=$AG_DIR/bin/halo-zsh
+pruefe_halozsh() {
+  local quelle=$HALOZSH.quelle hash=$(shasum -a 256 /bin/zsh | cut -d' ' -f1)
+  if [[ ! -x $HALOZSH ]]; then
+    if (( CHECK )); then
+      offen "halo-zsh" "$HALOZSH fehlt"; tun "tests/mac-mini-setup.sh ohne --check ausführen, dann halo-zsh unter Bedienungshilfen freigeben"
+    elif mkdir -p ${HALOZSH:h} && cp /bin/zsh $HALOZSH && codesign --force --sign - $HALOZSH 2>/dev/null && print $hash > $quelle; then
+      hinweis "halo-zsh" "neu angelegt: unter Systemeinstellungen → Datenschutz & Sicherheit → Bedienungshilfen freigeben"
+    else
+      offen "halo-zsh" "ließ sich nicht anlegen"
+    fi
+  elif [[ -f $quelle && $(<$quelle) != $hash ]]; then
+    hinweis "halo-zsh" "/bin/zsh hat sich geändert (macOS-Update?); Kopie bleibt: zum Erneuern löschen, setup ausführen, neu unter Bedienungshilfen freigeben"
+  else
+    ok "halo-zsh" "$HALOZSH (Kopie von /bin/zsh, signiert)"
+  fi
+}
+agent_plist() {   # <Label> <Skript> <Protokoll> <Zeitplan als plist-Schlüssel> [<Option für das Skript>]
+  cat <<EOF
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key><string>$1</string>
+  <key>ProgramArguments</key>
+  <array><string>$( case $1 in at.halo-spaces.nachtlauf|at.halo-spaces.wochenpruefung|at.halo-spaces.dokupruefung|at.halo-spaces.rundgang) print -n $HALOZSH ;; *) print -n /bin/zsh ;; esac )</string><string>$AG_DIR/$2</string>${5:+<string>$5</string>}$( [[ $2 == ci-waechter.sh ]] || print -n "<string>$ROOT</string>" )</array>
+  $4
+  <key>ProcessType</key><string>Interactive</string>
+  <key>StandardOutPath</key><string>$3</string>
+  <key>StandardErrorPath</key><string>$3</string>
+</dict>
+</plist>
+EOF
+}
+pruefe_agent() {   # <Name> <Label> <Skript> <Protokoll> <Zeitplan> <Routine für pausen.txt oder -> <Text bei OK> [<Option>]
+  local name=$1 label=$2 skript=$3 log=$4 plan=$5 pauserolle=$6 text=$7 opt=$8
+  local plist=$HOME/Library/LaunchAgents/$label.plist dom=gui/$(id -u) f aktuell=1
+  for f in $skript lauf-hilfen.zsh sitzung-finden.zsh; do
+    cmp -s $ROOT/tests/$f $AG_DIR/$f || aktuell=0
+  done
+  # Vergleich über plutil (gleicher Inhalt, auch wenn die Datei von Hand mit plutil umformatiert wurde)
+  [[ $(agent_plist $label $skript $log $plan $opt | plutil -convert xml1 -o - - 2>/dev/null) == "$(plutil -convert xml1 -o - $plist 2>/dev/null)" ]] || aktuell=0
+  if (( aktuell )); then
+    :
+  elif (( CHECK )); then
+    offen $name "LaunchAgent fehlt oder ist veraltet"
+    tun "tests/mac-mini-setup.sh --ohne-probelauf ausführen"
+    return
+  elif mkdir -p $AG_DIR ${plist:h} ${log:h} && cp $ROOT/tests/$skript $ROOT/tests/lauf-hilfen.zsh $ROOT/tests/sitzung-finden.zsh $AG_DIR/ &&
+       chmod 755 $AG_DIR/$skript && agent_plist $label $skript $log $plan $opt > $plist; then
+    launchctl bootout $dom/$label 2>/dev/null
+    if ! launchctl bootstrap $dom $plist 2>/dev/null; then
+      offen $name "LaunchAgent eingerichtet, ließ sich aber nicht laden"
+      tun "in der Bildschirmsitzung von $ME: launchctl bootstrap $dom $plist"
+      return
+    fi
+  else
+    offen $name "LaunchAgent ließ sich nicht einrichten"
+    return
+  fi
+  if ! launchctl print $dom/$label >/dev/null 2>&1; then
+    offen $name "LaunchAgent nicht geladen"
+    tun "launchctl bootstrap $dom $plist"
+  elif [[ -n $pauserolle ]] && ( source $ROOT/tests/lauf-hilfen.zsh; LOG= pause_aktiv $pauserolle >/dev/null ); then
+    hinweis $name "geladen, aber pausiert (~/halo-nacht/pausen.txt, Routine $pauserolle)"
+  else
+    ok $name "$text ($log)"
+  fi
+}
+pruefe_laeufe() {
+  pruefe_halozsh
+  pruefe_agent "Nachtlauf" at.halo-spaces.nachtlauf nachtlauf.sh $HOME/Library/Logs/halo-nachtlauf.log \
+    '<key>StartCalendarInterval</key>
+  <dict><key>Hour</key><integer>1</integer><key>Minute</key><integer>30</integer></dict>' \
+    nachtlauf "täglich 01:30, Berichte in ~/halo-berichte"
+  pruefe_agent "CI-Wächter" at.halo-spaces.ci-waechter ci-waechter.sh $HOME/Library/Logs/halo-ci-waechter.log \
+    '<key>StartInterval</key><integer>900</integer>
+  <key>RunAtLoad</key><true/>' \
+    ci-waechter "alle 15 Minuten, rote CI-Läufe ins Board, Protokoll ~/halo-aufgaben/ci-waechter.log"
+  pruefe_agent "Bilder-Eingang" at.halo-spaces.bilder-eingang bilder-eingang.zsh $HOME/Library/Logs/halo-bilder-eingang.log \
+    '<key>StartInterval</key><integer>900</integer>
+  <key>RunAtLoad</key><true/>' \
+    bilder-eingang "alle 15 Minuten, ~/halo-aufgaben/eingang einsortieren, Protokoll ~/halo-aufgaben/bilder-eingang.log"
+  pruefe_agent "Wochenprüfung" at.halo-spaces.wochenpruefung wochenpruefung.sh $HOME/Library/Logs/halo-wochenpruefung.log \
+    '<key>StartCalendarInterval</key>
+  <dict><key>Weekday</key><integer>0</integer><key>Hour</key><integer>8</integer><key>Minute</key><integer>0</integer></dict>' \
+    wochenpruefung "sonntags 08:00, Berichte in ~/halo-berichte"
+  pruefe_agent "Doku-Prüfung" at.halo-spaces.dokupruefung wochenpruefung.sh $HOME/Library/Logs/halo-dokupruefung.log \
+    '<key>StartCalendarInterval</key>
+  <dict><key>Weekday</key><integer>6</integer><key>Hour</key><integer>8</integer><key>Minute</key><integer>0</integer></dict>' \
+    dokupruefung "samstags 08:00, alle .md-Dateien, Berichte in ~/halo-berichte" --doku
+  pruefe_agent "Tagesroutine" at.halo-spaces.tagesroutine tagesroutine.sh $HOME/Library/Logs/halo-tagesroutine.log \
+    '<key>StartCalendarInterval</key>
+  <array>'"$(for t in 1 2 3 4 5; do print -n "<dict><key>Weekday</key><integer>$t</integer><key>Hour</key><integer>9</integer><key>Minute</key><integer>0</integer></dict>"; done
+    for t in 6 0; do print -n "<dict><key>Weekday</key><integer>$t</integer><key>Hour</key><integer>9</integer><key>Minute</key><integer>0</integer></dict>"; done)"'</array>' \
+    tagesroutine "Mo–Fr ab 09:00, Sa und So ab 10:00, jeweils bis 22:00, pusht nie nach main, Berichte in ~/halo-berichte"
+  pruefe_agent "Morgenbrief" at.halo-spaces.morgenbrief morgenbrief.sh $HOME/Library/Logs/halo-morgenbrief.log \
+    '<key>StartCalendarInterval</key>
+  <dict><key>Hour</key><integer>8</integer><key>Minute</key><integer>30</integer></dict>' \
+    morgenbrief "täglich 08:30 eine iPhone-Meldung, am Wochenende nur bei Auffälligkeiten, Berichte in ~/halo-berichte"
+  # täglicher Neustart von neon: NICHT eingerichtet (Entscheidung des Maintainers,
+  # Cloud-Sitzung global.design.comparison, 6.11.2026, Wortlaut: „ja täglichen neustart nicht aktivieren. clear von hand.“
+  # tests/neon-neustart.sh bleibt als Skript liegen). Nur Hinweis, falls geladen.
+  if launchctl print gui/$(id -u)/at.halo-spaces.neon-neustart >/dev/null 2>&1; then
+    hinweis "neon-Neustart" "at.halo-spaces.neon-neustart ist geladen, soll aber nicht laufen (launchctl bootout gui/$(id -u)/at.halo-spaces.neon-neustart)"
+  fi
+  pruefe_agent "Design-Rundgang" at.halo-spaces.rundgang rundgang-woche.sh $HOME/Library/Logs/halo-rundgang.log \
+    '<key>StartCalendarInterval</key>
+  <dict><key>Weekday</key><integer>6</integer><key>Hour</key><integer>10</integer><key>Minute</key><integer>0</integer></dict>' \
+    rundgang "samstags 10:00, Ablage ~/halo-tour, Berichte in ~/halo-berichte"
+  # Bildschirmaufnahme im LaunchAgent: der Rundgang hält beim Start fest, ob er
+  # aufnehmen darf (Popups per screencapture -l)
+  local ba=$HOME/halo-tour/bildschirmaufnahme.txt
+  if [[ ! -s $ba ]]; then
+    hinweis "Rundgang-Aufnahme" "noch kein Lauf des Rundgangs – unbekannt, ob der LaunchAgent den Bildschirm aufnehmen darf"
+    tun "Probelauf: launchctl kickstart gui/$(id -u)/at.halo-spaces.rundgang (läuft voll, ca. 1 Stunde)"
+  elif grep -q ' ja ' $ba; then
+    ok "Rundgang-Aufnahme" "Bildschirmaufnahme im LaunchAgent erlaubt ($(cut -c1-16 $ba))"
+  else
+    offen "Rundgang-Aufnahme" "Bildschirmaufnahme im LaunchAgent nicht erlaubt: $(<$ba)"
+    tun "Systemeinstellungen → Datenschutz & Sicherheit → Bildschirm- & Systemaudioaufnahme → „+“ → ⇧⌘G → /bin/zsh → einschalten"
+  fi
+}
+
 # Windows-VM (Parallels Pro, tests/MAC-MINI.md Abschnitt 11): Einstellungen am Mac, Windows-Seite über
 # tests/win-vm-setup.ps1 per prlctl exec. Mit --check wird eine pausierte VM nicht geweckt.
 VM=${HALO_VM:-Windows 11}
@@ -574,6 +889,23 @@ probelauf() {
   fi
 }
 
+# Speicher: Auslagerung (Swap) neben der VM (6 GB) – wächst sie über drei
+# Viertel, werden Tests und VM langsamer; nur Hinweis, eingerichtet wird nichts
+pruefe_speicher() {
+  local su total used frei
+  su=$(sysctl -n vm.swapusage 2>/dev/null)
+  total=$(sed -n 's/.*total = \([0-9.]*\)M.*/\1/p' <<<$su)
+  used=$(sed -n 's/.*used = \([0-9.]*\)M.*/\1/p' <<<$su)
+  frei=$(memory_pressure 2>/dev/null | sed -n 's/.*free percentage: \([0-9]*\)%.*/\1/p')
+  if [[ -z $total || $total == 0.00 ]]; then
+    ok "Speicher" "keine Auslagerung${frei:+, $frei % frei}"
+  elif (( ${used%.*} * 4 > ${total%.*} * 3 )); then
+    hinweis "Speicher" "Auslagerung ${used%.*} von ${total%.*} MB belegt${frei:+, $frei % frei} – VM pausieren bzw. Rechner neu starten"
+  else
+    ok "Speicher" "Auslagerung ${used%.*} von ${total%.*} MB belegt${frei:+, $frei % frei}"
+  fi
+}
+
 print "halo.spaces – Testrechner $( (( CHECK )) && print prüfen || print einrichten )"
 print "  $ME · macOS $(sw_vers -productVersion) · $(sysctl -n hw.model) ($(uname -m))${SSH_CONNECTION:+ · per SSH}"
 print
@@ -589,7 +921,13 @@ pruefe_anmeldung
 pruefe_tailscale
 pruefe_ssh
 pruefe_runner
+skripte_kopieren
+pruefe_remote_control
+pruefe_neon_board
+pruefe_github_comm
+pruefe_laeufe
 pruefe_vm
+pruefe_speicher
 if (( PROBE )); then
   probelauf
 else

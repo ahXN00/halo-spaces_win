@@ -1,0 +1,71 @@
+#!/bin/sh
+# SessionStart-Hook (.claude/settings.json) für neon: bei Start, Fortsetzen und
+# nach jedem Verdichten des Kontexts kommen die Arbeitsweise und die offenen
+# Aufträge (tests/neon-stand.sh) wieder in die Sitzung (docs/neon-sitzung.md,
+# vorher AGENTS.md „Arbeitsweise von neon“). Läuft in jeder Sitzung, gibt aber nur in neon
+# etwas aus: HALO_NEON gesetzt (tests/mac-remote-control.sh) oder – falls die
+# Variable nicht ankommt – auf macOS unter einem „claude remote-control“.
+# Die zweite Sitzung neon-board (nur Board und Bilder) bekommt eigene, kurze
+# Hinweise: HALO_NEON=board, „--name neon-board“ am übergeordneten
+# remote-control oder Arbeitsordner ~/halo-board (dort trägt
+# tests/mac-remote-control.sh diesen Hook aus ~/.config/halo-spaces/ ein).
+# POSIX-sh, damit es in Cloud-Sitzungen ohne zsh still endet.
+
+neon=${HALO_NEON:-}
+if [ -z "$neon" ] && [ "$(uname)" = Darwin ]; then
+  pid=$PPID i=0
+  while [ "$i" -lt 8 ] && [ -n "$pid" ] && [ "$pid" -gt 1 ] 2>/dev/null; do
+    case $(ps -o args= -p "$pid" 2>/dev/null) in
+      *claude*remote-control*--name\ neon-board*) neon=board; break ;;
+      *claude*remote-control*) neon=1; break ;;
+    esac
+    pid=$(ps -o ppid= -p "$pid" 2>/dev/null | tr -d ' ')
+    i=$((i + 1))
+  done
+fi
+[ -n "$neon" ] || exit 0
+# Arbeitsordner von neon-board gilt immer als neon-board
+board_dir=${HALO_BOARD_DIR:-$HOME/halo-board}
+case ${CLAUDE_PROJECT_DIR:-$(pwd)} in "$board_dir"|"$board_dir"/*) neon=board ;; esac
+
+quelle=$(sed -n 's/.*"source" *: *"\([a-z]*\)".*/\1/p' 2>/dev/null | head -1)
+dir=${HALO_NEON_STAND:-$HOME/halo-aufgaben}
+
+if [ "$neon" = board ]; then
+  stand=$dir/board-stand.md
+  if [ "$quelle" = compact ]; then
+    echo "neon-board: Der Kontext wurde eben verdichtet. Maßgeblich für offene Aufträge ist die Liste unten, nicht die Zusammenfassung."
+  fi
+  cat <<'EOF'
+neon-board – nur Board und Bilder (CLAUDE.md in ~/halo-board, AGENTS.md „neon erreichen“, docs/neon-sitzung.md, docs/board.md):
+- Board nur über ~/.config/halo-spaces/board.sh (liste [Muster], zeige, neu, status, notiz, archiv, suche <Begriff>, archiv-zeige <id>); vor „neu“ Doppelte prüfen und lieber ergänzen.
+- Bilder und Apple-Vorlagen unverändert nach ~/halo-aufgaben/bilder bzw. ~/halo-aufgaben/apple (+ index.md), SHA-256 und Qualität prüfen, bilder-offen.md pflegen. halobild-Bilder aus ~/halo-aufgaben/eingang sortiert tests/bilder-eingang.zsh selbst ein (beim Arbeiten von Hand ~/halo-aufgaben/bilder-eingang.sperre anlegen, danach löschen).
+- Nie Tests, Builds, Thunderbird, git commit/push, Release – solche Aufträge an die Sitzung neon verweisen.
+- Längere Aufträge: HALO_STAND_NAME=board ~/.config/halo-spaces/neon-stand.sh neu|notiz|fertig. Antworten knapp per SendMessage.
+EOF
+else
+  stand=$dir/neon-stand.md
+  if [ "$quelle" = compact ]; then
+    echo "neon: Der Kontext wurde eben verdichtet. Maßgeblich für offene Aufträge ist die Liste unten, nicht die Zusammenfassung."
+  fi
+  cat <<'EOF'
+neon – Arbeitsweise (ausführlich: docs/neon-sitzung.md, bei Bedarf lesen):
+- Aufträge, die länger als eine Antwort dauern: tests/neon-stand.sh neu <von> "<Auftrag>" (<von> = Sitzungs-ID aus from-session, sonst from-name), Stand mit notiz, nach der Antwort fertig. Antwort: get_session(ID) → Titel → ListAgents → SendMessage an den Namen.
+- Mehrschrittiges (Recherche, mehrere Board-Einträge, Bilder, Fehlersuche) an einen Unteragenten (Agent) mit „höchstens 10 Zeilen Ergebnis“.
+- Befehle mit langer Ausgabe nur über tests/kurz.sh (Tests im Hintergrund), Board nur über tests/board.sh – nie ganze Listen oder Logs in den Kontext.
+- Antworten an andere Sitzungen knapp: Ergebnis, Fehlerzeilen, Pfad zum Log.
+- Board und Bilder gehören in erster Linie zu neon-board; kommen sie trotzdem hier an (Fallback), erledigen.
+- Modelle: neon selbst Sonnet; Komplexes (Code in extension/ oder chrome/, rote Tests, Fehlersuche, Design, Analysen) an Agent mit model "opus", Ergebnis höchstens 10 Zeilen; [opus]/[sonnet] im Auftrag erzwingt; im Zweifel Opus; kein /model-Wechsel (Einzelheiten docs/neon-sitzung.md).
+- /bereit oder „kann ich clearen?“: selbst prüfen (neon-stand.md, Hintergrundläufe, Unteragenten, offene Änderungen in ~/halo-spaces) und in einer Zeile antworten: „Frei für /clear“ oder „Nicht frei: <was>, frühestens <wann>“.
+EOF
+fi
+# Bilder und Vorlagen knapp: Zeilen je Index (Apple nach App-Vorsatz), Dateien im Eingang
+idx_zeilen() { [ -f "$1" ] && grep -c '^| [^ -]' "$1" | awk '{print $1 - 1}' || echo 0; }
+apple_n=$(idx_zeilen "$dir/apple/index.md") bilder_n=$(idx_zeilen "$dir/bilder/index.md")
+apps=$( [ -f "$dir/apple/index.md" ] && sed -n 's/^| \([a-z0-9]*\)-[^|]* | .*/\1/p' "$dir/apple/index.md" | sort | uniq -c | sort -rn | awk '{printf "%s%s %s", (NR>1?", ":""), $2, $1}')
+offen_n=$( [ -f "$dir/apple/index.md" ] || [ -f "$dir/bilder/index.md" ] && cat "$dir/apple/index.md" "$dir/bilder/index.md" 2>/dev/null | grep -c '^| .*unbeschrieben' )
+ein_n=$(ls "$dir/eingang" 2>/dev/null | grep -c .)
+echo "Vorlagen: apple/index.md $apple_n (${apps:-leer}), bilder/index.md $bilder_n, unbeschrieben ${offen_n:-0}, im Eingang $ein_n (Details: docs/board.md)"
+echo "Offene Aufträge:"
+if [ -f "$stand" ] && grep -q '^- #' "$stand"; then grep '^- #' "$stand" | cut -c1-240; else echo "keine"; fi
+exit 0

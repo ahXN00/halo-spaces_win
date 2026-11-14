@@ -1,44 +1,178 @@
 # Automatischer Test bei jedem Push: aktuelles Thunderbird unter Linux,
 # frisches Testprofil, virtueller Bildschirm (xvfb). Screenshots als Artefakt.
 # Dazu macOS auf dem eigenen Mac mini (Job mac, nur bei Push auf main oder von Hand)
-# und danach Windows 11 in der Parallels-VM auf demselben Mac (Job windows, ebenso).
+# Windows 11 in der Parallels-VM auf demselben Mac (Job windows) nur noch von Hand bzw. einmal je
+# Nacht vor dem Release (workflow_dispatch, ziel=alle|windows), nicht mehr bei Push.
 name: Test
 
-# Reine Doku- und Store-Änderungen lösen keinen Lauf aus (spart vor allem den Mac mini)
+# Nur Änderungen, die Thunderbird direkt betreffen, lösen einen Lauf aus: Paket,
+# Design, Symbole, Bauskript und die Prüfungen, die die CI selbst ausführt.
+# Doku, Store, Sitzungs-Einstellungen (.claude/), Abläufe auf neon und dieser
+# Workflow nicht (Entscheidung des Maintainers vom 6.11.2026, Wortlaut: „alle
+# änderungen, die nichts mit thunderbird direkt zu tun haben, benötigen keinen
+# ci lauf mehr“). Gleiche Liste in tests/ci-noetig.sh – bei Änderungen beide anpassen.
 on:
   push:
-    branches: [main]
-    paths-ignore: ['**.md', 'store/**', 'LICENSE']
+    branches: [main, 'pruef/**']
+    paths:
+      - 'extension/**'
+      - 'chrome/**'
+      - 'icons/**'
+      - 'build.sh'
+      - 'tests/halo_test.py'
+      - 'tests/perf.js'
+      - 'tests/update_test.py'
+      - 'tests/testserver.py'
+      - 'tests/adressen.py'
+      - 'tests/addon_lint.py'
+      - 'tests/logik/**'
+      - '!**.md'
   pull_request:
-    paths-ignore: ['**.md', 'store/**', 'LICENSE']
+    paths:
+      - 'extension/**'
+      - 'chrome/**'
+      - 'icons/**'
+      - 'build.sh'
+      - 'tests/halo_test.py'
+      - 'tests/perf.js'
+      - 'tests/update_test.py'
+      - 'tests/testserver.py'
+      - 'tests/adressen.py'
+      - 'tests/addon_lint.py'
+      - 'tests/logik/**'
+      - '!**.md'
+  # Von Hand auch gezielt: nur bestimmte Prüfungen und/oder nur ein System –
+  # für Fehlersuche ohne volle Runde. Ein gezielter Lauf zählt nicht als
+  # vollständig grün (release.sh, Nachtlauf), erkennbar am Schritt
+  # „Gezielter Lauf“ im Job changes.
   workflow_dispatch:
+    inputs:
+      only:
+        description: Nur Prüfungen, deren Name auf diesen regulären Ausdruck passt (leer = alle)
+        type: string
+        default: ''
+      ziel:
+        description: Nur dieses System bzw. diese Thunderbird-Version
+        type: choice
+        options: [alle, linux, linux-release, linux-beta, linux-esr, mac, windows]
+        default: alle
 
 jobs:
-  linux:
+  # Reiner Release-Commit („halo.spaces x.y.z“ von release.sh): Push ändert nur
+  # updates.json und die Versionszeile in manifest.json (dazu ggf. Texte und
+  # die Release-Skripte). Der Code ist dann
+  # schon getestet – kein Lauf, der Mac mini bleibt frei. Alles andere testet.
+  # Außerdem: Farben betroffen? Nur dann testet der Job mac zusätzlich dunkel
+  # (Entscheidung des Maintainers vom 4.11.2026; Regel in tests/farben-betroffen.sh,
+  # verglichen mit dem zuletzt dunkel getesteten Stand auf main).
+  changes:
     runs-on: ubuntu-24.04
-    # ein Testlauf dauert gut 14 Minuten (über 180 Prüfungen) – mit Luft für langsame Läufer
-    timeout-minutes: 40
+    permissions:
+      contents: read
+      actions: read
+    outputs:
+      test: ${{ steps.check.outputs.test }}
+      dark: ${{ steps.dark.outputs.dark }}
+      linux: ${{ steps.ziel.outputs.linux }}
+      mac: ${{ steps.ziel.outputs.mac }}
+      windows: ${{ steps.ziel.outputs.windows }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+      - id: check
+        env:
+          BEFORE: ${{ github.event.before }}
+        run: |
+          test=true
+          if [ "${{ github.event_name }}" = push ] && [ -n "$BEFORE" ] && ! [[ "$BEFORE" =~ ^0+$ ]] && git cat-file -e "$BEFORE^{commit}" 2>/dev/null; then
+            # Texte und Release-Skripte zählen nicht (gehen nicht ins Paket und nicht in die Tests)
+            files=$(git diff --name-only "$BEFORE" "$GITHUB_SHA" | grep -vE '\.md$|^(release|publish)\.sh$|^store/' | sort | tr '\n' ' ')
+            if [ -z "$files" ] || [ "$files" = "extension/manifest.json updates.json " ] || [ "$files" = "updates.json " ]; then
+              # in manifest.json nur die Zeile mit der Version geändert
+              other=$(git diff -U0 "$BEFORE" "$GITHUB_SHA" -- extension/manifest.json | grep -E '^[+-][^+-]' | grep -vE '^[+-][[:space:]]*"version":' || true)
+              [ -z "$other" ] && test=false
+            fi
+          fi
+          echo "Release-Commit ohne Codeänderung: $([ $test = false ] && echo ja || echo nein)"
+          echo "test=$test" >> "$GITHUB_OUTPUT"
+      - id: dark
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          dark=true
+          if [ "${{ github.event_name }}" = push ]; then
+            # zuletzt dunkel grün getesteter Stand: Lauf auf main, dessen Schritt „Test dunkel“ gelang
+            base=""
+            for id in $(gh run list -R "$GITHUB_REPOSITORY" -w test.yml -b main -L 30 --json databaseId --jq '.[].databaseId' 2>/dev/null); do
+              base=$(gh run view "$id" -R "$GITHUB_REPOSITORY" --json headSha,jobs --jq 'select(any(.jobs[]; .name == "mac" and any(.steps[]?; .name == "Test dunkel" and .conclusion == "success"))) | .headSha' 2>/dev/null)
+              [ -n "$base" ] && break
+            done
+            echo "zuletzt dunkel getestet: ${base:-unbekannt}"
+            tests/farben-betroffen.sh "$base" "$GITHUB_SHA" || dark=false
+          fi
+          echo "dark=$dark" >> "$GITHUB_OUTPUT"
+      - id: ziel
+        env:
+          ZIEL: ${{ inputs.ziel }}
+        run: |
+          linux='["release","beta","esr"]'; mac=true; windows=true
+          # bei Push kein Windows: den Lauf startet der Nachtlauf vor dem Release per ziel=windows
+          # (tests/nachtlauf-auftrag.md Schritt 4a; release.sh verlangt ihn zusätzlich)
+          [ "${{ github.event_name }}" = push ] && windows=false
+          case "$ZIEL" in
+            linux) mac=false; windows=false ;;
+            linux-*) linux="[\"${ZIEL#linux-}\"]"; mac=false; windows=false ;;
+            mac) linux='[]'; windows=false ;;
+            windows) linux='[]'; mac=false ;;
+          esac
+          echo "Linux: $linux, Mac: $mac, Windows: $windows"
+          { echo "linux=$linux"; echo "mac=$mac"; echo "windows=$windows"; } >> "$GITHUB_OUTPUT"
+      # Kennzeichen für release.sh, ci-warten.sh und den CI-Wächter: nicht vollständig
+      - name: Gezielter Lauf
+        if: github.event_name == 'workflow_dispatch' && (inputs.only != '' || inputs.ziel != 'alle')
+        env:
+          ONLY: ${{ inputs.only }}
+          ZIEL: ${{ inputs.ziel }}
+        run: echo "Gezielter Lauf (System $ZIEL, Prüfungen ${ONLY:-alle}) zählt nicht als vollständig grün"
+      # Kennzeichen für release.sh und ci-warten.sh --windows: ein Windows-Lauf von Hand zählt
+      # nur ohne Auswahl von Prüfungen (only leer) als vollständig
+      - name: Nur Teil der Prüfungen
+        if: github.event_name == 'workflow_dispatch' && inputs.only != ''
+        env:
+          ONLY: ${{ inputs.only }}
+        run: echo "Nur Prüfungen „$ONLY“ – zählt nicht als vollständiger Windows-Lauf"
+
+  linux:
+    needs: changes
+    if: needs.changes.outputs.test == 'true' && needs.changes.outputs.linux != '[]'
+    runs-on: ubuntu-24.04
+    # ein Testlauf dauert rund 18 Minuten (Stand 3.18.0, gut 340 Prüfungen) – mit Luft für langsame Läufer
+    timeout-minutes: 50
     strategy:
       fail-fast: false
       matrix:
-        channel: [release, beta]
+        channel: ${{ fromJSON(needs.changes.outputs.linux) }}
     steps:
       - uses: actions/checkout@v6
 
       - name: Pakete
-        run: sudo apt-get update -q && sudo apt-get install -yq zsh zip xvfb libgtk-3-0t64 libdbus-glib-1-2 libasound2t64 fonts-noto-color-emoji
+        run: sudo apt-get -o Acquire::Retries=5 update -q && sudo apt-get -o Acquire::Retries=5 install -yq zsh zip xvfb libgtk-3-0t64 libdbus-glib-1-2 libasound2t64 fonts-noto-color-emoji
 
       - name: Thunderbird (${{ matrix.channel }})
         run: |
           PRODUCT=thunderbird-latest-SSL
           [ "${{ matrix.channel }}" = beta ] && PRODUCT=thunderbird-beta-latest-SSL
+          [ "${{ matrix.channel }}" = esr ] && PRODUCT=thunderbird-esr-latest-SSL
           curl -sSfL -o tb.tar "https://download.mozilla.org/?product=$PRODUCT&os=linux64&lang=en-US"
           mkdir tb && tar -xf tb.tar -C tb
           tb/thunderbird/thunderbird --version
 
       - name: Test
-        timeout-minutes: 25
-        run: mkdir -p shots && xvfb-run -a -s "-screen 0 1920x1200x24" python3 -u tests/halo_test.py --tb tb/thunderbird/thunderbird --shots shots --tb-log shots/thunderbird.log
+        timeout-minutes: 35
+        env:
+          ONLY: ${{ inputs.only }}
+        run: mkdir -p shots && xvfb-run -a -s "-screen 0 1920x1200x24" python3 -u tests/halo_test.py --tb tb/thunderbird/thunderbird --shots shots --tb-log shots/thunderbird.log ${ONLY:+--only "$ONLY"}
 
       - name: Screenshots
         if: always()
@@ -48,16 +182,110 @@ jobs:
           path: shots/
           if-no-files-found: ignore
 
+  # Prüfungen ohne Thunderbird (rund 1 Minute): Logik-Tests (tests/logik/,
+  # Node), Mozillas Add-on-Prüfung (addons-linter, wie beim Store) und die
+  # Datenschutz-Prüfung – nur Adressen aus der Erlaubt-Liste in tests/adressen.py. Rot heißt wie bei
+  # den übrigen Jobs kein Release; bei gezielten Läufen von Hand nicht
+  statisch:
+    needs: changes
+    if: needs.changes.outputs.test == 'true' && (github.event_name != 'workflow_dispatch' || (inputs.only == '' && inputs.ziel == 'alle'))
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Logik-Tests (ohne Thunderbird)
+        run: node --test tests/logik/*.test.mjs
+
+      - name: Adressen (Datenschutz)
+        run: python3 tests/adressen.py
+
+      - name: Add-on-Prüfung (addons-linter)
+        run: python3 tests/addon_lint.py
+
+  # Windows auf einem Rechner von GitHub (Entscheidung des Maintainers vom 4.11.2026):
+  # läuft gleichzeitig mit mac und belegt neon nicht. Vorerst neben dem Job
+  # windows in der VM zum Vergleich; ist er zwei bis drei Läufe gleich
+  # zuverlässig, ersetzt er ihn. Ohne Grafikkarte zählen Prüfungen am Bildtakt
+  # nur als Warnung (HALO_FRAMES_WARN), Bewegungsabläufe bleiben Fehler.
+  # Seit 9.11.2026 nur noch von Hand (workflow_dispatch), nie bei Push: von 34
+  # gelaufenen Läufen war keiner grün (Stand 9.11.2026). Freigabe des Maintainers
+  # (Sitzung project.analysis.control, 9.11.2026): „deine empfehlungen durchführen“
+  # (Empfehlung: windows-github abschalten, nur von Hand lauffähig).
+  windows-github:
+    needs: changes
+    if: needs.changes.outputs.test == 'true' && needs.changes.outputs.windows == 'true' && github.event_name == 'workflow_dispatch'
+    runs-on: windows-latest
+    timeout-minutes: 60
+    # zum Vergleich: ein Fehler hier macht den Lauf noch nicht rot
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.13'
+
+      - name: Thunderbird
+        shell: pwsh
+        run: |
+          Invoke-WebRequest -Uri "https://download.mozilla.org/?product=thunderbird-latest-SSL&os=win64&lang=en-US" -OutFile tb-setup.exe
+          Start-Process -FilePath .\tb-setup.exe -ArgumentList "/S" -Wait
+          & "C:\Program Files\Mozilla Thunderbird\thunderbird.exe" --version | Out-String
+
+      - name: Bildschirm 1920 × 1080
+        shell: pwsh
+        run: powershell -ExecutionPolicy Bypass -File tests\win-display.ps1 display.txt; Get-Content display.txt -ErrorAction SilentlyContinue
+
+      # Paket wie build.sh (ohne zsh): Bereiche-CSS einfügen, theme.css, zip
+      - name: Paket
+        shell: pwsh
+        run: |
+          python chrome/merge_spaces.py | Out-Null
+          Copy-Item chrome/userChrome.css extension/theme.css
+          New-Item -ItemType Directory -Force dist | Out-Null
+          python -c "import shutil; shutil.make_archive('dist/halo-spaces', 'zip', 'extension')"
+          Move-Item dist/halo-spaces.zip dist/halo-spaces-ci.xpi -Force
+
+      - name: Test Windows hell
+        timeout-minutes: 45
+        shell: pwsh
+        env:
+          ONLY: ${{ inputs.only }}
+          HALO_FRAMES_WARN: '1'
+          PYTHONIOENCODING: utf-8
+        run: |
+          New-Item -ItemType Directory -Force shots | Out-Null
+          $only = @(); if ($env:ONLY) { $only = @("--only", $env:ONLY) }
+          python -u tests/halo_test.py --xpi dist/halo-spaces-ci.xpi --shots shots --tb-log shots/thunderbird.log @only
+
+      - name: Screenshots
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: test-windows-github
+          path: shots/
+          if-no-files-found: ignore
+
   mac:
     # Mac mini mit self-hosted runner (Label halo-mac, Einrichtung: tests/MAC-MINI.md).
     # Das Repo ist öffentlich: Code aus fremden Pull-Requests darf dort nie laufen.
     # Deshalb nur bei Push auf main oder Start von Hand – hier per if:, auf dem Mac
     # zusätzlich per Wächter (tests/mac-runner-hook.sh), den kein Pull-Request ändern kann.
-    if: (github.event_name == 'push' && github.ref == 'refs/heads/main') || github.event_name == 'workflow_dispatch'
+    # Startet erst nach grünem linux (bzw. wenn linux gar nicht lief, z. B. gezielt nur
+    # mac): bei Rot unter Linux spart das 35–55 Minuten neon, das Ergebnis kommt dafür
+    # rund 17 Minuten später (Entscheidung des Maintainers vom 5.11.2026)
+    needs: [changes, linux]
+    if: ${{ !cancelled() && (needs.linux.result == 'success' || needs.linux.result == 'skipped') && needs.changes.outputs.test == 'true' && needs.changes.outputs.mac == 'true' && ((github.event_name == 'push' && github.ref == 'refs/heads/main') || github.event_name == 'workflow_dispatch') }}
     runs-on: [self-hosted, macOS, halo-mac]
-    # hell, dunkel und Beta je gut 14 Minuten
-    timeout-minutes: 90
-    concurrency: halo-mac
+    # hell rund 17 Minuten, mit dunkel rund 35 (Stand 3.18.0, gut 340 Prüfungen), dunkel nur,
+    # wenn Farben betroffen sind (Job changes); Beta nur unter Linux (Entscheidung
+    # des Maintainers vom 3.11.2026)
+    timeout-minutes: 100
+    # keine concurrency-Gruppe: GitHub behielte darin nur einen wartenden Job und
+    # bräche ältere ab (so ging der CI-Lauf eines Nachtlaufs verloren, wenn jemand
+    # dazwischen pushte). Es gibt nur einen Runner mit diesem Label – die Jobs
+    # warten dort ohnehin der Reihe nach, keiner wird verdrängt
     steps:
       - uses: actions/checkout@v6
 
@@ -68,18 +296,17 @@ jobs:
           if python3 tests/halo_test.py --help | grep -- --port >/dev/null; then echo "PORT_OPT=--port 2845" >> "$GITHUB_ENV"; fi
 
       - name: Test hell
-        timeout-minutes: 25
-        run: mkdir -p shots/hell && python3 -u tests/halo_test.py --xpi "$XPI" $PORT_OPT --shots shots/hell --tb-log shots/hell/thunderbird.log
+        timeout-minutes: 45
+        env:
+          ONLY: ${{ inputs.only }}
+        run: mkdir -p shots/hell && python3 -u tests/halo_test.py --xpi "$XPI" $PORT_OPT --shots shots/hell --tb-log shots/hell/thunderbird.log ${ONLY:+--only "$ONLY"}
 
       - name: Test dunkel
-        if: ${{ !cancelled() }}
-        timeout-minutes: 25
-        run: mkdir -p shots/dunkel && python3 -u tests/halo_test.py --xpi "$XPI" $PORT_OPT --dark --shots shots/dunkel --tb-log shots/dunkel/thunderbird.log
-
-      - name: Test Beta
-        if: ${{ !cancelled() }}
-        timeout-minutes: 30
-        run: mkdir -p shots/beta && zsh tests/beta.sh --xpi "$XPI" $PORT_OPT --shots shots/beta --tb-log shots/beta/thunderbird.log
+        if: ${{ !cancelled() && needs.changes.outputs.dark == 'true' }}
+        timeout-minutes: 45
+        env:
+          ONLY: ${{ inputs.only }}
+        run: mkdir -p shots/dunkel && python3 -u tests/halo_test.py --xpi "$XPI" $PORT_OPT --dark --shots shots/dunkel --tb-log shots/dunkel/thunderbird.log ${ONLY:+--only "$ONLY"}
 
       - name: Screenshots
         if: always()
@@ -91,15 +318,18 @@ jobs:
 
   windows:
     # Windows 11 in der Parallels-VM auf dem Mac mini (tests/MAC-MINI.md, Abschnitt 11).
-    # Gleiche Bedingung wie mac – hier nur zusätzlich !cancelled(), damit der Job auch nach
-    # einem roten mac-Lauf startet; Pull-Requests bleiben ausgeschlossen, der Wächter
-    # (tests/mac-runner-hook.sh) prüft auch diesen Job.
-    needs: mac
-    if: ${{ !cancelled() && ((github.event_name == 'push' && github.ref == 'refs/heads/main') || github.event_name == 'workflow_dispatch') }}
+    # Nur von Hand bzw. durch den Nachtlauf (workflow_dispatch, ziel=alle|windows), nicht mehr
+    # bei Push (rund 19 Minuten je Push gespart); release.sh verlangt dafür einen grünen
+    # Windows-Lauf zum Pushstand. !cancelled(), damit der Job auch nach einem roten mac-Lauf
+    # startet; Pull-Requests bleiben ausgeschlossen, der Wächter (tests/mac-runner-hook.sh)
+    # prüft auch diesen Job.
+    # (wie mac erst nach grünem bzw. nicht gelaufenem linux)
+    needs: [changes, linux, mac]
+    if: ${{ !cancelled() && (needs.linux.result == 'success' || needs.linux.result == 'skipped') && needs.changes.outputs.test == 'true' && needs.changes.outputs.windows == 'true' && github.event_name == 'workflow_dispatch' }}
     runs-on: [self-hosted, macOS, halo-mac]
-    # ein Lauf gut 15 Minuten, dazu Fortsetzen der VM
-    timeout-minutes: 40
-    concurrency: halo-mac
+    # ein Lauf rund 19 Minuten, dazu Fortsetzen der VM
+    timeout-minutes: 60
+    # (ohne concurrency-Gruppe, siehe Job mac)
     steps:
       - uses: actions/checkout@v6
 
@@ -108,8 +338,10 @@ jobs:
 
       # vorerst nur hell; setzt die VM fort und pausiert sie danach (gibt den Speicher frei)
       - name: Test Windows hell
-        timeout-minutes: 30
-        run: mkdir -p shots/windows && python3 -u tests/halo_test.py --xpi "$XPI" --vm --port 2845 --shots shots/windows --tb-log shots/windows/thunderbird.log
+        timeout-minutes: 45
+        env:
+          ONLY: ${{ inputs.only }}
+        run: mkdir -p shots/windows && python3 -u tests/halo_test.py --xpi "$XPI" --vm --port 2845 --shots shots/windows --tb-log shots/windows/thunderbird.log ${ONLY:+--only "$ONLY"}
 
       - name: Screenshots
         if: always()

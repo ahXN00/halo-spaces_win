@@ -8,7 +8,7 @@ A Windows port of [halo.spaces](https://github.com/sruf79/halo-spaces), the calm
 Mozilla Thunderbird inspired by Apple Mail, Calendar and Contacts. The original is made and tuned on
 macOS. This fork adjusts it so Thunderbird on **Windows 11** looks and behaves the same as it does there.
 
-It is one package for Thunderbird 128+: the theme, its own Apple-style icons, and an extension for the
+It is one package for Thunderbird 153+: the theme, its own Apple-style icons, and an extension for the
 things CSS alone can't do.
 
 > This fork is a staging place for Windows fixes, not a separate add-on. The fixes are offered back to
@@ -46,13 +46,10 @@ What this fork changes for Windows
 - **Font**: Segoe UI Variable, Windows 11's UI font and the closest match to Apple's SF Pro. Windows 10 falls back to Segoe UI
 - **Menus like the Mac**: the ≡ menu button is hidden, as on macOS. Press **Alt** for the menu bar (File, Edit, View …), shown as a full-width strip at the top of the window, which also works in the compose and event windows. ≡ comes back by itself when Thunderbird has something to tell you, such as an update that needs a restart
 - **Today pane**: its top strip leaves room for the Windows minimise, maximise and close buttons, so the title and the "+" never overlap them
-- **Folder pane**: the Get Messages, New Message and "…" buttons sit at the right in the intended order (newer Thunderbird versions mirrored them)
-- **Event window**: "Add Location or Video Call" spans the whole card instead of being cut off by the wider Windows font
 - **Help window** (Help → halo.spaces…) sizes itself to its content, also at 125 % and 150 % display scaling
 - **Settings → Appearance** says "follow Windows" instead of "follow macOS". The macOS-only option (photos from the Contacts app) is hidden
 - **Local folders** are titled "On This PC" (like Windows' "This PC") instead of "On My Mac"
 - **Favourites**: Settings → halo.spaces → Mail can show all unified folders (Drafts, Trash, Spam, Archives …), not only All Inboxes and All Sent
-- **Space arrow**: the arrow next to the current space no longer shows a thin bar at 125 % and 150 % display scaling
 - No "made for macOS" notice, and no feedback or donation buttons
 - Updates come from this repository, never from the macOS original
 

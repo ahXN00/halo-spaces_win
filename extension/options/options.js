@@ -99,6 +99,33 @@ function placeSuggestions(input, onPick) {
   return list;
 }
 
+function updateRow(pending) {
+  const button = el("button", { type: "button", class: "accent", textContent: t("Install Now") });
+  button.addEventListener("click", async () => {
+    button.disabled = true;
+    await api.installUpdateNow();
+  });
+  const text = el("span", { class: "text" },
+    el("span", { class: "label", textContent: t("halo.spaces {version} is available").replace("{version}", pending.version) }),
+    el("span", { class: "hint", textContent: pending.auto
+      ? t("Or it installs on the next start. Thunderbird briefly shows its own look while updating.")
+      : t("Automatic updates are off.") }));
+  return el("section", { class: "update", id: "s-update" }, el("div", { class: "row" }, text, button));
+}
+
+// Update erst gefunden, nachdem die Seite schon offen war (der rote Punkt
+// erscheint sofort): die Zeile nachträglich ganz oben einsetzen
+async function watchUpdate() {
+  if (document.getElementById("s-update")) {
+    return;
+  }
+  const pending = await api.getPendingUpdate().catch(() => null);
+  const main = document.getElementById("settings");
+  if (pending && main?.firstChild && !document.getElementById("s-update")) {
+    main.prepend(updateRow(pending));
+  }
+}
+
 async function render() {
   settings = await api.getSettings();
   const { lang, table } = await api.getTranslations();
@@ -113,10 +140,15 @@ async function render() {
   // (wie „General“, „Language & Fonts“ …), links mit festem Abstand
   const inPrefs = new URLSearchParams(location.search).get("in") == "prefs";
   document.documentElement.classList.toggle("in-prefs", inPrefs);
+  // Update liegt bereit: ganz oben eine Zeile mit „Install Now“
+  const pending = await api.getPendingUpdate();
+  if (pending) {
+    main.append(updateRow(pending));
+  }
   for (const [title, rows, opts = {}] of SECTIONS(t)) {
     const section = el("section");
     for (const row of rows) {
-      if ((row.mac && !settings.mac) || (row.needs && !settings[row.needs])) continue;
+      if ((row.mac && !settings.mac) || (row.notMac && settings.mac) || (row.needs && !settings[row.needs])) continue;
       const id = `s-${row.key}`;
       const badge = savedBadge();
       const label = el("span", { class: "label", textContent: row.label });
@@ -132,19 +164,7 @@ async function render() {
         updateDependent();
       };
       let control;
-      if (row.type == "chat") {
-        // Chat an/aus; bei Aus erscheint darunter „Stattdessen“
-        control = el("input", { id, type: "checkbox", class: "switch", checked: settings.fifthSpace == "chat", role: "switch" });
-        control.addEventListener("change", async () => {
-          const value = control.checked ? "chat" : "none";
-          await api.setSetting("fifthSpace", value);
-          settings.fifthSpace = value;
-          const insteadSelect = document.getElementById("s-fifthSpace");
-          if (insteadSelect) insteadSelect.value = value == "chat" ? "none" : value;
-          flash(badge);
-          updateDependent();
-        });
-      } else if (row.type == "select") {
+      if (row.type == "select") {
         // feste Auswahl (options) oder Liste von der Erweiterung (choices: [{ value, label }])
         const list = row.choices ? settings[row.choices] || [] : row.options.map(o => ({ value: o,
           label: row.labels?.[o] ?? (row.unit ? `${o} ${row.unit}` : String(o)) }));
@@ -154,40 +174,106 @@ async function render() {
         }
         control.value = String(settings[row.key]);
         if (control.selectedIndex < 0) control.selectedIndex = 0;
-        // fünfter Bereich: Auswahl ohne passende Erweiterung nicht anbieten
-        if (row.key == "fifthSpace" && !(settings.fifthSpaceAddons || []).length) {
-          const opt = control.querySelector('option[value="addon"]');
-          if (opt) {
-            opt.disabled = true;
-            opt.textContent += ` (${t("none installed")})`;
-          }
-        }
         const numeric = typeof (row.options || [])[0] == "number";
         control.addEventListener("change", () => save(numeric ? Number(control.value) : control.value));
       } else if (row.type == "place") {
-        // Ort fürs Wetter: Vorschläge beim Tippen, darunter das Ergebnis (Ort und Temperatur bzw. Hinweis)
-        const input = el("input", { id, type: "text", value: settings[row.key] || "", placeholder: row.placeholder || "", spellcheck: false, class: "place" });
-        const status = el("span", { class: "hint status", textContent: settings.weatherStatus || "" });
-        const refresh = async () => (status.textContent = (await api.getSettings()).weatherStatus || "");
-        let timer = null;
+        // Ort fürs Wetter wie in den Systemeinstellungen: Auswahlmenü mit
+        // „➤ Current Location“, den zuletzt gewählten Orten und „Choose City…“
+        // (öffnet die Suche mit Vorschlägen; Esc kehrt zum vorigen Ort zurück);
+        // darunter immer der Zustand mit Punkt (grün: Wetter, orange: Hinweis)
+        const menu = el("select", { id, class: "place-menu" });
+        const input = el("input", { type: "text", placeholder: row.placeholder || "", spellcheck: false, class: "place", hidden: true });
+        const dot = el("span", { class: "dot" });
+        const statusText = el("span");
+        const link = el("button", { type: "button", class: "link", textContent: t("Open System Settings…"), hidden: true });
+        link.addEventListener("click", () => api.openLocationSettings());
+        // Standort nicht zu bekommen (nicht abgelehnt): gleich zur Stadtwahl
+        const chooseLink = el("button", { type: "button", class: "link", textContent: t("Choose City…"), hidden: true });
+        chooseLink.addEventListener("click", () => {
+          menu.value = "choose";
+          menu.dispatchEvent(new Event("change"));
+        });
+        const status = el("span", { class: "hint status" }, dot, statusText, link, chooseLink);
+        const paint = s => {
+          statusText.textContent = s.weatherStatus || "";
+          status.dataset.tone = s.weatherTone || "";
+          status.hidden = !s.weatherStatus;
+          const current = !s.weatherPlace;
+          chooseLink.hidden = !(current && s.weatherCode == "unavailable");
+          link.hidden = !s.weatherLink || !chooseLink.hidden;
+        };
+        const fill = s => {
+          const place = s.weatherPlace || "";
+          const recent = (s.weatherRecent || []).slice();
+          if (place && !recent.some(p => p.label == place)) recent.unshift({ label: place });
+          menu.replaceChildren(el("option", { value: "current", textContent: `➤ ${t("Current Location")}` }),
+            ...recent.map((p, i) => el("option", { value: `r${i}`, textContent: p.label })),
+            el("option", { value: "", textContent: "──────────", disabled: true }),
+            el("option", { value: "choose", textContent: t("Choose City…") }));
+          menu.__recent = recent;
+          menu.value = place ? `r${recent.findIndex(p => p.label == place)}` : "current";
+          menu.__last = menu.value;
+        };
+        const refresh = async () => {
+          const s = await api.getSettings();
+          Object.assign(settings, { weatherPlace: s.weatherPlace, weatherRecent: s.weatherRecent });
+          fill(s);
+          paint(s);
+          return s;
+        };
+        fill(settings);
+        paint(settings);
+        const closeSearch = () => {
+          input.hidden = true;
+          input.value = "";
+          menu.hidden = false;
+        };
         const list = placeSuggestions(input, async p => {
-          clearTimeout(timer);
+          closeSearch();
           await api.choosePlace(p);
-          settings.weatherPlace = p.label;
           flash(badge);
           refresh();
         });
-        input.addEventListener("input", () => {
-          clearTimeout(timer);
-          // leer: aktueller Standort; sonst erst nach einer Pause (Vorschläge haben Vorrang)
-          timer = setTimeout(async () => {
-            if (input.value.trim()) return;
+        menu.addEventListener("change", async () => {
+          const value = menu.value;
+          if (value == "choose") {
+            menu.hidden = true;
+            input.hidden = false;
+            input.focus();
+            return;
+          }
+          menu.__last = value;
+          if (value == "current") {
             await save("");
-            refresh();
-          }, 800);
+          } else {
+            const p = menu.__recent[Number(value.slice(1))];
+            if (p?.lat != null) {
+              await api.choosePlace(p);
+              flash(badge);
+            }
+          }
+          refresh();
         });
+        input.addEventListener("keydown", e => {
+          if (e.key == "Escape") {
+            closeSearch();
+            menu.value = menu.__last;
+          } else if (e.key == "Enter") {
+            list.querySelector("button")?.click();
+          }
+        });
+        input.addEventListener("blur", () => setTimeout(() => {
+          if (!input.hidden && document.activeElement != input) {
+            closeSearch();
+            menu.value = menu.__last;
+          }
+        }, 200));
+        // „Locating…“: Ergebnis nachholen, sobald es da ist
+        setInterval(() => {
+          if (!status.hidden && !status.dataset.tone && settings.weather) refresh();
+        }, 2000);
         text.append(status);
-        control = el("span", { class: "place-box" }, input, list);
+        control = el("span", { class: "place-box" }, menu, input, list);
       } else if (row.type == "url") {
         const input = el("input", { id, type: "url", value: settings[row.key] || "", placeholder: row.placeholder || "", spellcheck: false, class: "place" });
         const status = el("span", { class: "hint status" });
@@ -224,6 +310,9 @@ async function render() {
       section.append(node);
       if (row.showIf) dependent.push({ row, node });
     }
+    // Abschnitt ohne sichtbare Zeile (z. B. „Spaces“, solange die Reihenfolge
+    // nicht eigen ist) nicht als leere Überschrift zeigen (GitHub #58)
+    if (!section.children.length) continue;
     if (opts.collapsed) {
       // eingeklappt: Überschrift als Knopf mit Pfeil
       const head = el("button", { type: "button", class: "disclosure", "aria-expanded": "false" }, title);
@@ -259,4 +348,4 @@ function showFound() {
 }
 window.addEventListener("hashchange", showFound);
 
-render().then(showFound);
+render().then(showFound).then(() => setInterval(watchUpdate, 2000));

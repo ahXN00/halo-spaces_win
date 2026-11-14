@@ -40,6 +40,17 @@
   visibility: visible !important;
 }
 
+/* Zeitkarte wie Apple Kalender: Wiederholen, Hinweis und Anzeigen als ohne
+   Pfeil, Text ohne Einzug auf der Linie der übrigen Werte (spaces.css) */
+:root[mc-apple-event] #event-grid tr[data-mc-card="time"] menulist:not(datepicker menulist, timepicker menulist)::part(dropmarker) {
+  display: none !important;
+}
+
+:root[mc-apple-event] #event-grid tr[data-mc-card="time"] menulist:not(datepicker menulist, timepicker menulist)::part(label) {
+  margin-inline: 0 !important;
+  padding-inline: 0 !important;
+}
+
 /* Termin-Dialog: Farbchips der gewählten Kategorien im Feld mit feinem Ring
    wie die Punkte im Menü (spaces.css) – helle bzw. dunkle Farben verschwanden */
 #item-categories::part(color) {
@@ -114,6 +125,47 @@ addon-card .more-options-button::part(button):hover {
   background-color: var(--mt-hover) !important;
 }
 
+/* Add-ons-Verwaltung: Symbolknöpfe im Seitenkopf (Zurück, Zahnrad, Lupe
+   neben der Suche) als runde 28-px-Knöpfe mit der üblichen Knopffläche
+   statt eckig ohne Fläche; die Knöpfe in der Karte bleiben wie oben */
+:is(addon-page-header .back-button, addon-page-header .page-options-menu .more-options-button, search-addons moz-button)::part(button) {
+  width: 28px !important;
+  height: 28px !important;
+  min-width: 28px !important;
+  min-height: 28px !important;
+  padding: 0 !important;
+  border: none !important;
+  border-radius: 999px !important;
+  background-color: var(--mt-control) !important;
+  box-shadow: none !important;
+}
+
+:is(addon-page-header .back-button, addon-page-header .page-options-menu .more-options-button, search-addons moz-button)::part(button):hover {
+  background-color: var(--mt-control-hover) !important;
+}
+
+/* Zurück im Seitenkopf: Thunderbird malt den Pfeil zusätzlich als Hintergrund
+   des Knopfs, neben dem Bild im Knopf erschien er doppelt (GitHub #55) */
+addon-page-header .back-button {
+  background-image: none !important;
+}
+
+/* Add-ons-Verwaltung: Textknöpfe in den Karten („Enable“ bei den Themes)
+   als 28-px-Kapsel mit der üblichen Knopffläche wie die übrigen Knöpfe in
+   halo.spaces statt 24 px hoch; die Symbolknöpfe „…“ bleiben wie oben */
+addon-card moz-button:not(.more-options-button)::part(button) {
+  min-height: 28px !important;
+  padding-inline: 12px !important;
+  border: none !important;
+  border-radius: 999px !important;
+  background-color: var(--mt-control) !important;
+  box-shadow: none !important;
+}
+
+addon-card moz-button:not(.more-options-button)::part(button):hover {
+  background-color: var(--mt-control-hover) !important;
+}
+
 /* Add-ons-Verwaltung: Zeilen der Menüs („…“ an der Karte, Zahnrad im Kopf)
    wie die übrigen halo-Menüs – 22 px hoch, 6 px Radius, beim Überfahren und
    mit Tastaturfokus Akzentfläche statt Grau bzw. blauem Rechteckring. Hover
@@ -134,14 +186,6 @@ addon-card .more-options-button::part(button):hover {
   background-color: var(--mt-accent) !important;
   color: var(--mt-accent-text) !important;
   outline: none !important;
-}
-
-/* Uhrzeit-Popover im Termin-/Aufgaben-Fenster (.mc-time-panel): Fläche und
-   Rand wie die übrigen halo-Popovers statt Thunderbirds bläulicher Panelfarbe */
-.mc-time-panel::part(content) {
-  background: var(--mt-popover-bg, Canvas) !important;
-  border-color: var(--mt-tooltip-border, transparent) !important;
-  border-radius: 12px !important;
 }
 
 /* Verfassen: Absender wie Apple Mail nur „Name <Adresse>“, ohne das Konto
