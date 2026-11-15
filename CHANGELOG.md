@@ -3,6 +3,14 @@
 Changes in this fork compared with [halo.spaces](https://github.com/sruf79/halo-spaces). Upstream's
 own release notes are on its [Releases](https://github.com/sruf79/halo-spaces/releases) page.
 
+## Printing, 2026-11-15
+
+**Tested with Thunderbird on Windows 11 at 125 % scaling: targeted checks pass (context menu, all conversation checks)**
+
+### 🐛 Fixes
+- **"Print…" back in the mail right-click menu on Windows** (the menu bar is hidden there, so Print had no visible place)
+- **Printing a conversation prints all its messages in one printout**, not just one
+
 ## Merged halo.spaces 3.27.0, 2026-11-14
 
 **Tested with Thunderbird 160 on Windows 11 at 125 % scaling: targeted checks pass, plus 168 checks of a partial full light run (stopped early)**

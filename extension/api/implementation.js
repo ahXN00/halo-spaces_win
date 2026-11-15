@@ -1595,6 +1595,51 @@ class ConversationCards {
       cards.reduce((a, b) => (!a || b.__mcHdr.date > a.__mcHdr.date ? b : a), null);
   }
 
+  // Drucken wie Apple Mail: die ganze angezeigte Konversation in einem Ausdruck
+  // (Thunderbird druckt nur die gewählte Mail). Jede Mail einzeln in den
+  // verborgenen Druck-Browser laden, die Inhalte zusammenfügen, dann die
+  // normale Druckvorschau. false: keine Konversation sichtbar
+  async print() {
+    const hdrs = this.box?.isConnected ? [...this.box.querySelectorAll(".mc-conv-card")].map(c => c.__mcHdr).filter(h => h?.folder) : [];
+    if (hdrs.length < 2) {
+      return false;
+    }
+    const PU = this.win.top.PrintUtils;
+    const browser = PU.printBrowser;
+    const parts = [];
+    for (const hdr of hdrs) {
+      const uri = hdr.folder.getUriForMsg(hdr);
+      const url = MailServices.messageServiceFromURI(uri).getUrlForUri(uri).spec;
+      // schon geladen, aber von einem früheren Ausdruck zusammengefügt: neu laden
+      if (browser.currentURI?.spec == url && browser.contentDocument?.__mcMerged) {
+        await new Promise(resolve => {
+          browser.addEventListener("load", resolve, { capture: true, once: true });
+          browser.reload();
+        });
+      }
+      await PU.loadPrintBrowser(url);
+      const body = browser.contentDocument?.body;
+      if (!body) {
+        return false;
+      }
+      parts.push(body.cloneNode(true));
+    }
+    const doc = browser.contentDocument;
+    doc.__mcMerged = true;
+    const nodes = [];
+    parts.forEach((body, i) => {
+      if (i) {
+        const hr = doc.createElement("hr");
+        hr.style.cssText = "margin: 2em 0; border: none; border-top: 1px solid #ccc;";
+        nodes.push(hr);
+      }
+      nodes.push(...doc.importNode(body, true).childNodes);
+    });
+    doc.body.replaceChildren(...nodes);
+    PU.startPrintWindow(browser.browsingContext, {});
+    return true;
+  }
+
   render(messages, selected, { indexed, thread }) {
     const win = this.win, doc = win.document;
     this.thread = !!thread;
@@ -16468,7 +16513,9 @@ class CardEnhancer {
     $("mailContext-markFlagged")?.removeAttribute("type");
     const off = ["mailContext-open", "mailContext-reply", "mailContext-forwardRedirect", "mailContext-moveToFolderAgain",
       "mailContext-tags", "mailContext-mark", "mailContext-organize", "mailContext-threads", "mailContext-saveAs",
-      "mailContext-print", "mailContext-navigation", "mailContext-sep-navigation"].map($).filter(Boolean);
+      // Windows: Menüleiste ist versteckt, Drucken bleibt daher im Kontextmenü
+      ...(Services.appinfo.OS == "WINNT" ? [] : ["mailContext-print"]),
+      "mailContext-navigation", "mailContext-sep-navigation"].map($).filter(Boolean);
     off.forEach(el => el.setAttribute("mc-ctx-off", ""));
     const onShowing = event => {
       if (event.target != popup) {
@@ -17647,6 +17694,13 @@ class CardEnhancer {
         return isOn.call(this, command, ...rest);
       };
       cc.doCommand = function (command, ...rest) {
+        if (command == "cmd_print" && conv.box?.isConnected && conv.box.querySelectorAll(".mc-conv-card").length >= 2) {
+          conv.print().then(done => !done && doIt.call(this, command, ...rest)).catch(e => {
+            log("conversation print error", String(e).slice(0, 160));
+            doIt.call(this, command, ...rest);
+          });
+          return undefined;
+        }
         const card = CONV_CMDS.has(command) && conv.threadTarget();
         if (card) {
           return self.cardAction({}, card, command);

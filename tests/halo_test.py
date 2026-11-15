@@ -1623,6 +1623,31 @@ def maillist_checks(m, results):
         return ok, f"{res}"
     check("Konversation: schnelles Durchklicken lässt keine Karten zurück, auch wenn ihre Mailansicht noch lädt", conversation_fast_switch, results)
 
+    def conversation_print():
+        # Drucken einer angezeigten Konversation: alle Mails in einem Ausdruck (Druckvorschau abgefangen),
+        # zweimal hintereinander gleich (der zusammengefügte Ausdruck wird nicht erneut zusammengefügt)
+        res = m.js(MAILLIST_JS + r"""
+          await showFolder(); await asCards(); a3.gViewWrapper.showThreaded = true; await ruhig(600); cmd("cmd_collapseAllThreads"); await ruhig(800);
+          const doc = a3.document, PU = w.PrintUtils, orig = PU.startPrintWindow, out = { runs: [] };
+          a3.threadTree.selectedIndex = [...Array(a3.gDBView.rowCount).keys()].find(k => /Halo Faden/.test(a3.gDBView.getMsgHdrAt(k).mime2DecodedSubject));
+          await bis(() => doc.querySelectorAll("#mcConversation .mc-conv-card").length >= 2, "Karten", 5000);
+          out.cards = doc.querySelectorAll("#mcConversation .mc-conv-card").length;
+          try {
+            for (let i = 0; i < 2; i++) {
+              let got = null;
+              PU.startPrintWindow = bc => { got = bc; };
+              cmd("cmd_print");
+              await bis(() => got, "Druckvorschau", 15000);
+              const d = got.document || PU.printBrowser.contentDocument;
+              out.runs.push({ hr: d.querySelectorAll("body > hr").length, text: d.body.textContent.length });
+            }
+          } finally { PU.startPrintWindow = orig; }
+          return out;""")
+        runs = res.get("runs") or []
+        ok = len(runs) == 2 and runs[0]["hr"] == res.get("cards", 0) - 1 and runs[0] == runs[1]
+        return ok, f"{res}"
+    check("Konversation: Drucken gibt die ganze Konversation in einem Ausdruck aus", conversation_print, results)
+
     def date_weight():
         res = m.js(MAILLIST_JS + r"""
           await showFolder(); await asCards();
@@ -4876,6 +4901,11 @@ def menu_checks(m, results):
           hdr.folder.markMessagesFlagged([hdr], false); await ruhig(300);
           return out;""")
         rows = [r for r in res.get("rows", []) if r != "|"]
+        # Windows: Menüleiste versteckt, daher steht „Print…“ zuletzt im Kontextmenü
+        if sys.platform == "win32":
+            if rows[-1:] != ["Print…"]:
+                return False, f"Print… fehlt am Ende: {res}"
+            rows = rows[:-1]
         order = ["mcContextOpen", "mailContext-editAsNew", "mailContext-replySender", "mailContext-replyAll", "mailContext-replyList",
                  "mailContext-replyNewsgroup", "mailContext-forward", "mailContext-forwardAsAttachment", "mailContext-redirect", "mcRemindMenu",
                  "mailContext-markRead", "mailContext-markUnread", "mailContext-markFlagged", "mailContext-markAsJunk", "mailContext-markAsNotJunk",
